@@ -110,7 +110,7 @@ namespace ReadyM.Relay.Client
 
         public Player? GetPlayerState(int playerId)
         {
-            return OtherPlayers.GetValueOrDefault(playerId);
+            return playerId == LocalPlayer.ActorNumber ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
         }
 
         public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
