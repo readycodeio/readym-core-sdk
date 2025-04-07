@@ -13,9 +13,9 @@ namespace ReadyM.Relay.Client
 {
     public sealed class RelayClient : RelayPeerBase, IDisposable
     {
-        private const string Host = "68.154.30.5";
-        private const int Port = 7134;
-        
+        private readonly string _host;
+        private readonly int _port;
+
         private readonly EventBasedNetListener _listener;
         private readonly NetManager _client;
         private readonly Action<LogLevel, string, object?[]> _logger;
@@ -57,8 +57,11 @@ namespace ReadyM.Relay.Client
             }
         }
 
-        public RelayClient(Action<LogLevel, string, object?[]> logger)
+        public RelayClient(string host, int port, Action<LogLevel, string, object?[]> logger)
         {
+            _host = host;
+            _port = port;
+
             _listener = new EventBasedNetListener();
             _listener.NetworkReceiveEvent += OnListenerOnNetworkReceiveEvent;
             _listener.NetworkLatencyUpdateEvent += OnNetworkLatencyUpdateEvent;
@@ -80,12 +83,12 @@ namespace ReadyM.Relay.Client
         public void Start()
         {
             _client.Start();
-            _client.Connect(Host, Port, "Wukong"); // TODO: JWT
+            _client.Connect(_host, _port, "Wukong"); // TODO: JWT
 
             _isRunning = true;
             _clientThread = new Thread(() =>
             {
-                Log(LogLevel.Information, "Running relay client on port {0}", Port);
+                Log(LogLevel.Information, "Running relay client on port {0}", _port);
                 while (_isRunning)
                 {
                     _client.PollEvents();
