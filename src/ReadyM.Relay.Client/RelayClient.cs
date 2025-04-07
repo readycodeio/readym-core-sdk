@@ -14,8 +14,8 @@ namespace ReadyM.Relay.Client
     public sealed class RelayClient : RelayPeerBase, IDisposable
     {
         private const string Host = "68.154.30.5";
-        private const int Port = 7128;
-
+        private const int Port = 7134;
+        
         private readonly EventBasedNetListener _listener;
         private readonly NetManager _client;
         private readonly Action<LogLevel, string, object?[]> _logger;
