@@ -13,6 +13,7 @@ public class Player
         Properties = properties;
     }
 
+    // TODO: Optimize access
     public int ActorNumber
     {
         get => Properties.TryGetValue(PlayerProperties.ActorNumber, out var value) ? (int)value : Constants.UnsetPlayerId;

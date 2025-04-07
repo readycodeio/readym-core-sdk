@@ -27,7 +27,6 @@ namespace ReadyM.Relay.Client
         public Player LocalPlayer { get; set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
 
-        public int ActorId { get; private set; } = -1;
         public bool InRoom { get; private set; }
 
         public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
@@ -139,7 +138,7 @@ namespace ReadyM.Relay.Client
         public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
         {
             var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, ActorId, mode);
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.ActorNumber, mode);
 
             if (data != null)
             {
@@ -149,26 +148,6 @@ namespace ReadyM.Relay.Client
             Log(LogLevel.Debug, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
         }
-
-        // [Obsolete]
-        // public void RegisterType(
-        //     Type customType,
-        //     byte code,
-        //     SerializeStreamMethod serializeMethod,
-        //     DeserializeStreamMethod deserializeMethod)
-        // {
-        //     RegisterType(customType, code, (writer, customObject) =>
-        //     {
-        //         var stream = new StreamBuffer();
-        //         serializeMethod(stream, customObject);
-        //         writer.PutBytesWithLength(stream.GetBuffer());
-        //     }, reader =>
-        //     {
-        //         var bytes = reader.GetBytesWithLength();
-        //         var buffer = new StreamBuffer(bytes);
-        //         return deserializeMethod(buffer, 0);
-        //     });
-        // }
 
         public void Dispose()
         {
@@ -188,8 +167,8 @@ namespace ReadyM.Relay.Client
             {
                 case SystemEvent.ActorNumberAssigned:
                 {
-                    ActorId = reader.GetInt();
-                    Log(LogLevel.Information, "Assigned Actor ID {0}", ActorId);
+                    LocalPlayer.ActorNumber = reader.GetInt();
+                    Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.ActorNumber);
 
                     // send joined room event
                     var writer = new NetDataWriter();
@@ -205,7 +184,7 @@ namespace ReadyM.Relay.Client
                     var changes = DeserializeObject<Dictionary<object, object?>>(reader);
 
                     Dictionary<object, object?> diff;
-                    if (playerId == ActorId)
+                    if (playerId == LocalPlayer.ActorNumber)
                     {
                         diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
                     }
@@ -236,7 +215,7 @@ namespace ReadyM.Relay.Client
                     var initialState = DeserializeObject<Dictionary<object, object>>(reader);
                     var newPlayer = new Player(initialState);
 
-                    if (playerId == ActorId)
+                    if (playerId == LocalPlayer.ActorNumber)
                     {
                         LocalPlayer = newPlayer;
                         InRoom = true;
