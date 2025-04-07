@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using JetBrains.Annotations;
 using LiteNetLib;
@@ -34,7 +35,7 @@ namespace ReadyM.Relay.Client
         public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
         public event Action? OnJoinedRoom;
         public event Action<DisconnectReason>? OnDisconnected;
-
+        public event Action<int>? OnPingUpdated;
 
         /// <summary>
         /// At this point the connecting player has been assigned an ID and we have synced their state.
@@ -186,23 +187,27 @@ namespace ReadyM.Relay.Client
                     var playerId = reader.GetInt();
                     var changes = DeserializeObject<Dictionary<object, object?>>(reader);
 
-                    Dictionary<object, object?> diff;
                     if (playerId == LocalPlayer.ActorNumber)
                     {
-                        diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
+                        var diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
+                        OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                     }
                     else
                     {
                         if (!OtherPlayers.TryGetValue(playerId, out var player))
                         {
-                            Log(LogLevel.Warning, "Player {0} not found", playerId);
-                            return;
+                            Log(LogLevel.Debug, "Received initial state for player {0}", playerId);
+                            OtherPlayers[playerId] = new Player(changes
+                                .Where(x => x.Value != null)
+                                .ToDictionary(x => x.Key, x => x.Value!));
                         }
-
-                        diff = UpdateAndGetDiff(player.Properties, changes);
+                        else
+                        {
+                            var diff = UpdateAndGetDiff(player.Properties, changes);
+                            OnPlayerPropertiesChanged?.Invoke(playerId, diff);
+                        }
                     }
 
-                    OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                     return;
                 }
                 case SystemEvent.RoomStateChanged:
@@ -255,7 +260,7 @@ namespace ReadyM.Relay.Client
 
         private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
         {
-            Log(LogLevel.Debug, "Network latency updated: {0}ms", latency);
+            OnPingUpdated?.Invoke(latency);
         }
 
         private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
