@@ -8,12 +8,6 @@ public class Room
 {
     public Dictionary<object, object> Properties { get; } = new();
 
-    public string RoomId
-    {
-        get => Properties.TryGetValue(RoomProperties.RoomId, out var value) ? value.ToString() : string.Empty;
-        set => Properties[RoomProperties.RoomId] = value;
-    }
-
     public int MasterClientId => 
         Properties.TryGetValue(RoomProperties.MasterClientId, out var value) ? (int)value : Constants.UnsetPlayerId;
 
