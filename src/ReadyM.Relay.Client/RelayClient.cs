@@ -17,6 +17,7 @@ namespace ReadyM.Relay.Client
         private readonly string _host;
         private readonly int _port;
 
+        private readonly Random _rng = new();
         private readonly EventBasedNetListener _listener;
         private readonly NetManager _client;
         private readonly Action<LogLevel, string, object?[]> _logger;
@@ -262,7 +263,9 @@ namespace ReadyM.Relay.Client
 
         private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
         {
-            OnPingUpdated?.Invoke(latency);
+            // Round trip time. LiteNetLib reports one way latency, so we double it.
+            // We add a random jitter so that the results are not always divisible by 2.
+            OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
         }
 
         private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
