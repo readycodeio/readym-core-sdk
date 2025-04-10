@@ -71,6 +71,8 @@ namespace ReadyM.Relay.Client
             _client = new NetManager(_listener)
             {
                 AutoRecycle = true,
+                EnableStatistics = true,
+                DisconnectOnUnreachable = true
             };
             _logger = logger;
         }
