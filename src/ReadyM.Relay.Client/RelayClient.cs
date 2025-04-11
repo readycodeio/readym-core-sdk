@@ -14,6 +14,7 @@ namespace ReadyM.Relay.Client
 {
     public sealed class RelayClient : RelayPeerBase, IDisposable
     {
+        private readonly Guid _userGuid;
         private readonly string _host;
         private readonly int _port;
 
@@ -25,9 +26,11 @@ namespace ReadyM.Relay.Client
         private Thread? _clientThread;
         private bool _isRunning;
 
-        public Room RoomState { get; } = new();
+        public Room RoomState { get; }
         public Player LocalPlayer { get; set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
+
+        public IEnumerable<Player> AllPlayers => OtherPlayers.Values.Append(LocalPlayer);
 
         public bool InRoom { get; private set; }
 
@@ -59,8 +62,9 @@ namespace ReadyM.Relay.Client
             }
         }
 
-        public RelayClient(string host, int port, Action<LogLevel, string, object?[]> logger)
+        public RelayClient(Guid userGuid, string host, int port, Action<LogLevel, string, object?[]> logger)
         {
+            _userGuid = userGuid;
             _host = host;
             _port = port;
 
@@ -76,6 +80,8 @@ namespace ReadyM.Relay.Client
                 DisconnectOnUnreachable = true
             };
             _logger = logger;
+
+            RoomState = new Room(this);
         }
 
         private void OnServerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
@@ -87,7 +93,7 @@ namespace ReadyM.Relay.Client
         public void Start()
         {
             _client.Start();
-            _client.Connect(_host, _port, "Wukong"); // TODO: JWT
+            _client.Connect(_host, _port, _userGuid.ToString());
 
             _isRunning = true;
             _clientThread = new Thread(() =>
@@ -113,7 +119,7 @@ namespace ReadyM.Relay.Client
 
         public Player? GetPlayerState(int playerId)
         {
-            return playerId == LocalPlayer.ActorNumber ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
+            return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
         }
 
         public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
@@ -142,10 +148,24 @@ namespace ReadyM.Relay.Client
             Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
+        public void OpRaiseEvent(byte eventCode, object? data, int[] peers, DeliveryMethod deliveryMethod)
+        {
+            var writer = new NetDataWriter();
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers);
+
+            if (data != null)
+            {
+                SerializeObject(writer, data);
+            }
+
+            Log(LogLevel.Debug, "Sending event {0}", eventCode);
+            Server?.Send(writer, deliveryMethod);
+        }
+
         public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
         {
             var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.ActorNumber, mode);
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode);
 
             if (data != null)
             {
@@ -172,10 +192,10 @@ namespace ReadyM.Relay.Client
 
             switch ((SystemEvent)eventCode)
             {
-                case SystemEvent.ActorNumberAssigned:
+                case SystemEvent.PeerIdAssigned:
                 {
-                    LocalPlayer.ActorNumber = reader.GetInt();
-                    Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.ActorNumber);
+                    LocalPlayer.PeerId = reader.GetInt();
+                    Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PeerId);
 
                     // send joined room event
                     var writer = new NetDataWriter();
@@ -190,7 +210,7 @@ namespace ReadyM.Relay.Client
                     var playerId = reader.GetInt();
                     var changes = DeserializeObject<Dictionary<object, object?>>(reader);
 
-                    if (playerId == LocalPlayer.ActorNumber)
+                    if (playerId == LocalPlayer.PeerId)
                     {
                         var diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
                         OnPlayerPropertiesChanged?.Invoke(playerId, diff);
@@ -226,7 +246,7 @@ namespace ReadyM.Relay.Client
                     var initialState = DeserializeObject<Dictionary<object, object>>(reader);
                     var newPlayer = new Player(initialState);
 
-                    if (playerId == LocalPlayer.ActorNumber)
+                    if (playerId == LocalPlayer.PeerId)
                     {
                         LocalPlayer = newPlayer;
                         InRoom = true;

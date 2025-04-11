@@ -4,25 +4,14 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public class Player
+public class Player(Dictionary<object, object> properties)
 {
-    public Dictionary<object, object> Properties { get; set; }
-
-    public Player(Dictionary<object, object> properties)
-    {
-        Properties = properties;
-    }
+    public Dictionary<object, object> Properties { get; } = properties;
 
     // TODO: Optimize access
-    public int ActorNumber
+    public int PeerId
     {
-        get => Properties.TryGetValue(PlayerProperties.ActorNumber, out var value) ? (int)value : Constants.UnsetPlayerId;
-        set => Properties[PlayerProperties.ActorNumber] = value;
-    }
-
-    public string Nickname
-    {
-        get => Properties.TryGetValue(PlayerProperties.NickName, out var value) ? value.ToString() : string.Empty;
-        set => Properties[PlayerProperties.NickName] = value;
+        get => Properties.TryGetValue(PlayerProperties.PeerId, out var value) ? (int)value : Constants.UnsetPlayerId;
+        set => Properties[PlayerProperties.PeerId] = value;
     }
 }
