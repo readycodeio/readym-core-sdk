@@ -115,6 +115,7 @@ namespace ReadyM.Relay.Client
             _isRunning = false;
             _clientThread?.Join();
             _clientThread = null;
+            InRoom = false;
             OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
         }
 
@@ -163,7 +164,7 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Debug, "Sending event {0}", eventCode);
+            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
         }
 
@@ -180,7 +181,7 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Debug, "Sending event {0}", eventCode);
+            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
         }
 
@@ -200,7 +201,7 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Debug, "Sending event {0}", eventCode);
+            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
