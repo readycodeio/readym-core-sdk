@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -279,8 +277,8 @@ namespace ReadyM.Relay.Client
                     if (playerId == LocalPlayer.PeerId)
                     {
                         LocalPlayer = newPlayer;
-                        InRoom = true;
                         OnJoinedRoom?.Invoke();
+                        InRoom = true;
                     }
                     else
                     {
