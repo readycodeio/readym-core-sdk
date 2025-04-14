@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
 using JetBrains.Annotations;
@@ -148,10 +149,14 @@ namespace ReadyM.Relay.Client
             Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
+        /// <summary>
+        /// Send an event to a specific player or group of players.
+        /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
+        /// </summary>
         public void OpRaiseEvent(byte eventCode, object? data, int[] peers, DeliveryMethod deliveryMethod)
         {
             var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers);
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers, EventCaching.DoNotCache);
 
             if (data != null)
             {
@@ -162,10 +167,13 @@ namespace ReadyM.Relay.Client
             Server?.Send(writer, deliveryMethod);
         }
 
+        /// <summary>
+        /// Send an event with a specific delivery method. This overload does not support event caching.
+        /// </summary>
         public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
         {
             var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode);
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, EventCaching.DoNotCache);
 
             if (data != null)
             {
@@ -174,6 +182,26 @@ namespace ReadyM.Relay.Client
 
             Log(LogLevel.Debug, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
+        }
+
+        /// <summary>
+        /// Send an event the will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
+        /// </summary>
+        public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
+        {
+            var writer = new NetDataWriter();
+
+            // AddToRoomCacheGlobal events are sent to all players, AddToRoomCache - to others, DoNotCache - too, by default
+            var mode = eventCaching == EventCaching.AddToRoomCacheGlobal ? RelayMode.All : RelayMode.Others;
+            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, eventCaching);
+
+            if (data != null)
+            {
+                SerializeObject(writer, data);
+            }
+
+            Log(LogLevel.Debug, "Sending event {0}", eventCode);
+            Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
         public void Dispose()
