@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -112,10 +113,11 @@ namespace ReadyM.Relay.Client
 
         public void Stop()
         {
+            _client.Stop(true);
             _isRunning = false;
-            _client.Stop();
             _clientThread?.Join();
             _clientThread = null;
+            OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
         }
 
         public Player? GetPlayerState(int playerId)
