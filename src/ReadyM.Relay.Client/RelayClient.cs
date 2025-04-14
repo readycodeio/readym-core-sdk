@@ -84,10 +84,10 @@ namespace ReadyM.Relay.Client
             RoomState = new Room(this);
         }
 
-        private void OnServerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
+        private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
         {
             InRoom = false;
-            OnDisconnected?.Invoke(disconnectinfo.Reason);
+            OnDisconnected?.Invoke(info.Reason);
         }
 
         public void Start()
@@ -116,6 +116,8 @@ namespace ReadyM.Relay.Client
             _clientThread?.Join();
             _clientThread = null;
             InRoom = false;
+            LocalPlayer = new Player(new Dictionary<object, object>());
+            OtherPlayers.Clear();
             OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
         }
 
