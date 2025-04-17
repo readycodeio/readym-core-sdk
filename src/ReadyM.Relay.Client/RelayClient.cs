@@ -146,7 +146,8 @@ namespace ReadyM.Relay.Client
 
         public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
         {
-            var writer = CreateRoomPropertiesUpdatePacket(data);
+            var diff = UpdateAndGetDiff(RoomState, data);
+            var writer = CreateRoomPropertiesUpdatePacket(diff);
             Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
