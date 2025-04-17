@@ -303,7 +303,6 @@ namespace ReadyM.Relay.Client
                     return;
             }
 
-            Log(LogLevel.Trace, "Received custom event {0}", eventCode);
             var header = reader.GetCustomEventHeader(eventCode);
             OnCustomEvent?.Invoke(header, reader);
         }
