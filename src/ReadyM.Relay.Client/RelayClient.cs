@@ -26,7 +26,7 @@ namespace ReadyM.Relay.Client
         private Thread? _clientThread;
         private bool _isRunning;
 
-        public Room RoomState { get; }
+        public Dictionary<object, object> RoomState { get; } = new();
         public Player LocalPlayer { get; set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
 
@@ -80,8 +80,6 @@ namespace ReadyM.Relay.Client
                 DisconnectOnUnreachable = true
             };
             _logger = logger;
-
-            RoomState = new Room(this);
         }
 
         private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
@@ -111,7 +109,7 @@ namespace ReadyM.Relay.Client
 
         public void Stop()
         {
-            _client.Stop(true);
+            _client.Stop();
             _isRunning = false;
             _clientThread?.Join();
             _clientThread = null;
@@ -166,7 +164,6 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
         }
 
@@ -183,7 +180,6 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, deliveryMethod);
         }
 
@@ -203,7 +199,6 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Log(LogLevel.Trace, "Sending event {0}", eventCode);
             Server?.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
@@ -267,7 +262,7 @@ namespace ReadyM.Relay.Client
                 case SystemEvent.RoomStateChanged:
                 {
                     var changes = DeserializeObject<Dictionary<object, object?>>(reader);
-                    var diff = UpdateAndGetDiff(RoomState.Properties, changes);
+                    var diff = UpdateAndGetDiff(RoomState, changes);
                     OnRoomPropertiesChanged?.Invoke(diff);
                     return;
                 }

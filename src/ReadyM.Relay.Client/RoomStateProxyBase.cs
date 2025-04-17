@@ -1,0 +1,35 @@
+﻿using System.Collections.Generic;
+using ReadyM.Relay.Common.Protocol;
+using ReadyM.Relay.Common.Protocol.Enums;
+
+namespace ReadyM.Relay.Client;
+
+public class RoomStateProxyBase(RelayClient relayClient)
+{
+    public int MasterClientId
+    {
+        get => (int)relayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPlayerId);
+        set => SetProperty(RoomProperties.MasterClientId, value);
+    }
+
+    public int MaxPlayers
+    {
+        get => GetProperty<int>(RoomProperties.MaxPlayers);
+        set => SetProperty(RoomProperties.MaxPlayers, value);
+    }
+
+    protected T? GetProperty<T>(object key)
+    {
+        if (relayClient.RoomState.TryGetValue(key, out var obj))
+            return (T)obj;
+        return default;
+    }
+
+    protected void SetProperty(object key, object value)
+    {
+        relayClient.OpSetCustomPropertiesOfRoom(new Dictionary<object, object?>
+        {
+            [key] = value
+        });
+    }
+}
