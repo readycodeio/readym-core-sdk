@@ -37,7 +37,8 @@ namespace ReadyM.Relay.Client
         public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
         public event Action<int, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
         public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
-        public event Action? OnJoinedRoom;
+        public event Action? OnBeforeJoinedRoom;
+        public event Action? OnAfterJoinedRoom;
         public event Action<DisconnectReason>? OnDisconnected;
         public event Action<int>? OnPingUpdated;
 
@@ -276,8 +277,9 @@ namespace ReadyM.Relay.Client
                     if (playerId == LocalPlayer.PeerId)
                     {
                         LocalPlayer = newPlayer;
-                        OnJoinedRoom?.Invoke();
+                        OnBeforeJoinedRoom?.Invoke();
                         InRoom = true;
+                        OnAfterJoinedRoom?.Invoke();
                     }
                     else
                     {
