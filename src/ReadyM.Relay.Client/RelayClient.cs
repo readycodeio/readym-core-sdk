@@ -26,7 +26,7 @@ namespace ReadyM.Relay.Client
         private Thread? _clientThread;
         private bool _isRunning;
 
-        public Dictionary<object, object> RoomState { get; } = new();
+        public Dictionary<object, object> RoomState { get; private set; } = new();
         public Player LocalPlayer { get; set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
 
@@ -220,14 +220,17 @@ namespace ReadyM.Relay.Client
 
             switch ((SystemEvent)eventCode)
             {
-                case SystemEvent.PeerIdAssigned:
+                case SystemEvent.HandshakePeerIdAssigned:
                 {
                     LocalPlayer.PeerId = reader.GetInt();
                     Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PeerId);
 
+                    var roomState = DeserializeObject<Dictionary<object, object>>(reader);
+                    RoomState = roomState;
+
                     // send joined room event
                     var writer = new NetDataWriter();
-                    writer.Put((byte)SystemEvent.JoinRoomRequest);
+                    writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
                     SerializeObject(writer, LocalPlayer.Properties);
                     Server?.Send(writer, DeliveryMethod.ReliableOrdered);
 
@@ -285,7 +288,7 @@ namespace ReadyM.Relay.Client
                     {
                         if (!OtherPlayers.TryAdd(playerId, newPlayer))
                         {
-                            Log(LogLevel.Warning, "Player {0} already exists", playerId);
+                            Log(LogLevel.Error, "Player {0} already exists", playerId);
                             OtherPlayers[playerId] = newPlayer;
                         }
 
@@ -300,8 +303,8 @@ namespace ReadyM.Relay.Client
                     OnOtherPlayerLeft?.Invoke(playerId);
                     return;
                 }
-                case SystemEvent.JoinRoomRequest:
-                    Log(LogLevel.Error, "Join room request received, why?!");
+                case SystemEvent.HandshakeSetInitialProperties:
+                    Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
                     return;
             }
 
