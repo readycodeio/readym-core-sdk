@@ -27,7 +27,7 @@ namespace ReadyM.Relay.Client
         private bool _isRunning;
 
         public Dictionary<object, object> RoomState { get; private set; } = new();
-        public Player LocalPlayer { get; set; } = new(new Dictionary<object, object>());
+        public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
 
         public IEnumerable<Player> AllPlayers => OtherPlayers.Values.Append(LocalPlayer);
