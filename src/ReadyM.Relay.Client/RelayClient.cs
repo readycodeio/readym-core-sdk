@@ -221,7 +221,7 @@ namespace ReadyM.Relay.Client
 
         private void LogEventStats()
         {
-            foreach (var (ev, bytes) in _totalBytesPerEvent)
+            foreach (var (ev, bytes) in _totalBytesPerEvent.OrderByDescending(x => x.Value))
             {
                 Log(LogLevel.Debug, "Event {Event}: sent {Bytes} bytes total", ev, bytes);
             }
