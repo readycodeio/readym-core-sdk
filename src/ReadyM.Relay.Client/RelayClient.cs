@@ -312,11 +312,33 @@ namespace ReadyM.Relay.Client
             OnCustomEvent?.Invoke(header, reader);
         }
 
+        private long _lastBytesReceived;
+        private long _lastBytesSent;
+        private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
+
         private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
         {
             // Round trip time. LiteNetLib reports one way latency, so we double it.
             // We add a random jitter so that the results are not always divisible by 2.
             OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
+
+            // Print stats every time too
+            var dRecv = _client.Statistics.BytesReceived - _lastBytesReceived;
+            _lastBytesReceived = _client.Statistics.BytesReceived;
+
+            var dSent = _client.Statistics.BytesSent - _lastBytesSent;
+            _lastBytesSent = _client.Statistics.BytesSent;
+
+            var now = DateTimeOffset.Now;
+            var delta = now - _lastStatCheck;
+
+            _lastStatCheck = now;
+
+            // print avg recv and sent over the delta time
+            var avgRecv = (long)(dRecv / delta.TotalSeconds);
+            var avgSent = (long)(dSent / delta.TotalSeconds);
+
+            Log(LogLevel.Debug, "Avg recv: {Recv:0F} B/s, Avg sent: {Sent:0F} B/s", avgRecv, avgSent);
         }
 
         private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
