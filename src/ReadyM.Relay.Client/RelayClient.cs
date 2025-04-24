@@ -221,10 +221,12 @@ namespace ReadyM.Relay.Client
 
         private void LogEventStats()
         {
+#if DEBUG
             foreach (var (ev, data) in _totalBytesPerEvent.OrderByDescending(x => x.Value))
             {
-                Log(LogLevel.Debug, "Event {Event}:\ttotal {Bytes} B,\tavg {Average} B", ev, data.Bytes, data.Bytes / data.Count);
+                Log(LogLevel.Debug, "Event {Event}: total {Bytes} B, avg {Average} B", ev, data.Bytes, data.Bytes / data.Count);
             }
+#endif
         }
 
         public void Dispose()
