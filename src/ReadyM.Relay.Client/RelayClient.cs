@@ -126,6 +126,13 @@ namespace ReadyM.Relay.Client
             return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
         }
 
+        private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
+        {
+            Server?.Send(writer, deliveryMethod);
+            var ev = writer.Data[0];
+            AppendEventStats(ev, writer.Length);
+        }
+
         public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
         {
             if (!InRoom)
@@ -143,14 +150,14 @@ namespace ReadyM.Relay.Client
             }
 
             var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
-            Server?.Send(writer, DeliveryMethod.ReliableOrdered);
+            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         }
 
         public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
         {
             var diff = UpdateAndGetDiff(RoomState, data);
             var writer = CreateRoomPropertiesUpdatePacket(diff);
-            Server?.Send(writer, DeliveryMethod.ReliableOrdered);
+            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         }
 
         /// <summary>
@@ -167,7 +174,7 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Server?.Send(writer, deliveryMethod);
+            SendMessageToServer(writer, deliveryMethod);
         }
 
         /// <summary>
@@ -183,7 +190,7 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Server?.Send(writer, deliveryMethod);
+            SendMessageToServer(writer, deliveryMethod);
         }
 
         /// <summary>
@@ -202,7 +209,22 @@ namespace ReadyM.Relay.Client
                 SerializeObject(writer, data);
             }
 
-            Server?.Send(writer, DeliveryMethod.ReliableOrdered);
+            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+        }
+
+        private readonly ConcurrentDictionary<byte, long> _totalBytesPerEvent = new();
+
+        private void AppendEventStats(byte ev, long bytesSent)
+        {
+            _totalBytesPerEvent.AddOrUpdate(ev, bytesSent, (b, l) => l + bytesSent);
+        }
+
+        private void LogEventStats()
+        {
+            foreach (var (ev, bytes) in _totalBytesPerEvent)
+            {
+                Log(LogLevel.Debug, "Event {Event}: sent {Bytes} bytes total", ev, bytes);
+            }
         }
 
         public void Dispose()
@@ -233,7 +255,7 @@ namespace ReadyM.Relay.Client
                     var writer = new NetDataWriter();
                     writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
                     SerializeObject(writer, LocalPlayer.Properties);
-                    Server?.Send(writer, DeliveryMethod.ReliableOrdered);
+                    SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
                     return;
                 }
@@ -340,6 +362,7 @@ namespace ReadyM.Relay.Client
             var avgSent = (long)(dSent / delta.TotalSeconds);
 
             Log(LogLevel.Debug, "Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
+            LogEventStats();
         }
 
         private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
