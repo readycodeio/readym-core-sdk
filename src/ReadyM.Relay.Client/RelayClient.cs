@@ -212,18 +212,18 @@ namespace ReadyM.Relay.Client
             SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         }
 
-        private readonly ConcurrentDictionary<byte, long> _totalBytesPerEvent = new();
+        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _totalBytesPerEvent = new();
 
         private void AppendEventStats(byte ev, long bytesSent)
         {
-            _totalBytesPerEvent.AddOrUpdate(ev, bytesSent, (b, l) => l + bytesSent);
+            _totalBytesPerEvent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
         }
 
         private void LogEventStats()
         {
-            foreach (var (ev, bytes) in _totalBytesPerEvent.OrderByDescending(x => x.Value))
+            foreach (var (ev, data) in _totalBytesPerEvent.OrderByDescending(x => x.Value))
             {
-                Log(LogLevel.Debug, "Event {Event}: sent {Bytes} bytes total", ev, bytes);
+                Log(LogLevel.Debug, "Event {Event}:\ttotal {Bytes} B,\tavg {Average} B", ev, data.Bytes, data.Bytes / data.Count);
             }
         }
 
