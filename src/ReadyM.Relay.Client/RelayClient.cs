@@ -78,7 +78,8 @@ namespace ReadyM.Relay.Client
             {
                 AutoRecycle = true,
                 EnableStatistics = true,
-                DisconnectOnUnreachable = true
+                DisconnectOnUnreachable = true,
+                UpdateTime = Constants.ClientTickRateMs
             };
             _logger = logger;
         }
@@ -101,7 +102,7 @@ namespace ReadyM.Relay.Client
                 while (_isRunning)
                 {
                     _client.PollEvents();
-                    Thread.Sleep(15);
+                    Thread.Sleep(Constants.ClientTickRateMs);
                 }
             });
 
@@ -338,7 +339,7 @@ namespace ReadyM.Relay.Client
             var avgRecv = (long)(dRecv / delta.TotalSeconds);
             var avgSent = (long)(dSent / delta.TotalSeconds);
 
-            Log(LogLevel.Debug, "Avg recv: {Recv:0F} B/s, Avg sent: {Sent:0F} B/s", avgRecv, avgSent);
+            Log(LogLevel.Debug, "Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
         }
 
         private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
