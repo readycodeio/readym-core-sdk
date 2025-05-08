@@ -192,6 +192,11 @@ namespace ReadyM.Relay.Client
 
             SendMessageToServer(writer, deliveryMethod);
         }
+        
+        public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
+        {
+            SendMessageToServer(writer, deliveryMethod);
+        }
 
         /// <summary>
         /// Send an event the will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
