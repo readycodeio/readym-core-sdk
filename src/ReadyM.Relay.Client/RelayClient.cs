@@ -123,7 +123,7 @@ namespace ReadyM.Relay.Client
 
         public Player? GetPlayerState(int playerId)
         {
-            return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
+            return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.TryGetValue(playerId, out var x) ? x : null;
         }
 
         private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
@@ -222,9 +222,9 @@ namespace ReadyM.Relay.Client
         private void LogEventStats()
         {
 #if DEBUG
-            foreach (var (ev, data) in _totalBytesPerEvent.OrderByDescending(x => x.Value))
+            foreach (var kvp in _totalBytesPerEvent.OrderByDescending(x => x.Value))
             {
-                Log(LogLevel.Debug, "Event {Event}: total {Bytes} B, avg {Average} B", ev, data.Bytes, data.Bytes / data.Count);
+                Log(LogLevel.Debug, "Event {Event}: total {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
             }
 #endif
         }
