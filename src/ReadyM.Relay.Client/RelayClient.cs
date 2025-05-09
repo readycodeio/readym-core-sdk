@@ -30,8 +30,6 @@ namespace ReadyM.Relay.Client
         public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
         public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
 
-        public IEnumerable<Player> AllPlayers => OtherPlayers.Values.Append(LocalPlayer);
-
         public bool InRoom { get; private set; }
 
         public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
@@ -41,6 +39,7 @@ namespace ReadyM.Relay.Client
         public event Action? OnAfterJoinedRoom;
         public event Action<DisconnectReason>? OnDisconnected;
         public event Action<int>? OnPingUpdated;
+        public event Action<NetPacketReader>? OnEcsDelta;
 
         /// <summary>
         /// At this point the connecting player has been assigned an ID and we have synced their state.
@@ -130,7 +129,7 @@ namespace ReadyM.Relay.Client
         {
             Server?.Send(writer, deliveryMethod);
             var ev = writer.Data[0];
-            AppendEventStats(ev, writer.Length);
+            AppendToSentStats(ev, writer.Length);
         }
 
         public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
@@ -192,7 +191,7 @@ namespace ReadyM.Relay.Client
 
             SendMessageToServer(writer, deliveryMethod);
         }
-        
+
         public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
         {
             SendMessageToServer(writer, deliveryMethod);
@@ -217,19 +216,31 @@ namespace ReadyM.Relay.Client
             SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         }
 
-        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _totalBytesPerEvent = new();
+        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsSent = new();
+        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsRecv = new();
 
-        private void AppendEventStats(byte ev, long bytesSent)
+        private void AppendToSentStats(byte ev, long bytesSent)
         {
-            _totalBytesPerEvent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
+            _statsSent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
+        }
+
+        private void AppendToRecvStats(byte ev, long bytesRecv)
+        {
+            _statsRecv.AddOrUpdate(ev, (1, bytesRecv), (_, data) => (data.Count + 1, data.Bytes + bytesRecv));
         }
 
         private void LogEventStats()
         {
 #if DEBUG
-            foreach (var kvp in _totalBytesPerEvent.OrderByDescending(x => x.Value))
+            foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
             {
-                Log(LogLevel.Debug, "Event {Event}: total {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+                Log(LogLevel.Debug, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            }
+
+            Log(LogLevel.Debug, "----------------------------------------");
+            foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
+            {
+                Log(LogLevel.Debug, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
             }
 #endif
         }
@@ -247,6 +258,7 @@ namespace ReadyM.Relay.Client
         private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
         {
             var eventCode = reader.GetByte();
+            AppendToRecvStats(eventCode, reader.UserDataSize);
 
             switch ((SystemEvent)eventCode)
             {
@@ -335,6 +347,9 @@ namespace ReadyM.Relay.Client
                 }
                 case SystemEvent.HandshakeSetInitialProperties:
                     Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
+                    return;
+                case SystemEvent.EcsUpdate:
+                    OnEcsDelta?.Invoke(reader);
                     return;
             }
 
