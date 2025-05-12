@@ -100,10 +100,22 @@ namespace ReadyM.Relay.Client
                 Log(LogLevel.Information, "Running relay client on port {0}", _port);
                 while (_isRunning)
                 {
-                    _client.PollEvents();
-                    Thread.Sleep(Constants.ClientTickRateMs);
+                    try
+                    {
+                        _client.PollEvents();
+                        Thread.Sleep(Constants.ClientTickRateMs);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log(LogLevel.Error, "Unhandled exception in client thread: {0} | {1}", ex.Message, ex.StackTrace);
+                        if (ex.InnerException != null)
+                        {
+                            Log(LogLevel.Error, "Inner exception: {0} | {1}", ex.InnerException.Message, ex.InnerException.StackTrace);
+                        }
+                    }
                 }
             });
+
 
             _clientThread.Start();
         }
