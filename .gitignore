@@ -1,5 +1,6 @@
 bin
 obj
 .idea
+.vs
 src/ReadyM.sln.DotSettings.user
 src/ReadyM.Relay.sln.DotSettings.user
