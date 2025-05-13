@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Relay.Common;
+using ReadyM.Relay.Common.ECS.Components;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
 
@@ -40,6 +41,7 @@ namespace ReadyM.Relay.Client
         public event Action<DisconnectReason>? OnDisconnected;
         public event Action<int>? OnPingUpdated;
         public event Action<NetPacketReader>? OnEcsDelta;
+        public event Action<NetworkIdComponent>? OnReceivedDestroyEntity;
 
         /// <summary>
         /// At this point the connecting player has been assigned an ID and we have synced their state.
@@ -366,6 +368,10 @@ namespace ReadyM.Relay.Client
                     return;
                 case SystemEvent.EcsUpdate:
                     OnEcsDelta?.Invoke(reader);
+                    return;
+                case SystemEvent.DestroyEntity:
+                    var netId = reader.GetNetworkId();
+                    OnReceivedDestroyEntity(netId);
                     return;
             }
 
