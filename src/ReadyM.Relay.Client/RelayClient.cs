@@ -48,7 +48,6 @@ namespace ReadyM.Relay.Client
 
         public event Action<int>? OnOtherPlayerLeft;
 
-
         private NetPeer? Server
         {
             get
@@ -81,6 +80,11 @@ namespace ReadyM.Relay.Client
                 UpdateTime = Constants.ClientTickRateMs
             };
             _logger = logger;
+        }
+
+        public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
+        {
+            return Server?.GetMaxSinglePacketSize(deliveryMethod) ?? 1300;
         }
 
         private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
