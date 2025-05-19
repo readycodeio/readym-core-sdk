@@ -92,6 +92,12 @@ namespace ReadyM.Relay.Client
 
         public void Start()
         {
+            if (_isRunning)
+            {
+                Log(LogLevel.Error, "Relay client is already running");
+                return;
+            }
+
             _client.Start();
             _client.Connect(_host, _port, _userGuid.ToString());
 
