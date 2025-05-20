@@ -377,7 +377,7 @@ namespace ReadyM.Relay.Client
                     return;
                 case SystemEvent.DestroyEntity:
                     var netId = reader.GetNetworkId();
-                    OnReceivedDestroyEntity(netId);
+                    OnReceivedDestroyEntity?.Invoke(netId);
                     return;
             }
 
