@@ -4,6 +4,8 @@
         <TargetFramework>netstandard2.0</TargetFramework>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
     <ItemGroup>

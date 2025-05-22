@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Project>
+    <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
+        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <OutputPath>bin\NoDisconnect\</OutputPath>
+        <IntermediateOutputPath>obj\NoDisconnect\</IntermediateOutputPath>
+    </PropertyGroup>
+</Project>
