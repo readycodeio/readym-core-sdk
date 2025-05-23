@@ -78,8 +78,14 @@ namespace ReadyM.Relay.Client
             {
                 AutoRecycle = true,
                 EnableStatistics = true,
+#if NO_DISCONNECT
+                DisconnectTimeout = 3600_000,
+                PingInterval = 3600_000,
+                DisconnectOnUnreachable = false,
+#else
                 DisconnectOnUnreachable = true,
-                UpdateTime = Constants.ClientTickRateMs
+#endif
+                UpdateTime = Constants.ClientTickRateMs,
             };
             _logger = logger;
         }
