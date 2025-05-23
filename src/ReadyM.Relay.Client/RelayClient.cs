@@ -35,7 +35,13 @@ namespace ReadyM.Relay.Client
 
         public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
         public event Action<int, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
+
+        /// <summary>
+        /// Event that is raised when a custom event is received from the server.
+        /// Raised on the thread that the LiteNetLib client is running on.
+        /// </summary>
         public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
+
         public event Action? OnBeforeJoinedRoom;
         public event Action? OnAfterJoinedRoom;
         public event Action<DisconnectReason>? OnDisconnected;
