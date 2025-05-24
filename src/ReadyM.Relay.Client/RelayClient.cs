@@ -133,8 +133,7 @@ namespace ReadyM.Relay.Client
                     }
                 }
             });
-
-
+            
             _clientThread.Start();
         }
 
