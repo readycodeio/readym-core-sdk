@@ -12,7 +12,7 @@ public static class SerializationExtensions
         writer.Put(vector.Z);
     }
 
-    public static void Deserialize(this Vector3 vector, NetDataReader reader)
+    public static void Deserialize(this ref Vector3 vector, NetDataReader reader)
     {
         vector.X = reader.GetFloat();
         vector.Y = reader.GetFloat();

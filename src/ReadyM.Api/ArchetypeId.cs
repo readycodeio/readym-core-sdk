@@ -2,9 +2,14 @@ using System;
 
 namespace ReadyM.Api;
 
-public readonly struct ArchetypeId(int id) : IEquatable<ArchetypeId>
+public readonly struct ArchetypeId : IEquatable<ArchetypeId>
 {
-    private readonly int _id = id;
+    private readonly int _id;
+    
+    internal ArchetypeId(int id)
+    {
+        _id = id;
+    }
     
     public bool Equals(ArchetypeId other)
     {
