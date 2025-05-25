@@ -8,7 +8,7 @@ public class RoomStateProxyBase(RelayClient relayClient)
 {
     public int MasterClientId
     {
-        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (int)x : Constants.UnsetPlayerId;
+        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (int)x : Constants.UnsetPeerId;
         set => SetProperty(RoomProperties.MasterClientId, value);
     }
 

@@ -6,8 +6,9 @@ using System.Threading;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Relay.Common;
-using ReadyM.Relay.Common.ECS.Components;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
 
@@ -165,7 +166,7 @@ namespace ReadyM.Relay.Client
         {
             if (!InRoom)
             {
-                if (playerId == Constants.UnsetPlayerId)
+                if (playerId == Constants.UnsetPeerId)
                 {
                     UpdateAndGetDiff(LocalPlayer.Properties, data);
                 }
@@ -293,7 +294,7 @@ namespace ReadyM.Relay.Client
             {
                 case SystemEvent.HandshakePeerIdAssigned:
                 {
-                    LocalPlayer.PeerId = reader.GetInt();
+                    LocalPlayer.PeerId = reader.GetShort();
                     Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PeerId);
 
                     var roomState = DeserializeObject<Dictionary<object, object>>(reader);
