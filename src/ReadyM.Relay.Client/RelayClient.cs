@@ -14,7 +14,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client
 {
-    public sealed class RelayClient : RelayPeerBase, IDisposable
+    public sealed class RelayClient : RelayPeerBase, IDisposable, IRelayClient
     {
         private readonly Guid _userGuid;
         private readonly string _host;
@@ -228,7 +228,7 @@ namespace ReadyM.Relay.Client
         }
 
         /// <summary>
-        /// Send an event the will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
+        /// Send an event that will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
         /// </summary>
         public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
         {
