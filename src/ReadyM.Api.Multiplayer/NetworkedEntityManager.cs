@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
+using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer.Extensions;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
@@ -26,6 +29,90 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
 
     private uint _nextNetworkedId;
     public event Action<NetworkIdComponent>? onEntityDestroyed;
+    public IEnumerable<NetDataWriter> WriteEcsDelta(int maxPacketSize)
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte) SystemEvent.EcsUpdate);
+
+        var query = _store.Query<NetworkIdComponent>();
+
+        foreach (var entity in query.Entities)
+        {
+            var retried = false;
+            var data = entity.Data;
+
+            ref var netId = ref data.Get<NetworkIdComponent>();
+            // ref var animation = ref data.Get<AnimationComponent>();
+            // ref var health = ref data.Get<HpComponent>();
+            // ref var monsterAnimation = ref data.Get<MonsterAnimationComponent>();
+            // ref var nickname = ref data.Get<NicknameComponent>();
+            // ref var team = ref data.Get<TeamComponent>();
+            // ref var translation = ref data.Get<TranslationComponent>();
+            // ref var tamer = ref data.Get<TamerComponent>();
+
+            while (true)
+            {
+                var beforeApplyPosition = writer.Length;
+
+                // var anyDirty = animation.IsDirty ||
+                //                health.IsDirty ||
+                //                monsterAnimation.IsDirty ||
+                //                nickname.IsDirty ||
+                //                team.IsDirty ||
+                //                translation.IsDirty ||
+                //                tamer.IsDirty;
+                //
+                // if (!anyDirty)
+                //     yield break;
+                //
+                // writer.Put(netId);
+                //
+                // animation.WriteDelta(writer);
+                // health.WriteDelta(writer);
+                // monsterAnimation.WriteDelta(writer);
+                // nickname.WriteDelta(writer);
+                // team.WriteDelta(writer);
+                // translation.WriteDelta(writer);
+                // tamer.WriteDelta(writer);
+
+                if (writer.Length > maxPacketSize)
+                {
+                    if (retried)
+                    {
+                        // if we retried and still failed, log an error
+                        throw new Exception("Packet too large, unable to send");
+                    }
+
+                    // Rewind and send the partial packet
+                    writer.SetPosition(beforeApplyPosition);
+                    yield return writer;
+
+                    // Start a new writer and retry
+                    writer = new NetDataWriter();
+                    writer.Put((byte) SystemEvent.EcsUpdate);
+                    retried = true;
+
+                    // Continue loop to retry
+                    continue;
+                }
+
+                // animation.ClearDirty();
+                // health.ClearDirty();
+                // monsterAnimation.ClearDirty();
+                // nickname.ClearDirty();
+                // team.ClearDirty();
+                // translation.ClearDirty();
+                // tamer.ClearDirty();
+
+                break;
+            }
+        }
+
+        if (writer.Length > 1)
+        {
+            yield return writer;
+        }
+    }
 
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 

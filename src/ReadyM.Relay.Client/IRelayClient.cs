@@ -1,8 +1,8 @@
 using System;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using ReadyM.Relay.Common.Protocol;
-using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common.Serialization;
 
 namespace ReadyM.Relay.Client;

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
-using ReadyM.Relay.Common.Protocol;
-using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
