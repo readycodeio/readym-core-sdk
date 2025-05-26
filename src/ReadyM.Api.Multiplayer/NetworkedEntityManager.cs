@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
-using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
@@ -33,8 +30,7 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
     private readonly Store _store;
-
-    internal short PeerId { get; set; }
+    public short PeerId { get; set; }
 
     private readonly Dictionary<ArchetypeId, List<Type>> _networkedComponents = new();
 
