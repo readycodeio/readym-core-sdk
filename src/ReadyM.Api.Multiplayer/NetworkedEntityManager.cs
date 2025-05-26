@@ -74,7 +74,7 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
         entity.AddComponent(netId);
         return (entity, netId);
     }
-    
+
     public Entity CreateRemoteNetworkedEntity(ArchetypeId archetypeId, NetworkIdComponent netId)
     {
         var entity = _store.CreateEntity(archetypeId);
