@@ -30,12 +30,12 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
 
     public Dictionary<object, object> RoomState { get; private set; } = new();
     public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
-    public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
+    public ConcurrentDictionary<short, Player> OtherPlayers { get; } = new();
 
     public bool InRoom { get; private set; }
 
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
-    public event Action<int, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
+    public event Action<short, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
 
     /// <summary>
     /// Event that is raised when a custom event is received from the server.
@@ -53,9 +53,9 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
     /// <summary>
     /// At this point the connecting player has been assigned an ID and we have synced their state.
     /// </summary>
-    public event Action<int>? OnOtherPlayerJoined;
+    public event Action<short>? OnOtherPlayerJoined;
 
-    public event Action<int>? OnOtherPlayerLeft;
+    public event Action<short>? OnOtherPlayerLeft;
 
     private NetPeer? Server
     {
@@ -150,9 +150,9 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
         OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
     }
 
-    public Player? GetPlayerState(int playerId)
+    public Player? GetPlayerState(short peerId)
     {
-        return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.TryGetValue(playerId, out var x) ? x : null;
+        return peerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(peerId);
     }
 
     private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
@@ -162,7 +162,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
         AppendToSentStats(ev, writer.Length);
     }
 
-    public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
+    public void OpSetCustomPropertiesOfActor(short playerId, Dictionary<object, object?> data)
     {
         if (!InRoom)
         {
@@ -193,7 +193,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
     /// Send an event to a specific player or group of players.
     /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
     /// </summary>
-    public void OpRaiseEvent(byte eventCode, object? data, int[] peers, DeliveryMethod deliveryMethod)
+    public void OpRaiseEvent(byte eventCode, object? data, short[] peers, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers, EventCaching.DoNotCache);
@@ -310,7 +310,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
             }
             case SystemEvent.PlayerStateChanged:
             {
-                var playerId = reader.GetInt();
+                var playerId = reader.GetShort();
                 var changes = DeserializeObject<Dictionary<object, object?>>(reader);
 
                 if (playerId == LocalPlayer.PeerId)
@@ -345,7 +345,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
             }
             case SystemEvent.PlayerJoined:
             {
-                var playerId = reader.GetInt();
+                var playerId = reader.GetShort();
                 var initialState = DeserializeObject<Dictionary<object, object>>(reader);
                 var newPlayer = new Player(initialState);
 
@@ -371,7 +371,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
             }
             case SystemEvent.PlayerLeft:
             {
-                var playerId = reader.GetInt();
+                var playerId = reader.GetShort();
                 OnOtherPlayerLeft?.Invoke(playerId);
                 return;
             }
@@ -421,7 +421,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
         LogEventStats();
     }
 
-    private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
+    private NetDataWriter CreatePlayerPropertiesUpdatePacket(short playerId, Dictionary<object, object?> changes)
     {
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.PlayerStateChanged);

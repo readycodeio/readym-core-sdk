@@ -14,7 +14,7 @@ public static class NetDataWriterExtensions
         writer.Put(flags);
     }
 
-    public static void PutCustomEventHeader(this NetDataWriter writer, byte eventId, short playerId, int[] peers, EventCaching eventCaching)
+    public static void PutCustomEventHeader(this NetDataWriter writer, byte eventId, short playerId, short[] peers, EventCaching eventCaching)
     {
         writer.Put(eventId);
         writer.Put(playerId);
@@ -33,7 +33,7 @@ public static class NetDataWriterExtensions
 
         if (relayMode == RelayMode.Peers)
         {
-            var peers = reader.GetIntArray();
+            var peers = reader.GetShortArray();
             return new CustomEventHeader(eventCode, sender, peers, relayMode, eventCaching);
         }
 

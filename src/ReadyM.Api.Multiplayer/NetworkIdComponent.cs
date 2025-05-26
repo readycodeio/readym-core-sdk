@@ -11,7 +11,7 @@ public readonly struct NetworkIdComponent(short owner, uint id) : IEquatable<Net
     public readonly uint Id = id; // per-owner unique ID
 
     [Obsolete]
-    public static NetworkIdComponent FromPlayerPeerId(int peerId) => new(-1, (uint)peerId);
+    public static NetworkIdComponent FromPlayerPeerId(short peerId) => new(peerId, uint.MaxValue);
 
     public bool Equals(NetworkIdComponent other)
     {
