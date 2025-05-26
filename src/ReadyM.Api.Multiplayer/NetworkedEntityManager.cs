@@ -7,23 +7,6 @@ namespace ReadyM.Api.Multiplayer;
 
 public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposable
 {
-    private class NetworkedArchetypeConfiguration(NetworkedEntityManager manager, ArchetypeId archetypeId) : INetworkedArchetypeConfiguration
-    {
-        public INetworkedArchetypeConfiguration MarkSynced<T>() where T : struct, INetworkedComponent
-        {
-            if (manager._networkedComponents.TryGetValue(archetypeId, out var components))
-            {
-                components.Add(typeof(T));
-            }
-            else
-            {
-                manager._networkedComponents[archetypeId] = [typeof(T)];
-            }
-
-            return this;
-        }
-    }
-
     private uint _nextNetworkedId;
     public event Action<NetworkIdComponent>? onEntityDestroyed;
 
@@ -31,9 +14,6 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
 
     private readonly Store _store;
     public short PeerId { get; set; }
-
-    private readonly Dictionary<ArchetypeId, List<Type>> _networkedComponents = new();
-
 
     public NetworkedEntityManager(Store store, short peerId)
     {
@@ -59,12 +39,6 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
     public void Dispose()
     {
         _store.OnEntityDelete -= HandleEntityDestroy;
-    }
-
-    public void ConfigureArchetype(ArchetypeId archetypeId, Action<INetworkedArchetypeConfiguration> builder)
-    {
-        var configuration = new NetworkedArchetypeConfiguration(this, archetypeId);
-        builder.Invoke(configuration);
     }
 
     public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId)
