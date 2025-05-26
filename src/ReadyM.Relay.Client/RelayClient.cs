@@ -6,11 +6,10 @@ using System.Threading;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer;
-using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Protocol;
-using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common;
+using ReadyM.Relay.Common.ECS;
+using ReadyM.Relay.Common.Protocol;
+using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
@@ -33,6 +32,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
     public ConcurrentDictionary<short, Player> OtherPlayers { get; } = new();
 
     public bool InRoom { get; private set; }
+    public short PeerId => LocalPlayer.PeerId;
 
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
     public event Action<short, Dictionary<object, object?>>? OnPlayerPropertiesChanged;

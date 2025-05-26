@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
-using LiteNetLib.Utils;
+using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer;
 

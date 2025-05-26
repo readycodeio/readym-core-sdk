@@ -8,6 +8,11 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
+      <ProjectReference Include="..\ReadyM.Relay.Client\ReadyM.Relay.Client.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" />
     </ItemGroup>
 
 </Project>
