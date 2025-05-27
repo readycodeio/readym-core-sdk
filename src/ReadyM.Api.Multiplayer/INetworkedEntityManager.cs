@@ -16,5 +16,5 @@ public interface INetworkedEntityManager
     (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId);
     Entity CreateRemoteNetworkedEntity(ArchetypeId archetypeId, NetworkIdComponent netId);
     bool TryGetEntityByNetworkId(NetworkIdComponent netId, [NotNullWhen(true)] out Entity? entity);
-    event Action<NetworkIdComponent>? onEntityDestroyed;
+    event Action<NetworkIdComponent>? onEntityDeleted;
 }

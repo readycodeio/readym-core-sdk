@@ -9,7 +9,7 @@ namespace ReadyM.Api.Multiplayer;
 public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposable
 {
     private uint _nextNetworkedId;
-    public event Action<NetworkIdComponent>? onEntityDestroyed;
+    public event Action<NetworkIdComponent>? onEntityDeleted;
 
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
@@ -33,7 +33,7 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
         if (evt.Entity.TryGetComponent<NetworkIdComponent>(out var netId))
         {
             _netIdTombstones.Add(netId);
-            onEntityDestroyed?.Invoke(netId);
+            onEntityDeleted?.Invoke(netId);
         }
     }
 

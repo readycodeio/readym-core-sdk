@@ -20,7 +20,8 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
     {
         RelayClient = new RelayClient(userGuid, host, port, Log);
         _netManager = new NetworkedEntityManager(World, Constants.UnsetPeerId); // TODO: This needn't be set in the constructor
-        _netManager.onEntityDestroyed += OnNetworkedEntityDestroyed;
+        _netManager.onEntityDeleted += HandleEntityDeleted;
+        RelayClient.OnReceivedDestroyEntity += DeleteRemoteEntityFromEcs;
     }
 
     [Obsolete("Waiting for player/room state refactoring")]
@@ -68,7 +69,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
 
     #region ECS
     
-    private void OnNetworkedEntityDestroyed(NetworkIdComponent netId)
+    private void HandleEntityDeleted(NetworkIdComponent netId)
     {
         if (netId.Owner == RelayClient.LocalPlayer.PeerId)
         {
@@ -79,18 +80,18 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
             writer.Put(netId);
             RelayClient.OpRaiseEventRaw(writer, DeliveryMethod.ReliableOrdered); // TODO: Use RPC API instead
         }
+    }
+
+    private void DeleteRemoteEntityFromEcs(NetworkIdComponent netId)
+    {
+        if (_netManager.TryGetEntityByNetworkId(netId, out var entity))
+        {
+            Log(LogLevel.Debug, "Queueing remote entity for destruction: {Id}", netId);
+            CommandBuffer.DeleteEntity(entity.Value.Id);
+        }
         else
         {
-            // remote entity, dissolve it locally
-            if (_netManager.TryGetEntityByNetworkId(netId, out var entity))
-            {
-                Log(LogLevel.Debug, "Queueing remote entity for destruction: {Id}", netId);
-                CommandBuffer.DeleteEntity(entity.Value.Id);
-            }
-            else
-            {
-                Log(LogLevel.Error, "Received destroy event for locally non-existent entity: {Id}", netId);
-            }
+            Log(LogLevel.Error, "Received destroy event for locally non-existent entity: {Id}", netId);
         }
     }
     
@@ -103,7 +104,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
 
     public void Dispose()
     {
-        _netManager.onEntityDestroyed -= OnNetworkedEntityDestroyed;
+        _netManager.onEntityDeleted -= HandleEntityDeleted;
         _netManager.Dispose();
         RelayClient.Dispose();
     }
