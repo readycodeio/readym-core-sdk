@@ -48,7 +48,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
     public event Action<DisconnectReason>? OnDisconnected;
     public event Action<int>? OnPingUpdated;
     public event Action<NetPacketReader>? OnEcsDelta;
-    public event Action<NetworkIdComponent>? OnReceivedDestroyEntity;
+    public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
 
     /// <summary>
     /// At this point the connecting player has been assigned an ID and we have synced their state.
@@ -280,9 +280,9 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
         Stop();
     }
 
-    private void Log(LogLevel level, [StructuredMessageTemplate] string message, params object?[] values)
+    private void Log(LogLevel level, [StructuredMessageTemplate] string template, params object?[] values)
     {
-        _logger(level, $"[Relay Client] {message}", values);
+        _logger(level, template, values);
     }
 
     private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
@@ -383,7 +383,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
                 return;
             case SystemEvent.DestroyEntity:
                 var netId = reader.GetNetworkId();
-                OnReceivedDestroyEntity?.Invoke(netId);
+                OnReceivedDeleteEntity?.Invoke(netId);
                 return;
         }
 

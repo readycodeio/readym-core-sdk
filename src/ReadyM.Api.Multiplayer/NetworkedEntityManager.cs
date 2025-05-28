@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
+using ReadyM.Relay.Client;
+using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer;
@@ -14,13 +16,13 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
     private readonly Store _store;
-    public short PeerId { get; set; }
+    private readonly Func<short> _getPeerId;
 
-    public NetworkedEntityManager(Store store, short peerId)
+    public NetworkedEntityManager(Store store, Func<short> getPeerId)
     {
         _store = store;
+        _getPeerId = getPeerId;
         _store.OnEntityDelete += HandleEntityDestroy;
-        PeerId = peerId;
     }
 
     public bool IsNetworkEntityDestroyed(NetworkIdComponent networkId)
@@ -44,7 +46,7 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
 
     public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId)
     {
-        var netId = new NetworkIdComponent(PeerId, _nextNetworkedId++);
+        var netId = new NetworkIdComponent(_getPeerId(), _nextNetworkedId++);
         var entity = _store.CreateEntity(archetypeId);
         entity.AddComponent(netId);
         return (entity, netId);

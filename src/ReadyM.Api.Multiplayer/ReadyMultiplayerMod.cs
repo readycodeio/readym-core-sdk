@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -11,22 +12,32 @@ namespace ReadyM.Api.Multiplayer;
 
 public class ReadyMultiplayerMod : ReadyMod, IDisposable
 {
-    private readonly NetworkedEntityManager _netManager;
-    
+    public readonly NetworkedEntityManager NetManager;
+
     // TODO: RelayClient has all the lifetime events, make other methods internal
     public RelayClient RelayClient { get; }
 
     public ReadyMultiplayerMod(Guid userGuid, string host, int port)
     {
         RelayClient = new RelayClient(userGuid, host, port, Log);
-        _netManager = new NetworkedEntityManager(World, Constants.UnsetPeerId); // TODO: This needn't be set in the constructor
-        _netManager.onEntityDeleted += HandleEntityDeleted;
-        RelayClient.OnReceivedDestroyEntity += DeleteRemoteEntityFromEcs;
+        NetManager = new NetworkedEntityManager(World, () => RelayClient.PeerId);
+        Configure();
     }
 
-    [Obsolete("Waiting for player/room state refactoring")]
+    protected ReadyMultiplayerMod(RelayClient client)
+    {
+        RelayClient = client;
+        NetManager = new NetworkedEntityManager(World, () => RelayClient.PeerId);
+        Configure();
+    }
+
     private void Configure()
     {
+        NetManager.onEntityDeleted += HandleEntityDeleted;
+
+        RelayClient.OnReceivedDeleteEntity += DeleteRemoteEntityFromEcs;
+        RelayClient.OnPingUpdated += OnPingUpdated;
+
         RelayClient.RegisterType(typeof(NetworkIdComponent), (writer, customObject) =>
         {
             var id = (NetworkIdComponent)customObject;
@@ -34,12 +45,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
         }, reader => reader.GetNetworkId());
     }
 
-    private bool IsMasterClient => RelayClient.PeerId == 0; // TODO
-
-    /// <summary>
-    /// Is it safe to run client patches?
-    /// </summary>
-    public bool ConnectedAndInRoom => RelayClient.InRoom;
+    public bool IsMasterClient => (short)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PeerId;
 
     #region Lifetime
 
@@ -52,12 +58,8 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
     {
         RelayClient.Stop();
     }
-    
-    private void UpdatePeerId()
-    {
-        Log(LogLevel.Debug, "Updating NetManager peer id to {PeerId}", RelayClient.PeerId);
-        _netManager.PeerId = RelayClient.PeerId;
-    }
+
+    protected virtual void OnPingUpdated(int ping) { }
 
     #endregion
 
@@ -68,7 +70,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
     #endregion
 
     #region ECS
-    
+
     private void HandleEntityDeleted(NetworkIdComponent netId)
     {
         if (netId.Owner == RelayClient.LocalPlayer.PeerId)
@@ -84,7 +86,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
 
     private void DeleteRemoteEntityFromEcs(NetworkIdComponent netId)
     {
-        if (_netManager.TryGetEntityByNetworkId(netId, out var entity))
+        if (NetManager.TryGetEntityByNetworkId(netId, out var entity))
         {
             Log(LogLevel.Debug, "Queueing remote entity for destruction: {Id}", netId);
             CommandBuffer.DeleteEntity(entity.Value.Id);
@@ -94,7 +96,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
             Log(LogLevel.Error, "Received destroy event for locally non-existent entity: {Id}", netId);
         }
     }
-    
+
     #endregion
 
     protected virtual void Log(LogLevel level, [StructuredMessageTemplate] string message, params object?[] args)
@@ -102,10 +104,13 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
         Console.WriteLine($"[{level}] {string.Format(message, args)}");
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
-        _netManager.onEntityDeleted -= HandleEntityDeleted;
-        _netManager.Dispose();
+        NetManager.onEntityDeleted -= HandleEntityDeleted;
+        NetManager.Dispose();
+
+        RelayClient.OnReceivedDeleteEntity -= DeleteRemoteEntityFromEcs;
+        RelayClient.OnPingUpdated -= OnPingUpdated;
         RelayClient.Dispose();
     }
 }

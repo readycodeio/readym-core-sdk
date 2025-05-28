@@ -7,7 +7,7 @@ public class ReadyMod
     public Store World { get; }
     public CommandBufferSynced CommandBuffer { get; }
 
-    public ReadyMod()
+    protected ReadyMod()
     {
         World = ReadyMApp.CreateEntityStore();
 
