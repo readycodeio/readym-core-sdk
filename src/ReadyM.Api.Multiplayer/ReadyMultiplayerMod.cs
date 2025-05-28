@@ -10,7 +10,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
-public class ReadyMultiplayerMod : ReadyMod, IDisposable
+public partial class ReadyMultiplayerMod : ReadyMod, IDisposable
 {
     public readonly NetworkedEntityManager NetManager;
 
@@ -62,13 +62,7 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
     protected virtual void OnPingUpdated(int ping) { }
 
     #endregion
-
-    // TODO: RPC API
-
-    #region RPC
-
-    #endregion
-
+    
     #region ECS
 
     private void HandleEntityDeleted(NetworkIdComponent netId)
