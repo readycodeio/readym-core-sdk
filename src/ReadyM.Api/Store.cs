@@ -24,6 +24,9 @@ public partial class Store : IStore
         _wrapped = wrapped;
         SystemRoot = new SystemRoot();
         SystemRoot.AddStore(wrapped);
+#if DEBUG
+        SystemRoot.SetMonitorPerf(true);
+#endif
     }
 
     public ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
