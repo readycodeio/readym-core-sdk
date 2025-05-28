@@ -10,7 +10,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
-public partial class ReadyMultiplayerMod : ReadyMod, IDisposable
+public partial class ReadyMultiplayerMod: ReadyMod, IDisposable
 {
     public readonly NetworkedEntityManager NetManager;
 
@@ -37,6 +37,7 @@ public partial class ReadyMultiplayerMod : ReadyMod, IDisposable
 
         RelayClient.OnReceivedDeleteEntity += DeleteRemoteEntityFromEcs;
         RelayClient.OnPingUpdated += OnPingUpdated;
+        RelayClient.OnCustomEvent += OnCustomEvent;
 
         RelayClient.RegisterType(typeof(NetworkIdComponent), (writer, customObject) =>
         {
@@ -46,6 +47,8 @@ public partial class ReadyMultiplayerMod : ReadyMod, IDisposable
     }
 
     public bool IsMasterClient => (short)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PeerId;
+
+    protected virtual void OnCustomEvent(CustomEventHeader header, NetPacketReader reader) { }
 
     #region Lifetime
 
@@ -105,6 +108,7 @@ public partial class ReadyMultiplayerMod : ReadyMod, IDisposable
 
         RelayClient.OnReceivedDeleteEntity -= DeleteRemoteEntityFromEcs;
         RelayClient.OnPingUpdated -= OnPingUpdated;
+        RelayClient.OnCustomEvent -= OnCustomEvent;
         RelayClient.Dispose();
     }
 }
