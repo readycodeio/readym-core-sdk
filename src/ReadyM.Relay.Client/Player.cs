@@ -9,9 +9,9 @@ public class Player(Dictionary<object, object> properties)
     public Dictionary<object, object> Properties { get; } = properties;
 
     // TODO: Optimize access
-    public int PeerId
+    public short PeerId
     {
-        get => Properties.TryGetValue(PlayerProperties.PeerId, out var value) ? (int)value : Constants.UnsetPlayerId;
+        get => Properties.TryGetValue(PlayerProperties.PeerId, out var value) ? (short)value : Constants.UnsetPeerId;
         set => Properties[PlayerProperties.PeerId] = value;
     }
 }

@@ -6,9 +6,9 @@ namespace ReadyM.Relay.Client;
 
 public class RoomStateProxyBase(RelayClient relayClient)
 {
-    public int MasterClientId
+    public short MasterClientId
     {
-        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (int)x : Constants.UnsetPlayerId;
+        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (short)x : Constants.UnsetPeerId;
         set => SetProperty(RoomProperties.MasterClientId, value);
     }
 

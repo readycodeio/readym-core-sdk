@@ -7,435 +7,440 @@ using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Relay.Common;
-using ReadyM.Relay.Common.ECS.Components;
+using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
 
-namespace ReadyM.Relay.Client
+namespace ReadyM.Relay.Client;
+
+public sealed class RelayClient : RelayPeerBase, IDisposable
 {
-    public sealed class RelayClient : RelayPeerBase, IDisposable
+    private readonly Guid _userGuid;
+    private readonly string _host;
+    private readonly int _port;
+
+    private readonly Random _rng = new();
+    private readonly EventBasedNetListener _listener;
+    private readonly NetManager _client;
+    private readonly Action<LogLevel, string, object?[]> _logger;
+
+    private Thread? _clientThread;
+    private bool _isRunning;
+
+    public Dictionary<object, object> RoomState { get; private set; } = new();
+    public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
+    public ConcurrentDictionary<short, Player> OtherPlayers { get; } = new();
+
+    public bool InRoom { get; private set; }
+    public short PeerId => LocalPlayer.PeerId;
+
+    public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
+    public event Action<short, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
+
+    /// <summary>
+    /// Event that is raised when a custom event is received from the server.
+    /// Raised on the thread that the LiteNetLib client is running on.
+    /// </summary>
+    public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
+
+    public event Action? OnBeforeJoinedRoom;
+    public event Action? OnAfterJoinedRoom;
+    public event Action<DisconnectReason>? OnDisconnected;
+    public event Action<int>? OnPingUpdated;
+    public event Action<NetPacketReader>? OnEcsDelta;
+    public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
+
+    /// <summary>
+    /// At this point the connecting player has been assigned an ID and we have synced their state.
+    /// </summary>
+    public event Action<short>? OnOtherPlayerJoined;
+
+    public event Action<short>? OnOtherPlayerLeft;
+
+    private NetPeer? Server
     {
-        private readonly Guid _userGuid;
-        private readonly string _host;
-        private readonly int _port;
-
-        private readonly Random _rng = new();
-        private readonly EventBasedNetListener _listener;
-        private readonly NetManager _client;
-        private readonly Action<LogLevel, string, object?[]> _logger;
-
-        private Thread? _clientThread;
-        private bool _isRunning;
-
-        public Dictionary<object, object> RoomState { get; private set; } = new();
-        public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
-        public ConcurrentDictionary<int, Player> OtherPlayers { get; } = new();
-
-        public bool InRoom { get; private set; }
-
-        public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
-        public event Action<int, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
-        public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
-        public event Action? OnBeforeJoinedRoom;
-        public event Action? OnAfterJoinedRoom;
-        public event Action<DisconnectReason>? OnDisconnected;
-        public event Action<int>? OnPingUpdated;
-        public event Action<NetPacketReader>? OnEcsDelta;
-        public event Action<NetworkIdComponent>? OnReceivedDestroyEntity;
-
-        /// <summary>
-        /// At this point the connecting player has been assigned an ID and we have synced their state.
-        /// </summary>
-        public event Action<int>? OnOtherPlayerJoined;
-
-        public event Action<int>? OnOtherPlayerLeft;
-
-        private NetPeer? Server
+        get
         {
-            get
+            if (_client.FirstPeer == null)
             {
-                if (_client.FirstPeer == null)
-                {
-                    Log(LogLevel.Error, "Disconnected from server");
-                }
-
-                return _client.FirstPeer;
+                Log(LogLevel.Error, "Disconnected from server");
             }
+
+            return _client.FirstPeer;
         }
+    }
 
-        public RelayClient(Guid userGuid, string host, int port, Action<LogLevel, string, object?[]> logger)
+    public RelayClient(Guid userGuid, string host, int port, Action<LogLevel, string, object?[]> logger)
+    {
+        _userGuid = userGuid;
+        _host = host;
+        _port = port;
+
+        _listener = new EventBasedNetListener();
+        _listener.NetworkReceiveEvent += OnListenerOnNetworkReceiveEvent;
+        _listener.NetworkLatencyUpdateEvent += OnNetworkLatencyUpdateEvent;
+        _listener.PeerDisconnectedEvent += OnServerDisconnected;
+
+        _client = new NetManager(_listener)
         {
-            _userGuid = userGuid;
-            _host = host;
-            _port = port;
-
-            _listener = new EventBasedNetListener();
-            _listener.NetworkReceiveEvent += OnListenerOnNetworkReceiveEvent;
-            _listener.NetworkLatencyUpdateEvent += OnNetworkLatencyUpdateEvent;
-            _listener.PeerDisconnectedEvent += OnServerDisconnected;
-
-            _client = new NetManager(_listener)
-            {
-                AutoRecycle = true,
-                EnableStatistics = true,
+            AutoRecycle = true,
+            EnableStatistics = true,
 #if NO_DISCONNECT
-                DisconnectTimeout = 3600_000,
-                PingInterval = 3600_000,
-                DisconnectOnUnreachable = false,
+            DisconnectTimeout = 3600_000,
+            PingInterval = 3600_000,
+            DisconnectOnUnreachable = false,
 #else
-                DisconnectOnUnreachable = true,
+            DisconnectOnUnreachable = true,
 #endif
-                UpdateTime = Constants.ClientTickRateMs,
-            };
-            _logger = logger;
+            UpdateTime = Constants.ClientTickRateMs
+        };
+        _logger = logger;
+    }
+
+    public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
+    {
+        return Server?.GetMaxSinglePacketSize(deliveryMethod) ?? 1300;
+    }
+
+    private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
+    {
+        InRoom = false;
+        OnDisconnected?.Invoke(info.Reason);
+    }
+
+    public void Start()
+    {
+        if (_isRunning)
+        {
+            Log(LogLevel.Error, "Relay client is already running");
+            return;
         }
 
-        public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
-        {
-            return Server?.GetMaxSinglePacketSize(deliveryMethod) ?? 1300;
-        }
+        _client.Start();
+        _client.Connect(_host, _port, _userGuid.ToString());
 
-        private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
+        _isRunning = true;
+        _clientThread = new Thread(() =>
         {
-            InRoom = false;
-            OnDisconnected?.Invoke(info.Reason);
-        }
-
-        public void Start()
-        {
-            if (_isRunning)
+            Log(LogLevel.Information, "Running relay client on port {0}", _port);
+            while (_isRunning)
             {
-                Log(LogLevel.Error, "Relay client is already running");
+                try
+                {
+                    _client.PollEvents();
+                    Thread.Sleep(Constants.ClientTickRateMs);
+                }
+                catch (Exception ex)
+                {
+                    Log(LogLevel.Error, "Unhandled exception in client thread: {0} | {1}", ex.Message, ex.StackTrace);
+                    if (ex.InnerException != null)
+                    {
+                        Log(LogLevel.Error, "Inner exception: {0} | {1}", ex.InnerException.Message, ex.InnerException.StackTrace);
+                    }
+                }
+            }
+        });
+            
+        _clientThread.Start();
+    }
+
+    public void Stop()
+    {
+        _client.Stop();
+        _isRunning = false;
+        _clientThread?.Join();
+        _clientThread = null;
+        InRoom = false;
+        LocalPlayer = new Player(new Dictionary<object, object>());
+        OtherPlayers.Clear();
+        OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
+    }
+
+    public Player? GetPlayerState(short peerId)
+    {
+        return peerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(peerId);
+    }
+
+    private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
+    {
+        Server?.Send(writer, deliveryMethod);
+        var ev = writer.Data[0];
+        AppendToSentStats(ev, writer.Length);
+    }
+
+    public void OpSetCustomPropertiesOfActor(short playerId, Dictionary<object, object?> data)
+    {
+        if (!InRoom)
+        {
+            if (playerId == Constants.UnsetPeerId)
+            {
+                UpdateAndGetDiff(LocalPlayer.Properties, data);
+            }
+            else
+            {
+                Log(LogLevel.Warning, "Attempted to set properties of player {0} while not in room", playerId);
+            }
+
+            return;
+        }
+
+        var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
+    {
+        var diff = UpdateAndGetDiff(RoomState, data);
+        var writer = CreateRoomPropertiesUpdatePacket(diff);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+    }
+
+    /// <summary>
+    /// Send an event to a specific player or group of players.
+    /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
+    /// </summary>
+    public void OpRaiseEvent(byte eventCode, object? data, short[] peers, DeliveryMethod deliveryMethod)
+    {
+        var writer = new NetDataWriter();
+        writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers, EventCaching.DoNotCache);
+
+        if (data != null)
+        {
+            SerializeObject(writer, data);
+        }
+
+        SendMessageToServer(writer, deliveryMethod);
+    }
+
+    /// <summary>
+    /// Send an event with a specific delivery method. This overload does not support event caching.
+    /// </summary>
+    public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
+    {
+        var writer = new NetDataWriter();
+        writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, EventCaching.DoNotCache);
+
+        if (data != null)
+        {
+            SerializeObject(writer, data);
+        }
+
+        SendMessageToServer(writer, deliveryMethod);
+    }
+
+    public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
+    {
+        SendMessageToServer(writer, deliveryMethod);
+    }
+
+    /// <summary>
+    /// Send an event that will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
+    /// </summary>
+    public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
+    {
+        var writer = new NetDataWriter();
+
+        // AddToRoomCacheGlobal events are sent to all players, AddToRoomCache - to others, DoNotCache - too, by default
+        var mode = eventCaching == EventCaching.AddToRoomCacheGlobal ? RelayMode.All : RelayMode.Others;
+        writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, eventCaching);
+
+        if (data != null)
+        {
+            SerializeObject(writer, data);
+        }
+
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+    }
+
+    private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsSent = new();
+    private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsRecv = new();
+
+    private void AppendToSentStats(byte ev, long bytesSent)
+    {
+        _statsSent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
+    }
+
+    private void AppendToRecvStats(byte ev, long bytesRecv)
+    {
+        _statsRecv.AddOrUpdate(ev, (1, bytesRecv), (_, data) => (data.Count + 1, data.Bytes + bytesRecv));
+    }
+
+    private void LogEventStats()
+    {
+#if DEBUG
+        foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
+        {
+            Log(LogLevel.Debug, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+        }
+
+        Log(LogLevel.Debug, "----------------------------------------");
+        foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
+        {
+            Log(LogLevel.Debug, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+        }
+#endif
+    }
+
+    public void Dispose()
+    {
+        Stop();
+    }
+
+    private void Log(LogLevel level, [StructuredMessageTemplate] string template, params object?[] values)
+    {
+        _logger(level, template, values);
+    }
+
+    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
+    {
+        var eventCode = reader.GetByte();
+        AppendToRecvStats(eventCode, reader.UserDataSize);
+
+        switch ((SystemEvent)eventCode)
+        {
+            case SystemEvent.HandshakePeerIdAssigned:
+            {
+                LocalPlayer.PeerId = reader.GetShort();
+                Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PeerId);
+
+                var roomState = DeserializeObject<Dictionary<object, object>>(reader);
+                RoomState = roomState;
+
+                // send joined room event
+                var writer = new NetDataWriter();
+                writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
+                SerializeObject(writer, LocalPlayer.Properties);
+                SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+
                 return;
             }
-
-            _client.Start();
-            _client.Connect(_host, _port, _userGuid.ToString());
-
-            _isRunning = true;
-            _clientThread = new Thread(() =>
+            case SystemEvent.PlayerStateChanged:
             {
-                Log(LogLevel.Information, "Running relay client on port {0}", _port);
-                while (_isRunning)
+                var playerId = reader.GetShort();
+                var changes = DeserializeObject<Dictionary<object, object?>>(reader);
+
+                if (playerId == LocalPlayer.PeerId)
                 {
-                    try
-                    {
-                        _client.PollEvents();
-                        Thread.Sleep(Constants.ClientTickRateMs);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log(LogLevel.Error, "Unhandled exception in client thread: {0} | {1}", ex.Message, ex.StackTrace);
-                        if (ex.InnerException != null)
-                        {
-                            Log(LogLevel.Error, "Inner exception: {0} | {1}", ex.InnerException.Message, ex.InnerException.StackTrace);
-                        }
-                    }
-                }
-            });
-
-
-            _clientThread.Start();
-        }
-
-        public void Stop()
-        {
-            _client.Stop();
-            _isRunning = false;
-            _clientThread?.Join();
-            _clientThread = null;
-            InRoom = false;
-            LocalPlayer = new Player(new Dictionary<object, object>());
-            OtherPlayers.Clear();
-            OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
-        }
-
-        public Player? GetPlayerState(int playerId)
-        {
-            return playerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.TryGetValue(playerId, out var x) ? x : null;
-        }
-
-        private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
-        {
-            Server?.Send(writer, deliveryMethod);
-            var ev = writer.Data[0];
-            AppendToSentStats(ev, writer.Length);
-        }
-
-        public void OpSetCustomPropertiesOfActor(int playerId, Dictionary<object, object?> data)
-        {
-            if (!InRoom)
-            {
-                if (playerId == Constants.UnsetPlayerId)
-                {
-                    UpdateAndGetDiff(LocalPlayer.Properties, data);
+                    var diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
+                    OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                 }
                 else
                 {
-                    Log(LogLevel.Warning, "Attempted to set properties of player {0} while not in room", playerId);
+                    if (!OtherPlayers.TryGetValue(playerId, out var player))
+                    {
+                        Log(LogLevel.Debug, "Received initial state for player {0}", playerId);
+                        OtherPlayers[playerId] = new Player(changes
+                            .Where(x => x.Value != null)
+                            .ToDictionary(x => x.Key, x => x.Value!));
+                    }
+                    else
+                    {
+                        var diff = UpdateAndGetDiff(player.Properties, changes);
+                        OnPlayerPropertiesChanged?.Invoke(playerId, diff);
+                    }
                 }
 
                 return;
             }
-
-            var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
-            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-        }
-
-        public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
-        {
-            var diff = UpdateAndGetDiff(RoomState, data);
-            var writer = CreateRoomPropertiesUpdatePacket(diff);
-            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-        }
-
-        /// <summary>
-        /// Send an event to a specific player or group of players.
-        /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
-        /// </summary>
-        public void OpRaiseEvent(byte eventCode, object? data, int[] peers, DeliveryMethod deliveryMethod)
-        {
-            var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, peers, EventCaching.DoNotCache);
-
-            if (data != null)
+            case SystemEvent.RoomStateChanged:
             {
-                SerializeObject(writer, data);
+                var changes = DeserializeObject<Dictionary<object, object?>>(reader);
+                var diff = UpdateAndGetDiff(RoomState, changes);
+                OnRoomPropertiesChanged?.Invoke(diff);
+                return;
             }
-
-            SendMessageToServer(writer, deliveryMethod);
-        }
-
-        /// <summary>
-        /// Send an event with a specific delivery method. This overload does not support event caching.
-        /// </summary>
-        public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
-        {
-            var writer = new NetDataWriter();
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, EventCaching.DoNotCache);
-
-            if (data != null)
+            case SystemEvent.PlayerJoined:
             {
-                SerializeObject(writer, data);
-            }
+                var playerId = reader.GetShort();
+                var initialState = DeserializeObject<Dictionary<object, object>>(reader);
+                var newPlayer = new Player(initialState);
 
-            SendMessageToServer(writer, deliveryMethod);
-        }
-
-        public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
-        {
-            SendMessageToServer(writer, deliveryMethod);
-        }
-
-        /// <summary>
-        /// Send an event the will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
-        /// </summary>
-        public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
-        {
-            var writer = new NetDataWriter();
-
-            // AddToRoomCacheGlobal events are sent to all players, AddToRoomCache - to others, DoNotCache - too, by default
-            var mode = eventCaching == EventCaching.AddToRoomCacheGlobal ? RelayMode.All : RelayMode.Others;
-            writer.PutCustomEventHeader(eventCode, LocalPlayer.PeerId, mode, eventCaching);
-
-            if (data != null)
-            {
-                SerializeObject(writer, data);
-            }
-
-            SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-        }
-
-        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsSent = new();
-        private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsRecv = new();
-
-        private void AppendToSentStats(byte ev, long bytesSent)
-        {
-            _statsSent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
-        }
-
-        private void AppendToRecvStats(byte ev, long bytesRecv)
-        {
-            _statsRecv.AddOrUpdate(ev, (1, bytesRecv), (_, data) => (data.Count + 1, data.Bytes + bytesRecv));
-        }
-
-        private void LogEventStats()
-        {
-#if DEBUG
-            foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
-            {
-                Log(LogLevel.Debug, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
-            }
-
-            Log(LogLevel.Debug, "----------------------------------------");
-            foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
-            {
-                Log(LogLevel.Debug, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
-            }
-#endif
-        }
-
-        public void Dispose()
-        {
-            Stop();
-        }
-
-        private void Log(LogLevel level, [StructuredMessageTemplate] string message, params object?[] values)
-        {
-            _logger(level, $"[Relay Client] {message}", values);
-        }
-
-        private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
-        {
-            var eventCode = reader.GetByte();
-            AppendToRecvStats(eventCode, reader.UserDataSize);
-
-            switch ((SystemEvent)eventCode)
-            {
-                case SystemEvent.HandshakePeerIdAssigned:
+                if (playerId == LocalPlayer.PeerId)
                 {
-                    LocalPlayer.PeerId = reader.GetInt();
-                    Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PeerId);
-
-                    var roomState = DeserializeObject<Dictionary<object, object>>(reader);
-                    RoomState = roomState;
-
-                    // send joined room event
-                    var writer = new NetDataWriter();
-                    writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
-                    SerializeObject(writer, LocalPlayer.Properties);
-                    SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-
-                    return;
+                    LocalPlayer = newPlayer;
+                    OnBeforeJoinedRoom?.Invoke();
+                    InRoom = true;
+                    OnAfterJoinedRoom?.Invoke();
                 }
-                case SystemEvent.PlayerStateChanged:
+                else
                 {
-                    var playerId = reader.GetInt();
-                    var changes = DeserializeObject<Dictionary<object, object?>>(reader);
-
-                    if (playerId == LocalPlayer.PeerId)
+                    if (!OtherPlayers.TryAdd(playerId, newPlayer))
                     {
-                        var diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
-                        OnPlayerPropertiesChanged?.Invoke(playerId, diff);
-                    }
-                    else
-                    {
-                        if (!OtherPlayers.TryGetValue(playerId, out var player))
-                        {
-                            Log(LogLevel.Debug, "Received initial state for player {0}", playerId);
-                            OtherPlayers[playerId] = new Player(changes
-                                .Where(x => x.Value != null)
-                                .ToDictionary(x => x.Key, x => x.Value!));
-                        }
-                        else
-                        {
-                            var diff = UpdateAndGetDiff(player.Properties, changes);
-                            OnPlayerPropertiesChanged?.Invoke(playerId, diff);
-                        }
+                        Log(LogLevel.Error, "Player {0} already exists", playerId);
+                        OtherPlayers[playerId] = newPlayer;
                     }
 
-                    return;
+                    OnOtherPlayerJoined?.Invoke(playerId);
                 }
-                case SystemEvent.RoomStateChanged:
-                {
-                    var changes = DeserializeObject<Dictionary<object, object?>>(reader);
-                    var diff = UpdateAndGetDiff(RoomState, changes);
-                    OnRoomPropertiesChanged?.Invoke(diff);
-                    return;
-                }
-                case SystemEvent.PlayerJoined:
-                {
-                    var playerId = reader.GetInt();
-                    var initialState = DeserializeObject<Dictionary<object, object>>(reader);
-                    var newPlayer = new Player(initialState);
 
-                    if (playerId == LocalPlayer.PeerId)
-                    {
-                        LocalPlayer = newPlayer;
-                        OnBeforeJoinedRoom?.Invoke();
-                        InRoom = true;
-                        OnAfterJoinedRoom?.Invoke();
-                    }
-                    else
-                    {
-                        if (!OtherPlayers.TryAdd(playerId, newPlayer))
-                        {
-                            Log(LogLevel.Error, "Player {0} already exists", playerId);
-                            OtherPlayers[playerId] = newPlayer;
-                        }
-
-                        OnOtherPlayerJoined?.Invoke(playerId);
-                    }
-
-                    return;
-                }
-                case SystemEvent.PlayerLeft:
-                {
-                    var playerId = reader.GetInt();
-                    OnOtherPlayerLeft?.Invoke(playerId);
-                    return;
-                }
-                case SystemEvent.HandshakeSetInitialProperties:
-                    Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
-                    return;
-                case SystemEvent.EcsUpdate:
-                    OnEcsDelta?.Invoke(reader);
-                    return;
-                case SystemEvent.DestroyEntity:
-                    var netId = reader.GetNetworkId();
-                    OnReceivedDestroyEntity?.Invoke(netId);
-                    return;
+                return;
             }
-
-            var header = reader.GetCustomEventHeader(eventCode);
-            OnCustomEvent?.Invoke(header, reader);
+            case SystemEvent.PlayerLeft:
+            {
+                var playerId = reader.GetShort();
+                OnOtherPlayerLeft?.Invoke(playerId);
+                return;
+            }
+            case SystemEvent.HandshakeSetInitialProperties:
+                Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
+                return;
+            case SystemEvent.EcsUpdate:
+                OnEcsDelta?.Invoke(reader);
+                return;
+            case SystemEvent.DestroyEntity:
+                var netId = reader.GetNetworkId();
+                OnReceivedDeleteEntity?.Invoke(netId);
+                return;
         }
 
-        private long _lastBytesReceived;
-        private long _lastBytesSent;
-        private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
+        var header = reader.GetCustomEventHeader(eventCode);
+        OnCustomEvent?.Invoke(header, reader);
+    }
 
-        private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
-        {
-            // Round trip time. LiteNetLib reports one way latency, so we double it.
-            // We add a random jitter so that the results are not always divisible by 2.
-            OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
+    private long _lastBytesReceived;
+    private long _lastBytesSent;
+    private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
-            // Print stats every time too
-            var dRecv = _client.Statistics.BytesReceived - _lastBytesReceived;
-            _lastBytesReceived = _client.Statistics.BytesReceived;
+    private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
+    {
+        // Round trip time. LiteNetLib reports one way latency, so we double it.
+        // We add a random jitter so that the results are not always divisible by 2.
+        OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
 
-            var dSent = _client.Statistics.BytesSent - _lastBytesSent;
-            _lastBytesSent = _client.Statistics.BytesSent;
+        // Print stats every time too
+        var dRecv = _client.Statistics.BytesReceived - _lastBytesReceived;
+        _lastBytesReceived = _client.Statistics.BytesReceived;
 
-            var now = DateTimeOffset.Now;
-            var delta = now - _lastStatCheck;
+        var dSent = _client.Statistics.BytesSent - _lastBytesSent;
+        _lastBytesSent = _client.Statistics.BytesSent;
 
-            _lastStatCheck = now;
+        var now = DateTimeOffset.Now;
+        var delta = now - _lastStatCheck;
 
-            // print avg recv and sent over the delta time
-            var avgRecv = (long)(dRecv / delta.TotalSeconds);
-            var avgSent = (long)(dSent / delta.TotalSeconds);
+        _lastStatCheck = now;
 
-            Log(LogLevel.Debug, "Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
-            LogEventStats();
-        }
+        // print avg recv and sent over the delta time
+        var avgRecv = (long)(dRecv / delta.TotalSeconds);
+        var avgSent = (long)(dSent / delta.TotalSeconds);
 
-        private NetDataWriter CreatePlayerPropertiesUpdatePacket(int playerId, Dictionary<object, object?> changes)
-        {
-            var writer = new NetDataWriter();
-            writer.Put((byte)SystemEvent.PlayerStateChanged);
-            writer.Put(playerId);
-            SerializeObject(writer, changes);
-            return writer;
-        }
+        Log(LogLevel.Debug, "Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
+        LogEventStats();
+    }
 
-        private NetDataWriter CreateRoomPropertiesUpdatePacket(Dictionary<object, object?> changes)
-        {
-            var writer = new NetDataWriter();
-            writer.Put((byte)SystemEvent.RoomStateChanged);
-            SerializeObject(writer, changes);
-            return writer;
-        }
+    private NetDataWriter CreatePlayerPropertiesUpdatePacket(short playerId, Dictionary<object, object?> changes)
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.PlayerStateChanged);
+        writer.Put(playerId);
+        SerializeObject(writer, changes);
+        return writer;
+    }
+
+    private NetDataWriter CreateRoomPropertiesUpdatePacket(Dictionary<object, object?> changes)
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.RoomStateChanged);
+        SerializeObject(writer, changes);
+        return writer;
     }
 }
