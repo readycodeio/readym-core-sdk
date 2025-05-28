@@ -4,6 +4,7 @@
         <TargetFramework>netstandard2.1</TargetFramework>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
     </PropertyGroup>
 
     <ItemGroup>
