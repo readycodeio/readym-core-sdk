@@ -161,7 +161,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
         return peerId == LocalPlayer.PeerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(peerId);
     }
 
-    private void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
+    public void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
     {
         Server?.Send(writer, deliveryMethod);
         var ev = writer.Data[0];
