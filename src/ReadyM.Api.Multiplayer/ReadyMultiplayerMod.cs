@@ -38,12 +38,6 @@ public partial class ReadyMultiplayerMod: ReadyMod, IDisposable
         RelayClient.OnReceivedDeleteEntity += DeleteRemoteEntityFromEcs;
         RelayClient.OnPingUpdated += OnPingUpdated;
         RelayClient.OnCustomEvent += OnCustomEvent;
-
-        RelayClient.RegisterType(typeof(NetworkIdComponent), (writer, customObject) =>
-        {
-            var id = (NetworkIdComponent)customObject;
-            writer.Put(id.Id);
-        }, reader => reader.GetNetworkId());
     }
 
     public bool IsMasterClient => (short)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PeerId;
