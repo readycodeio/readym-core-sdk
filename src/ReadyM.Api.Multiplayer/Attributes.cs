@@ -5,3 +5,6 @@ namespace ReadyM.Api.Multiplayer;
 
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class RpcEventAttribute(RelayMode relayMode, EventCaching caching = EventCaching.DoNotCache) : Attribute;
+
+[AttributeUsage(AttributeTargets.Struct)]
+public sealed class DeriveINetSerializableAttribute : Attribute;
