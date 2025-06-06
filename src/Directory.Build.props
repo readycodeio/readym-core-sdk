@@ -7,4 +7,11 @@
         <OutputPath>bin\NoDisconnect\</OutputPath>
         <IntermediateOutputPath>obj\NoDisconnect\</IntermediateOutputPath>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)' == 'Testing'">
+        <DefineConstants>$(DefineConstants);DEBUG;TESTING</DefineConstants>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <OutputPath>bin\Testing\</OutputPath>
+        <DebugSymbols>true</DebugSymbols>
+        <IntermediateOutputPath>obj\Testing\</IntermediateOutputPath>
+    </PropertyGroup>
 </Project>
