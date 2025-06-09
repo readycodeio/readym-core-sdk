@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -13,7 +14,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public sealed class RelayClient : RelayPeerBase, IDisposable
+public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 {
     private readonly Guid _userGuid;
     private readonly string _host;
@@ -26,6 +27,9 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
 
     private Thread? _clientThread;
     private bool _isRunning;
+
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo>> _blobDownloadTasks = new();
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<bool>> _blobUploadTasks = new();
 
     public Dictionary<object, object> RoomState { get; private set; } = new();
     public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
@@ -140,7 +144,7 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
                 }
             }
         });
-            
+
         _clientThread.Start();
     }
 
@@ -391,10 +395,132 @@ public sealed class RelayClient : RelayPeerBase, IDisposable
                 var netId = reader.GetNetworkId();
                 OnReceivedDeleteEntity?.Invoke(netId);
                 return;
+            case SystemEvent.DownloadBlob:
+            case SystemEvent.UploadBlob:
+                Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.DownloadBlob);
+                return;
+            case SystemEvent.UploadBlobAck:
+            {
+                var requestId = reader.GetInt();
+                var success = reader.GetBool();
+
+                Log(LogLevel.Information, "File upload with request ID {RequestId} completed with success: {Success}", requestId, success);
+
+                var uploadTask = _blobUploadTasks.GetValueOrDefault(requestId);
+                if (uploadTask != null)
+                {
+                    if (success)
+                    {
+                        if (uploadTask.TrySetResult(true))
+                        {
+                            _blobUploadTasks.TryRemove(requestId, out _);
+                        }
+                        else
+                        {
+                            Log(LogLevel.Warning, "Failed to set result for file upload task with request ID {RequestId}", requestId);
+                        }
+                    }
+                    else
+                    {
+                        if (uploadTask.TrySetException(new Exception("File upload failed")))
+                        {
+                            _blobUploadTasks.TryRemove(requestId, out _);
+                        }
+                        else
+                        {
+                            Log(LogLevel.Warning, "Failed to set exception for file upload task with request ID {RequestId}", requestId);
+                        }
+                    }
+                }
+                else
+                {
+                    Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving upload ack", requestId);
+                }
+
+                return;
+            }
+            case SystemEvent.BlobData:
+            {
+                var requestId = reader.GetInt();
+                var fileName = reader.GetString();
+                var fileData = reader.GetBytesWithLength();
+
+                Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
+
+                var tcs = _blobDownloadTasks.GetValueOrDefault(requestId);
+                if (tcs != null)
+                {
+                    var fileInfo = new BlobInfo(fileName, fileData);
+                    if (tcs.TrySetResult(fileInfo))
+                    {
+                        _blobDownloadTasks.TryRemove(requestId, out _);
+                    }
+                    else
+                    {
+                        Log(LogLevel.Warning, "Failed to set result for file download task with request ID {RequestId}", requestId);
+                    }
+                }
+                else
+                {
+                    Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving file stream for {FileName}", requestId, fileName);
+                }
+
+                return;
+            }
         }
 
         var header = reader.GetCustomEventHeader(eventCode);
         OnCustomEvent?.Invoke(header, reader);
+    }
+
+    public async Task<BlobInfo> DownloadBlob(string name)
+    {
+        var taskSource = new TaskCompletionSource<BlobInfo>();
+
+        var requestId = _rng.Next(int.MaxValue);
+        _blobDownloadTasks[requestId] = taskSource;
+
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.DownloadBlob);
+        writer.Put(requestId);
+        writer.Put(name);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+        Log(LogLevel.Information, "Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
+
+        try
+        {
+            return await taskSource.Task;
+        }
+        finally
+        {
+            _blobDownloadTasks.TryRemove(requestId, out _);
+        }
+    }
+
+    public async Task<bool> UploadBlob(BlobInfo blob)
+    {
+        var taskSource = new TaskCompletionSource<bool>();
+
+        var requestId = _rng.Next(int.MaxValue);
+        _blobUploadTasks[requestId] = taskSource;
+
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.UploadBlob);
+        writer.Put(requestId);
+        writer.Put(blob.Name);
+        writer.PutBytesWithLength(blob.Content);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+
+        Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
+
+        try
+        {
+            return await taskSource.Task;
+        }
+        finally
+        {
+            _blobUploadTasks.TryRemove(requestId, out _);
+        }
     }
 
     private long _lastBytesReceived;
