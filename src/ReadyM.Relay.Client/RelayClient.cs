@@ -20,7 +20,10 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
     private readonly string _host;
     private readonly int _port;
 
-    private readonly Random _rng = new();
+    private readonly Random _rng = new(2137);
+
+    private int _requestCounter;
+    private int GetNextRequestId() => ++_requestCounter;
     private readonly EventBasedNetListener _listener;
     private readonly NetManager _client;
     private readonly Action<LogLevel, string, object?[]> _logger;
@@ -487,7 +490,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
     {
         var taskSource = new TaskCompletionSource<BlobInfo?>();
 
-        var requestId = _rng.Next(int.MaxValue);
+        var requestId = GetNextRequestId();
         _blobDownloadTasks[requestId] = taskSource;
 
         var writer = new NetDataWriter();
@@ -512,7 +515,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
     {
         var tcs = new TaskCompletionSource<bool>();
 
-        var requestId = _rng.Next(int.MaxValue);
+        var requestId = GetNextRequestId();
         _blobUploadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
