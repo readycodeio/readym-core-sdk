@@ -61,14 +61,14 @@ public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
             return masterPlayerId == RelayClient.PlayerId;
         }
     }
-    
+
     protected abstract void OnCustomEvent(CustomEventHeader header, NetPacketReader reader);
 
     private void OnEcsDelta(NetDataReader reader)
     {
         var componentId = reader.Get<NetworkedComponentId>();
 
-        if (!DeltaReaderJobs.TryGetValue(componentId, out var readerJob))
+        if (!DeltaReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
         {
             Log(LogLevel.Error, "No delta reader job registered for component ID: {Id}", componentId);
             return;
@@ -89,8 +89,7 @@ public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
         {
             while (readerCopy.TryGetNetworkedComponentId(out var componentId))
             {
-                if (!SnapshotReaderJobs.TryGetValue(componentId, out var readerJob))
-                if (readerJob == null)
+                if (!SnapshotReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
                 {
                     Log(LogLevel.Error, "No snapshot reader job registered for component ID: {Id}", componentId);
                     return;
