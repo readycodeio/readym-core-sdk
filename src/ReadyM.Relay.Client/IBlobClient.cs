@@ -8,5 +8,5 @@ public interface IBlobClient
     /// <returns>Whether upload was successful.</returns>
     Task<bool> UploadBlob(BlobInfo blob);
 
-    Task<BlobInfo> DownloadBlob(string name);
+    Task<BlobInfo?> DownloadBlob(string name);
 }

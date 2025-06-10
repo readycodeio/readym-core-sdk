@@ -28,7 +28,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
     private Thread? _clientThread;
     private bool _isRunning;
 
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo>> _blobDownloadTasks = new();
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo?>> _blobDownloadTasks = new();
     private readonly ConcurrentDictionary<int, TaskCompletionSource<bool>> _blobUploadTasks = new();
 
     public Dictionary<object, object> RoomState { get; private set; } = new();
@@ -442,27 +442,37 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
             case SystemEvent.BlobData:
             {
                 var requestId = reader.GetInt();
-                var fileName = reader.GetString();
-                var fileData = reader.GetBytesWithLength();
-
-                Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
+                var succeeded = reader.GetBool();
 
                 var tcs = _blobDownloadTasks.GetValueOrDefault(requestId);
-                if (tcs != null)
+                if (tcs == null)
                 {
-                    var fileInfo = new BlobInfo(fileName, fileData);
-                    if (tcs.TrySetResult(fileInfo))
-                    {
-                        _blobDownloadTasks.TryRemove(requestId, out _);
-                    }
-                    else
-                    {
-                        Log(LogLevel.Warning, "Failed to set result for file download task with request ID {RequestId}", requestId);
-                    }
+                    Log(LogLevel.Error, "No task found for request ID {RequestId}", requestId);
+                    return;
+                }
+
+                BlobInfo? result = null;
+
+                if (succeeded)
+                {
+                    var fileName = reader.GetString();
+                    var fileData = reader.GetBytesWithLength();
+
+                    Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
+                    result = new BlobInfo(fileName, fileData);
                 }
                 else
                 {
-                    Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving file stream for {FileName}", requestId, fileName);
+                    Log(LogLevel.Warning, "File download with request ID {RequestId} failed", requestId);
+                }
+
+                if (tcs.TrySetResult(result))
+                {
+                    _blobDownloadTasks.TryRemove(requestId, out _);
+                }
+                else
+                {
+                    Log(LogLevel.Warning, "Failed to set result for file download task with request ID {RequestId}", requestId);
                 }
 
                 return;
@@ -473,15 +483,16 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
         OnCustomEvent?.Invoke(header, reader);
     }
 
-    public async Task<BlobInfo> DownloadBlob(string name)
+    public async Task<BlobInfo?> DownloadBlob(string name)
     {
-        var taskSource = new TaskCompletionSource<BlobInfo>();
+        var taskSource = new TaskCompletionSource<BlobInfo?>();
 
         var requestId = _rng.Next(int.MaxValue);
         _blobDownloadTasks[requestId] = taskSource;
 
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.DownloadBlob);
+        writer.Put(PeerId);
         writer.Put(requestId);
         writer.Put(name);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
@@ -499,13 +510,14 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
 
     public async Task<bool> UploadBlob(BlobInfo blob)
     {
-        var taskSource = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>();
 
         var requestId = _rng.Next(int.MaxValue);
-        _blobUploadTasks[requestId] = taskSource;
+        _blobUploadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.UploadBlob);
+        writer.Put(PeerId);
         writer.Put(requestId);
         writer.Put(blob.Name);
         writer.PutBytesWithLength(blob.Content);
@@ -515,7 +527,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
 
         try
         {
-            return await taskSource.Task;
+            return await tcs.Task;
         }
         finally
         {
