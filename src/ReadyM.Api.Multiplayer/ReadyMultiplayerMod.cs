@@ -10,7 +10,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
-public partial class ReadyMultiplayerMod: ReadyMod, IDisposable
+public class ReadyMultiplayerMod: ReadyMod, IDisposable
 {
     public readonly NetworkedEntityManager NetManager;
 

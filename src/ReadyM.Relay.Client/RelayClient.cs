@@ -14,7 +14,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposable
+public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 {
     private readonly Guid _userGuid;
     private readonly string _host;
@@ -409,35 +409,21 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
 
                 Log(LogLevel.Information, "File upload with request ID {RequestId} completed with success: {Success}", requestId, success);
 
-                var uploadTask = _blobUploadTasks.GetValueOrDefault(requestId);
-                if (uploadTask != null)
-                {
-                    if (success)
-                    {
-                        if (uploadTask.TrySetResult(true))
-                        {
-                            _blobUploadTasks.TryRemove(requestId, out _);
-                        }
-                        else
-                        {
-                            Log(LogLevel.Warning, "Failed to set result for file upload task with request ID {RequestId}", requestId);
-                        }
-                    }
-                    else
-                    {
-                        if (uploadTask.TrySetException(new Exception("File upload failed")))
-                        {
-                            _blobUploadTasks.TryRemove(requestId, out _);
-                        }
-                        else
-                        {
-                            Log(LogLevel.Warning, "Failed to set exception for file upload task with request ID {RequestId}", requestId);
-                        }
-                    }
-                }
-                else
+                if (!_blobUploadTasks.TryRemove(requestId, out var uploadTask))
                 {
                     Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving upload ack", requestId);
+                    return;
+                }
+
+                if (uploadTask.Task.IsCanceled)
+                {
+                    Log(LogLevel.Warning, "Upload task already cancelled, not setting result for request ID {RequestId}", requestId);
+                    return;
+                }
+
+                if (!uploadTask.TrySetResult(success))
+                {
+                    Log(LogLevel.Error, "Failed to set result for file upload task with request ID {RequestId}", requestId);
                 }
 
                 return;
@@ -447,8 +433,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
                 var requestId = reader.GetInt();
                 var succeeded = reader.GetBool();
 
-                var tcs = _blobDownloadTasks.GetValueOrDefault(requestId);
-                if (tcs == null)
+                if (!_blobDownloadTasks.TryRemove(requestId, out var downloadTask))
                 {
                     Log(LogLevel.Error, "No task found for request ID {RequestId}", requestId);
                     return;
@@ -469,13 +454,15 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
                     Log(LogLevel.Warning, "File download with request ID {RequestId} failed", requestId);
                 }
 
-                if (tcs.TrySetResult(result))
+                if (downloadTask.Task.IsCanceled)
                 {
-                    _blobDownloadTasks.TryRemove(requestId, out _);
+                    Log(LogLevel.Warning, "Download task already cancelled, not setting result for request ID {RequestId}", requestId);
+                    return;
                 }
-                else
+
+                if (!downloadTask.TrySetResult(result))
                 {
-                    Log(LogLevel.Warning, "Failed to set result for file download task with request ID {RequestId}", requestId);
+                    Log(LogLevel.Error, "Failed to set result for file download task with request ID {RequestId}", requestId);
                 }
 
                 return;
@@ -486,8 +473,10 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
         OnCustomEvent?.Invoke(header, reader);
     }
 
-    public async Task<BlobInfo?> DownloadBlob(string name)
+    public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         var taskSource = new TaskCompletionSource<BlobInfo?>();
 
         var requestId = GetNextRequestId();
@@ -501,18 +490,29 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         Log(LogLevel.Information, "Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
 
-        try
+        await using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
         {
-            return await taskSource.Task;
-        }
-        finally
-        {
-            _blobDownloadTasks.TryRemove(requestId, out _);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                return await taskSource.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log(LogLevel.Warning, "File download for {FileName} was cancelled with request ID {RequestId}", name, requestId);
+                throw;
+            }
+            finally
+            {
+                _blobDownloadTasks.TryRemove(requestId, out _);
+            }
         }
     }
 
-    public async Task<bool> UploadBlob(BlobInfo blob)
+    public async Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         var tcs = new TaskCompletionSource<bool>();
 
         var requestId = GetNextRequestId();
@@ -527,14 +527,21 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
         Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
-
-        try
+        await using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
         {
-            return await tcs.Task;
-        }
-        finally
-        {
-            _blobUploadTasks.TryRemove(requestId, out _);
+            try
+            {
+                return await tcs.Task;
+            }
+            catch (OperationCanceledException)
+            {
+                Log(LogLevel.Warning, "File upload for {FileName} was cancelled with request ID {RequestId}", blob.Name, requestId);
+                throw;
+            }
+            finally
+            {
+                _blobUploadTasks.TryRemove(requestId, out _);
+            }
         }
     }
 
