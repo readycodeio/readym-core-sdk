@@ -14,13 +14,16 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposable
+public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 {
     private readonly Guid _userGuid;
     private readonly string _host;
     private readonly int _port;
 
-    private readonly Random _rng = new();
+    private readonly Random _rng = new(2137);
+
+    private int _requestCounter;
+    private int GetNextRequestId() => ++_requestCounter;
     private readonly EventBasedNetListener _listener;
     private readonly NetManager _client;
     private readonly Action<LogLevel, string, object?[]> _logger;
@@ -28,7 +31,7 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
     private Thread? _clientThread;
     private bool _isRunning;
 
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo>> _blobDownloadTasks = new();
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo?>> _blobDownloadTasks = new();
     private readonly ConcurrentDictionary<int, TaskCompletionSource<bool>> _blobUploadTasks = new();
 
     public Dictionary<object, object> RoomState { get; private set; } = new();
@@ -406,35 +409,21 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
 
                 Log(LogLevel.Information, "File upload with request ID {RequestId} completed with success: {Success}", requestId, success);
 
-                var uploadTask = _blobUploadTasks.GetValueOrDefault(requestId);
-                if (uploadTask != null)
-                {
-                    if (success)
-                    {
-                        if (uploadTask.TrySetResult(true))
-                        {
-                            _blobUploadTasks.TryRemove(requestId, out _);
-                        }
-                        else
-                        {
-                            Log(LogLevel.Warning, "Failed to set result for file upload task with request ID {RequestId}", requestId);
-                        }
-                    }
-                    else
-                    {
-                        if (uploadTask.TrySetException(new Exception("File upload failed")))
-                        {
-                            _blobUploadTasks.TryRemove(requestId, out _);
-                        }
-                        else
-                        {
-                            Log(LogLevel.Warning, "Failed to set exception for file upload task with request ID {RequestId}", requestId);
-                        }
-                    }
-                }
-                else
+                if (!_blobUploadTasks.TryRemove(requestId, out var uploadTask))
                 {
                     Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving upload ack", requestId);
+                    return;
+                }
+
+                if (uploadTask.Task.IsCanceled)
+                {
+                    Log(LogLevel.Warning, "Upload task already cancelled, not setting result for request ID {RequestId}", requestId);
+                    return;
+                }
+
+                if (!uploadTask.TrySetResult(success))
+                {
+                    Log(LogLevel.Error, "Failed to set result for file upload task with request ID {RequestId}", requestId);
                 }
 
                 return;
@@ -442,27 +431,38 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
             case SystemEvent.BlobData:
             {
                 var requestId = reader.GetInt();
-                var fileName = reader.GetString();
-                var fileData = reader.GetBytesWithLength();
+                var succeeded = reader.GetBool();
 
-                Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
-
-                var tcs = _blobDownloadTasks.GetValueOrDefault(requestId);
-                if (tcs != null)
+                if (!_blobDownloadTasks.TryRemove(requestId, out var downloadTask))
                 {
-                    var fileInfo = new BlobInfo(fileName, fileData);
-                    if (tcs.TrySetResult(fileInfo))
-                    {
-                        _blobDownloadTasks.TryRemove(requestId, out _);
-                    }
-                    else
-                    {
-                        Log(LogLevel.Warning, "Failed to set result for file download task with request ID {RequestId}", requestId);
-                    }
+                    Log(LogLevel.Error, "No task found for request ID {RequestId}", requestId);
+                    return;
+                }
+
+                BlobInfo? result = null;
+
+                if (succeeded)
+                {
+                    var fileName = reader.GetString();
+                    var fileData = reader.GetBytesWithLength();
+
+                    Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
+                    result = new BlobInfo(fileName, fileData);
                 }
                 else
                 {
-                    Log(LogLevel.Warning, "No task found for request ID {RequestId} when receiving file stream for {FileName}", requestId, fileName);
+                    Log(LogLevel.Warning, "File download with request ID {RequestId} failed", requestId);
+                }
+
+                if (downloadTask.Task.IsCanceled)
+                {
+                    Log(LogLevel.Warning, "Download task already cancelled, not setting result for request ID {RequestId}", requestId);
+                    return;
+                }
+
+                if (!downloadTask.TrySetResult(result))
+                {
+                    Log(LogLevel.Error, "Failed to set result for file download task with request ID {RequestId}", requestId);
                 }
 
                 return;
@@ -473,53 +473,75 @@ public sealed partial class RelayClient : RelayPeerBase, IBlobClient, IDisposabl
         OnCustomEvent?.Invoke(header, reader);
     }
 
-    public async Task<BlobInfo> DownloadBlob(string name)
+    public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
     {
-        var taskSource = new TaskCompletionSource<BlobInfo>();
+        ct.ThrowIfCancellationRequested();
 
-        var requestId = _rng.Next(int.MaxValue);
+        var taskSource = new TaskCompletionSource<BlobInfo?>();
+
+        var requestId = GetNextRequestId();
         _blobDownloadTasks[requestId] = taskSource;
 
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.DownloadBlob);
+        writer.Put(PeerId);
         writer.Put(requestId);
         writer.Put(name);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         Log(LogLevel.Information, "Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
 
-        try
+        await using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
         {
-            return await taskSource.Task;
-        }
-        finally
-        {
-            _blobDownloadTasks.TryRemove(requestId, out _);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                return await taskSource.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                Log(LogLevel.Warning, "File download for {FileName} was cancelled with request ID {RequestId}", name, requestId);
+                throw;
+            }
+            finally
+            {
+                _blobDownloadTasks.TryRemove(requestId, out _);
+            }
         }
     }
 
-    public async Task<bool> UploadBlob(BlobInfo blob)
+    public async Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
     {
-        var taskSource = new TaskCompletionSource<bool>();
+        ct.ThrowIfCancellationRequested();
 
-        var requestId = _rng.Next(int.MaxValue);
-        _blobUploadTasks[requestId] = taskSource;
+        var tcs = new TaskCompletionSource<bool>();
+
+        var requestId = GetNextRequestId();
+        _blobUploadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.UploadBlob);
+        writer.Put(PeerId);
         writer.Put(requestId);
         writer.Put(blob.Name);
         writer.PutBytesWithLength(blob.Content);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
         Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
-
-        try
+        await using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
         {
-            return await taskSource.Task;
-        }
-        finally
-        {
-            _blobUploadTasks.TryRemove(requestId, out _);
+            try
+            {
+                return await tcs.Task;
+            }
+            catch (OperationCanceledException)
+            {
+                Log(LogLevel.Warning, "File upload for {FileName} was cancelled with request ID {RequestId}", blob.Name, requestId);
+                throw;
+            }
+            finally
+            {
+                _blobUploadTasks.TryRemove(requestId, out _);
+            }
         }
     }
 
