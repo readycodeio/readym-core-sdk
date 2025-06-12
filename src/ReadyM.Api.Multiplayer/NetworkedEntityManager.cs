@@ -15,9 +15,9 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
     private readonly Store _store;
-    private readonly Func<UserId> _getPeerId;
+    private readonly Func<PlayerId> _getPeerId;
 
-    public NetworkedEntityManager(Store store, Func<UserId> getPeerId)
+    public NetworkedEntityManager(Store store, Func<PlayerId> getPeerId)
     {
         _store = store;
         _getPeerId = getPeerId;
