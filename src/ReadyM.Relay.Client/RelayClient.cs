@@ -277,13 +277,13 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 #if DEBUG
         foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
         {
-            Log(LogLevel.Debug, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            Log(LogLevel.Trace, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
 
-        Log(LogLevel.Debug, "----------------------------------------");
+        Log(LogLevel.Trace, "----------------------------------------");
         foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
         {
-            Log(LogLevel.Debug, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            Log(LogLevel.Trace, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
 #endif
     }
