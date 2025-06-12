@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Relay.Client;
+using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
@@ -40,7 +41,7 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
         RelayClient.OnCustomEvent += OnCustomEvent;
     }
 
-    public bool IsMasterClient => (short)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PeerId;
+    public bool IsMasterClient => (UserId)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PeerId;
 
     protected virtual void OnCustomEvent(CustomEventHeader header, NetPacketReader reader) { }
 
@@ -64,7 +65,7 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
 
     private void HandleEntityDeleted(NetworkIdComponent netId)
     {
-        if (netId.Owner == RelayClient.LocalPlayer.PeerId)
+        if (netId.Creator == RelayClient.LocalPlayer.PeerId)
         {
             // our own entity - send destroy event
             Log(LogLevel.Debug, "Networked entity destroyed: {Id} (owned)", netId);

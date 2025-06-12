@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
 
@@ -6,9 +7,9 @@ namespace ReadyM.Relay.Client;
 
 public class RoomStateProxyBase(RelayClient relayClient)
 {
-    public short MasterClientId
+    public UserId MasterClientId
     {
-        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (short)x : Constants.UnsetPeerId;
+        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (UserId)x : Constants.UnsetPeerId;
         set => SetProperty(RoomProperties.MasterClientId, value);
     }
 
