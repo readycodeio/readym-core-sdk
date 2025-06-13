@@ -445,7 +445,10 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                 if (succeeded)
                 {
                     var fileName = reader.GetString();
-                    var fileData = reader.GetBytesWithLength();
+                    var fileSize = reader.GetInt();
+
+                    var fileData = new byte[fileSize];
+                    reader.GetBytes(fileData, fileSize);
 
                     Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
                     result = new BlobInfo(fileName, fileData);
@@ -522,7 +525,8 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         writer.Put((byte)SystemEvent.UploadBlob);
         writer.Put(requestId);
         writer.Put(blob.Name);
-        writer.PutBytesWithLength(blob.Content);
+        writer.Put(blob.Content.Length);
+        writer.Put(blob.Content);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
         Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
