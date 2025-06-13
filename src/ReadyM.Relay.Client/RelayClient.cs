@@ -38,7 +38,9 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
     public ConcurrentDictionary<PlayerId, Player> OtherPlayers { get; } = new();
 
+    public bool Connected { get; private set; }
     public bool InRoom { get; private set; }
+
     public PlayerId PlayerId => LocalPlayer.PlayerId;
 
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
@@ -112,6 +114,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
     {
         InRoom = false;
+        Connected = false;
         OnDisconnected?.Invoke(info.Reason);
     }
 
@@ -158,6 +161,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         _clientThread?.Join();
         _clientThread = null;
         InRoom = false;
+        Connected = false;
         LocalPlayer = new Player(new Dictionary<object, object>());
         RoomState.Clear();
         OtherPlayers.Clear();
@@ -178,20 +182,19 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     public void OpSetCustomPropertiesOfActor(PlayerId playerId, Dictionary<object, object?> data)
     {
-        if (!InRoom)
+        if (!Connected && !InRoom)
         {
-            if (playerId == Constants.UnsetPeerId)
-            {
-                UpdateAndGetDiff(LocalPlayer.Properties, data);
-            }
-            else
-            {
-                Log(LogLevel.Warning, "Attempted to set properties of player {0} while not in room", playerId);
-            }
-
+            Log(LogLevel.Error, "Attempted to set properties of player {0} while not in room", playerId);
             return;
         }
 
+        if (Connected && !InRoom)
+        {
+            UpdateAndGetDiff(LocalPlayer.Properties, data);
+            return;
+        }
+
+        // connected and in room, send the update to the server
         var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
@@ -314,12 +317,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                 var roomState = DeserializeObject<Dictionary<object, object>>(reader);
                 RoomState = roomState;
 
-                // send joined room event
-                var writer = new NetDataWriter();
-                writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
-                SerializeObject(writer, LocalPlayer.Properties);
-                SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-
+                Connected = true;
                 return;
             }
             case SystemEvent.PlayerStateChanged:
@@ -475,6 +473,14 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         var header = reader.GetCustomEventHeader(eventCode);
         OnCustomEvent?.Invoke(header, reader);
+    }
+
+    public void SendInitialPlayerState()
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
+        SerializeObject(writer, LocalPlayer.Properties);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
 
     public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)

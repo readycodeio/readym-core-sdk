@@ -11,7 +11,7 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
-public class ReadyMultiplayerMod: ReadyMod, IDisposable
+public class ReadyMultiplayerMod : ReadyMod, IDisposable
 {
     public readonly NetworkedEntityManager NetManager;
 
@@ -25,7 +25,8 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
         Configure();
     }
 
-    protected ReadyMultiplayerMod(RelayClient client)
+    // For testing, TODO: Inject dependencies
+    protected internal ReadyMultiplayerMod(RelayClient client)
     {
         RelayClient = client;
         NetManager = new NetworkedEntityManager(World, () => RelayClient.PlayerId);
@@ -47,20 +48,29 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
 
     #region Lifetime
 
-    public void Start()
+    public override void Initialize()
     {
+        base.Initialize();
         RelayClient.Start();
     }
 
-    public void Stop()
+    public override void Deinitialize()
     {
+        base.Deinitialize();
         RelayClient.Stop();
     }
+
+    public virtual void EnterRoom()
+    {
+        RelayClient.SendInitialPlayerState();
+    }
+
+    public virtual void ExitRoom() { }
 
     protected virtual void OnPingUpdated(int ping) { }
 
     #endregion
-    
+
     #region ECS
 
     private void HandleEntityDeleted(NetworkIdComponent netId)

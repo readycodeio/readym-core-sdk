@@ -1,4 +1,5 @@
-﻿using Friflo.Engine.ECS;
+﻿using System;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api;
 
@@ -7,6 +8,8 @@ public class ReadyMod
     public Store World { get; }
     public CommandBufferSynced CommandBuffer { get; }
 
+    public bool IsInitialized { get; private set; }
+
     protected ReadyMod()
     {
         World = ReadyMApp.CreateEntityStore();
@@ -14,6 +17,22 @@ public class ReadyMod
         var cb = World.GetCommandBuffer();
         cb.ReuseBuffer = true;
         CommandBuffer = cb.Synced;
+    }
+
+    public virtual void Initialize()
+    {
+        if (IsInitialized)
+            throw new InvalidOperationException("Mod is already initialized.");
+
+        IsInitialized = true;
+    }
+
+    public virtual void Deinitialize()
+    {
+        if (!IsInitialized)
+            throw new InvalidOperationException("Mod is not initialized.");
+
+        IsInitialized = false;
     }
 
     /// <summary>
