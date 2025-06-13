@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
+using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer;
@@ -14,9 +15,9 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
     private readonly Store _store;
-    private readonly Func<short> _getPeerId;
+    private readonly Func<PlayerId> _getPeerId;
 
-    public NetworkedEntityManager(Store store, Func<short> getPeerId)
+    public NetworkedEntityManager(Store store, Func<PlayerId> getPeerId)
     {
         _store = store;
         _getPeerId = getPeerId;
