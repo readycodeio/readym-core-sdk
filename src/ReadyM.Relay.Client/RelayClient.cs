@@ -299,7 +299,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         _logger(level, template, values);
     }
 
-    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
+    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
     {
         var eventCode = reader.GetByte();
         AppendToRecvStats(eventCode, reader.UserDataSize);
