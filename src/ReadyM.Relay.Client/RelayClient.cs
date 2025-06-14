@@ -166,7 +166,15 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     public Player? GetPlayerState(PlayerId playerId)
     {
-        return playerId == LocalPlayer.PlayerId ? LocalPlayer : OtherPlayers.GetValueOrDefault(playerId);
+        if (playerId == LocalPlayer.PlayerId)
+        {
+            return LocalPlayer;
+        }
+        else
+        {
+            OtherPlayers.TryGetValue(playerId, out var otherPlayer);
+            return otherPlayer;
+        }
     }
 
     public void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
@@ -490,7 +498,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
         Log(LogLevel.Information, "Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
 
-        await using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
+        using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
         {
             try
             {
@@ -526,7 +534,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
         Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
-        await using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+        using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
         {
             try
             {
