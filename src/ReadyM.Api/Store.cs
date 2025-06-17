@@ -12,9 +12,9 @@ namespace ReadyM.Api;
 [WrapperInclude("^GetCommandBuffer$")] // TODO: Wrap to disable entity creation
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
-public partial class Store : IStore
+public sealed partial class Store
 {
-    private int _nextArchetypeId;
+    private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, Action<EntityBuilder>> _archetypeConstructors = [];
 
     public SystemRoot SystemRoot { get; }
@@ -29,7 +29,7 @@ public partial class Store : IStore
 #endif
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
+    internal ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
@@ -37,7 +37,7 @@ public partial class Store : IStore
         return archetypeId;
     }
 
-    public Entity CreateEntity(ArchetypeId archetypeId)
+    public Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
         if (!_archetypeConstructors.TryGetValue(archetypeId, out var constructor))
         {
@@ -47,6 +47,15 @@ public partial class Store : IStore
         var batch = _wrapped.Batch();
         var builder = new EntityBuilder(batch);
         constructor!.Invoke(builder);
+        setComponents?.Invoke(builder);
+        return batch.CreateEntity();
+    }
+    
+    internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
+    {
+        var batch = _wrapped.Batch();
+        var builder = new EntityBuilder(batch);
+        setComponents?.Invoke(builder);
         return batch.CreateEntity();
     }
 

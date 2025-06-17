@@ -3,7 +3,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api;
 
-public class ReadyMod
+public abstract class ReadyMod : IEcs
 {
     public Store World { get; }
     public CommandBufferSynced CommandBuffer { get; }
@@ -19,12 +19,17 @@ public class ReadyMod
         CommandBuffer = cb.Synced;
     }
 
+    protected abstract void ConfigureMod(IModConfig config);
+
     public virtual void Initialize()
     {
         if (IsInitialized)
             throw new InvalidOperationException("Mod is already initialized.");
 
         IsInitialized = true;
+        
+        var builder = new ModConfig(this);
+        ConfigureMod(builder);
     }
 
     public virtual void Deinitialize()
