@@ -1,0 +1,3 @@
+[submodule "src/Friflo.Engine.ECS"]
+	path = src/Friflo.Engine.ECS
+	url = git@github.com:readycodeio/Friflo.Engine.ECS.git

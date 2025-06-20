@@ -42,7 +42,16 @@ public class ReadyMultiplayerMod : ReadyMod, IDisposable
         RelayClient.OnCustomEvent += OnCustomEvent;
     }
 
-    public bool IsMasterClient => (PlayerId)RelayClient.RoomState.GetValueOrDefault(RoomProperties.MasterClientId, Constants.UnsetPeerId) == RelayClient.PlayerId;
+    public bool IsMasterClient
+    {
+        get
+        {
+            var masterPlayerId = Constants.UnsetPeerId;
+            if (RelayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var masterPlayerIdObj))
+                masterPlayerId = (PlayerId)masterPlayerIdObj;
+            return masterPlayerId == RelayClient.PlayerId;
+        }
+    }
 
     protected virtual void OnCustomEvent(CustomEventHeader header, NetPacketReader reader) { }
 
