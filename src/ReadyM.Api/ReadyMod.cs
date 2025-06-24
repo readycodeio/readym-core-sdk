@@ -28,8 +28,15 @@ public abstract class ReadyMod : IEcs
 
         IsInitialized = true;
         
+        Patch();
+        
         var builder = new ModConfig(this);
         ConfigureMod(builder);
+    }
+
+    protected virtual void Patch()
+    {
+        // empty
     }
 
     public virtual void Deinitialize()
@@ -38,6 +45,13 @@ public abstract class ReadyMod : IEcs
             throw new InvalidOperationException("Mod is not initialized.");
 
         IsInitialized = false;
+        
+        Unpatch();
+    }
+
+    protected virtual void Unpatch()
+    {
+        // empty
     }
 
     /// <summary>
