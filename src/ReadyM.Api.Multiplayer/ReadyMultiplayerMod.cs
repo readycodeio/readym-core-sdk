@@ -8,6 +8,7 @@ using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Relay.Client;
+using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
@@ -66,9 +67,8 @@ public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
     private void OnEcsDelta(NetDataReader reader)
     {
         var componentId = reader.Get<NetworkedComponentId>();
-        var readerJob = DeltaReaderJobs.GetValueOrDefault(componentId);
 
-        if (readerJob == null)
+        if (!DeltaReaderJobs.TryGetValue(componentId, out var readerJob))
         {
             Log(LogLevel.Error, "No delta reader job registered for component ID: {Id}", componentId);
             return;
@@ -89,8 +89,7 @@ public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
         {
             while (readerCopy.TryGetNetworkedComponentId(out var componentId))
             {
-                var readerJob = SnapshotReaderJobs.GetValueOrDefault(componentId);
-
+                if (!SnapshotReaderJobs.TryGetValue(componentId, out var readerJob))
                 if (readerJob == null)
                 {
                     Log(LogLevel.Error, "No snapshot reader job registered for component ID: {Id}", componentId);
