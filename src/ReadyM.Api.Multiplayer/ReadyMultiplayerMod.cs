@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using Friflo.Engine.ECS;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer.ECS.Jobs;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Relay.Client;
 using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
@@ -11,21 +15,25 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer;
 
-public class ReadyMultiplayerMod: ReadyMod, IDisposable
+public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
 {
-    public readonly NetworkedEntityManager NetManager;
+    internal readonly NetworkedEntityManager NetManager;
 
     // TODO: RelayClient has all the lifetime events, make other methods internal
     public RelayClient RelayClient { get; }
 
-    public ReadyMultiplayerMod(Guid userGuid, string host, int port)
+    internal readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> SnapshotReaderJobs = [];
+    internal readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> DeltaReaderJobs = [];
+
+    protected ReadyMultiplayerMod(Guid userGuid, string host, int port)
     {
         RelayClient = new RelayClient(userGuid, host, port, Log);
         NetManager = new NetworkedEntityManager(World, () => RelayClient.PlayerId);
         Configure();
     }
 
-    protected ReadyMultiplayerMod(RelayClient client)
+    // For testing, TODO: Inject dependencies
+    protected internal ReadyMultiplayerMod(RelayClient client)
     {
         RelayClient = client;
         NetManager = new NetworkedEntityManager(World, () => RelayClient.PlayerId);
@@ -34,11 +42,13 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
 
     private void Configure()
     {
-        NetManager.onEntityDeleted += HandleEntityDeleted;
+        NetManager.OnEntityDeleted += HandleEntityDeleted;
 
         RelayClient.OnReceivedDeleteEntity += DeleteRemoteEntityFromEcs;
         RelayClient.OnPingUpdated += OnPingUpdated;
         RelayClient.OnCustomEvent += OnCustomEvent;
+        RelayClient.OnEcsDelta += OnEcsDelta;
+        RelayClient.OnEcsSnapshot += OnEcsSnapshot;
     }
 
     public bool IsMasterClient
@@ -51,26 +61,96 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
             return masterPlayerId == RelayClient.PlayerId;
         }
     }
+    
+    protected abstract void OnCustomEvent(CustomEventHeader header, NetPacketReader reader);
 
-    protected virtual void OnCustomEvent(CustomEventHeader header, NetPacketReader reader) { }
+    private void OnEcsDelta(NetDataReader reader)
+    {
+        var componentId = reader.Get<NetworkedComponentId>();
+
+        if (!DeltaReaderJobs.TryGetValue(componentId, out var readerJob))
+        {
+            Log(LogLevel.Error, "No delta reader job registered for component ID: {Id}", componentId);
+            return;
+        }
+
+        var bytesToCopy = reader.GetRemainingBytes();
+        var readerCopy = new NetDataReader(bytesToCopy, 0, bytesToCopy.Length);
+
+        RunOnGameThread(() => { readerJob.Execute(readerCopy); });
+    }
+
+    private void OnEcsSnapshot(NetDataReader reader)
+    {
+        var bytesToCopy = reader.GetRemainingBytes();
+        var readerCopy = new NetDataReader(bytesToCopy, 0, bytesToCopy.Length);
+
+        RunOnGameThread(() =>
+        {
+            while (readerCopy.TryGetNetworkedComponentId(out var componentId))
+            {
+                if (!SnapshotReaderJobs.TryGetValue(componentId, out var readerJob))
+                if (readerJob == null)
+                {
+                    Log(LogLevel.Error, "No snapshot reader job registered for component ID: {Id}", componentId);
+                    return;
+                }
+
+                readerJob.Execute(readerCopy);
+            }
+        });
+    }
 
     #region Lifetime
 
-    public void Start()
+    protected abstract void ConfigureNetworking(INetworkedComponentConfig config);
+
+    protected abstract void RunOnGameThread(Action action);
+
+    public override void Initialize()
     {
+        base.Initialize();
+
+        var builder = new NetworkedComponentConfig(this);
+        ConfigureNetworking(builder);
+
         RelayClient.Start();
     }
 
-    public void Stop()
+    public override void Deinitialize()
     {
+        base.Deinitialize();
+        
+        SnapshotReaderJobs.Clear();
+        DeltaReaderJobs.Clear();
+        
         RelayClient.Stop();
     }
+
+    public virtual void EnterRoom()
+    {
+        RelayClient.SendInitialPlayerState();
+    }
+
+    public virtual void ExitRoom() { }
 
     protected virtual void OnPingUpdated(int ping) { }
 
     #endregion
-    
+
     #region ECS
+
+    public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetype, Action<EntityBuilder>? setComponents = null)
+    {
+        var (entity, netId) = NetManager.CreateNetworkedEntity(archetype, setComponents);
+        Log(LogLevel.Debug, "Networked entity created: {Id} (owned)", netId);
+        return (entity, netId);
+    }
+
+    protected bool TryGetEntityByNetworkId(NetworkIdComponent netEntity, [NotNullWhen(true)] out Entity? entity)
+    {
+        return NetManager.TryGetEntityByNetworkId(netEntity, out entity);
+    }
 
     private void HandleEntityDeleted(NetworkIdComponent netId)
     {
@@ -102,12 +182,12 @@ public class ReadyMultiplayerMod: ReadyMod, IDisposable
 
     protected virtual void Log(LogLevel level, [StructuredMessageTemplate] string message, params object?[] args)
     {
-        Console.WriteLine($"[{level}] {string.Format(message, args)}");
+        Console.WriteLine($"[{level}] {message} {string.Join(", ", args)}");
     }
 
     public virtual void Dispose()
     {
-        NetManager.onEntityDeleted -= HandleEntityDeleted;
+        NetManager.OnEntityDeleted -= HandleEntityDeleted;
         NetManager.Dispose();
 
         RelayClient.OnReceivedDeleteEntity -= DeleteRemoteEntityFromEcs;

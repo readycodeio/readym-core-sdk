@@ -1,11 +1,14 @@
-﻿using Friflo.Engine.ECS;
+﻿using System;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api;
 
-public class ReadyMod
+public abstract class ReadyMod : IEcs
 {
     public Store World { get; }
     public CommandBufferSynced CommandBuffer { get; }
+
+    public bool IsInitialized { get; private set; }
 
     protected ReadyMod()
     {
@@ -14,6 +17,41 @@ public class ReadyMod
         var cb = World.GetCommandBuffer();
         cb.ReuseBuffer = true;
         CommandBuffer = cb.Synced;
+    }
+
+    protected abstract void ConfigureMod(IModConfig config);
+
+    public virtual void Initialize()
+    {
+        if (IsInitialized)
+            throw new InvalidOperationException("Mod is already initialized.");
+
+        IsInitialized = true;
+        
+        Patch();
+        
+        var builder = new ModConfig(this);
+        ConfigureMod(builder);
+    }
+
+    protected virtual void Patch()
+    {
+        // empty
+    }
+
+    public virtual void Deinitialize()
+    {
+        if (!IsInitialized)
+            throw new InvalidOperationException("Mod is not initialized.");
+
+        IsInitialized = false;
+        
+        Unpatch();
+    }
+
+    protected virtual void Unpatch()
+    {
+        // empty
     }
 
     /// <summary>

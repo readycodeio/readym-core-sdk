@@ -38,7 +38,9 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
     public ConcurrentDictionary<PlayerId, Player> OtherPlayers { get; } = new();
 
+    public bool Connected { get; private set; }
     public bool InRoom { get; private set; }
+
     public PlayerId PlayerId => LocalPlayer.PlayerId;
 
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
@@ -54,7 +56,8 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public event Action? OnAfterJoinedRoom;
     public event Action<DisconnectReason>? OnDisconnected;
     public event Action<int>? OnPingUpdated;
-    public event Action<NetPacketReader>? OnEcsDelta;
+    public event Action<NetDataReader>? OnEcsSnapshot;
+    public event Action<NetDataReader>? OnEcsDelta;
     public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
 
     /// <summary>
@@ -112,6 +115,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
     {
         InRoom = false;
+        Connected = false;
         OnDisconnected?.Invoke(info.Reason);
     }
 
@@ -119,7 +123,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     {
         if (_isRunning)
         {
-            Log(LogLevel.Error, "Relay client is already running");
+            Log(LogLevel.Warning, "Relay client is already running");
             return;
         }
 
@@ -158,6 +162,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         _clientThread?.Join();
         _clientThread = null;
         InRoom = false;
+        Connected = false;
         LocalPlayer = new Player(new Dictionary<object, object>());
         RoomState.Clear();
         OtherPlayers.Clear();
@@ -186,20 +191,19 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     public void OpSetCustomPropertiesOfActor(PlayerId playerId, Dictionary<object, object?> data)
     {
-        if (!InRoom)
+        if (!Connected && !InRoom)
         {
-            if (playerId == Constants.UnsetPeerId)
-            {
-                UpdateAndGetDiff(LocalPlayer.Properties, data);
-            }
-            else
-            {
-                Log(LogLevel.Warning, "Attempted to set properties of player {0} while not in room", playerId);
-            }
-
+            Log(LogLevel.Error, "Attempted to set properties of player {0} while not in room", playerId);
             return;
         }
 
+        if (Connected && !InRoom)
+        {
+            UpdateAndGetDiff(LocalPlayer.Properties, data);
+            return;
+        }
+
+        // connected and in room, send the update to the server
         var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
@@ -307,7 +311,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         _logger(level, template, values);
     }
 
-    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
+    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
     {
         var eventCode = reader.GetByte();
         AppendToRecvStats(eventCode, reader.UserDataSize);
@@ -322,12 +326,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                 var roomState = DeserializeObject<Dictionary<object, object>>(reader);
                 RoomState = roomState;
 
-                // send joined room event
-                var writer = new NetDataWriter();
-                writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
-                SerializeObject(writer, LocalPlayer.Properties);
-                SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-
+                Connected = true;
                 return;
             }
             case SystemEvent.PlayerStateChanged:
@@ -400,13 +399,18 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
             case SystemEvent.HandshakeSetInitialProperties:
                 Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
                 return;
+            case SystemEvent.EcsSnapshot:
+                OnEcsSnapshot?.Invoke(reader);
+                return;
             case SystemEvent.EcsUpdate:
                 OnEcsDelta?.Invoke(reader);
                 return;
             case SystemEvent.DestroyEntity:
-                var netId = reader.GetNetworkId();
+            {
+                var netId = reader.Get<NetworkIdComponent>();
                 OnReceivedDeleteEntity?.Invoke(netId);
                 return;
+            }
             case SystemEvent.DownloadBlob:
             case SystemEvent.UploadBlob:
                 Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.DownloadBlob);
@@ -453,7 +457,10 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                 if (succeeded)
                 {
                     var fileName = reader.GetString();
-                    var fileData = reader.GetBytesWithLength();
+                    var fileSize = reader.GetInt();
+
+                    var fileData = new byte[fileSize];
+                    reader.GetBytes(fileData, fileSize);
 
                     Log(LogLevel.Information, "Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
                     result = new BlobInfo(fileName, fileData);
@@ -480,6 +487,14 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         var header = reader.GetCustomEventHeader(eventCode);
         OnCustomEvent?.Invoke(header, reader);
+    }
+
+    public void SendInitialPlayerState()
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
+        SerializeObject(writer, LocalPlayer.Properties);
+        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
 
     public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
@@ -530,7 +545,8 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         writer.Put((byte)SystemEvent.UploadBlob);
         writer.Put(requestId);
         writer.Put(blob.Name);
-        writer.PutBytesWithLength(blob.Content);
+        writer.Put(blob.Content.Length);
+        writer.Put(blob.Content);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
 
         Log(LogLevel.Information, "Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
