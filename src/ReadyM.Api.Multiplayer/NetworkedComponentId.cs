@@ -1,27 +1,27 @@
 using System;
 using LiteNetLib.Utils;
 
-namespace ReadyM.Api;
+namespace ReadyM.Api.Multiplayer;
 
-public struct ArchetypeId : IEquatable<ArchetypeId>, INetSerializable
+public struct NetworkedComponentId : IEquatable<NetworkedComponentId>, INetSerializable
 {
-    public static ArchetypeId None => new(0);
+    public static NetworkedComponentId None => new(0);
     
     private byte _id;
     
-    internal ArchetypeId(byte id)
+    internal NetworkedComponentId(byte id)
     {
         _id = id;
     }
     
-    public bool Equals(ArchetypeId other)
+    public bool Equals(NetworkedComponentId other)
     {
         return _id == other._id;
     }
 
     public override bool Equals(object? obj)
     {
-        return obj is ArchetypeId other && Equals(other);
+        return obj is NetworkedComponentId other && Equals(other);
     }
 
     public override int GetHashCode()
@@ -29,12 +29,12 @@ public struct ArchetypeId : IEquatable<ArchetypeId>, INetSerializable
         return _id.GetHashCode();
     }
 
-    public static bool operator ==(ArchetypeId left, ArchetypeId right)
+    public static bool operator ==(NetworkedComponentId left, NetworkedComponentId right)
     {
         return left.Equals(right);
     }
 
-    public static bool operator !=(ArchetypeId left, ArchetypeId right)
+    public static bool operator !=(NetworkedComponentId left, NetworkedComponentId right)
     {
         return !left.Equals(right);
     }

@@ -7,10 +7,10 @@ using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer;
 
-public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposable
+public sealed class NetworkedEntityManager : IDisposable
 {
     private uint _nextNetworkedId;
-    public event Action<NetworkIdComponent>? onEntityDeleted;
+    public event Action<NetworkIdComponent>? OnEntityDeleted;
 
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
@@ -34,7 +34,7 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
         if (evt.Entity.TryGetComponent<NetworkIdComponent>(out var netId))
         {
             _netIdTombstones.Add(netId);
-            onEntityDeleted?.Invoke(netId);
+            OnEntityDeleted?.Invoke(netId);
         }
     }
 
@@ -43,19 +43,26 @@ public sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposabl
         _store.OnEntityDelete -= HandleEntityDestroy;
     }
 
-    public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId)
+    public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
         var netId = new NetworkIdComponent(_getPeerId(), _nextNetworkedId++);
-        var entity = _store.CreateEntity(archetypeId);
-        entity.AddComponent(netId);
+        var entity = _store.CreateEntity(archetypeId, b =>
+        {
+            b.Add(netId);
+            setComponents?.Invoke(b);
+        });
         return (entity, netId);
     }
 
+    [Obsolete]
     public Entity CreateRemoteNetworkedEntity(ArchetypeId archetypeId, NetworkIdComponent netId)
     {
-        var entity = _store.CreateEntity(archetypeId);
-        entity.AddComponent(netId);
-        return entity;
+        return _store.CreateEntity(archetypeId, b => b.Add(netId));
+    }
+
+    internal Entity CreateRemoteNetworkedEntity(NetworkIdComponent netId)
+    {
+        return _store.CreateEntity(b => b.Add(netId));
     }
 
     public bool TryGetEntityByNetworkId(NetworkIdComponent netId, [NotNullWhen(true)] out Entity? entity)

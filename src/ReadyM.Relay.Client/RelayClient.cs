@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api;
 using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
@@ -56,7 +57,8 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public event Action? OnAfterJoinedRoom;
     public event Action<DisconnectReason>? OnDisconnected;
     public event Action<int>? OnPingUpdated;
-    public event Action<NetPacketReader>? OnEcsDelta;
+    public event Action<NetDataReader>? OnEcsSnapshot;
+    public event Action<NetDataReader>? OnEcsDelta;
     public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
 
     /// <summary>
@@ -122,7 +124,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     {
         if (_isRunning)
         {
-            Log(LogLevel.Error, "Relay client is already running");
+            Log(LogLevel.Warning, "Relay client is already running");
             return;
         }
 
@@ -398,13 +400,18 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
             case SystemEvent.HandshakeSetInitialProperties:
                 Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
                 return;
+            case SystemEvent.EcsSnapshot:
+                OnEcsSnapshot?.Invoke(reader);
+                return;
             case SystemEvent.EcsUpdate:
                 OnEcsDelta?.Invoke(reader);
                 return;
             case SystemEvent.DestroyEntity:
-                var netId = reader.GetNetworkId();
+            {
+                var netId = reader.Get<NetworkIdComponent>();
                 OnReceivedDeleteEntity?.Invoke(netId);
                 return;
+            }
             case SystemEvent.DownloadBlob:
             case SystemEvent.UploadBlob:
                 Log(LogLevel.Error, "Event {Event} received, but should not be sent to the client", SystemEvent.DownloadBlob);
