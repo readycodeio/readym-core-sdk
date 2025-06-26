@@ -12,7 +12,7 @@ internal sealed class NetworkedComponentConfig(ReadyMultiplayerMod mod) : INetwo
         var id = new NetworkedComponentId(_nextComponentId++);
 
         mod.World.SystemRoot.Add(new SendClientComponentDeltaSystem<T>(id, mod.RelayClient));
-        mod.DeltaReaderJobs.Add(id, new ApplyDeltaJob<T>(mod.NetManager));
+        mod.DeltaReaderJobs.Add(id, new ApplyDeltaJob<T>(mod.NetManager, () => mod.RelayClient.PlayerId));
         mod.SnapshotReaderJobs.Add(id, new ApplySnapshotJob<T>(mod.NetManager));
 
         return this;
