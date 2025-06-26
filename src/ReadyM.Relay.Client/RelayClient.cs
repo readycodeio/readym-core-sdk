@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using Microsoft.Extensions.Logging;
 using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
@@ -16,6 +17,52 @@ namespace ReadyM.Relay.Client;
 
 public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 {
+    public readonly ref struct CustomEventEntry
+    {
+        private readonly RelayClient _owner;
+        private readonly int _minEventCode;
+        private readonly int _maxEventCode;
+        
+        internal CustomEventEntry(RelayClient owner, byte minEventCode, byte maxEventCode)
+        {
+            _owner = owner;
+            if (_minEventCode < (int)SystemEvent.MinCustomEvent || _maxEventCode > (int)SystemEvent.MaxCustomEvent)
+            {
+                throw new ArgumentOutOfRangeException(nameof(minEventCode), "Event codes must be between MinCustomEvent and MaxCustomEvent");
+            }
+            if (minEventCode > maxEventCode)
+            {
+                throw new ArgumentException("Min event code cannot be greater than max event code", nameof(minEventCode));
+            }
+            _minEventCode = minEventCode;
+            _maxEventCode = maxEventCode;
+        }
+        
+        public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent
+        {
+            add
+            {
+                for (var eventCode = _minEventCode; eventCode <= _maxEventCode; eventCode++)
+                {
+                    _owner._customEventHandlers[eventCode] = (Action<CustomEventHeader, NetPacketReader>?)Delegate.Combine(_owner._customEventHandlers[eventCode], value);
+                }
+            }
+            remove
+            {
+                for (var eventCode = _minEventCode; eventCode <= _maxEventCode; eventCode++)
+                {
+                    _owner._customEventHandlers[eventCode] = (Action<CustomEventHeader, NetPacketReader>?)Delegate.Remove(_owner._customEventHandlers[eventCode], value);
+                }
+            }
+        }
+    }
+
+    public struct CustomEventRange
+    {
+        public byte MinEventCode;
+        public byte MaxEventCode;
+    }
+    
     private readonly Guid _userGuid;
     private readonly string _host;
     private readonly int _port;
@@ -26,7 +73,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     private int GetNextRequestId() => ++_requestCounter;
     private readonly EventBasedNetListener _listener;
     private readonly NetManager _client;
-    private readonly Action<LogLevel, string, object?[]> _logger;
+    private readonly ILogger _logger;
 
     private Thread? _clientThread;
     private bool _isRunning;
@@ -39,18 +86,42 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public ConcurrentDictionary<PlayerId, Player> OtherPlayers { get; } = new();
 
     public bool Connected { get; private set; }
+
+    // FIXME: Move this to game-specific code
     public bool InRoom { get; private set; }
 
     public PlayerId PlayerId => LocalPlayer.PlayerId;
+    
+    // FIXME: Move this to game-specific code
+    public bool IsMasterClient
+    {
+        get
+        {
+            if (!RoomState.TryGetValue(RoomProperties.MasterClientId, out var untypedMasterPlayerId))
+                return false;
+            var masterPlayerId = (PlayerId)untypedMasterPlayerId;
+            return masterPlayerId != PlayerId.Invalid && LocalPlayer.PlayerId == masterPlayerId;
+        }
+    }
 
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
     public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
 
+    private readonly Action<CustomEventHeader, NetPacketReader>?[] _customEventHandlers =
+        new Action<CustomEventHeader, NetPacketReader>?[(int)SystemEvent.MaxCustomEvent + 1];
+    
     /// <summary>
     /// Event that is raised when a custom event is received from the server.
     /// Raised on the thread that the LiteNetLib client is running on.
     /// </summary>
-    public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent;
+    public CustomEventEntry this[byte minEventCode, byte maxEventCode] 
+        => new CustomEventEntry(this, minEventCode, maxEventCode);
+
+    public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent
+    {
+        add => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += value;
+        remove => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= value;
+    }
 
     public event Action? OnBeforeJoinedRoom;
     public event Action? OnAfterJoinedRoom;
@@ -67,6 +138,9 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     public event Action<PlayerId>? OnOtherPlayerLeft;
 
+    public event Action? OnEnterRoomRequest;
+    public event Action? OnExitRoomRequest;
+
     private NetPeer? Server
     {
         get
@@ -80,7 +154,8 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         }
     }
 
-    public RelayClient(Guid userGuid, string host, int port, Action<LogLevel, string, object?[]> logger)
+    public RelayClient(Guid userGuid, string host, int port, RelaySerializer serializer, ILogger logger)
+        : base(serializer)
     {
         _userGuid = userGuid;
         _host = host;
@@ -199,7 +274,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         if (Connected && !InRoom)
         {
-            UpdateAndGetDiff(LocalPlayer.Properties, data);
+            RelaySerializer.UpdateAndGetDiff(LocalPlayer.Properties, data);
             return;
         }
 
@@ -210,7 +285,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
     {
-        var diff = UpdateAndGetDiff(RoomState, data);
+        var diff = RelaySerializer.UpdateAndGetDiff(RoomState, data);
         var writer = CreateRoomPropertiesUpdatePacket(diff);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
@@ -226,7 +301,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         if (data != null)
         {
-            SerializeObject(writer, data);
+            Serializer.SerializeObject(writer, data);
         }
 
         SendMessageToServer(writer, deliveryMethod);
@@ -242,7 +317,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         if (data != null)
         {
-            SerializeObject(writer, data);
+            Serializer.SerializeObject(writer, data);
         }
 
         SendMessageToServer(writer, deliveryMethod);
@@ -266,7 +341,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
         if (data != null)
         {
-            SerializeObject(writer, data);
+            Serializer.SerializeObject(writer, data);
         }
 
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
@@ -308,7 +383,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     private void Log(LogLevel level, [StructuredMessageTemplate] string template, params object?[] values)
     {
-        _logger(level, template, values);
+        _logger.Log(level, template, values);
     }
 
     private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
@@ -323,7 +398,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                 LocalPlayer.PlayerId = reader.Get<PlayerId>();
                 Log(LogLevel.Information, "Assigned Actor ID {0}", LocalPlayer.PlayerId);
 
-                var roomState = DeserializeObject<Dictionary<object, object>>(reader);
+                var roomState = Serializer.DeserializeObject<Dictionary<object, object>>(reader);
                 RoomState = roomState;
 
                 Connected = true;
@@ -332,11 +407,11 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
             case SystemEvent.PlayerStateChanged:
             {
                 var playerId = reader.Get<PlayerId>();
-                var changes = DeserializeObject<Dictionary<object, object?>>(reader);
+                var changes = Serializer.DeserializeObject<Dictionary<object, object?>>(reader);
 
                 if (playerId == LocalPlayer.PlayerId)
                 {
-                    var diff = UpdateAndGetDiff(LocalPlayer.Properties, changes);
+                    var diff = RelaySerializer.UpdateAndGetDiff(LocalPlayer.Properties, changes);
                     OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                 }
                 else
@@ -350,7 +425,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
                     }
                     else
                     {
-                        var diff = UpdateAndGetDiff(player.Properties, changes);
+                        var diff = RelaySerializer.UpdateAndGetDiff(player.Properties, changes);
                         OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                     }
                 }
@@ -359,15 +434,15 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
             }
             case SystemEvent.RoomStateChanged:
             {
-                var changes = DeserializeObject<Dictionary<object, object?>>(reader);
-                var diff = UpdateAndGetDiff(RoomState, changes);
+                var changes = Serializer.DeserializeObject<Dictionary<object, object?>>(reader);
+                var diff = RelaySerializer.UpdateAndGetDiff(RoomState, changes);
                 OnRoomPropertiesChanged?.Invoke(diff);
                 return;
             }
             case SystemEvent.PlayerJoined:
             {
                 var playerId = reader.Get<PlayerId>();
-                var initialState = DeserializeObject<Dictionary<object, object>>(reader);
+                var initialState = Serializer.DeserializeObject<Dictionary<object, object>>(reader);
                 var newPlayer = new Player(initialState);
 
                 if (playerId == LocalPlayer.PlayerId)
@@ -486,14 +561,15 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         }
 
         var header = reader.GetCustomEventHeader(eventCode);
-        OnCustomEvent?.Invoke(header, reader);
+        var eventHandler = _customEventHandlers[eventCode];
+        eventHandler?.Invoke(header, reader);
     }
 
     public void SendInitialPlayerState()
     {
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
-        SerializeObject(writer, LocalPlayer.Properties);
+        Serializer.SerializeObject(writer, LocalPlayer.Properties);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
 
@@ -613,7 +689,7 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.PlayerStateChanged);
         writer.Put(playerId);
-        SerializeObject(writer, changes);
+        Serializer.SerializeObject(writer, changes);
         return writer;
     }
 
@@ -621,7 +697,20 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     {
         var writer = new NetDataWriter();
         writer.Put((byte)SystemEvent.RoomStateChanged);
-        SerializeObject(writer, changes);
+        Serializer.SerializeObject(writer, changes);
         return writer;
+    }
+
+    // FIXME: Move this to game-specific code
+    public void EnterRoom()
+    {
+        OnEnterRoomRequest?.Invoke();
+        SendInitialPlayerState();
+    }
+
+    // FIXME: Move this to game-specific code
+    public void ExitRoom()
+    {
+        OnExitRoomRequest?.Invoke();
     }
 }

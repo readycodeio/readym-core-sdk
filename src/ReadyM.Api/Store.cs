@@ -19,7 +19,7 @@ public sealed partial class Store
 
     public SystemRoot SystemRoot { get; }
 
-    internal Store(EntityStore wrapped)
+    public Store(EntityStore wrapped)
     {
         _wrapped = wrapped;
         SystemRoot = new SystemRoot();
