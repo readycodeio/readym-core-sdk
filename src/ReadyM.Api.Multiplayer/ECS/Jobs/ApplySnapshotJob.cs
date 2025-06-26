@@ -24,7 +24,8 @@ public class ApplySnapshotJob<T>(NetworkedEntityManager netManager) : IJob<NetDa
                 }
 
                 // it must be new
-                entity = netManager.CreateRemoteNetworkedEntity(netId);
+                // TODO: un-hardcode archetype ID after refactoring
+                entity = netManager.CreateRemoteNetworkedEntity(new ArchetypeId(0), netId);
             }
 
             entity.Value.AddComponent(reader.Get<T>());

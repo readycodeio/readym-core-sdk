@@ -51,17 +51,6 @@ public abstract class ReadyMultiplayerMod : ReadyMod, IDisposable
         RelayClient.OnEcsSnapshot += OnEcsSnapshot;
     }
 
-    public bool IsMasterClient
-    {
-        get
-        {
-            var masterPlayerId = Constants.UnsetPeerId;
-            if (RelayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var masterPlayerIdObj))
-                masterPlayerId = (PlayerId)masterPlayerIdObj;
-            return masterPlayerId == RelayClient.PlayerId;
-        }
-    }
-
     protected abstract void OnCustomEvent(CustomEventHeader header, NetPacketReader reader);
 
     private void OnEcsDelta(NetDataReader reader)

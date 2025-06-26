@@ -60,10 +60,10 @@ public sealed class NetworkedEntityManager : IDisposable
         return _store.CreateEntity(archetypeId, b => b.Add(netId));
     }
 
-    internal Entity CreateRemoteNetworkedEntity(NetworkIdComponent netId)
-    {
-        return _store.CreateEntity(b => b.Add(netId));
-    }
+    // internal Entity CreateRemoteNetworkedEntity(NetworkIdComponent netId)
+    // {
+    //     return _store.CreateEntity(b => b.Add(netId));
+    // }
 
     public bool TryGetEntityByNetworkId(NetworkIdComponent netId, [NotNullWhen(true)] out Entity? entity)
     {

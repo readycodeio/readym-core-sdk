@@ -1,7 +1,5 @@
-﻿using System;
-using LiteNetLib.Utils;
+﻿using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
@@ -23,7 +21,12 @@ public class ApplyDeltaJob<T>(NetworkedEntityManager netManager) : IJob<NetDataR
                 }
 
                 // it must be new
-                entity = netManager.CreateRemoteNetworkedEntity(netId);
+                // TODO: un-hardcode this after refactoring
+                entity = netManager.CreateRemoteNetworkedEntity(new ArchetypeId(0), netId);
+            }
+
+            if (!entity.Value.HasComponent<T>())
+            {
                 entity.Value.AddComponent<T>();
             }
 
