@@ -500,6 +500,11 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        
+        // add a default timeout of 10 seconds
+        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
+        ct = nestedCt.Token;
 
         var taskSource = new TaskCompletionSource<BlobInfo?>();
 
@@ -535,6 +540,11 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
     public async Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        
+        // add a default timeout of 15 seconds
+        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        nestedCt.CancelAfter(TimeSpan.FromSeconds(15));
+        ct = nestedCt.Token;
 
         var tcs = new TaskCompletionSource<bool>();
 
