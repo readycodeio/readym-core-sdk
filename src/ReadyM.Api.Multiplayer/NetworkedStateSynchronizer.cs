@@ -73,12 +73,6 @@ public abstract class NetworkedStateSynchronizer(
             throw new InvalidOperationException("NetworkedStateSynchronizer is already started.");
         IsRunning = true;
 
-        if (RelayClient.InRoom)
-        {
-            OnBeforeJoinedRoomHandler();
-            OnAfterJoinedRoomHandler();
-        }
-        
         NetManager.OnEntityDeleted += HandleEntityDeleted;
 
         RelayClient.OnBeforeJoinedRoom += OnBeforeJoinedRoomHandler;
