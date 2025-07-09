@@ -25,7 +25,7 @@ public abstract class NetworkedStateSynchronizer(
     Store world,
     NetworkedEntityManager netManager,
     INetworkedComponentRegistry netComponentRegistry,
-    RelayClient relayClient, 
+    IRelayClient relayClient, 
     SystemUpdateLoop updateLoop,
     ILogger logger) : IDisposable
 {
@@ -48,7 +48,7 @@ public abstract class NetworkedStateSynchronizer(
     private readonly ILogger Logger = logger;
     public Store World { get; } = world;
     public NetworkedEntityManager NetManager { get; } = netManager;
-    public RelayClient RelayClient { get; } = relayClient;
+    public IRelayClient RelayClient { get; } = relayClient;
     
     public bool IsRunning { get; private set; }
     
@@ -162,12 +162,12 @@ public abstract class NetworkedStateSynchronizer(
         OnBeforeJoinedRoom?.Invoke();
     }
     
-    protected virtual void OnAfterJoinedRoomHandler()
+    protected virtual void OnAfterJoinedRoomHandler(Dictionary<object, object> initialState)
     {
         OnAfterJoinedRoom?.Invoke();
     }
 
-    protected virtual void OnOtherPlayerJoinedHandler(PlayerId playerId)
+    protected virtual void OnOtherPlayerJoinedHandler(PlayerId playerId, Dictionary<object, object> initialState)
     {
         OnOtherPlayerJoined?.Invoke(playerId);
     }

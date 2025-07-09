@@ -8,11 +8,11 @@ namespace ReadyM.Relay.Client;
 
 public readonly ref struct CustomEventEntry
 {
-    private readonly RelayClient _owner;
+    private readonly IRelayClient _owner;
     private readonly int _minEventCode;
     private readonly int _maxEventCode;
         
-    internal CustomEventEntry(RelayClient owner, byte minEventCode, byte maxEventCode)
+    internal CustomEventEntry(IRelayClient owner, byte minEventCode, byte maxEventCode)
     {
         _owner = owner;
         if (_minEventCode < (int)SystemEvent.MinCustomEvent || _maxEventCode > (int)SystemEvent.MaxCustomEvent)
@@ -27,7 +27,7 @@ public readonly ref struct CustomEventEntry
         _maxEventCode = maxEventCode;
     }
         
-    public event Action<CustomEventHeader, NetPacketReader>? OnCustomEvent
+    public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
     {
         add
         {
