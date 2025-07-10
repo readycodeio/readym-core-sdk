@@ -728,6 +728,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         if (!Connected)
             throw new InvalidOperationException("Cannot enter room when not connected");
         
+        _logger.LogDebug("Entering room requested");
         OnEnterRoomRequest?.Invoke();
         SendInitialPlayerState();
     }
@@ -738,6 +739,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         if (!Connected)
             throw new InvalidOperationException("Cannot exit room when not connected");
         
+        _logger.LogDebug("Exiting room requested");
         OnExitRoomRequest?.Invoke();
     }
 }
