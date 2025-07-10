@@ -5,7 +5,7 @@ using ReadyM.Relay.Common.ECS;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public class SendClientComponentDeltaSystem<T>(NetworkedComponentId componentId, RelayClient relay) : SendComponentDeltaSystemBase<T>(componentId)
+public class SendClientComponentDeltaSystem<T>(NetworkedComponentId componentId, IRelayClient relay) : SendComponentDeltaSystemBase<T>(componentId)
     where T : struct, INetworkedComponent
 {
     protected override int GetMaxPacketSize()

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Relay.Client.Shim;
 using ReadyM.Relay.Common;
 using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
@@ -14,11 +15,11 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public sealed class RelayClient : IDisposable
+public sealed class RelayClient : IShimRecordableRelayClient
 {
     private RelaySerializer _serializer { get; }
     
-    private readonly Guid _userGuid;
+    private readonly RelayConnectionOptions _options;
     private readonly string _host;
     private readonly int _port;
 
@@ -60,6 +61,12 @@ public sealed class RelayClient : IDisposable
         }
     }
 
+    public event Action? OnBeforeStart;
+    public event Action? OnAfterStart;
+    public event Action? OnBeforeStop;
+    public event Action? OnAfterStop;
+
+    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesAdded;
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
     public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
     
@@ -76,38 +83,40 @@ public sealed class RelayClient : IDisposable
     public CustomEventEntry this[byte minEventCode, byte maxEventCode] 
         => new(this, minEventCode, maxEventCode);
 
-    private readonly Action<CustomEventHeader, NetPacketReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetPacketReader>?[(int)SystemEvent.MaxCustomEvent + 1];
+    private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
+        new Action<CustomEventHeader, NetDataReader>?[(int)SystemEvent.MaxCustomEvent + 1];
     
-    public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetPacketReader>? value)
+    public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetPacketReader>?)Delegate.Combine(_customEventHandlers[eventCode], value);
+        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Combine(_customEventHandlers[eventCode], value);
     }
 
-    public void RemoveCustomEventHandler(int eventCode, Action<CustomEventHeader, NetPacketReader>? value)
+    public void RemoveCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetPacketReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
+        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
     }
 
+    public event Action<PlayerId, Dictionary<object, object>>? OnPeerIdAssigned;
     public event Action? OnBeforeJoinedRoom;
-    public event Action? OnAfterJoinedRoom;
+    public event Action<Dictionary<object, object>>? OnAfterJoinedRoom;
     public event Action<DisconnectReason>? OnDisconnected;
     public event Action<int>? OnPingUpdated;
     public event Action<NetDataReader>? OnEcsSnapshot;
     public event Action<NetDataReader>? OnEcsDelta;
     public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
+    public event Action<int, bool>? OnBlobAck;
+    public event Action<int, BlobInfo?>? OnBlobData;
 
     /// <summary>
     /// At this point the connecting player has been assigned an ID and we have synced their state.
     /// </summary>
-    public event Action<PlayerId>? OnOtherPlayerJoined;
-
+    public event Action<PlayerId, Dictionary<object, object>>? OnOtherPlayerJoined;
     public event Action<PlayerId>? OnOtherPlayerLeft;
 
     public event Action? OnEnterRoomRequest;
     public event Action? OnExitRoomRequest;
 
-    private NetPeer? Server
+    public NetPeer? Server
     {
         get
         {
@@ -120,10 +129,10 @@ public sealed class RelayClient : IDisposable
         }
     }
 
-    public RelayClient(Guid userGuid, string host, int port, RelaySerializer serializer, ILogger logger)
+    public RelayClient(string host, int port, RelayConnectionOptions options, RelaySerializer serializer, ILogger logger) 
     {
-        _userGuid = userGuid;
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+        _options = options;
         _host = host;
         _port = port;
 
@@ -168,9 +177,17 @@ public sealed class RelayClient : IDisposable
             _logger.LogError("Relay client is already running");
             return;
         }
+        
+        _logger.LogDebug("Starting relay client on {Host}:{Port}", _host, _port);
+        
+        OnBeforeStart?.Invoke();
 
         _client.Start();
-        _client.Connect(_host, _port, _userGuid.ToString());
+
+        var writer = new NetDataWriter();
+        _options.Serialize(writer);
+        
+        _client.Connect(_host, _port, writer);
 
         _isRunning = true;
         _clientThread = new Thread(() =>
@@ -197,6 +214,10 @@ public sealed class RelayClient : IDisposable
         });
 
         _clientThread.Start();
+        
+        OnAfterStart?.Invoke();
+        
+        _logger.LogDebug("Started relay client on {Host}:{Port}", _host, _port);
     }
 
     public void Stop()
@@ -208,6 +229,9 @@ public sealed class RelayClient : IDisposable
         }
         
         _logger.LogDebug("Stopping relay client on {Host}:{Port}", _host, _port);
+        
+        OnBeforeStop?.Invoke();
+        
         _isRunning = false;
         _client.Stop();
         _clientThread?.Join();
@@ -222,6 +246,10 @@ public sealed class RelayClient : IDisposable
             Connected = false;
             OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
         }
+        
+        OnAfterStop?.Invoke();
+        
+        _logger.LogDebug("Stopped relay client on {Host}:{Port}", _host, _port);
     }
 
     public Player? GetPlayerState(PlayerId playerId)
@@ -397,6 +425,7 @@ public sealed class RelayClient : IDisposable
                         OtherPlayers[playerId] = new Player(changes
                             .Where(x => x.Value != null)
                             .ToDictionary(x => x.Key, x => x.Value!));
+                        OnPlayerPropertiesAdded?.Invoke(playerId, changes);
                     }
                     else
                     {
@@ -424,7 +453,7 @@ public sealed class RelayClient : IDisposable
                     LocalPlayer = newPlayer;
                     OnBeforeJoinedRoom?.Invoke();
                     InRoom = true;
-                    OnAfterJoinedRoom?.Invoke();
+                    OnAfterJoinedRoom?.Invoke(initialState);
                 }
                 else
                 {
@@ -434,7 +463,7 @@ public sealed class RelayClient : IDisposable
                         OtherPlayers[playerId] = newPlayer;
                     }
 
-                    OnOtherPlayerJoined?.Invoke(playerId);
+                    OnOtherPlayerJoined?.Invoke(playerId, initialState);
                 }
 
                 return;
@@ -483,7 +512,11 @@ public sealed class RelayClient : IDisposable
                     return;
                 }
 
-                if (!uploadTask.TrySetResult(success))
+                if (uploadTask.TrySetResult(success))
+                {
+                    OnBlobAck?.Invoke(requestId, success);
+                }
+                else
                 {
                     _logger.LogError("Failed to set result for file upload task with request ID {RequestId}", requestId);
                 }
@@ -494,6 +527,8 @@ public sealed class RelayClient : IDisposable
             {
                 var requestId = reader.GetInt();
                 var succeeded = reader.GetBool();
+
+                _logger.LogInformation("File download with request ID {RequestId} completed with success: {Succeeded}", requestId, succeeded);
 
                 if (!_blobDownloadTasks.TryRemove(requestId, out var downloadTask))
                 {
@@ -525,7 +560,11 @@ public sealed class RelayClient : IDisposable
                     return;
                 }
 
-                if (!downloadTask.TrySetResult(result))
+                if (downloadTask.TrySetResult(result))
+                {
+                    OnBlobData?.Invoke(requestId, result);
+                }
+                else
                 {
                     _logger.LogError("Failed to set result for file download task with request ID {RequestId}", requestId);
                 }
@@ -689,6 +728,7 @@ public sealed class RelayClient : IDisposable
         if (!Connected)
             throw new InvalidOperationException("Cannot enter room when not connected");
         
+        _logger.LogDebug("Entering room requested");
         OnEnterRoomRequest?.Invoke();
         SendInitialPlayerState();
     }
@@ -699,6 +739,7 @@ public sealed class RelayClient : IDisposable
         if (!Connected)
             throw new InvalidOperationException("Cannot exit room when not connected");
         
+        _logger.LogDebug("Exiting room requested");
         OnExitRoomRequest?.Invoke();
     }
 }

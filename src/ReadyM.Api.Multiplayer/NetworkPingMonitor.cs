@@ -5,12 +5,12 @@ namespace ReadyM.Api.Multiplayer;
 
 public class NetworkPingMonitor : IDisposable
 {
-    private readonly RelayClient _relayClient;
+    private readonly IRelayClient _relayClient;
     public event Action<int>? OnPingUpdated;
     
     public int CurrentPing { get; private set; }
 
-    public NetworkPingMonitor(RelayClient relayClient)
+    public NetworkPingMonitor(IRelayClient relayClient)
     {
         _relayClient = relayClient;
         relayClient.OnPingUpdated += HandlePingUpdated;

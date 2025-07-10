@@ -19,7 +19,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ReadyM.Relay.Common\ReadyM.Relay.Common.csproj"/>
+        <ProjectReference Include="..\ReadyM.Relay.Common\ReadyM.Relay.Common.csproj" />
+        <ProjectReference Include="..\ReadyM.Relay.Common.Generators\ReadyM.Relay.Common.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
 </Project>
