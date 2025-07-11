@@ -697,4 +697,14 @@ public class ShimRelayClient : IRelayClient
         
         OnExitRoomRequest?.Invoke();
     }
+
+    public void AddServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void RemoveServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        throw new NotImplementedException();
+    }
 }

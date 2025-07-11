@@ -96,6 +96,19 @@ public sealed class RelayClient : IShimRecordableRelayClient
         _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
     }
 
+    private readonly Action<ServerRpcEventHeader, NetDataReader>?[] _serverRpcEventHandlers =
+        new Action<ServerRpcEventHeader, NetDataReader>?[byte.MaxValue + 1];
+
+    public void AddServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventCode], value);
+    }
+
+    public void RemoveServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Remove(_serverRpcEventHandlers[eventCode], value);
+    }
+
     public event Action<PlayerId, Dictionary<object, object>>? OnPeerIdAssigned;
     public event Action? OnBeforeJoinedRoom;
     public event Action<Dictionary<object, object>>? OnAfterJoinedRoom;
@@ -569,6 +582,13 @@ public sealed class RelayClient : IShimRecordableRelayClient
                     _logger.LogError("Failed to set result for file download task with request ID {RequestId}", requestId);
                 }
 
+                return;
+            }
+            case SystemEvent.ServerRpc:
+            {
+                var serverRpcHeader = reader.GetServerRpcEventHeader();
+                var serverRpcEventHandler = _serverRpcEventHandlers[serverRpcHeader.EventCode];
+                serverRpcEventHandler?.Invoke(serverRpcHeader, reader);
                 return;
             }
         }

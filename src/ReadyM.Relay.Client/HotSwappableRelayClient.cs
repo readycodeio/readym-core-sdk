@@ -292,5 +292,15 @@ public class HotSwappableRelayClient : IRelayClient
         customEventHandler?.Invoke(ev, reader);
     }
 
+    public void AddServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void RemoveServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        throw new NotImplementedException();
+    }
+
     #endregion
 }
