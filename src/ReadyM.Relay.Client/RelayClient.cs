@@ -101,11 +101,13 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
     public void AddServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
     {
+        ValidateServerRpcEventCode(eventCode);
         _serverRpcEventHandlers[eventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventCode], value);
     }
 
     public void RemoveServerRpcEventHandler(int eventCode, Action<ServerRpcEventHeader, NetDataReader>? value)
     {
+        ValidateServerRpcEventCode(eventCode);
         _serverRpcEventHandlers[eventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Remove(_serverRpcEventHandlers[eventCode], value);
     }
 
@@ -584,13 +586,15 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
                 return;
             }
-            case SystemEvent.ServerRpc:
-            {
-                var serverRpcHeader = reader.GetServerRpcEventHeader();
-                var serverRpcEventHandler = _serverRpcEventHandlers[serverRpcHeader.EventCode];
-                serverRpcEventHandler?.Invoke(serverRpcHeader, reader);
-                return;
-            }
+        }
+
+        // it is a system rpc event
+        if (eventCode > (byte)SystemEvent.MinServerRpcEvent)
+        {
+            var serverRpcHeader = reader.GetServerRpcEventHeader(eventCode);
+            var serverRpcEventHandler = _serverRpcEventHandlers[eventCode];
+            serverRpcEventHandler?.Invoke(serverRpcHeader, reader);
+            return;
         }
 
         var header = reader.GetCustomEventHeader(eventCode);
@@ -740,6 +744,14 @@ public sealed class RelayClient : IShimRecordableRelayClient
         writer.Put((byte)SystemEvent.RoomStateChanged);
         _serializer.SerializeObject(writer, changes);
         return writer;
+    }
+
+    private void ValidateServerRpcEventCode(int eventCode)
+    {
+        if (eventCode > (byte)SystemEvent.MaxServerRpcEvent || eventCode < (byte)SystemEvent.MinServerRpcEvent)
+        {
+            throw new ArgumentOutOfRangeException(nameof(eventCode), "Invalid server rpc event code");
+        }
     }
 
     // FIXME: Move this to game-specific code
