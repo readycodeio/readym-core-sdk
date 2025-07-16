@@ -24,7 +24,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
 
     protected override void OnUpdate()
     {
-        var writer = MakeHeader();
+        NetDataWriter? writer = null;
 
         Query.ForEachEntity((ref netId, ref comp, _) =>
         {
@@ -38,6 +38,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
 
             while (true)
             {
+                writer ??= MakeHeader();
                 var beforeApplyPosition = writer.Length;
 
                 if (!comp.IsDirty)
@@ -73,7 +74,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
             }
         });
 
-        if (writer.Length > HeaderSize)
+        if (writer is not null)
         {
             Send(writer);
         }
