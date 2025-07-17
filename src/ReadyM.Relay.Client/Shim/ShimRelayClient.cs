@@ -86,7 +86,20 @@ public class ShimRelayClient : IRelayClient
     {
         _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
     }
-    
+
+    private readonly Action<ServerRpcEventHeader, NetDataReader>?[] _serverRpcEventHandlers =
+    new Action<ServerRpcEventHeader, NetDataReader>?[(int)SystemEvent.MaxServerRpcEvent + 1];
+
+    public void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
+    public void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Remove(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
     public event Action? OnEnterRoomRequest;
     public event Action? OnExitRoomRequest;
 
@@ -696,15 +709,5 @@ public class ShimRelayClient : IRelayClient
         ProcessPendingItems();
         
         OnExitRoomRequest?.Invoke();
-    }
-
-    public void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
-    {
-        throw new NotImplementedException();
     }
 }

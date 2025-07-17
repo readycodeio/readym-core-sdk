@@ -97,7 +97,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     }
 
     private readonly Action<ServerRpcEventHeader, NetDataReader>?[] _serverRpcEventHandlers =
-        new Action<ServerRpcEventHeader, NetDataReader>?[byte.MaxValue + 1];
+        new Action<ServerRpcEventHeader, NetDataReader>?[(int)SystemEvent.MaxServerRpcEvent + 1];
 
     public void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
     {
