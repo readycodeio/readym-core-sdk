@@ -78,10 +78,16 @@ public class HotSwappableRelayClient : IRelayClient
         client.OnEnterRoomRequest += OnEnterRoomRequestHandler;
         client.OnExitRoomRequest += OnExitRoomRequestHandler;
         client[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += OnCustomEventHandler;
+        client.AddServerRpcEventHandler(
+            new ServerRpcEventRange((byte)SystemEvent.MinServerRpcEvent, (byte)SystemEvent.MaxServerRpcEvent),
+            OnServerRpcEventHandler);
     }
 
     private void DetachRelayClient(IRelayClient client)
     {
+        client.RemoveServerRpcEventHandler(
+            new ServerRpcEventRange((byte)SystemEvent.MinServerRpcEvent, (byte)SystemEvent.MaxServerRpcEvent),
+            OnServerRpcEventHandler);
         client[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= OnCustomEventHandler;
         client.OnExitRoomRequest -= OnExitRoomRequestHandler;
         client.OnEnterRoomRequest -= OnEnterRoomRequestHandler;
@@ -188,6 +194,22 @@ public class HotSwappableRelayClient : IRelayClient
     public void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
     {
         _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
+    public void AddServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            AddServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
+    }
+
+    public void RemoveServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            RemoveServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
     }
 
     public void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
@@ -303,6 +325,12 @@ public class HotSwappableRelayClient : IRelayClient
     {
         var customEventHandler = _customEventHandlers[ev.EventCode];
         customEventHandler?.Invoke(ev, reader);
+    }
+
+    private void OnServerRpcEventHandler(ServerRpcEventHeader ev, NetDataReader reader)
+    {
+        var serverRpcEventHandler = _serverRpcEventHandlers[ev.EventCode];
+        serverRpcEventHandler?.Invoke(ev, reader);
     }
 
     #endregion

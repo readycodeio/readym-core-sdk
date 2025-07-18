@@ -104,9 +104,25 @@ public sealed class RelayClient : IShimRecordableRelayClient
         _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventEntry.EventCode], value);
     }
 
+    public void AddServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            AddServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
+    }
+
     public void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
     {
         _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Remove(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
+    public void RemoveServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            RemoveServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
     }
 
     public event Action<PlayerId, Dictionary<object, object>>? OnPeerIdAssigned;
@@ -587,7 +603,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         }
 
         // it is a system rpc event
-        if (eventCode > (byte)SystemEvent.MinServerRpcEvent)
+        if (eventCode >= (byte)SystemEvent.MinServerRpcEvent)
         {
             var serverRpcHeader = reader.GetServerRpcEventHeader(eventCode);
             var serverRpcEventHandler = _serverRpcEventHandlers[eventCode];
