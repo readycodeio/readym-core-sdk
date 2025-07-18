@@ -287,18 +287,16 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
 
     private void LogEventStats()
     {
-#if DEBUG
         foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
         {
-            Log(LogLevel.Trace, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            Log(LogLevel.Debug, "Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
 
-        Log(LogLevel.Trace, "----------------------------------------");
+        Log(LogLevel.Debug, "----------------------------------------");
         foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
         {
-            Log(LogLevel.Trace, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            Log(LogLevel.Debug, "Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
-#endif
     }
 
     public void Dispose()
@@ -594,8 +592,10 @@ public sealed class RelayClient : RelayPeerBase, IBlobClient, IDisposable
         var avgRecv = (long)(dRecv / delta.TotalSeconds);
         var avgSent = (long)(dSent / delta.TotalSeconds);
 
+#if LOG_NETWORKING_EVENTS
         Log(LogLevel.Debug, "Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
         LogEventStats();
+#endif
     }
 
     private NetDataWriter CreatePlayerPropertiesUpdatePacket(PlayerId playerId, Dictionary<object, object?> changes)
