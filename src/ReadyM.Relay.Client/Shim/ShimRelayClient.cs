@@ -86,7 +86,36 @@ public class ShimRelayClient : IRelayClient
     {
         _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
     }
-    
+
+    private readonly Action<ServerRpcEventHeader, NetDataReader>?[] _serverRpcEventHandlers =
+    new Action<ServerRpcEventHeader, NetDataReader>?[(int)SystemEvent.MaxServerRpcEvent + 1];
+
+    public void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Combine(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
+    public void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        _serverRpcEventHandlers[eventEntry.EventCode] = (Action<ServerRpcEventHeader, NetDataReader>?)Delegate.Remove(_serverRpcEventHandlers[eventEntry.EventCode], value);
+    }
+
+    public void AddServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            AddServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
+    }
+
+    public void RemoveServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value)
+    {
+        for (var eventCode = eventRange.MinEventCode; eventCode <= eventRange.MaxEventCode; eventCode++)
+        {
+            RemoveServerRpcEventHandler(new ServerRpcEventEntry(eventCode), value);
+        }
+    }
+
     public event Action? OnEnterRoomRequest;
     public event Action? OnExitRoomRequest;
 

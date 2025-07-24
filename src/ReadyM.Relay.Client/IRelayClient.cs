@@ -50,6 +50,11 @@ public interface IRelayClient : IBlobClient, IDisposable
     void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value);
     void RemoveCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value);
     
+    void AddServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value);
+    void AddServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value);
+    void RemoveServerRpcEventHandler(ServerRpcEventEntry eventEntry, Action<ServerRpcEventHeader, NetDataReader>? value);
+    void RemoveServerRpcEventHandler(ServerRpcEventRange eventRange, Action<ServerRpcEventHeader, NetDataReader>? value);
+
     event Action? OnEnterRoomRequest;
     event Action? OnExitRoomRequest;
 
