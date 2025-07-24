@@ -18,7 +18,7 @@ namespace ReadyM.Relay.Client;
 public sealed class RelayClient : IShimRecordableRelayClient
 {
     private RelaySerializer _serializer { get; }
-    
+
     private readonly RelayConnectionOptions _options;
     private readonly string _host;
     private readonly int _port;
@@ -40,7 +40,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     public Dictionary<object, object> RoomState { get; private set; } = new();
     public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
     public ConcurrentDictionary<PlayerId, Player> OtherPlayers { get; } = new();
-    
+
     public bool IsRunning => _isRunning;
     public bool Connected { get; private set; }
 
@@ -48,7 +48,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     public bool InRoom { get; private set; }
 
     public PlayerId PlayerId => LocalPlayer.PlayerId;
-    
+
     // FIXME: Move this to game-specific code
     public bool IsMasterClient
     {
@@ -69,7 +69,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesAdded;
     public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
     public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
-    
+
     public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
     {
         add => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += value;
@@ -80,12 +80,12 @@ public sealed class RelayClient : IShimRecordableRelayClient
     /// Event that is raised when a custom event is received from the server.
     /// Raised on the thread that the LiteNetLib client is running on.
     /// </summary>
-    public CustomEventEntry this[byte minEventCode, byte maxEventCode] 
+    public CustomEventEntry this[byte minEventCode, byte maxEventCode]
         => new(this, minEventCode, maxEventCode);
 
     private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
         new Action<CustomEventHeader, NetDataReader>?[(int)SystemEvent.MaxCustomEvent + 1];
-    
+
     public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {
         _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Combine(_customEventHandlers[eventCode], value);
@@ -140,6 +140,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     /// At this point the connecting player has been assigned an ID and we have synced their state.
     /// </summary>
     public event Action<PlayerId, Dictionary<object, object>>? OnOtherPlayerJoined;
+
     public event Action<PlayerId>? OnOtherPlayerLeft;
 
     public event Action? OnEnterRoomRequest;
@@ -158,7 +159,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         }
     }
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, RelaySerializer serializer, ILogger logger) 
+    public RelayClient(string host, int port, RelayConnectionOptions options, RelaySerializer serializer, ILogger logger)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _options = options;
@@ -206,16 +207,16 @@ public sealed class RelayClient : IShimRecordableRelayClient
             _logger.LogError("Relay client is already running");
             return;
         }
-        
+
         _logger.LogDebug("Starting relay client on {Host}:{Port}", _host, _port);
-        
+
         OnBeforeStart?.Invoke();
 
         _client.Start();
 
         var writer = new NetDataWriter();
         _options.Serialize(writer);
-        
+
         _client.Connect(_host, _port, writer);
 
         _isRunning = true;
@@ -243,9 +244,9 @@ public sealed class RelayClient : IShimRecordableRelayClient
         });
 
         _clientThread.Start();
-        
+
         OnAfterStart?.Invoke();
-        
+
         _logger.LogDebug("Started relay client on {Host}:{Port}", _host, _port);
     }
 
@@ -256,11 +257,11 @@ public sealed class RelayClient : IShimRecordableRelayClient
             _logger.LogInformation("Relay client is not running");
             return;
         }
-        
+
         _logger.LogDebug("Stopping relay client on {Host}:{Port}", _host, _port);
-        
+
         OnBeforeStop?.Invoke();
-        
+
         _isRunning = false;
         _client.Stop();
         _clientThread?.Join();
@@ -275,9 +276,9 @@ public sealed class RelayClient : IShimRecordableRelayClient
             Connected = false;
             OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
         }
-        
+
         OnAfterStop?.Invoke();
-        
+
         _logger.LogDebug("Stopped relay client on {Host}:{Port}", _host, _port);
     }
 
@@ -462,6 +463,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
                         OnPlayerPropertiesChanged?.Invoke(playerId, diff);
                     }
                 }
+
                 return;
             }
             case SystemEvent.RoomStateChanged:
@@ -605,7 +607,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         // it is a system rpc event
         if (eventCode >= (byte)SystemEvent.MinServerRpcEvent)
         {
-            var serverRpcHeader = reader.GetServerRpcEventHeader(eventCode);
+            var serverRpcHeader = new ServerRpcEventHeader(eventCode, PlayerId.Server);
             var serverRpcEventHandler = _serverRpcEventHandlers[eventCode];
             serverRpcEventHandler?.Invoke(serverRpcHeader, reader);
             return;
@@ -628,9 +630,9 @@ public sealed class RelayClient : IShimRecordableRelayClient
     {
         if (!IsRunning)
             throw new InvalidOperationException();
-        
+
         ct.ThrowIfCancellationRequested();
-        
+
         // add a default timeout of 10 seconds
         var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
         nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
@@ -675,7 +677,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
             throw new InvalidOperationException();
 
         ct.ThrowIfCancellationRequested();
-        
+
         // add a default timeout of 15 seconds
         var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
         nestedCt.CancelAfter(TimeSpan.FromSeconds(15));
@@ -765,7 +767,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     {
         if (!Connected)
             throw new InvalidOperationException("Cannot enter room when not connected");
-        
+
         _logger.LogDebug("Entering room requested");
         OnEnterRoomRequest?.Invoke();
         SendInitialPlayerState();
@@ -776,7 +778,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     {
         if (!Connected)
             throw new InvalidOperationException("Cannot exit room when not connected");
-        
+
         _logger.LogDebug("Exiting room requested");
         OnExitRoomRequest?.Invoke();
     }
