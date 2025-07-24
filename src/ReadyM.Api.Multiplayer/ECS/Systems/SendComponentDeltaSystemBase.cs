@@ -1,4 +1,5 @@
 ﻿using System;
+using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
 using ReadyM.Relay.Common.ECS;
@@ -24,9 +25,9 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
 
     protected override void OnUpdate()
     {
-        var writer = MakeHeader();
+        NetDataWriter? writer = null;
 
-        Query.ForEachEntity((ref netId, ref comp, _) =>
+        Query.ForEachEntity((ref NetworkIdComponent netId, ref T comp, Entity _) =>
         {
             if (!OwnsEntity(netId))
             {
@@ -38,6 +39,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
 
             while (true)
             {
+                writer ??= MakeHeader();
                 var beforeApplyPosition = writer.Length;
 
                 if (!comp.IsDirty)
@@ -73,7 +75,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
             }
         });
 
-        if (writer.Length > HeaderSize)
+        if (writer is not null)
         {
             Send(writer);
         }

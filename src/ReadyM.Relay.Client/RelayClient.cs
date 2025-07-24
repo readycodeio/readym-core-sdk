@@ -400,7 +400,6 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
     private void LogEventStats()
     {
-#if DEBUG
         foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
         {
             _logger.LogTrace("Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
@@ -411,7 +410,6 @@ public sealed class RelayClient : IShimRecordableRelayClient
         {
             _logger.LogTrace("Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
-#endif
     }
 
     public void Dispose()
@@ -633,11 +631,6 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
         ct.ThrowIfCancellationRequested();
 
-        // add a default timeout of 10 seconds
-        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
-        ct = nestedCt.Token;
-
         var taskSource = new TaskCompletionSource<BlobInfo?>();
 
         var requestId = GetNextRequestId();
@@ -677,11 +670,6 @@ public sealed class RelayClient : IShimRecordableRelayClient
             throw new InvalidOperationException();
 
         ct.ThrowIfCancellationRequested();
-
-        // add a default timeout of 15 seconds
-        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(15));
-        ct = nestedCt.Token;
 
         var tcs = new TaskCompletionSource<bool>();
 
@@ -741,8 +729,10 @@ public sealed class RelayClient : IShimRecordableRelayClient
         var avgRecv = (long)(dRecv / delta.TotalSeconds);
         var avgSent = (long)(dSent / delta.TotalSeconds);
 
+#if LOG_NETWORKING_EVENTS
         _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
         LogEventStats();
+#endif
     }
 
     private NetDataWriter CreatePlayerPropertiesUpdatePacket(PlayerId playerId, Dictionary<object, object?> changes)

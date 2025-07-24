@@ -2,8 +2,7 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <LangVersion>preview</LangVersion>
-        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <LangVersion>13.0</LangVersion>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <TargetFramework>netstandard2.0</TargetFramework>
     </PropertyGroup>
