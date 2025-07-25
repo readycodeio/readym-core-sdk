@@ -15,12 +15,13 @@ public sealed class NetworkedEntityManager : IDisposable
     private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
 
     private readonly Store _store;
-    private readonly Func<PlayerId> _getPeerId;
+    private readonly Func<PlayerId> _getPlayerId;
 
-    public NetworkedEntityManager(Store store, Func<PlayerId> getPeerId)
+    // FIXME: getPlayerId should be replaced with an interface IRelayClient that can be mocked in tests
+    public NetworkedEntityManager(Store store, Func<PlayerId> getPlayerId)
     {
         _store = store;
-        _getPeerId = getPeerId;
+        _getPlayerId = getPlayerId;
         _store.OnEntityDelete += HandleEntityDestroy;
     }
 
@@ -45,7 +46,7 @@ public sealed class NetworkedEntityManager : IDisposable
 
     public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
-        var netId = new NetworkIdComponent(_getPeerId(), _nextNetworkedId++);
+        var netId = new NetworkIdComponent(_getPlayerId(), _nextNetworkedId++);
         var entity = _store.CreateEntity(archetypeId, b =>
         {
             b.Add(netId);
@@ -59,11 +60,6 @@ public sealed class NetworkedEntityManager : IDisposable
     {
         return _store.CreateEntity(archetypeId, b => b.Add(netId));
     }
-
-    // internal Entity CreateRemoteNetworkedEntity(NetworkIdComponent netId)
-    // {
-    //     return _store.CreateEntity(b => b.Add(netId));
-    // }
 
     public bool TryGetEntityByNetworkId(NetworkIdComponent netId, [NotNullWhen(true)] out Entity? entity)
     {

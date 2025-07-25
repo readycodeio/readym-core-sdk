@@ -5,11 +5,14 @@ using ReadyM.Relay.Common.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public class RoomStateProxyBase(RelayClient relayClient)
+public class RoomStateProxyBase(IRelayClient relayClient)
 {
+    public IRelayClient RelayClient
+        => relayClient;
+    
     public PlayerId MasterClientId
     {
-        get => relayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (PlayerId)x : Constants.UnsetPeerId;
+        get => RelayClient.RoomState.TryGetValue(RoomProperties.MasterClientId, out var x) ? (PlayerId)x : Constants.UnsetPeerId;
         set => SetProperty(RoomProperties.MasterClientId, value);
     }
 
@@ -21,14 +24,14 @@ public class RoomStateProxyBase(RelayClient relayClient)
 
     protected T? GetProperty<T>(object key)
     {
-        if (relayClient.RoomState.TryGetValue(key, out var obj))
+        if (RelayClient.RoomState.TryGetValue(key, out var obj))
             return (T)obj;
         return default;
     }
 
     protected void SetProperty(object key, object value)
     {
-        relayClient.OpSetCustomPropertiesOfRoom(new Dictionary<object, object?>
+        RelayClient.OpSetCustomPropertiesOfRoom(new Dictionary<object, object?>
         {
             [key] = value
         });
