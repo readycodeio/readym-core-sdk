@@ -1,8 +1,9 @@
 ﻿using System;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
-using ReadyM.Relay.Common.ECS;
-using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
@@ -17,7 +18,7 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
     private NetDataWriter MakeHeader()
     {
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.EcsUpdate);
+        writer.Put((byte)RelayMessageCode.EcsUpdate);
         writer.Put(componentId);
         return writer;
     }

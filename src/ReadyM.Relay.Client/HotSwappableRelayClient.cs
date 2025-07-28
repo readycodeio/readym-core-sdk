@@ -5,10 +5,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using ReadyM.Relay.Common;
-using ReadyM.Relay.Common.ECS;
-using ReadyM.Relay.Common.Protocol;
-using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Api.Multiplayer.Client;
+using ReadyM.Api.Multiplayer.Client.Blobs;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
@@ -77,12 +79,12 @@ public class HotSwappableRelayClient : IRelayClient
         client.OnOtherPlayerLeft += OnOtherPlayerLeftHandler;
         client.OnEnterRoomRequest += OnEnterRoomRequestHandler;
         client.OnExitRoomRequest += OnExitRoomRequestHandler;
-        client[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += OnCustomEventHandler;
+        client[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += OnCustomEventHandler;
     }
 
     private void DetachRelayClient(IRelayClient client)
     {
-        client[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= OnCustomEventHandler;
+        client[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= OnCustomEventHandler;
         client.OnExitRoomRequest -= OnExitRoomRequestHandler;
         client.OnEnterRoomRequest -= OnEnterRoomRequestHandler;
         client.OnOtherPlayerLeft -= OnOtherPlayerLeftHandler;
@@ -163,14 +165,14 @@ public class HotSwappableRelayClient : IRelayClient
     
     public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
     {
-        add => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += value;
-        remove => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= value;
+        add => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += value;
+        remove => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= value;
     }
 
     public CustomEventEntry this[byte minEventCode, byte maxEventCode] => new(this, minEventCode, maxEventCode);
 
     private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetDataReader>?[(int)SystemEvent.MaxCustomEvent + 1];
+        new Action<CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
     
     public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {

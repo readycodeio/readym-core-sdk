@@ -7,11 +7,16 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.Multiplayer.Client;
+using ReadyM.Api.Multiplayer.Client.Blobs;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Shim;
-using ReadyM.Relay.Common;
-using ReadyM.Relay.Common.ECS;
 using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Relay.Common.Serialization;
 
 namespace ReadyM.Relay.Client;
 
@@ -72,8 +77,8 @@ public sealed class RelayClient : IShimRecordableRelayClient
     
     public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
     {
-        add => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += value;
-        remove => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= value;
+        add => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += value;
+        remove => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= value;
     }
 
     /// <summary>
@@ -84,7 +89,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         => new(this, minEventCode, maxEventCode);
 
     private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetDataReader>?[(int)SystemEvent.MaxCustomEvent + 1];
+        new Action<CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
     
     public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {
@@ -394,9 +399,9 @@ public sealed class RelayClient : IShimRecordableRelayClient
         var eventCode = reader.GetByte();
         AppendToRecvStats(eventCode, reader.UserDataSize);
 
-        switch ((SystemEvent)eventCode)
+        switch ((RelayMessageCode)eventCode)
         {
-            case SystemEvent.HandshakePeerIdAssigned:
+            case RelayMessageCode.HandshakePeerIdAssigned:
             {
                 var playerId = reader.Get<PlayerId>();
                 LocalPlayer.PlayerId = playerId;
@@ -407,7 +412,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
                 Connected = true;
                 return;
             }
-            case SystemEvent.PlayerStateChanged:
+            case RelayMessageCode.PlayerStateChanged:
             {
                 var playerId = reader.Get<PlayerId>();
                 var changes = _serializer.DeserializeObject<Dictionary<object, object?>>(reader);
@@ -435,14 +440,14 @@ public sealed class RelayClient : IShimRecordableRelayClient
                 }
                 return;
             }
-            case SystemEvent.RoomStateChanged:
+            case RelayMessageCode.RoomStateChanged:
             {
                 var changes = _serializer.DeserializeObject<Dictionary<object, object?>>(reader);
                 var diff = RelaySerializer.UpdateAndGetDiff(RoomState, changes);
                 OnRoomPropertiesChanged?.Invoke(diff);
                 return;
             }
-            case SystemEvent.PlayerJoined:
+            case RelayMessageCode.PlayerJoined:
             {
                 var playerId = reader.Get<PlayerId>();
                 var initialState = _serializer.DeserializeObject<Dictionary<object, object>>(reader);
@@ -468,32 +473,32 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
                 return;
             }
-            case SystemEvent.PlayerLeft:
+            case RelayMessageCode.PlayerLeft:
             {
                 var playerId = reader.Get<PlayerId>();
                 OnOtherPlayerLeft?.Invoke(playerId);
                 return;
             }
-            case SystemEvent.HandshakeSetInitialProperties:
-                _logger.LogError("Event {Event} received, but should not be sent to the client", SystemEvent.HandshakeSetInitialProperties);
+            case RelayMessageCode.HandshakeSetInitialProperties:
+                _logger.LogError("Event {Event} received, but should not be sent to the client", RelayMessageCode.HandshakeSetInitialProperties);
                 return;
-            case SystemEvent.EcsSnapshot:
+            case RelayMessageCode.EcsSnapshot:
                 OnEcsSnapshot?.Invoke(reader);
                 return;
-            case SystemEvent.EcsUpdate:
+            case RelayMessageCode.EcsUpdate:
                 OnEcsDelta?.Invoke(reader);
                 return;
-            case SystemEvent.DestroyEntity:
+            case RelayMessageCode.DestroyEntity:
             {
                 var netId = reader.Get<NetworkIdComponent>();
                 OnReceivedDeleteEntity?.Invoke(netId);
                 return;
             }
-            case SystemEvent.DownloadBlob:
-            case SystemEvent.UploadBlob:
-                _logger.LogError("Event {Event} received, but should not be sent to the client", SystemEvent.DownloadBlob);
+            case RelayMessageCode.DownloadBlob:
+            case RelayMessageCode.UploadBlob:
+                _logger.LogError("Event {Event} received, but should not be sent to the client", RelayMessageCode.DownloadBlob);
                 return;
-            case SystemEvent.UploadBlobAck:
+            case RelayMessageCode.UploadBlobAck:
             {
                 var requestId = reader.GetInt();
                 var success = reader.GetBool();
@@ -523,7 +528,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
 
                 return;
             }
-            case SystemEvent.BlobData:
+            case RelayMessageCode.BlobData:
             {
                 var requestId = reader.GetInt();
                 var succeeded = reader.GetBool();
@@ -581,7 +586,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     public void SendInitialPlayerState()
     {
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.HandshakeSetInitialProperties);
+        writer.Put((byte)RelayMessageCode.HandshakeSetInitialProperties);
         _serializer.SerializeObject(writer, LocalPlayer.Properties);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
     }
@@ -604,7 +609,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         _blobDownloadTasks[requestId] = taskSource;
 
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.DownloadBlob);
+        writer.Put((byte)RelayMessageCode.DownloadBlob);
         writer.Put(requestId);
         writer.Put(name);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
@@ -649,7 +654,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
         _blobUploadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.UploadBlob);
+        writer.Put((byte)RelayMessageCode.UploadBlob);
         writer.Put(requestId);
         writer.Put(blob.Name);
         writer.Put(blob.Content.Length);
@@ -708,7 +713,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     private NetDataWriter CreatePlayerPropertiesUpdatePacket(PlayerId playerId, Dictionary<object, object?> changes)
     {
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.PlayerStateChanged);
+        writer.Put((byte)RelayMessageCode.PlayerStateChanged);
         writer.Put(playerId);
         _serializer.SerializeObject(writer, changes);
         return writer;
@@ -717,7 +722,7 @@ public sealed class RelayClient : IShimRecordableRelayClient
     private NetDataWriter CreateRoomPropertiesUpdatePacket(Dictionary<object, object?> changes)
     {
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.RoomStateChanged);
+        writer.Put((byte)RelayMessageCode.RoomStateChanged);
         _serializer.SerializeObject(writer, changes);
         return writer;
     }

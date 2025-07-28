@@ -1,5 +1,5 @@
 using System;
-using ReadyM.Relay.Client;
+using ReadyM.Api.Multiplayer.Client;
 
 namespace ReadyM.Api.Multiplayer;
 

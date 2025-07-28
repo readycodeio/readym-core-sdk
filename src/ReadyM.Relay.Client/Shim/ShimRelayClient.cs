@@ -9,10 +9,15 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.Multiplayer.Client;
+using ReadyM.Api.Multiplayer.Client.Blobs;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common;
-using ReadyM.Relay.Common.ECS;
-using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Protocol.Enums;
+using ReadyM.Relay.Common.Serialization;
 using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
@@ -67,15 +72,15 @@ public class ShimRelayClient : IRelayClient
 
     public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
     {
-        add => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent += value;
-        remove => this[(byte)SystemEvent.MinCustomEvent, (byte)SystemEvent.MaxCustomEvent].OnCustomEvent -= value;
+        add => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += value;
+        remove => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= value;
     }
 
     public CustomEventEntry this[byte minEventCode, byte maxEventCode]
         => new(this, minEventCode, maxEventCode);
 
     private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetDataReader>?[(int)SystemEvent.MaxCustomEvent + 1];
+        new Action<CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
     
     public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
     {
@@ -610,7 +615,7 @@ public class ShimRelayClient : IRelayClient
         _blobDownloadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.DownloadBlob);
+        writer.Put((byte)RelayMessageCode.DownloadBlob);
         writer.Put(requestId);
         writer.Put(name);
         SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
@@ -647,7 +652,7 @@ public class ShimRelayClient : IRelayClient
         _blobUploadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
-        writer.Put((byte)SystemEvent.UploadBlob);
+        writer.Put((byte)RelayMessageCode.UploadBlob);
         writer.Put(requestId);
         writer.Put(blob.Name);
         writer.PutBytesWithLength(blob.Content);

@@ -1,4 +1,5 @@
 using System;
+using ReadyM.Api.Multiplayer.Client.Blobs;
 using ReadyM.Relay.Common;
 
 namespace ReadyM.Relay.Client.Shim;

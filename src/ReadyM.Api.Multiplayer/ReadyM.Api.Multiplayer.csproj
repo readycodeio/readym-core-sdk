@@ -3,6 +3,7 @@
     <PropertyGroup>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <TargetFramework>netstandard2.0</TargetFramework>
     </PropertyGroup>
@@ -13,8 +14,13 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
-        <ProjectReference Include="..\ReadyM.Relay.Client\ReadyM.Relay.Client.csproj" />
+        <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Server\" />
     </ItemGroup>
 
 </Project>
