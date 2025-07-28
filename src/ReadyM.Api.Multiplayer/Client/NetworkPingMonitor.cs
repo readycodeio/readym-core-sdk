@@ -1,7 +1,6 @@
 using System;
-using ReadyM.Api.Multiplayer.Client;
 
-namespace ReadyM.Api.Multiplayer;
+namespace ReadyM.Api.Multiplayer.Client;
 
 public class NetworkPingMonitor : IDisposable
 {
@@ -21,7 +20,7 @@ public class NetworkPingMonitor : IDisposable
         _relayClient.OnPingUpdated -= HandlePingUpdated;
     }
 
-    private void HandlePingUpdated(int ping)
+    private void HandlePingUpdated(IRelayClientNetworkThreadContext relayClientNetworkThreadContext, int ping)
     {
         CurrentPing = ping;
         OnPingUpdated?.Invoke(ping);

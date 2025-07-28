@@ -1,37 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public sealed class NetworkedComponentRegistry : INetworkedComponentRegistry
+public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
+    : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
-    private readonly List<Action<INetworkedComponentRegistryCallback>> _acceptCallbacks = new();
+    private byte _nextComponentId;
+    private readonly Dictionary<Type, NetworkedComponentId> _ids = new();
 
-    public NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
+    public override INetworkedComponentRegistry RegisterComponent<T>()
     {
-        foreach (var registration in registrations)
-        {
-            registration.Register(this);
-        }
-    }
-    
-    public INetworkedComponentRegistry RegisterComponent<T>()
-        where T : struct, INetworkedComponent
-    {
-        _acceptCallbacks.Add(callback =>
-        {
-            callback.AcceptNetworkedComponent<T>();
-        });
-        
-        return this;
+        var id = new NetworkedComponentId(_nextComponentId++);
+        _ids.Add(typeof(T), id);
+        return base.RegisterComponent<T>();
     }
 
-    public void Accept(INetworkedComponentRegistryCallback callback)
-    {
-        foreach (var acceptCallbacks in _acceptCallbacks)
-        {
-            acceptCallbacks(callback);
-        }
-    }
+    public NetworkedComponentId GetNetworkedComponentId<T>()
+        => _ids[typeof(T)];
 }

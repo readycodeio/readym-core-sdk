@@ -30,7 +30,7 @@ public sealed partial class Store
 #endif
     }
 
-    internal ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
+    public ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);

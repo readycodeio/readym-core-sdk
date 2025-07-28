@@ -1,4 +1,4 @@
-﻿using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Api.Serialization;
 
@@ -13,7 +13,13 @@ namespace ReadyM.Api.Multiplayer.Protocol;
 /// - peers * 2 bytes for peers
 /// </summary>
 [DeriveJsonSerializable]
-public readonly partial struct CustomEventHeader(byte eventCode, PlayerId sender, PlayerId[]? peers, RelayMode relayMode = RelayMode.Others, EventCaching eventCaching = EventCaching.DoNotCache)
+public readonly partial struct CustomEventHeader(
+    byte eventCode,
+    PlayerId sender,
+    PlayerId[]? peers,
+    RelayMode relayMode = RelayMode.AreaOfInterestOthers,
+    EventCaching eventCaching = EventCaching.DoNotCache
+)
 {
     public readonly byte EventCode = eventCode;
     public readonly PlayerId Sender = sender;

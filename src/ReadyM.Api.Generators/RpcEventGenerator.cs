@@ -80,8 +80,10 @@ public class RpcEventGenerator : IIncrementalGenerator
                                          using System;
                                          using LiteNetLib;
                                          using LiteNetLib.Utils;
+                                         using ReadyM.Api.Multiplayer;
+                                         using ReadyM.Api.Multiplayer.Protocol;
+                                         using ReadyM.Api.Multiplayer.Protocol.Enums;
                                          using ReadyM.Relay.Common.Protocol;
-                                         using ReadyM.Relay.Common.Protocol.Enums;
 
                                          namespace {{ns}}
                                          {

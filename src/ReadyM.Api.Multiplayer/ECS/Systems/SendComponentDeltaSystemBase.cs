@@ -1,4 +1,5 @@
 ﻿using System;
+using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -7,29 +8,39 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId componentId) : QuerySystem<NetworkIdComponent, T> where T : struct, INetworkedComponent
+public abstract class SendComponentDeltaSystemBase<T, TContext>(NetworkedComponentId componentId)
+    : QuerySystem<MetadataComponent, T> where T : struct, INetworkedComponent
 {
     protected abstract int GetMaxPacketSize();
-    protected abstract void Send(NetDataWriter data);
-    protected abstract bool OwnsEntity(NetworkIdComponent netId);
+    protected abstract ArchetypeQuery<MetadataComponent, T> GetQuery(TContext? context);
+    protected abstract bool OwnsEntity(MetadataComponent meta, TContext? context);
+    protected abstract void Send(NetDataWriter data, TContext? context);
 
-    private const int HeaderSize = 2; // SystemEvent byte + componentId byte
-
-    private NetDataWriter MakeHeader()
+    private void CreatePacketHeader(NetDataWriter writer)
     {
-        var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.EcsUpdate);
         writer.Put(componentId);
-        return writer;
     }
+    
+    // ReSharper disable once StaticMemberInGenericType
+    [ThreadStatic] private static NetDataWriter? _writer;
 
     protected override void OnUpdate()
-    {
-        var writer = MakeHeader();
+        => OnUpdate(default);
 
-        Query.ForEachEntity((ref netId, ref comp, _) =>
+    protected void OnUpdate(TContext? context)
+    {
+        _writer ??= new NetDataWriter();
+
+        _writer.Reset();
+        CreatePacketHeader(_writer);
+        var headerSize = _writer.Length;
+
+        var query = GetQuery(context);
+
+        query.ForEachEntity((ref meta, ref comp, _) =>
         {
-            if (!OwnsEntity(netId))
+            if (!OwnsEntity(meta, context))
             {
                 // Skip entities not owned by this peer
                 return;
@@ -39,16 +50,16 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
 
             while (true)
             {
-                var beforeApplyPosition = writer.Length;
-
                 if (!comp.IsDirty)
                     return;
+                
+                var beforeApplyPosition = _writer.Length;
+                
+                _writer.Put(meta.NetId);
 
-                writer.Put(netId);
+                comp.WriteDelta(_writer);
 
-                comp.WriteDelta(writer);
-
-                if (writer.Length > GetMaxPacketSize())
+                if (_writer.Length > GetMaxPacketSize())
                 {
                     if (retried)
                     {
@@ -57,11 +68,12 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
                     }
 
                     // Rewind and send the partial packet
-                    writer.SetPosition(beforeApplyPosition);
-                    Send(writer);
+                    _writer.SetPosition(beforeApplyPosition);
+                    Send(_writer, context);
 
                     // Start a new writer and retry
-                    writer = MakeHeader();
+                    _writer.Reset();
+                    CreatePacketHeader(_writer);
                     retried = true;
 
                     // Continue loop to retry
@@ -74,9 +86,16 @@ public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId compo
             }
         });
 
-        if (writer.Length > HeaderSize)
+        if (_writer.Length > headerSize)
         {
-            Send(writer);
+            Send(_writer, context);
         }
     }
+}
+
+public abstract class SendComponentDeltaSystemBase<T>(NetworkedComponentId componentId)
+    : SendComponentDeltaSystemBase<T, EmptyContext>(componentId)
+    where T : struct, INetworkedComponent
+{
+    // empty
 }

@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Api.Multiplayer.Client.Blobs;
-using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -28,7 +25,7 @@ public class HotSwappableRelayClient : IRelayClient
     {
         if (_client != null)
         {
-            if (_client.Connected)
+            if (_client.IsRunning)
                 throw new InvalidOperationException("Cannot swap RelayClient while it is connected. Please stop the client first.");
                 
             OnRelayClientDetach?.Invoke(_client);
@@ -44,7 +41,7 @@ public class HotSwappableRelayClient : IRelayClient
     {
         if (_client != null)
         {
-            if (_client.Connected)
+            if (_client.IsRunning)
                 throw new InvalidOperationException("Cannot swap RelayClient while it is connected. Please stop the client first.");
                 
             OnRelayClientDetach?.Invoke(_client);
@@ -52,247 +49,219 @@ public class HotSwappableRelayClient : IRelayClient
         }
 
         _client = null;
-        
-        _detachedOtherPlayers.Clear();
-        _detachedRoomState.Clear();
-        _detachedLocalPlayer.Properties.Clear();
     }
 
     private void AttachRelayClient(IRelayClient client)
     {
-        client.OnBeforeStart += OnBeforeStartHandler;
-        client.OnAfterStart += OnAfterStartHandler;
-        client.OnBeforeStop += OnBeforeStopHandler;
-        client.OnAfterStop += OnAfterStopHandler;
-        client.OnPeerIdAssigned += OnPeerIdAssignedHandler;
-        client.OnRoomPropertiesChanged += OnRoomPropertiesChangedHandler;
-        client.OnPlayerPropertiesChanged += OnPlayerPropertiesChangedHandler;
-        client.OnPlayerPropertiesAdded += OnPlayerPropertiesAddedHandler;
-        client.OnBeforeJoinedRoom += OnBeforeJoinedRoomHandler;
-        client.OnAfterJoinedRoom += OnAfterJoinedRoomHandler;
+        client.OnRequestedStart += OnRequestedStartHandler;
+        client.OnRequestedStop += OnRequestedStopHandler;
+        client.OnRequestedConnect += OnRequestedConnectHandler;
+        client.OnConnected += OnConnectedHandler;
+        client.OnRequestedDisconnect += OnRequestedDisconnectHandler;
         client.OnDisconnected += OnDisconnectedHandler;
+        client.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
+        client.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
+        client.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
+        client.OnJoinedArea += OnJoinedAreaHandler;
+        client.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
+        client.OnLeftArea += OnLeftAreaHandler;
+        client.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
+        client.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
         client.OnPingUpdated += OnPingUpdatedHandler;
-        client.OnEcsSnapshot += OnEcsSnapshotHandler;
-        client.OnEcsDelta += OnEcsDeltaHandler;
-        client.OnReceivedDeleteEntity += OnReceivedDeleteEntityHandler;
-        client.OnOtherPlayerJoined += OnOtherPlayerJoinedHandler;
-        client.OnOtherPlayerLeft += OnOtherPlayerLeftHandler;
-        client.OnEnterRoomRequest += OnEnterRoomRequestHandler;
-        client.OnExitRoomRequest += OnExitRoomRequestHandler;
-        client[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += OnCustomEventHandler;
+        client.OnAnyMessage += OnAnyMessageHandler;
+        client.OnClientUpdate += OnClientUpdateHandler;
     }
 
     private void DetachRelayClient(IRelayClient client)
     {
-        client[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= OnCustomEventHandler;
-        client.OnExitRoomRequest -= OnExitRoomRequestHandler;
-        client.OnEnterRoomRequest -= OnEnterRoomRequestHandler;
-        client.OnOtherPlayerLeft -= OnOtherPlayerLeftHandler;
-        client.OnOtherPlayerJoined -= OnOtherPlayerJoinedHandler;
-        client.OnReceivedDeleteEntity -= OnReceivedDeleteEntityHandler;
-        client.OnEcsDelta -= OnEcsDeltaHandler;
-        client.OnEcsSnapshot -= OnEcsSnapshotHandler;
-        client.OnPingUpdated -= OnPingUpdatedHandler;
-        client.OnDisconnected -= OnDisconnectedHandler;
-        client.OnAfterJoinedRoom -= OnAfterJoinedRoomHandler;
-        client.OnBeforeJoinedRoom -= OnBeforeJoinedRoomHandler;
-        client.OnPlayerPropertiesAdded -= OnPlayerPropertiesAddedHandler;
-        client.OnPlayerPropertiesChanged -= OnPlayerPropertiesChangedHandler;
-        client.OnRoomPropertiesChanged -= OnRoomPropertiesChangedHandler;
-        client.OnPeerIdAssigned -= OnPeerIdAssignedHandler;
-        client.OnAfterStop -= OnAfterStopHandler;
-        client.OnBeforeStop -= OnBeforeStopHandler;
-        client.OnAfterStart -= OnAfterStartHandler;
-        client.OnBeforeStart -= OnBeforeStartHandler;
+        client.OnClientUpdate -= OnClientUpdateHandler;
+        client.OnAnyMessage += OnAnyMessageHandler;
+        client.OnPingUpdated += OnPingUpdatedHandler;
+        client.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
+        client.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
+        client.OnLeftArea += OnLeftAreaHandler;
+        client.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
+        client.OnJoinedArea += OnJoinedAreaHandler;
+        client.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
+        client.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
+        client.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
+        client.OnDisconnected += OnDisconnectedHandler;
+        client.OnRequestedDisconnect += OnRequestedDisconnectHandler;
+        client.OnConnected += OnConnectedHandler;
+        client.OnRequestedConnect += OnRequestedConnectHandler;
+        client.OnRequestedStop += OnRequestedStopHandler;
+        client.OnRequestedStart += OnRequestedStartHandler;
     }
-
-    public Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
-        => _client!.UploadBlobAsync(blob, ct) ?? Task.FromResult(false);
-
-    public Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
-        => _client!.DownloadBlobAsync(name, ct) ?? Task.FromResult<BlobInfo?>(null);
 
     public void Dispose()
     {
         // empty
     }
 
-    private readonly Dictionary<object, object> _detachedRoomState = new();
-    private readonly Player _detachedLocalPlayer = new(new Dictionary<object, object>());
-    private readonly ConcurrentDictionary<PlayerId, Player> _detachedOtherPlayers = new();
-
-    public Dictionary<object, object> RoomState
-        => _client?.RoomState ?? _detachedRoomState;
-
-    public Player LocalPlayer
-        => _client?.LocalPlayer ?? _detachedLocalPlayer;
-
-    public ConcurrentDictionary<PlayerId, Player> OtherPlayers
-        => _client?.OtherPlayers ?? _detachedOtherPlayers;
-
     public bool IsRunning
         => _client?.IsRunning ?? false;
-
-    public bool Connected
-        => _client?.Connected ?? false;
-
-    public bool InRoom
-        => _client?.InRoom ?? false;
 
     public PlayerId PlayerId
         => _client?.PlayerId ?? PlayerId.Invalid;
 
-    public bool IsMasterClient
-        => _client?.IsMasterClient ?? false;
+    public event Action? OnRequestedStart;
+    public event Action? OnRequestedStop;
 
-    public event Action? OnBeforeStart;
-    public event Action? OnAfterStart;
-    public event Action? OnBeforeStop;
-    public event Action? OnAfterStop;
-    public event Action<PlayerId, Dictionary<object, object>>? OnPeerIdAssigned;
-    public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
-    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
-    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesAdded;
-    public event Action? OnBeforeJoinedRoom;
-    public event Action<Dictionary<object, object>>? OnAfterJoinedRoom;
-    public event Action<DisconnectReason>? OnDisconnected;
-    public event Action<int>? OnPingUpdated;
-    public event Action<NetDataReader>? OnEcsSnapshot;
-    public event Action<NetDataReader>? OnEcsDelta;
-    public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
-    public event Action<PlayerId, Dictionary<object, object>>? OnOtherPlayerJoined;
-    public event Action<PlayerId>? OnOtherPlayerLeft;
+    public event Action? OnRequestedConnect;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    public event Action? OnRequestedDisconnect;
+    public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
     
-    public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
+    public event Action<AreaId>? OnRequestedJoinArea;
+    public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
+    public event Action? OnRequestedLeaveArea;
+    public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
+    public event Action<IRelayClientNetworkThreadContext, int>? OnPingUpdated;
+
+    public event Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>? OnAnyMessage
     {
-        add => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += value;
-        remove => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= value;
+        add => AddMessageHandler(RelayMessageCode.MinCustomEvent, RelayMessageCode.MaxCustomEvent, value!);
+        remove => RemoveMessageHandler(RelayMessageCode.MinCustomEvent, RelayMessageCode.MaxCustomEvent, value!);
     }
 
-    public CustomEventEntry this[byte minEventCode, byte maxEventCode] => new(this, minEventCode, maxEventCode);
-
-    private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
+    private readonly Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?[] _messageHandlers =
+        new Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
     
-    public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
+    public void AddMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
     {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Combine(_customEventHandlers[eventCode], value);
+        _messageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Combine(_messageHandlers[(byte)eventCode], handler);
     }
 
-    public void RemoveCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
+    public void AddMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
     {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
+        for (var i = minEventCode; i <= maxEventCode; i++)
+        {
+            _messageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Combine(_messageHandlers[(byte)i], handler);
+        }
     }
 
-    public event Action? OnEnterRoomRequest;
-    public event Action? OnExitRoomRequest;
+    public void RemoveMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
+    {
+        _messageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Remove(_messageHandlers[(byte)eventCode], handler);
+    }
+
+    public void RemoveMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
+    {
+        for (var i = minEventCode; i <= maxEventCode; i++)
+        {
+            _messageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Remove(_messageHandlers[(byte)i], handler);
+        }
+    }
+
+    public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
+
+    public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
+        => _client!.Scheduler;
 
     public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
         => _client?.GetMaxPacketSize(deliveryMethod) ?? 1300;
 
-    public void Start()
-        => _client!.Start();
+    public Task StartAsync(CancellationToken token, bool autoConnect = true)
+        => _client!.StartAsync(token, autoConnect);
+
+    public Task RunAsync(CancellationToken token)
+        => _client!.RunAsync(token);
 
     public void Stop()
         => _client!.Stop();
 
-    public Player? GetPlayerState(PlayerId playerId)
-        => _client!.GetPlayerState(playerId);
+    public void Connect()
+        => _client!.Connect();
 
-    public void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
-        => _client!.SendMessageToServer(writer, deliveryMethod);
+    public void Disconnect()
+        => _client!.Disconnect();
 
-    public void OpSetCustomPropertiesOfActor(PlayerId playerId, Dictionary<object, object?> data)
-        => _client!.OpSetCustomPropertiesOfActor(playerId, data);
+    public void Reconnect()
+        => _client!.Reconnect();
 
-    public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
-        => _client!.OpSetCustomPropertiesOfRoom(data);
+    public void JoinArea(AreaId areaId)
+        => _client!.JoinArea(areaId);
 
-    public void OpRaiseEvent(byte eventCode, object? data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        => _client!.OpRaiseEvent(eventCode, data, peers, deliveryMethod);
+    public void LeaveArea()
+        => _client!.LeaveArea();
 
-    public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
-        => _client!.OpRaiseEvent(eventCode, data, mode, deliveryMethod);
+    public void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod)
+        => _client!.SendRawMessage(writer, deliveryMethod);
 
-    public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
-        => _client!.OpRaiseEvent(eventCode, data, eventCaching);
+    public void SendMessage(RelayMessage message)
+        => _client!.SendMessage(message);
 
-    public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
-        => _client!.OpRaiseEventRaw(writer, deliveryMethod);
+    public void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
+        => _client!.SendMessageToServer(eventCode, data, deliveryMethod);
 
-    public void SendInitialPlayerState()
-        => _client!.SendInitialPlayerState();
+    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
+        => _client!.SendMessageToPeers(eventCode, data, peers, deliveryMethod);
 
-    public void EnterRoom()
-        => _client!.EnterRoom();
+    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
+        => _client!.SendMessageRelayMode(eventCode, data, mode, deliveryMethod);
 
-    public void ExitRoom()
-        => _client!.ExitRoom();
-    
     #region Event handlers
     
-    private void OnBeforeStartHandler()
-        => OnBeforeStart?.Invoke();
+    private void OnRequestedStartHandler()
+        => OnRequestedStart?.Invoke();
+
+    private void OnRequestedStopHandler()
+        => OnRequestedStop?.Invoke();
+
+    private void OnRequestedConnectHandler()
+        => OnRequestedConnect?.Invoke();
+
+    private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+        => OnConnected?.Invoke(context, playerId);
+
+    private void OnRequestedDisconnectHandler()
+        => OnRequestedDisconnect?.Invoke();
     
-    private void OnAfterStartHandler()
-        => OnAfterStart?.Invoke();
+    private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
+        => OnDisconnected?.Invoke(context, disconnectReason);
     
-    private void OnBeforeStopHandler()
-        => OnBeforeStop?.Invoke();
+    private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+        => OnOtherPlayerConnected?.Invoke(context, playerId);
+
+    private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+        => OnOtherPlayerDisconnected?.Invoke(context, playerId);
+
+    private void OnRequestedJoinAreaHandler(AreaId areaId)
+        => OnRequestedJoinArea?.Invoke(areaId);
+
+    private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
+        => OnJoinedArea?.Invoke(context, areaId);
+
+    private void OnRequestedLeaveAreaHandler()
+        => OnRequestedLeaveArea?.Invoke();
+
+    private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
+        => OnLeftArea?.Invoke(context);
+
+    private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+        => OnOtherPlayerJoinedArea?.Invoke(context, playerId);
+
+    private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+        => OnOtherPlayerLeftArea?.Invoke(context, playerId);
     
-    private void OnAfterStopHandler()
-        => OnAfterStop?.Invoke();
+    private void OnPingUpdatedHandler(IRelayClientNetworkThreadContext context, int ping)
+        => OnPingUpdated?.Invoke(context, ping);
     
-    private void OnPeerIdAssignedHandler(PlayerId playerId, Dictionary<object, object> properties)
-        => OnPeerIdAssigned?.Invoke(playerId, properties);
-    
-    private void OnRoomPropertiesChangedHandler(Dictionary<object, object?> properties)
-        => OnRoomPropertiesChanged?.Invoke(properties);
-    
-    private void OnPlayerPropertiesChangedHandler(PlayerId playerId, Dictionary<object, object?> properties)
-        => OnPlayerPropertiesChanged?.Invoke(playerId, properties);
-    
-    private void OnPlayerPropertiesAddedHandler(PlayerId playerId, Dictionary<object, object?> properties)
-        => OnPlayerPropertiesAdded?.Invoke(playerId, properties);
-    
-    private void OnBeforeJoinedRoomHandler()
-        => OnBeforeJoinedRoom?.Invoke();
-    
-    private void OnAfterJoinedRoomHandler(Dictionary<object, object> properties)
-        => OnAfterJoinedRoom?.Invoke(properties);
-    
-    private void OnDisconnectedHandler(DisconnectReason reason)
-        => OnDisconnected?.Invoke(reason);
-    
-    private void OnPingUpdatedHandler(int ping)
-        => OnPingUpdated?.Invoke(ping);
-    
-    private void OnEcsSnapshotHandler(NetDataReader reader)
-        => OnEcsSnapshot?.Invoke(reader);
-    
-    private void OnEcsDeltaHandler(NetDataReader reader)
-        => OnEcsDelta?.Invoke(reader);
-    
-    private void OnReceivedDeleteEntityHandler(NetworkIdComponent networkId)
-        => OnReceivedDeleteEntity?.Invoke(networkId);
-    
-    private void OnOtherPlayerJoinedHandler(PlayerId playerId, Dictionary<object, object> properties)
-        => OnOtherPlayerJoined?.Invoke(playerId, properties);
-    
-    private void OnOtherPlayerLeftHandler(PlayerId playerId)
-        => OnOtherPlayerLeft?.Invoke(playerId);
-    
-    private void OnEnterRoomRequestHandler()
-        => OnEnterRoomRequest?.Invoke();
-    
-    private void OnExitRoomRequestHandler()
-        => OnExitRoomRequest?.Invoke();
-        
-    private void OnCustomEventHandler(CustomEventHeader ev, NetDataReader reader)
+    private void OnAnyMessageHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
     {
-        var customEventHandler = _customEventHandlers[ev.EventCode];
-        customEventHandler?.Invoke(ev, reader);
+        var handler = _messageHandlers[header.EventCode];
+        handler?.Invoke(context, header, reader);
     }
+    
+    private void OnClientUpdateHandler(IRelayClientNetworkThreadContext context)
+        => OnClientUpdate?.Invoke(context);
 
     #endregion
 }

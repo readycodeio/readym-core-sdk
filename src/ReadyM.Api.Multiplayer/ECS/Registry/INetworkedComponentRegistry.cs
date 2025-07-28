@@ -1,11 +1,9 @@
-﻿using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public interface INetworkedComponentRegistry
+public interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
 {
-    INetworkedComponentRegistry RegisterComponent<T>() where T : struct, INetworkedComponent;
-    
-    // NOTE: Visitor pattern to handle generics without reflection.
-    void Accept(INetworkedComponentRegistryCallback callback);
+    NetworkedComponentId GetNetworkedComponentId<T>();
 }

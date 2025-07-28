@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -13,8 +11,8 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Systems;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Api.Systems;
 
 namespace ReadyM.Relay.Client;
 
@@ -26,45 +24,56 @@ namespace ReadyM.Relay.Client;
 // Proposal: RelayClient should be an event-bus with minimal internal logic.
 // NetworkedSynchronizer should be the part that subscribes to various events from multiple places and holistically
 // managed synchronization by triggering events and responding to events.
-public abstract class ClientNetworkedStateSynchronizer(
+public class ClientNetworkedStateSynchronizer(
     Store world,
-    NetworkedEntityManager netManager,
+    NetworkedEntityManager netEntity,
+    ClientJobRegistry jobRegistry,
     INetworkedComponentRegistry netComponentRegistry,
     IRelayClient relayClient, 
-    SystemUpdateLoop updateLoop,
+    IClientEcsUpdateLoop updateLoop,
     ILogger logger) : IDisposable
 {
-    private class RegisterJobsForNetworkedComponent(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
+    private class RegisterJobRegistryCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
-        private byte _nextComponentId;
-
-        public void AcceptNetworkedComponent<T>()
+        public void AcceptComponent<T>(INetworkedComponentRegistry registry)
             where T : struct, INetworkedComponent
         {
-            var id = new NetworkedComponentId(_nextComponentId++);
+            var id = registry.GetNetworkedComponentId<T>();
 
-            owner.Logger.LogDebug("Registering jobs for networked component: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.World.SystemRoot.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
-            owner.DeltaReaderJobs.Add(id, new ApplyDeltaJob<T>(owner.NetManager, () => owner.RelayClient.PlayerId));
-            owner.SnapshotReaderJobs.Add(id, new ApplySnapshotJob<T>(owner.NetManager));
+            owner._logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
+            owner._jobRegistry.DeltaReaderJobs.Add(id, new ApplyDeltaJob<T>(owner._netEntity, () => owner._relayClient.PlayerId));
+            owner._jobRegistry.SnapshotReaderJobs.Add(id, new ApplySnapshotJob<T>(owner._netEntity));
+        }
+    }
+    
+    private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
+    {
+        public void AcceptComponent<T>(INetworkedComponentRegistry registry)
+            where T : struct, INetworkedComponent
+        {
+            var id = registry.GetNetworkedComponentId<T>();
+            
+            owner._logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
+            owner._world.SystemRoot.Add(new ClientSendComponentDeltaSystem<T>(id, owner._relayClient));
         }
     }
 
-    private readonly ILogger Logger = logger;
-    public Store World { get; } = world;
-    public NetworkedEntityManager NetManager { get; } = netManager;
-    public IRelayClient RelayClient { get; } = relayClient;
+    private readonly Store _world = world;
+    private readonly NetworkedEntityManager _netEntity = netEntity;
+    private readonly IRelayClient _relayClient = relayClient;
+    private readonly ILogger _logger = logger;
+    
+    private readonly ClientJobRegistry _jobRegistry = jobRegistry;
     
     public bool IsRunning { get; private set; }
     
-    internal readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> SnapshotReaderJobs = [];
-    internal readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> DeltaReaderJobs = [];
-    
-    public event Action? OnBeforeJoinedRoom;
-    public event Action? OnAfterJoinedRoom;
-    public event Action<PlayerId>? OnOtherPlayerJoined;
-    public event Action<PlayerId>? OnOtherPlayerLeft;
-    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
+    public event Action? OnJoinedArea;
+    public event Action? OnLateJoinedArea;
+    public event Action? OnLeftArea;
+    public event Action<PlayerId>? OnOtherPlayerJoinedArea;
+    public event Action<PlayerId>? OnOtherPlayerLeftArea;
+
+    public event Action? OnEcsSnapshot;
     
     public virtual void Dispose()
     {
@@ -78,22 +87,22 @@ public abstract class ClientNetworkedStateSynchronizer(
             throw new InvalidOperationException("NetworkedStateSynchronizer is already started.");
         IsRunning = true;
 
-        NetManager.OnEntityDeleted += HandleEntityDeleted;
+        _netEntity.OnEntityDelete += OnEntityDeleteHandler;
 
-        RelayClient.OnBeforeJoinedRoom += OnBeforeJoinedRoomHandler;
-        RelayClient.OnAfterJoinedRoom += OnAfterJoinedRoomHandler;
-        RelayClient.OnOtherPlayerJoined += OnOtherPlayerJoinedHandler;
-        RelayClient.OnOtherPlayerLeft += OnOtherPlayerLeftHandler;
-        RelayClient.OnPlayerPropertiesChanged += OnPlayerPropertiesChangedHandler;
-        RelayClient.OnEnterRoomRequest += OnEnterRoomRequest;
-        RelayClient.OnExitRoomRequest += OnExitRoomRequest;
+        _relayClient.OnJoinedArea += OnJoinedAreaHandler;
+        _relayClient.OnLeftArea += OnLeftAreaHandler;
+        _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
+        _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
+        _relayClient.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
+        _relayClient.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
 
-        RelayClient.OnEcsDelta += OnEcsDelta;
-        RelayClient.OnEcsSnapshot += OnEcsSnapshot;
-        RelayClient.OnReceivedDeleteEntity += DeleteRemoteEntityFromEcs;
-        
+        _relayClient.AddMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
+        _relayClient.AddMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
+        _relayClient.AddMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
+
         // NOTE: iterate over all components with generics without reflection
-        netComponentRegistry.Accept(new RegisterJobsForNetworkedComponent(this));
+        netComponentRegistry.Accept(new RegisterJobRegistryCallback(this));
+        netComponentRegistry.Accept(new RegisterSystemCallback(this));
     }
 
     public void Stop()
@@ -101,133 +110,114 @@ public abstract class ClientNetworkedStateSynchronizer(
         if (!IsRunning)
             throw new InvalidOperationException("NetworkedStateSynchronizer is not started.");
         IsRunning = false;
-        
-        RelayClient.OnReceivedDeleteEntity -= DeleteRemoteEntityFromEcs;
-        RelayClient.OnEcsSnapshot -= OnEcsSnapshot;
-        RelayClient.OnEcsDelta -= OnEcsDelta;
-        
-        RelayClient.OnExitRoomRequest -= OnExitRoomRequest;
-        RelayClient.OnEnterRoomRequest -= OnEnterRoomRequest;
-        RelayClient.OnPlayerPropertiesChanged -= OnPlayerPropertiesChangedHandler;
-        RelayClient.OnOtherPlayerLeft -= OnOtherPlayerLeftHandler;
-        RelayClient.OnOtherPlayerJoined -= OnOtherPlayerJoinedHandler;
-        RelayClient.OnAfterJoinedRoom -= OnAfterJoinedRoomHandler;
-        RelayClient.OnBeforeJoinedRoom -= OnBeforeJoinedRoomHandler;
-        
-        NetManager.OnEntityDeleted -= HandleEntityDeleted;
-        
-        // FIXME: World.RootSystem not being cleaned up
-        SnapshotReaderJobs.Clear();
-        DeltaReaderJobs.Clear();
+
+        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
+        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
+        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
+
+        _relayClient.OnRequestedLeaveArea -= OnRequestedLeaveAreaHandler;
+        _relayClient.OnRequestedJoinArea -= OnRequestedJoinAreaHandler;
+        _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
+        _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
+        _relayClient.OnLeftArea -= OnLeftAreaHandler;
+        _relayClient.OnJoinedArea -= OnJoinedAreaHandler;
+
+        _netEntity.OnEntityDelete -= OnEntityDeleteHandler;
     }
     
     #region Event handlers
 
-    private void OnEcsDelta(NetDataReader reader)
+    protected virtual void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
     {
-        var componentId = reader.Get<NetworkedComponentId>();
-
-        if (!DeltaReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
-        {
-            Logger.LogError("No delta reader job registered for component ID: {Id}", componentId);
-            return;
-        }
-
-        var bytesToCopy = reader.GetRemainingBytes();
-        var readerCopy = new NetDataReader(bytesToCopy, 0, bytesToCopy.Length);
-
-        RunOnGameThread(() =>
-        {
-            readerJob.Execute(readerCopy);
-        });
+        OnJoinedArea?.Invoke();
+        OnLateJoinedArea?.Invoke();
     }
 
-    private void OnEcsSnapshot(NetDataReader reader)
+    private void OnLeftAreaHandler(IRelayClientNetworkThreadContext obj)
     {
-        var bytesToCopy = reader.GetRemainingBytes();
-        var readerCopy = new NetDataReader(bytesToCopy, 0, bytesToCopy.Length);
+        OnLeftArea?.Invoke();
+    }
 
-        RunOnGameThread(() =>
+    protected virtual void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+    {
+        OnOtherPlayerJoinedArea?.Invoke(playerId);
+    }
+    
+    protected virtual void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+    {
+        OnOtherPlayerLeftArea?.Invoke(playerId);
+    }
+    
+    protected virtual void OnRequestedJoinAreaHandler(AreaId areaId)
+    {
+        // empty
+    }
+
+    protected virtual void OnRequestedLeaveAreaHandler()
+    {
+        // empty
+    }
+
+    protected virtual void OnEcsSnapshotHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    {
+        updateLoop.Scheduler.Schedule((cb, self, readerCopy) =>
         {
             while (readerCopy.TryGetNetworkedComponentId(out var componentId))
             {
-                if (!SnapshotReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
+                if (!self._jobRegistry.SnapshotReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
                 {
-                    Logger.LogError("No snapshot reader job registered for component ID: {Id}", componentId);
+                    self._logger.LogError("No snapshot reader job registered for component ID: {Id}", componentId);
                     return;
                 }
 
                 readerJob.Execute(readerCopy);
             }
-        });
+            
+            self.OnEcsSnapshot?.Invoke();
+        }, this, updateLoop.Scheduler.MakeSafe(reader));
     }
     
-    protected virtual void OnBeforeJoinedRoomHandler()
+    protected virtual void OnEcsUpdateHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
     {
-        OnBeforeJoinedRoom?.Invoke();
-    }
-    
-    protected virtual void OnAfterJoinedRoomHandler(Dictionary<object, object> initialState)
-    {
-        OnAfterJoinedRoom?.Invoke();
-    }
-
-    protected virtual void OnOtherPlayerJoinedHandler(PlayerId playerId, Dictionary<object, object> initialState)
-    {
-        OnOtherPlayerJoined?.Invoke(playerId);
-    }
-
-    protected virtual void OnOtherPlayerLeftHandler(PlayerId playerId)
-    {
-        OnOtherPlayerLeft?.Invoke(playerId);
-    }
-    
-    protected virtual void OnPlayerPropertiesChangedHandler(PlayerId playerId, Dictionary<object, object?> changes)
-    {
-        OnPlayerPropertiesChanged?.Invoke(playerId, changes);
-    }
-    
-    protected virtual void OnEnterRoomRequest()
-    {
-        // empty
-    }
-
-    protected virtual void OnExitRoomRequest()
-    {
-        // empty
-    }
-    
-    #endregion
-    
-    #region ECS
-
-    private void HandleEntityDeleted(NetworkIdComponent netId)
-    {
-        if (netId.Creator == RelayClient.LocalPlayer.PlayerId)
+        updateLoop.Scheduler.Schedule((_, self, readerCopy) =>
         {
-            // our own entity - send destroy event
-            Logger.LogDebug("Networked entity destroyed: {Id} (owned)", netId);
-            var writer = new NetDataWriter();
-            writer.Put((byte)RelayMessageCode.DestroyEntity);
-            writer.Put(netId);
-            RelayClient.OpRaiseEventRaw(writer, DeliveryMethod.ReliableOrdered); // TODO: Use RPC API instead
-        }
+            var componentId = readerCopy.Get<NetworkedComponentId>();
+            if (!self._jobRegistry.DeltaReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
+            {
+                self._logger.LogError("No delta reader job registered for component ID: {Id}", componentId);
+                return;
+            }
+
+            readerJob.Execute(readerCopy);
+        }, this, updateLoop.Scheduler.MakeSafe(reader));
     }
 
-    private void DeleteRemoteEntityFromEcs(NetworkIdComponent netId)
+    protected virtual void OnEcsDeleteEntityHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
     {
-        if (NetManager.TryGetEntityByNetworkId(netId, out var entity))
+        var netId = reader.Get<NetworkIdComponent>();
+        if (_netEntity.TryGetEntityByNetworkId(netId, out var entity))
         {
-            Logger.LogDebug("Queueing remote entity for destruction: {Id}", netId);
-            updateLoop.CommandBuffer.DeleteEntity(entity.Value.Id);
+            _logger.LogDebug("Queueing remote entity for destruction: {Id}", netId);
+            updateLoop.Scheduler.Schedule((cb, entity0) =>
+            {
+                cb.DeleteEntity(entity0!.Value.Id);
+            }, entity);
         }
         else
         {
-            Logger.LogError("Received destroy event for locally non-existent entity: {Id}", netId);
+            _logger.LogError("Received destroy event for locally non-existent entity: {Id}", netId);
+        }
+    }
+
+    protected virtual void OnEntityDeleteHandler(NetworkIdComponent netId)
+    {
+        if (netId.Creator == _relayClient.PlayerId)
+        {
+            // our own entity - send destroy event
+            _logger.LogDebug("Networked entity destroyed: {Id} (owned)", netId);
+            _relayClient.SendMessageRelayMode(RelayMessageCode.EcsDeleteEntity, netId, RelayMode.AreaOfInterestOthers, DeliveryMethod.ReliableOrdered); // TODO: Use RPC API instead
         }
     }
 
     #endregion
-    
-    protected abstract void RunOnGameThread(Action action);
 }

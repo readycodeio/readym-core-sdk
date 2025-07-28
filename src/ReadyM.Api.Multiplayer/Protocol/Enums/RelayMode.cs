@@ -2,8 +2,10 @@
 
 public enum RelayMode : byte
 {
-    Others = 0,
-    Master = 1,
-    All = 2,
-    Peers = 3,
+    AreaOfInterestOthers = 0,
+    AreaOfInterestAll = 1,
+    GlobalOthers = 2,
+    GlobalAll = 3,
+    EntityOwner = 4,
+    Peers = 5,
 }

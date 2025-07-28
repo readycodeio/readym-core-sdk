@@ -9,7 +9,7 @@ public struct ArchetypeId : IEquatable<ArchetypeId>, INetSerializable
     
     private byte _id;
     
-    internal ArchetypeId(byte id)
+    public ArchetypeId(byte id)
     {
         _id = id;
     }

@@ -30,32 +30,20 @@ public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerI
     }
 
     public bool Equals(PlayerId other)
-    {
-        return _id == other._id;
-    }
+        => _id == other._id;
 
     public override bool Equals(object? obj)
-    {
-        return obj is PlayerId other && Equals(other);
-    }
+        => obj is PlayerId other && Equals(other);
 
     public override int GetHashCode()
-    {
-        return _id.GetHashCode();
-    }
+        => _id.GetHashCode();
 
     public static bool operator ==(PlayerId left, PlayerId right)
-    {
-        return left.Equals(right);
-    }
+        => left._id == right._id;
 
     public static bool operator !=(PlayerId left, PlayerId right)
-    {
-        return !left.Equals(right);
-    }
+        => left._id != right._id;
 
     public override string ToString()
-    {
-        return $"PlayerId[{_id}]";
-    }
+        => _id == Invalid._id ? "PlayerId.Invalid" : $"PlayerId[{_id}]";
 }

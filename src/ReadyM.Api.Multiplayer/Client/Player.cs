@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using ReadyM.Api.Multiplayer.Idents;
-using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Api.Multiplayer.Client;
 

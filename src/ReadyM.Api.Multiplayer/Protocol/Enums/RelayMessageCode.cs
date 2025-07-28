@@ -2,19 +2,25 @@
 
 public enum RelayMessageCode : byte
 {
-    HandshakePeerIdAssigned = 255,
-    HandshakeSetInitialProperties = 254,
-    PlayerJoined = 253,
-    PlayerLeft = 252,
-    RoomStateChanged = 251,
-    PlayerStateChanged = 250,
-    EcsUpdate = 249,
-    EcsSnapshot = 248,
-    DestroyEntity = 247,
-    DownloadBlob = 246,
-    BlobData = 245,
-    UploadBlob = 244,
+    HandshakeConnected = 255,
+    RequestAreaEvent = 254,
+    AreaEvent = 253,
+    OtherPlayerConnectionEvent = 252,
+    OtherPlayerAreaEvent = 251,
+    
+    EcsUpdate = 250,
+    EcsSnapshot = 249,
+    EcsCreateEntity = 248,
+    EcsDeleteEntity = 247,
+    
+    RequestDownloadBlob = 246,
+    DownloadBlobData = 245,
+    RequestUploadBlob = 244,
     UploadBlobAck = 243,
-    MaxCustomEvent = UploadBlobAck - 1,
+
+    MaxServerRpcEvent = UploadBlobAck - 1,
+    MinServerRpcEvent = 150,
+    
+    MaxCustomEvent = MinServerRpcEvent - 1,
     MinCustomEvent = 0,
 }

@@ -7,119 +7,155 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Api.Multiplayer.Client.Blobs;
-using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Shim;
 using ReadyM.Relay.Common.Protocol;
-using ReadyM.Relay.Common.Protocol.Enums;
-using ReadyM.Relay.Common.Serialization;
 
 namespace ReadyM.Relay.Client;
 
-public sealed class RelayClient : IShimRecordableRelayClient
+public class RelayClient : IShimRecordableRelayClient
 {
-    private RelaySerializer _serializer { get; }
+    private class NetworkThreadContext : IRelayClientNetworkThreadContext
+    {
+        public readonly List<PlayerId> AllPlayers = new();
+        public readonly List<PlayerId> AreaPlayers = new();
+
+        public bool Connected { get; set; }
+        public PlayerId PlayerId { get; set; }
+        public AreaId CurrentArea { get; set; }
+        
+        public DisconnectReason LastDisconnectReason { get; set; }
+
+        ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
+            => new(AllPlayers);
+        
+        ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AreaPlayers
+            => new(AreaPlayers);
+    }
     
+    // Proper implementations guaranteed to be thread-safe
+    private readonly ILogger _logger;
+    
+    // Looking at the implementation it seems to be thread-safe for reading properties. Since it is accessed from
+    // multiple threads, all properties should be assumed to be volatile, e.g. a list of peers may change between
+    // one iteration and the next on the same thread.
+    private readonly NetManager _client;
+    
+    // Only used to subscribe to events, only ever used on the main thread.
+    private readonly EventBasedNetListener _listener;
+    
+    // Read-only value types, so thread safe
     private readonly RelayConnectionOptions _options;
     private readonly string _host;
     private readonly int _port;
 
+    // This isn't thread-safe, but we use it for some inconsequential things. DO NOT USE it for anything important,
+    // it'll return an abnormal number of 0s when used in parallel. With the papal blessing nothing should break
+    // because of it.
     private readonly Random _rng = new(2137);
 
-    private int _requestCounter;
-    private int GetNextRequestId() => ++_requestCounter;
-    private readonly EventBasedNetListener _listener;
-    private readonly NetManager _client;
-    private readonly ILogger _logger;
+    // NOTE: Stores data that can only be safely accessed from the network thread. It is disallowed to access any of 
+    // this state from other threads.
+    private readonly NetworkThreadContext _netThreadContext = new();
 
-    private Thread? _clientThread;
-    private bool _isRunning;
-
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<BlobInfo?>> _blobDownloadTasks = new();
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<bool>> _blobUploadTasks = new();
-
-    public Dictionary<object, object> RoomState { get; private set; } = new();
-    public Player LocalPlayer { get; private set; } = new(new Dictionary<object, object>());
-    public ConcurrentDictionary<PlayerId, Player> OtherPlayers { get; } = new();
+    private readonly PendingActionUpdater<IRelayClientNetworkThreadContext> _scheduler;
     
-    public bool IsRunning => _isRunning;
-    public bool Connected { get; private set; }
-
-    // FIXME: Move this to game-specific code
-    public bool InRoom { get; private set; }
-
-    public PlayerId PlayerId => LocalPlayer.PlayerId;
-    
-    // FIXME: Move this to game-specific code
-    public bool IsMasterClient
+    // NOTE: This gets assigned early on inside the `OnConnected` event handler. From that point on it is 
+    // readonly and immutable until the client disconnects. Since `PlayerId` for the client needs to be available
+    // for read from both the main thread the network thread, we have to make this field guarded by a memory barrier.
+    // The implicit memory barrier inside `_connectedSignal` is used in this case. Hence, it is only permissible to
+    // read from the property once the `Set()` method has been called on `_connectedSignal`.
+    // NOTE: It is important for thread safety of this approach that reconnects without the full `Stop()` and `Start()`
+    // cycle do not change the assigned `PlayerId` to a different value.
+    public PlayerId PlayerId
     {
         get
         {
-            if (!RoomState.TryGetValue(RoomProperties.MasterClientId, out var untypedMasterPlayerId))
-                return false;
-            var masterPlayerId = (PlayerId)untypedMasterPlayerId;
-            return masterPlayerId != PlayerId.Invalid && LocalPlayer.PlayerId == masterPlayerId;
+            var playerId = _netThreadContext.PlayerId;
+            if (playerId == default || !IsRunning)
+                throw new InvalidOperationException(
+                    "PlayerId is not set. You need to call `Start()` and wait on the returned task before safely reading this property.");
+            return playerId;
+        }
+    }
+    
+    // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
+    // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
+    // would introduce a race condition each time.
+
+    public DisconnectReason LastDisconnectReason
+    {
+        get
+        {
+            if (IsRunning)
+                throw new InvalidOperationException("Call `Stop()` before safely reading this field.");
+            return _netThreadContext.LastDisconnectReason;
+        }
+    }
+    
+    // Only changed from the main thread. Not affected by disconnections.
+    public bool IsRunning { get; private set; }
+
+    public event Action? OnRequestedStart;
+    public event Action? OnRequestedStop;
+
+    public event Action? OnRequestedConnect;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    public event Action? OnRequestedDisconnect;
+    public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
+    public event Action<AreaId>? OnRequestedJoinArea;
+    public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
+    public event Action? OnRequestedLeaveArea;
+    public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
+
+    public event Action<IRelayClientNetworkThreadContext, int>? OnPingUpdated;
+
+    public event Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>? OnAnyMessage
+    {
+        add => AddMessageHandler(RelayMessageCode.MinCustomEvent, RelayMessageCode.MaxCustomEvent, value!);
+        remove => RemoveMessageHandler(RelayMessageCode.MinCustomEvent, RelayMessageCode.MaxCustomEvent, value!);
+    }
+
+    private readonly Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?[] _messageHandlers =
+        new Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
+    
+    public void AddMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
+    {
+        _messageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Combine(_messageHandlers[(byte)eventCode], handler);
+    }
+
+    public void AddMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
+    {
+        for (var i = minEventCode; i <= maxEventCode; i++)
+        {
+            _messageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Combine(_messageHandlers[(byte)i], handler);
         }
     }
 
-    public event Action? OnBeforeStart;
-    public event Action? OnAfterStart;
-    public event Action? OnBeforeStop;
-    public event Action? OnAfterStop;
-
-    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesAdded;
-    public event Action<Dictionary<object, object?>>? OnRoomPropertiesChanged;
-    public event Action<PlayerId, Dictionary<object, object?>>? OnPlayerPropertiesChanged;
-    
-    public event Action<CustomEventHeader, NetDataReader>? OnCustomEvent
+    public void RemoveMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
     {
-        add => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent += value;
-        remove => this[(byte)RelayMessageCode.MinCustomEvent, (byte)RelayMessageCode.MaxCustomEvent].OnCustomEvent -= value;
+        _messageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Remove(_messageHandlers[(byte)eventCode], handler);
     }
 
-    /// <summary>
-    /// Event that is raised when a custom event is received from the server.
-    /// Raised on the thread that the LiteNetLib client is running on.
-    /// </summary>
-    public CustomEventEntry this[byte minEventCode, byte maxEventCode] 
-        => new(this, minEventCode, maxEventCode);
-
-    private readonly Action<CustomEventHeader, NetDataReader>?[] _customEventHandlers =
-        new Action<CustomEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxCustomEvent + 1];
-    
-    public void AddCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
+    public void RemoveMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader> handler)
     {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Combine(_customEventHandlers[eventCode], value);
+        for (var i = minEventCode; i <= maxEventCode; i++)
+        {
+            _messageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomEventHeader, NetDataReader>?)Delegate.Remove(_messageHandlers[(byte)i], handler);
+        }
     }
 
-    public void RemoveCustomEventHandler(int eventCode, Action<CustomEventHeader, NetDataReader>? value)
-    {
-        _customEventHandlers[eventCode] = (Action<CustomEventHeader, NetDataReader>?)Delegate.Remove(_customEventHandlers[eventCode], value);
-    }
-
-    public event Action<PlayerId, Dictionary<object, object>>? OnPeerIdAssigned;
-    public event Action? OnBeforeJoinedRoom;
-    public event Action<Dictionary<object, object>>? OnAfterJoinedRoom;
-    public event Action<DisconnectReason>? OnDisconnected;
-    public event Action<int>? OnPingUpdated;
-    public event Action<NetDataReader>? OnEcsSnapshot;
-    public event Action<NetDataReader>? OnEcsDelta;
-    public event Action<NetworkIdComponent>? OnReceivedDeleteEntity;
-    public event Action<int, bool>? OnBlobAck;
-    public event Action<int, BlobInfo?>? OnBlobData;
-
-    /// <summary>
-    /// At this point the connecting player has been assigned an ID and we have synced their state.
-    /// </summary>
-    public event Action<PlayerId, Dictionary<object, object>>? OnOtherPlayerJoined;
-    public event Action<PlayerId>? OnOtherPlayerLeft;
-
-    public event Action? OnEnterRoomRequest;
-    public event Action? OnExitRoomRequest;
+    public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
 
     public NetPeer? Server
     {
@@ -134,17 +170,29 @@ public sealed class RelayClient : IShimRecordableRelayClient
         }
     }
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, RelaySerializer serializer, ILogger logger) 
+    public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
     {
-        _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+        get
+        {
+            if (!IsRunning)
+                throw new InvalidOperationException("Relay client is not running, cannot access scheduler");
+            return _scheduler;
+        }
+    }
+
+    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger) 
+    {
+        _logger = logger;
+        
         _options = options;
         _host = host;
         _port = port;
+        _scheduler = new(_netThreadContext, _logger);
 
         _listener = new EventBasedNetListener();
-        _listener.NetworkReceiveEvent += OnListenerOnNetworkReceiveEvent;
+        _listener.NetworkReceiveEvent += OnListenerNetworkReceiveEvent;
         _listener.NetworkLatencyUpdateEvent += OnNetworkLatencyUpdateEvent;
-        _listener.PeerDisconnectedEvent += OnServerDisconnected;
+        _listener.PeerDisconnectedEvent += OnPeerDisconnectedEvent;
 
         _client = new NetManager(_listener)
         {
@@ -157,9 +205,20 @@ public sealed class RelayClient : IShimRecordableRelayClient
 #else
             DisconnectOnUnreachable = true,
 #endif
-            UpdateTime = Constants.ClientTickRateMs,
+            UpdateTime = Constants.ClientNetworkTickRateMs,
         };
-        _logger = logger;
+    }
+
+    public void Dispose()
+    {
+        if (IsRunning)
+        {
+            Stop();
+        }
+        
+        _listener.PeerDisconnectedEvent -= OnPeerDisconnectedEvent;
+        _listener.NetworkLatencyUpdateEvent -= OnNetworkLatencyUpdateEvent;
+        _listener.NetworkReceiveEvent -= OnListenerNetworkReceiveEvent;
     }
 
     public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
@@ -167,212 +226,445 @@ public sealed class RelayClient : IShimRecordableRelayClient
         return Server?.GetMaxSinglePacketSize(deliveryMethod) ?? 1300;
     }
 
-    private void OnServerDisconnected(NetPeer peer, DisconnectInfo info)
+    public async Task StartAsync(CancellationToken token, bool autoConnect = true)
     {
-        _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
-        InRoom = false;
-        Connected = false;
-        OnDisconnected?.Invoke(info.Reason);
-    }
-
-    public void Start()
-    {
-        if (_isRunning)
+        if (IsRunning)
         {
             _logger.LogError("Relay client is already running");
             return;
         }
-        
-        _logger.LogDebug("Starting relay client on {Host}:{Port}", _host, _port);
-        
-        OnBeforeStart?.Invoke();
 
+        OnRequestedStart?.Invoke();
+
+        await Task.Delay(1, token);
+        _scheduler.SetThread(Thread.CurrentThread);
+
+        _logger.LogDebug("Starting on {Host}:{Port}", _host, _port);
         _client.Start();
 
         var writer = new NetDataWriter();
         _options.Serialize(writer);
         
-        _client.Connect(_host, _port, writer);
-
-        _isRunning = true;
-        _clientThread = new Thread(() =>
+        if (autoConnect)
         {
-            _logger.LogInformation("Running relay client on {Host}:{Port}", _host, _port);
-            while (_isRunning)
+            _logger.LogInformation("Connecting to {Host}:{Port}", _host, _port);
+            _client.Connect(_host, _port, writer);
+            _logger.LogInformation("Connected to {Host}:{Port}", _host, _port);
+        }
+        
+        _logger.LogInformation("Running on {Host}:{Port}", _host, _port);
+        
+        IsRunning = true;
+
+        while (!token.IsCancellationRequested)
+        {
+            try
             {
-                try
+                _client.PollEvents();
+                
+                if (_netThreadContext.Connected)
+                    break;
+
+                await Task.Delay(Constants.ClientNetworkTickRateMs, token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled exception in client thread (starting)");
+            }
+        }
+        
+        _logger.LogDebug("Started on {Host}:{Port}", _host, _port);
+    }
+
+    public async Task RunAsync(CancellationToken token)
+    {
+        if (!IsRunning)
+        {
+            _logger.LogError("Relay client is not running");
+            return;
+        }
+        
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                _client.PollEvents();
+                
+                OnClientUpdate?.Invoke(_netThreadContext);
+
+                var hadPendingActions = _scheduler.Update();
+                if (!hadPendingActions)
                 {
-                    _client.PollEvents();
-                    Thread.Sleep(Constants.ClientTickRateMs);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError("Unhandled exception in client thread: {0} | {1}", ex.Message, ex.StackTrace);
-                    var inner = ex.InnerException;
-                    while (inner != null)
-                    {
-                        _logger.LogError("Inner exception: {0} | {1}", inner.Message, inner.StackTrace);
-                        inner = inner.InnerException;
-                    }
+                    await Task.Delay(Constants.ClientNetworkTickRateMs, token);
                 }
             }
-        });
-
-        _clientThread.Start();
-        
-        OnAfterStart?.Invoke();
-        
-        _logger.LogDebug("Started relay client on {Host}:{Port}", _host, _port);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled exception in client thread");
+            }
+        }
     }
 
     public void Stop()
     {
-        if (!_isRunning)
+        if (!IsRunning)
         {
-            _logger.LogInformation("Relay client is not running");
+            _logger.LogError("Relay client is not running");
             return;
         }
         
-        _logger.LogDebug("Stopping relay client on {Host}:{Port}", _host, _port);
-        
-        OnBeforeStop?.Invoke();
-        
-        _isRunning = false;
+        IsRunning = false;
+
+        _logger.LogDebug("Stopping on {Host}:{Port}", _host, _port);
+
+        OnRequestedStop?.Invoke();
+
+        // NOTE: `OnDisconnected` will be called by LiteNetLib when the client is disconnected.
         _client.Stop();
-        _clientThread?.Join();
-        _clientThread = null;
-        LocalPlayer = new Player(new Dictionary<object, object>());
-        RoomState.Clear();
-        OtherPlayers.Clear();
 
-        InRoom = false;
-        if (Connected)
+        // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
+        // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
+        if (LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
         {
-            Connected = false;
-            OnDisconnected?.Invoke(DisconnectReason.DisconnectPeerCalled);
+            _logger.LogWarning("Already disconnected: {Reason}", LastDisconnectReason);
         }
-        
-        OnAfterStop?.Invoke();
-        
-        _logger.LogDebug("Stopped relay client on {Host}:{Port}", _host, _port);
+
+        _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
     }
 
-    public Player? GetPlayerState(PlayerId playerId)
+    public void Connect()
     {
-        if (playerId == LocalPlayer.PlayerId)
+        if (!IsRunning)
         {
-            return LocalPlayer;
+            _logger.LogError("Relay client is not running");
+            return;
         }
-        else
-        {
-            OtherPlayers.TryGetValue(playerId, out var otherPlayer);
-            return otherPlayer;
-        }
+        
+        OnRequestedConnect?.Invoke();
+        
+        var writer = new NetDataWriter();
+        _options.Serialize(writer);
+        
+        _client.Connect(_host, _port, writer);
+        _logger.LogInformation("Explicitly connecting on {Host}:{Port}", _host, _port);
     }
 
-    public void SendMessageToServer(NetDataWriter writer, DeliveryMethod deliveryMethod)
+    public void Disconnect()
+    {
+        if (!IsRunning)
+        {
+            _logger.LogError("Relay client is not running");
+            return;
+        }
+
+        _logger.LogInformation("Explicitly disconnecting from {Host}:{Port}", _host, _port);
+
+        OnRequestedDisconnect?.Invoke();
+        
+        _client.DisconnectAll();
+    }
+
+    public void Reconnect()
+    {
+        Disconnect();
+        Connect();
+    }
+
+    public void JoinArea(AreaId areaId)
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)RelayMessageCode.RequestAreaEvent);
+        var playerId = PlayerId;
+        writer.Put(playerId);
+        writer.Put(true); // Request joining area event
+        areaId.Serialize(writer);
+        SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void LeaveArea()
+    {
+        var writer = new NetDataWriter();
+        writer.Put((byte)RelayMessageCode.RequestAreaEvent);
+        var playerId = PlayerId;
+        writer.Put(playerId);
+        writer.Put(false); // Request leaving area event
+        SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
+    }
+
+    public void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod)
     {
         Server?.Send(writer, deliveryMethod);
         var ev = writer.Data[0];
-        AppendToSentStats(ev, writer.Length);
+        AppendToSentStats((RelayMessageCode)ev, writer.Length);
     }
-
-    public void OpSetCustomPropertiesOfActor(PlayerId playerId, Dictionary<object, object?> data)
+    
+    public void SendMessage(RelayMessage message)
     {
-        if (!Connected && !InRoom)
-        {
-            _logger.LogWarning("Attempted to set properties of player {0} while not in room", playerId);
-            return;
-        }
-
-        if (Connected && !InRoom)
-        {
-            RelaySerializer.UpdateAndGetDiff(LocalPlayer.Properties, data);
-            return;
-        }
-
-        // connected and in room, send the update to the server
-        var writer = CreatePlayerPropertiesUpdatePacket(playerId, data);
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+        Server?.Send(message.Writer, message.DeliveryMethod);
+        AppendToSentStats(message.EventCode, message.Writer.Length);
     }
 
-    public void OpSetCustomPropertiesOfRoom(Dictionary<object, object?> data)
+    public void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod) where T : INetSerializable
     {
-        var diff = RelaySerializer.UpdateAndGetDiff(RoomState, data);
-        var writer = CreateRoomPropertiesUpdatePacket(diff);
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+        var message = RelayMessage.ToServer(eventCode, deliveryMethod);
+        data.Serialize(message.Writer);
+        SendMessage(message);
     }
 
-    /// <summary>
-    /// Send an event to a specific player or group of players.
-    /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
-    /// </summary>
-    public void OpRaiseEvent(byte eventCode, object? data, PlayerId[] peers, DeliveryMethod deliveryMethod)
+    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
     {
-        var writer = new NetDataWriter();
-        writer.PutCustomEventHeader(eventCode, LocalPlayer.PlayerId, peers, EventCaching.DoNotCache);
-
-        if (data != null)
-        {
-            _serializer.SerializeObject(writer, data);
-        }
-
-        SendMessageToServer(writer, deliveryMethod);
+        var message = RelayMessage.ToPeers(eventCode, PlayerId, peers, deliveryMethod);
+        data.Serialize(message.Writer);
+        SendMessage(message);
     }
 
-    /// <summary>
-    /// Send an event with a specific delivery method. This overload does not support event caching.
-    /// </summary>
-    public void OpRaiseEvent(byte eventCode, object? data, RelayMode mode, DeliveryMethod deliveryMethod)
+    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
     {
-        var writer = new NetDataWriter();
-        writer.PutCustomEventHeader(eventCode, LocalPlayer.PlayerId, mode, EventCaching.DoNotCache);
-
-        if (data != null)
-        {
-            _serializer.SerializeObject(writer, data);
-        }
-
-        SendMessageToServer(writer, deliveryMethod);
+        var message = RelayMessage.ByRelayMode(eventCode, PlayerId, mode, deliveryMethod);
+        SendMessage(message);
     }
 
-    public void OpRaiseEventRaw(NetDataWriter writer, DeliveryMethod deliveryMethod)
-    {
-        SendMessageToServer(writer, deliveryMethod);
-    }
+    private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsSent = new();
+    private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsRecv = new();
 
-    /// <summary>
-    /// Send an event that will be cached by the server and sent to all/other players (depending on the eventCaching parameter).
-    /// </summary>
-    public void OpRaiseEvent(byte eventCode, object? data, EventCaching eventCaching)
-    {
-        var writer = new NetDataWriter();
-
-        // AddToRoomCacheGlobal events are sent to all players, AddToRoomCache - to others, DoNotCache - too, by default
-        var mode = eventCaching == EventCaching.AddToRoomCacheGlobal ? RelayMode.All : RelayMode.Others;
-        writer.PutCustomEventHeader(eventCode, LocalPlayer.PlayerId, mode, eventCaching);
-
-        if (data != null)
-        {
-            _serializer.SerializeObject(writer, data);
-        }
-
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-    }
-
-    private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsSent = new();
-    private readonly ConcurrentDictionary<byte, (long Count, long Bytes)> _statsRecv = new();
-
-    private void AppendToSentStats(byte ev, long bytesSent)
+    private void AppendToSentStats(RelayMessageCode ev, long bytesSent)
     {
         _statsSent.AddOrUpdate(ev, (1, bytesSent), (_, data) => (data.Count + 1, data.Bytes + bytesSent));
     }
 
-    private void AppendToRecvStats(byte ev, long bytesRecv)
+    private void AppendToRecvStats(RelayMessageCode ev, long bytesRecv)
     {
         _statsRecv.AddOrUpdate(ev, (1, bytesRecv), (_, data) => (data.Count + 1, data.Bytes + bytesRecv));
     }
 
+    private void OnListenerNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
+    {
+        var eventCode = (RelayMessageCode)reader.GetByte();
+        AppendToRecvStats(eventCode, reader.UserDataSize);
+
+        switch (eventCode)
+        {
+            case RelayMessageCode.HandshakeConnected:
+            {
+                var playerId = reader.Get<PlayerId>();
+                if (_netThreadContext.PlayerId != PlayerId.Invalid)
+                {
+                    _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
+                }
+                _netThreadContext.Connected = true;
+                _netThreadContext.PlayerId = playerId;
+                _netThreadContext.AllPlayers.Add(playerId);
+                _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
+                OnConnected?.Invoke(_netThreadContext, playerId);
+                break;
+            }
+            case RelayMessageCode.AreaEvent:
+            {
+                var playerId = reader.Get<PlayerId>();
+                var isJoining = reader.GetBool();
+                if (isJoining)
+                {
+                    if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                    {
+                        _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but PlayerId is not set", playerId, _netThreadContext.PlayerId);
+                        break;
+                    }
+                    if (playerId != PlayerId)
+                    {
+                        _logger.LogError("Received handshake for player {PlayerId} but expected {ExpectedPlayerId}", playerId, PlayerId);
+                        break;
+                    }
+
+                    if (_netThreadContext.CurrentArea != AreaId.Invalid)
+                    {
+                        _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentArea);
+                        break;
+                    }
+                    AreaId areaId = default;
+                    areaId.Deserialize(reader);
+                    _netThreadContext.CurrentArea = areaId;
+                    _netThreadContext.AreaPlayers.Clear();
+                    _netThreadContext.AreaPlayers.Add(playerId);
+                    OnJoinedArea?.Invoke(_netThreadContext, areaId);
+                }
+                else
+                {
+                    if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                    {
+                        _logger.LogError("Received handshake for leaving area by player {PlayerId} but PlayerId is not set", playerId);
+                        break;
+                    }
+                    if (playerId != PlayerId)
+                    {
+                        _logger.LogError("Received handshake for player {PlayerId} but expected {ExpectedPlayerId}", playerId, PlayerId);
+                        break;
+                    }
+
+                    if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                    {
+                        _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
+                        break;
+                    }
+                    
+                    _netThreadContext.CurrentArea = AreaId.Invalid;
+                    _netThreadContext.AreaPlayers.Remove(playerId);
+                    OnLeftArea?.Invoke(_netThreadContext);
+                }
+                break;
+            }
+            case RelayMessageCode.OtherPlayerConnectionEvent:
+            {
+                var playerId = reader.Get<PlayerId>();
+                var isConnecting = reader.GetBool();
+                if (isConnecting)
+                {
+                    if (!_netThreadContext.AllPlayers.Contains(playerId))
+                    {
+                        _netThreadContext.AllPlayers.Add(playerId);
+                        OnOtherPlayerConnected?.Invoke(_netThreadContext, playerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Player connected event for player {PlayerId} that already is marked as connected", playerId);
+                    }
+                }
+                else
+                {
+                    if (_netThreadContext.AllPlayers.Contains(playerId))
+                    {
+                        _netThreadContext.AllPlayers.Remove(playerId);
+                        if (_netThreadContext.AreaPlayers.Contains(playerId))
+                        {
+                            _logger.LogInformation("Player disconnected event for player {PlayerId} that is still in the area", playerId);
+                            _netThreadContext.AreaPlayers.Remove(playerId);
+                            OnOtherPlayerLeftArea?.Invoke(_netThreadContext, playerId);
+                        }
+                        OnOtherPlayerDisconnected?.Invoke(_netThreadContext, playerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Player disconnected event for player {PlayerId} that already is marked as NOT connected", playerId);
+                    }
+                }
+                break;
+            }
+            case RelayMessageCode.OtherPlayerAreaEvent:
+            {
+                var playerId = reader.Get<PlayerId>();
+                var isJoining = reader.GetBool();
+                if (isJoining)
+                {
+                    if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                    {
+                        _logger.LogError("Received area event for player {PlayerId} but current area is not set", playerId);
+                        break;
+                    }
+                    if (!_netThreadContext.AreaPlayers.Contains(playerId))
+                    {
+                        _netThreadContext.AreaPlayers.Add(playerId);
+                        OnOtherPlayerJoinedArea?.Invoke(_netThreadContext, playerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Player joined area event for player {PlayerId} that already is marked as in the area", playerId);
+                    }
+                }
+                else
+                {
+                    if (_netThreadContext.AreaPlayers.Contains(playerId))
+                    {
+                        _netThreadContext.AreaPlayers.Remove(playerId);
+                        OnOtherPlayerLeftArea?.Invoke(_netThreadContext, playerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Player left area event for player {PlayerId} that already is marked as NOT in the area", playerId);
+                    }
+                }
+                break;
+            }
+            default:
+            {
+                var header = reader.GetCustomEventHeader(eventCode);
+                var eventHandler = _messageHandlers[(byte)eventCode];
+                eventHandler?.Invoke(_netThreadContext, header, reader);
+                break;
+            }
+        }
+    }
+
+    private readonly object _statLock = new();
+    private long _lastBytesReceived;
+    private long _lastBytesSent;
+    private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
+
+    private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
+    {
+        // Round trip time. LiteNetLib reports one way latency, so we double it.
+        // We add a random jitter so that the results are not always divisible by 2.
+        OnPingUpdated?.Invoke(_netThreadContext, 2 * latency + _rng.Next(2));
+
+        // Print stats every time too
+        
+        // NOTE: We need to read this once so that it is atomic
+        var bytesReceived = _client.Statistics.BytesReceived;
+        var bytesSent = _client.Statistics.BytesSent;
+
+        long dRecv;
+        long dSent;
+        TimeSpan delta;
+        
+        // NOTE: There's no atomic way of assigning DateTimeOffset which is wider than 8 bytes and therefore
+        // cannot rely on atomicity of single assignments. Therefore we opt in for an explicit lock here.
+        lock (_statLock)
+        {
+            dRecv = bytesReceived - _lastBytesReceived;
+            _lastBytesReceived = bytesReceived;
+
+            dSent = bytesSent - _lastBytesSent;
+            _lastBytesSent = bytesSent;
+
+            var now = DateTimeOffset.Now;
+            delta = now - _lastStatCheck;
+
+            _lastStatCheck = now;
+        }
+
+        // print avg recv and sent over the delta time
+        var avgRecv = (long)(dRecv / delta.TotalSeconds);
+        var avgSent = (long)(dSent / delta.TotalSeconds);
+
+        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
+        LogEventStats();
+    }
+    
+    private void OnPeerDisconnectedEvent(NetPeer peer, DisconnectInfo info)
+    {
+        _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
+        
+        var playerId = _netThreadContext.PlayerId;
+
+        if (_netThreadContext.CurrentArea != AreaId.Invalid)
+        {
+            if (_netThreadContext.AreaPlayers.Contains(playerId))
+            {
+                _netThreadContext.AreaPlayers.Remove(playerId);
+            }
+            _netThreadContext.CurrentArea = AreaId.Invalid;
+            OnLeftArea?.Invoke(_netThreadContext);
+        }
+
+        _netThreadContext.Connected = false;
+        _netThreadContext.AllPlayers.Clear();
+        _netThreadContext.AreaPlayers.Clear();
+        _netThreadContext.LastDisconnectReason = info.Reason;
+        // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
+        // this property on the main thread.
+        OnDisconnected?.Invoke(_netThreadContext, info.Reason);
+    }
+    
     private void LogEventStats()
     {
 #if DEBUG
@@ -387,364 +679,5 @@ public sealed class RelayClient : IShimRecordableRelayClient
             _logger.LogTrace("Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
 #endif
-    }
-
-    public void Dispose()
-    {
-        Stop();
-    }
-
-    private void OnListenerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
-    {
-        var eventCode = reader.GetByte();
-        AppendToRecvStats(eventCode, reader.UserDataSize);
-
-        switch ((RelayMessageCode)eventCode)
-        {
-            case RelayMessageCode.HandshakePeerIdAssigned:
-            {
-                var playerId = reader.Get<PlayerId>();
-                LocalPlayer.PlayerId = playerId;
-                _logger.LogInformation("Assigned Actor ID {0}", LocalPlayer.PlayerId);
-
-                var roomState = _serializer.DeserializeObject<Dictionary<object, object>>(reader);
-                RoomState = roomState;
-                Connected = true;
-                return;
-            }
-            case RelayMessageCode.PlayerStateChanged:
-            {
-                var playerId = reader.Get<PlayerId>();
-                var changes = _serializer.DeserializeObject<Dictionary<object, object?>>(reader);
-
-                if (playerId == LocalPlayer.PlayerId)
-                {
-                    var diff = RelaySerializer.UpdateAndGetDiff(LocalPlayer.Properties, changes);
-                    OnPlayerPropertiesChanged?.Invoke(playerId, diff);
-                }
-                else
-                {
-                    if (!OtherPlayers.TryGetValue(playerId, out var player))
-                    {
-                        _logger.LogDebug("Received initial state for player {0}", playerId);
-                        OtherPlayers[playerId] = new Player(changes
-                            .Where(x => x.Value != null)
-                            .ToDictionary(x => x.Key, x => x.Value!));
-                        OnPlayerPropertiesAdded?.Invoke(playerId, changes);
-                    }
-                    else
-                    {
-                        var diff = RelaySerializer.UpdateAndGetDiff(player.Properties, changes);
-                        OnPlayerPropertiesChanged?.Invoke(playerId, diff);
-                    }
-                }
-                return;
-            }
-            case RelayMessageCode.RoomStateChanged:
-            {
-                var changes = _serializer.DeserializeObject<Dictionary<object, object?>>(reader);
-                var diff = RelaySerializer.UpdateAndGetDiff(RoomState, changes);
-                OnRoomPropertiesChanged?.Invoke(diff);
-                return;
-            }
-            case RelayMessageCode.PlayerJoined:
-            {
-                var playerId = reader.Get<PlayerId>();
-                var initialState = _serializer.DeserializeObject<Dictionary<object, object>>(reader);
-                var newPlayer = new Player(initialState);
-
-                if (playerId == LocalPlayer.PlayerId)
-                {
-                    LocalPlayer = newPlayer;
-                    OnBeforeJoinedRoom?.Invoke();
-                    InRoom = true;
-                    OnAfterJoinedRoom?.Invoke(initialState);
-                }
-                else
-                {
-                    if (!OtherPlayers.TryAdd(playerId, newPlayer))
-                    {
-                        _logger.LogInformation("Received PlayerJoined event for player {0} that already exists, perhaps they reconnected", playerId);
-                        OtherPlayers[playerId] = newPlayer;
-                    }
-
-                    OnOtherPlayerJoined?.Invoke(playerId, initialState);
-                }
-
-                return;
-            }
-            case RelayMessageCode.PlayerLeft:
-            {
-                var playerId = reader.Get<PlayerId>();
-                OnOtherPlayerLeft?.Invoke(playerId);
-                return;
-            }
-            case RelayMessageCode.HandshakeSetInitialProperties:
-                _logger.LogError("Event {Event} received, but should not be sent to the client", RelayMessageCode.HandshakeSetInitialProperties);
-                return;
-            case RelayMessageCode.EcsSnapshot:
-                OnEcsSnapshot?.Invoke(reader);
-                return;
-            case RelayMessageCode.EcsUpdate:
-                OnEcsDelta?.Invoke(reader);
-                return;
-            case RelayMessageCode.DestroyEntity:
-            {
-                var netId = reader.Get<NetworkIdComponent>();
-                OnReceivedDeleteEntity?.Invoke(netId);
-                return;
-            }
-            case RelayMessageCode.DownloadBlob:
-            case RelayMessageCode.UploadBlob:
-                _logger.LogError("Event {Event} received, but should not be sent to the client", RelayMessageCode.DownloadBlob);
-                return;
-            case RelayMessageCode.UploadBlobAck:
-            {
-                var requestId = reader.GetInt();
-                var success = reader.GetBool();
-
-                _logger.LogInformation("File upload with request ID {RequestId} completed with success: {Success}", requestId, success);
-
-                if (!_blobUploadTasks.TryRemove(requestId, out var uploadTask))
-                {
-                    _logger.LogWarning("No task found for request ID {RequestId} when receiving upload ack", requestId);
-                    return;
-                }
-
-                if (uploadTask.Task.IsCanceled)
-                {
-                    _logger.LogWarning("Upload task already cancelled, not setting result for request ID {RequestId}", requestId);
-                    return;
-                }
-
-                if (uploadTask.TrySetResult(success))
-                {
-                    OnBlobAck?.Invoke(requestId, success);
-                }
-                else
-                {
-                    _logger.LogError("Failed to set result for file upload task with request ID {RequestId}", requestId);
-                }
-
-                return;
-            }
-            case RelayMessageCode.BlobData:
-            {
-                var requestId = reader.GetInt();
-                var succeeded = reader.GetBool();
-
-                _logger.LogInformation("File download with request ID {RequestId} completed with success: {Succeeded}", requestId, succeeded);
-
-                if (!_blobDownloadTasks.TryRemove(requestId, out var downloadTask))
-                {
-                    _logger.LogError("No task found for request ID {RequestId}", requestId);
-                    return;
-                }
-
-                BlobInfo? result = null;
-
-                if (succeeded)
-                {
-                    var fileName = reader.GetString();
-                    var fileSize = reader.GetInt();
-
-                    var fileData = new byte[fileSize];
-                    reader.GetBytes(fileData, fileSize);
-
-                    _logger.LogInformation("Received file stream for {FileName} with request ID {RequestId}", fileName, requestId);
-                    result = new BlobInfo(fileName, fileData);
-                }
-                else
-                {
-                    _logger.LogWarning("File download with request ID {RequestId} failed", requestId);
-                }
-
-                if (downloadTask.Task.IsCanceled)
-                {
-                    _logger.LogWarning("Download task already cancelled, not setting result for request ID {RequestId}", requestId);
-                    return;
-                }
-
-                if (downloadTask.TrySetResult(result))
-                {
-                    OnBlobData?.Invoke(requestId, result);
-                }
-                else
-                {
-                    _logger.LogError("Failed to set result for file download task with request ID {RequestId}", requestId);
-                }
-
-                return;
-            }
-        }
-
-        var header = reader.GetCustomEventHeader(eventCode);
-        var eventHandler = _customEventHandlers[eventCode];
-        eventHandler?.Invoke(header, reader);
-    }
-
-    public void SendInitialPlayerState()
-    {
-        var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.HandshakeSetInitialProperties);
-        _serializer.SerializeObject(writer, LocalPlayer.Properties);
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-    }
-
-    public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
-    {
-        if (!IsRunning)
-            throw new InvalidOperationException();
-        
-        ct.ThrowIfCancellationRequested();
-        
-        // add a default timeout of 10 seconds
-        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
-        ct = nestedCt.Token;
-
-        var taskSource = new TaskCompletionSource<BlobInfo?>();
-
-        var requestId = GetNextRequestId();
-        _blobDownloadTasks[requestId] = taskSource;
-
-        var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.DownloadBlob);
-        writer.Put(requestId);
-        writer.Put(name);
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-        _logger.LogInformation("Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
-
-        using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
-        {
-            try
-            {
-                ct.ThrowIfCancellationRequested();
-                // FIXME: Are we sure about ConfigureAwait(false) here?
-                // This makes it possible to receive the answer on a different thread than the one that sent the request.
-                return await taskSource.Task.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("File download for {FileName} was cancelled with request ID {RequestId}", name, requestId);
-                throw;
-            }
-            finally
-            {
-                _blobDownloadTasks.TryRemove(requestId, out _);
-            }
-        }
-    }
-
-    public async Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
-    {
-        if (!IsRunning)
-            throw new InvalidOperationException();
-
-        ct.ThrowIfCancellationRequested();
-        
-        // add a default timeout of 15 seconds
-        var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(15));
-        ct = nestedCt.Token;
-
-        var tcs = new TaskCompletionSource<bool>();
-
-        var requestId = GetNextRequestId();
-        _blobUploadTasks[requestId] = tcs;
-
-        var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.UploadBlob);
-        writer.Put(requestId);
-        writer.Put(blob.Name);
-        writer.Put(blob.Content.Length);
-        writer.Put(blob.Content);
-        SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
-
-        _logger.LogInformation("Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
-        using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
-        {
-            try
-            {
-                return await tcs.Task;
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("File upload for {FileName} was cancelled with request ID {RequestId}", blob.Name, requestId);
-                throw;
-            }
-            finally
-            {
-                _blobUploadTasks.TryRemove(requestId, out _);
-            }
-        }
-    }
-
-    private long _lastBytesReceived;
-    private long _lastBytesSent;
-    private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
-
-    private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
-    {
-        // Round trip time. LiteNetLib reports one way latency, so we double it.
-        // We add a random jitter so that the results are not always divisible by 2.
-        OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
-
-        // Print stats every time too
-        var dRecv = _client.Statistics.BytesReceived - _lastBytesReceived;
-        _lastBytesReceived = _client.Statistics.BytesReceived;
-
-        var dSent = _client.Statistics.BytesSent - _lastBytesSent;
-        _lastBytesSent = _client.Statistics.BytesSent;
-
-        var now = DateTimeOffset.Now;
-        var delta = now - _lastStatCheck;
-
-        _lastStatCheck = now;
-
-        // print avg recv and sent over the delta time
-        var avgRecv = (long)(dRecv / delta.TotalSeconds);
-        var avgSent = (long)(dSent / delta.TotalSeconds);
-
-        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
-        LogEventStats();
-    }
-
-    private NetDataWriter CreatePlayerPropertiesUpdatePacket(PlayerId playerId, Dictionary<object, object?> changes)
-    {
-        var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.PlayerStateChanged);
-        writer.Put(playerId);
-        _serializer.SerializeObject(writer, changes);
-        return writer;
-    }
-
-    private NetDataWriter CreateRoomPropertiesUpdatePacket(Dictionary<object, object?> changes)
-    {
-        var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.RoomStateChanged);
-        _serializer.SerializeObject(writer, changes);
-        return writer;
-    }
-
-    // FIXME: Move this to game-specific code
-    public void EnterRoom()
-    {
-        if (!Connected)
-            throw new InvalidOperationException("Cannot enter room when not connected");
-        
-        _logger.LogDebug("Entering room requested");
-        OnEnterRoomRequest?.Invoke();
-        SendInitialPlayerState();
-    }
-
-    // FIXME: Move this to game-specific code
-    public void ExitRoom()
-    {
-        if (!Connected)
-            throw new InvalidOperationException("Cannot exit room when not connected");
-        
-        _logger.LogDebug("Exiting room requested");
-        OnExitRoomRequest?.Invoke();
     }
 }

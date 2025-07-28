@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Idents;
 
@@ -17,6 +18,7 @@ public struct RelayConnectionOptions : INetSerializable
         PlayerId = options.PlayerId;
     }
 
+    [Pure]
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(UserGuid.ToString());

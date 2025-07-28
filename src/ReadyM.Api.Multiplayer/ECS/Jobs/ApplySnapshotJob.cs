@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-public class ApplySnapshotJob<T>(NetworkedEntityManager netManager) : IJob<NetDataReader>
+public class ApplySnapshotJob<T>(NetworkedEntityManager netEntity) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     public void Execute(NetDataReader reader)
@@ -17,19 +17,12 @@ public class ApplySnapshotJob<T>(NetworkedEntityManager netManager) : IJob<NetDa
         for (uint i = 0; i < numEntities; i++)
         {
             var netId = reader.Get<NetworkIdComponent>();
-            
-            if (!netManager.TryGetEntityByNetworkId(netId, out var entity))
-            {
-                if (netManager.IsNetworkEntityDestroyed(netId))
-                {
-                    // already dead, skip
-                    default(T).SkipDelta(reader);
-                    continue;
-                }
 
-                // it must be new
-                // TODO: un-hardcode archetype ID after refactoring
-                entity = netManager.CreateRemoteNetworkedEntity(new ArchetypeId(0), netId);
+            if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
+            {
+                // snapshots are required to create entities, so if we don't have the entity, we skip the delta
+                default(T).Deserialize(reader);
+                continue;
             }
 
             entity.Value.AddComponent(reader.Get<T>());

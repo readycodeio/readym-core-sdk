@@ -1,6 +1,9 @@
+using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Multiplayer.ECS.Components;
+
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public interface INetworkedComponentRegistration
+public interface INetworkedComponentRegistration : IComponentRegistrationBase<INetworkedComponentRegistry, INetworkedComponent>
 {
-    void Register(INetworkedComponentRegistry registry);
+    // empty    
 }

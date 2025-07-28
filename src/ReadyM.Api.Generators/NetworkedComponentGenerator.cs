@@ -83,11 +83,11 @@ public class NetworkedComponentGenerator : IIncrementalGenerator
 using System;
 using System.Numerics;
 using LiteNetLib.Utils;
-using ReadyM.Api.Serialization;
+using ReadyM.Api.Generators;
 using ReadyM.Api.Multiplayer;
-using ReadyM.Api.Multiplayer.Generators;
-using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.Extensions;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Relay.Common;
 
 namespace {ns}
 {{
@@ -234,7 +234,7 @@ namespace {ns}
             }
             else
             {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ var dummy = default({field.Type.Name}); dummy.Deserialize(reader); }}");
+                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ var dummy = default({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}); dummy.Deserialize(reader); }}");
             }
         }
 

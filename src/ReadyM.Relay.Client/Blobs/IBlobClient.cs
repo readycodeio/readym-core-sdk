@@ -1,7 +1,8 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using ReadyM.Api.Multiplayer.Client.Blobs;
 
-namespace ReadyM.Api.Multiplayer.Client.Blobs;
+namespace ReadyM.Relay.Client.Blobs;
 
 public interface IBlobClient
 {
