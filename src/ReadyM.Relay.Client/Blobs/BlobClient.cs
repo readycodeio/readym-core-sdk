@@ -33,17 +33,17 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
         _relayClient = relayClient;
         _logger = logger;
 
-        _relayClient.AddMessageHandler(RelayMessageCode.UploadBlobAck, OnUploadBlobAckHandler);
-        _relayClient.AddMessageHandler(RelayMessageCode.DownloadBlobData, OnDownloadBlobDataHandler);
+        _relayClient.AddBuiltInMessageHandler(RelayMessageCode.UploadBlobAck, OnUploadBlobAckHandler);
+        _relayClient.AddBuiltInMessageHandler(RelayMessageCode.DownloadBlobData, OnDownloadBlobDataHandler);
     }
 
     public void Dispose()
     {
-        _relayClient.RemoveMessageHandler(RelayMessageCode.DownloadBlobData, OnDownloadBlobDataHandler);
-        _relayClient.RemoveMessageHandler(RelayMessageCode.UploadBlobAck, OnUploadBlobAckHandler);
+        _relayClient.RemoveBuiltInMessageHandler(RelayMessageCode.DownloadBlobData, OnDownloadBlobDataHandler);
+        _relayClient.RemoveBuiltInMessageHandler(RelayMessageCode.UploadBlobAck, OnUploadBlobAckHandler);
     }
 
-    private void OnUploadBlobAckHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    private void OnUploadBlobAckHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var requestId = reader.GetInt();
         var success = reader.GetBool();
@@ -72,7 +72,7 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
         }
     }
 
-    private void OnDownloadBlobDataHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    private void OnDownloadBlobDataHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var requestId = reader.GetInt();
         var succeeded = reader.GetBool();

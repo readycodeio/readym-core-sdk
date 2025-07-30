@@ -48,7 +48,7 @@ public struct RelayMessage
     public static RelayMessage ToPeers(RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
-        writer.PutCustomEventHeader(eventCode, playerId, peers);
+        writer.PutCustomRelayEventHeader(eventCode, playerId, peers);
         return new RelayMessage(
             eventCode,
             writer,
@@ -64,7 +64,7 @@ public struct RelayMessage
     public static RelayMessage ByRelayMode(RelayMessageCode eventCode, PlayerId playerId, RelayMode mode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
-        writer.PutCustomEventHeader(eventCode, playerId, mode);
+        writer.PutCustomRelayEventHeader(eventCode, playerId, mode);
         return new RelayMessage(
             eventCode,
             writer,

@@ -96,9 +96,9 @@ public class ClientNetworkedStateSynchronizer(
         _relayClient.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
         _relayClient.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
 
-        _relayClient.AddMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
-        _relayClient.AddMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
-        _relayClient.AddMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
+        _relayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
+        _relayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
+        _relayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
 
         // NOTE: iterate over all components with generics without reflection
         netComponentRegistry.Accept(new RegisterJobRegistryCallback(this));
@@ -111,9 +111,9 @@ public class ClientNetworkedStateSynchronizer(
             throw new InvalidOperationException("NetworkedStateSynchronizer is not started.");
         IsRunning = false;
 
-        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
-        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
-        _relayClient.RemoveMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
+        _relayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
+        _relayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
+        _relayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
 
         _relayClient.OnRequestedLeaveArea -= OnRequestedLeaveAreaHandler;
         _relayClient.OnRequestedJoinArea -= OnRequestedJoinAreaHandler;
@@ -158,7 +158,7 @@ public class ClientNetworkedStateSynchronizer(
         // empty
     }
 
-    protected virtual void OnEcsSnapshotHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    protected virtual void OnEcsSnapshotHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         updateLoop.Scheduler.Schedule((cb, self, readerCopy) =>
         {
@@ -177,7 +177,7 @@ public class ClientNetworkedStateSynchronizer(
         }, this, updateLoop.Scheduler.MakeSafe(reader));
     }
     
-    protected virtual void OnEcsUpdateHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    protected virtual void OnEcsUpdateHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         updateLoop.Scheduler.Schedule((_, self, readerCopy) =>
         {
@@ -192,7 +192,7 @@ public class ClientNetworkedStateSynchronizer(
         }, this, updateLoop.Scheduler.MakeSafe(reader));
     }
 
-    protected virtual void OnEcsDeleteEntityHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    protected virtual void OnEcsDeleteEntityHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkIdComponent>();
         if (_netEntity.TryGetEntityByNetworkId(netId, out var entity))

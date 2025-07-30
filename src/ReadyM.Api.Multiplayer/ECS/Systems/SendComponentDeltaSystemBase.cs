@@ -38,7 +38,7 @@ public abstract class SendComponentDeltaSystemBase<T, TContext>(NetworkedCompone
 
         var query = GetQuery(context);
 
-        query.ForEachEntity((ref meta, ref comp, _) =>
+        query.ForEachEntity((ref MetadataComponent meta, ref T comp, Entity _) =>
         {
             if (!OwnsEntity(meta, context))
             {

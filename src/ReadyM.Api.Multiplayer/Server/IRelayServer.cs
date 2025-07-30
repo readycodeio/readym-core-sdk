@@ -8,6 +8,7 @@ using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Api.Multiplayer.Server;
 
@@ -58,8 +59,10 @@ public interface IRelayServer : IDisposable
 
     event Func<RelayConnectionOptions, ConnectionRequest, bool>? OnCanConnect;
     
-    void AddMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, CustomEventHeader, NetDataReader> handler);
-    void RemoveMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, CustomEventHeader, NetDataReader> handler);
+    void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
+    void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
+    void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
+    void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayServerNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
  
     // NOTE: We cannot introduce methods like `SendToAllGlobal` or `SendToAllAreaOfInterest` here because that would
     // encourage race conditions. In between the moment we issue a call and the moment the call is executed, the list

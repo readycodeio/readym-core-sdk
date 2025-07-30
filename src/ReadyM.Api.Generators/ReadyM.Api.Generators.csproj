@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>13.0</LangVersion>
         <Nullable>enable</Nullable>
         <EnforceExtendedAnalyzerRules>True</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
@@ -21,6 +21,6 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
-        <PackageReference Include="System.Text.Json" Version="9.0.6" />
+        <PackageReference Include="System.Text.Json" Version="9.0.7" />
     </ItemGroup>
 </Project>

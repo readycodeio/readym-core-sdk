@@ -96,7 +96,8 @@ public class ShimRelayRecorder(ILogger logger)
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
         _relayClient.OnPingUpdated += OnPingUpdatedHandler;
-        _relayClient.OnAnyMessage += OnAnyMessageHandler;
+        _relayClient.OnAnyServerRpcMessage += OnAnyServerMessageHandler;
+        _relayClient.OnAnyClientRpcMessage += OnAnyClientMessageHandler;
     }
 
     public void Detach()
@@ -108,7 +109,8 @@ public class ShimRelayRecorder(ILogger logger)
         
         logger.LogDebug("Detaching shim relay client from recording");
 
-        _relayClient.OnAnyMessage -= OnAnyMessageHandler;
+        _relayClient.OnAnyClientRpcMessage -= OnAnyClientMessageHandler;
+        _relayClient.OnAnyServerRpcMessage -= OnAnyServerMessageHandler;
         _relayClient.OnPingUpdated -= OnPingUpdatedHandler;
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
@@ -261,14 +263,26 @@ public class ShimRelayRecorder(ILogger logger)
         AddItem(item);
     }
 
-    private void OnAnyMessageHandler(IRelayClientNetworkThreadContext context, CustomEventHeader header, NetDataReader reader)
+    private void OnAnyServerMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var item = new ShimItem()
         {
-            Kind = ShimItemKind.AnyMessage,
-            EventHeader = header,
+            Kind = ShimItemKind.AnyServerMessage,
+            ServerHeader = header,
             RawData = GetShimBuffer(reader),
         };
+        AddItem(item);
+    }
+
+    private void OnAnyClientMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
+    {
+        var item = new ShimItem()
+        {
+            Kind = ShimItemKind.AnyClientMessage,
+            ClientHeader = header,
+            RawData = GetShimBuffer(reader),
+        };
+        AddItem(item);
     }
 
     private ShimBuffer GetShimBuffer(NetDataReader reader)

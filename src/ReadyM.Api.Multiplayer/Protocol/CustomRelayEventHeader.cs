@@ -13,7 +13,7 @@ namespace ReadyM.Api.Multiplayer.Protocol;
 /// - peers * 2 bytes for peers
 /// </summary>
 [DeriveJsonSerializable]
-public readonly partial struct CustomEventHeader(
+public readonly partial struct CustomRelayEventHeader(
     byte eventCode,
     PlayerId sender,
     PlayerId[]? peers,

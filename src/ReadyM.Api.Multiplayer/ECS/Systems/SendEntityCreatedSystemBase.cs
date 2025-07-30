@@ -38,7 +38,7 @@ public abstract class SendEntityCreatedSystemBase<TContext> : QuerySystem<Metada
 
         var query = GetQuery(context);
         
-        query.ForEachEntity((ref meta, entity) =>
+        query.ForEachEntity((ref MetadataComponent meta, Entity entity) =>
         {
             _writer.Put(meta);
 

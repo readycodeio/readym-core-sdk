@@ -8,6 +8,8 @@ public enum RelayMessageCode : byte
     OtherPlayerConnectionEvent = 252,
     OtherPlayerAreaEvent = 251,
     
+    MaxBuiltInEvent = EcsUpdate,
+
     EcsUpdate = 250,
     EcsSnapshot = 249,
     EcsCreateEntity = 248,
@@ -17,10 +19,15 @@ public enum RelayMessageCode : byte
     DownloadBlobData = 245,
     RequestUploadBlob = 244,
     UploadBlobAck = 243,
-
-    MaxServerRpcEvent = UploadBlobAck - 1,
+    
+    MinBuiltInEvent = UploadBlobAck,
+    MaxAnyCustomEvent = MinBuiltInEvent - 1,
+    
+    MaxServerRpcEvent = MaxAnyCustomEvent,
     MinServerRpcEvent = 150,
     
-    MaxCustomEvent = MinServerRpcEvent - 1,
-    MinCustomEvent = 0,
+    MaxClientRpcEvent = MinServerRpcEvent - 1,
+    MinClientRpcEvent = 0,
+    
+    MinAnyCustomEvent = MinClientRpcEvent,
 }
