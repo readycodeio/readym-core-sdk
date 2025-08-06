@@ -1,9 +1,7 @@
 ﻿using LiteNetLib.Utils;
 using ReadyM.Api.ECS.Jobs;
-using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
-using ReadyM.Api.Multiplayer.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
@@ -16,7 +14,7 @@ public class ApplySnapshotJob<T>(NetworkedEntityManager netEntity) : IJob<NetDat
 
         for (uint i = 0; i < numEntities; i++)
         {
-            var netId = reader.Get<NetworkIdComponent>();
+            var netId = reader.Get<NetworkId>();
 
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
             {

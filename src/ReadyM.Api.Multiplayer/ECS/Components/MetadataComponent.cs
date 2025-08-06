@@ -7,9 +7,9 @@ using ReadyM.Api.Multiplayer.Idents;
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct MetadataComponent(NetworkIdComponent netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkIdComponent>, INetSerializable
+public struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>, INetSerializable
 {
-    public NetworkIdComponent NetId = netId;
+    public NetworkId NetId = netId;
     public ArchetypeId Archetype = archetype;
     public PlayerId Owner = owner;
 
@@ -22,10 +22,10 @@ public struct MetadataComponent(NetworkIdComponent netId, ArchetypeId archetype,
 
     public void Deserialize(NetDataReader reader)
     {
-        NetId = reader.Get<NetworkIdComponent>();
+        NetId = reader.Get<NetworkId>();
         Archetype = reader.Get<ArchetypeId>();
         Owner = reader.Get<PlayerId>();
     }
 
-    public NetworkIdComponent GetIndexedValue() => NetId;
+    public NetworkId GetIndexedValue() => NetId;
 }

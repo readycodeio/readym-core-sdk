@@ -1,5 +1,4 @@
 ﻿using System;
-using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Serialization;
@@ -7,22 +6,19 @@ using ReadyM.Api.Serialization;
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [DeriveJsonSerializable]
-public partial struct NetworkIdComponent(PlayerId creator, uint id) : IEquatable<NetworkIdComponent>, IComponent, INetSerializable
+public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
 {
     public PlayerId Creator { get; private set; } = creator; // 2 bytes
     public uint Id { get; private set; } = id; // 4 bytes
 
-    [Obsolete("uint.MaxValue indicates that this is not a player-owned monster, but the player himself. Will be removed once we add an archetype for player data.")]
-    public static NetworkIdComponent FromPlayerId(PlayerId playerId) => new(playerId, uint.MaxValue);
-
-    public bool Equals(NetworkIdComponent other)
+    public bool Equals(NetworkId other)
     {
         return Creator == other.Creator && Id == other.Id;
     }
 
     public override bool Equals(object? obj)
     {
-        return obj is NetworkIdComponent other && Equals(other);
+        return obj is NetworkId other && Equals(other);
     }
 
     public override int GetHashCode()
@@ -33,12 +29,12 @@ public partial struct NetworkIdComponent(PlayerId creator, uint id) : IEquatable
         }
     }
 
-    public static bool operator ==(NetworkIdComponent left, NetworkIdComponent right)
+    public static bool operator ==(NetworkId left, NetworkId right)
     {
         return left.Equals(right);
     }
 
-    public static bool operator !=(NetworkIdComponent left, NetworkIdComponent right)
+    public static bool operator !=(NetworkId left, NetworkId right)
     {
         return !left.Equals(right);
     }

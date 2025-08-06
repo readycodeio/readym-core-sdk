@@ -6,40 +6,43 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
 public sealed class NetworkedEntityManager : IDisposable
 {
+    private readonly Store _world;
+    private readonly IPlayerIdProvider _playerIdHolder;
     private readonly ILogger _logger;
-    private readonly Store _store;
-    private readonly Func<PlayerId> _getPlayerId;
+
+    private readonly ComponentIndex<MetadataComponent, NetworkId> _ix;
+    private readonly HashSet<NetworkId> _netIdTombstones = [];
     
     private uint _nextNetworkedId;
     
     // NOTE: This event will be fired on the ECS thread.
-    public event Action<NetworkIdComponent>? OnEntityDelete;
-
-    private readonly HashSet<NetworkIdComponent> _netIdTombstones = [];
+    public event Action<NetworkId>? OnEntityDelete;
 
     // FIXME: getPlayerId should be replaced with an interface IRelayClient that can be mocked in tests
-    public NetworkedEntityManager(Store store, ILogger logger, Func<PlayerId> getPlayerId)
+    public NetworkedEntityManager(Store world, ILogger logger, IPlayerIdProvider playerIdHolder)
     {
-        _store = store;
+        _world = world;
         _logger = logger;
-        _getPlayerId = getPlayerId;
-        _store.OnEntityDelete += OnEntityDeleteHandler;
+        _playerIdHolder = playerIdHolder;
+        
+        _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
+
+        _world.OnEntityDelete += OnEntityDeleteHandler;
     }
 
     public void Dispose()
     {
-        _store.OnEntityDelete -= OnEntityDeleteHandler;
+        _world.OnEntityDelete -= OnEntityDeleteHandler;
     }
 
-    public bool IsNetworkEntityDeleted(NetworkIdComponent networkId)
+    public bool IsNetworkEntityDeleted(NetworkId netId)
     {
-        return _netIdTombstones.Contains(networkId);
+        return _netIdTombstones.Contains(netId);
     }
 
     private void OnEntityDeleteHandler(EntityDelete evt)
@@ -51,24 +54,19 @@ public sealed class NetworkedEntityManager : IDisposable
         }
     }
 
-    public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedGlobalEntity(
-        ArchetypeId archetypeId,
-        Action<EntityBuilder>? setComponents = null)
-        => CreateNetworkedEntity(archetypeId, default, setComponents);
-    
-    public (Entity Entity, NetworkIdComponent NetId) CreateNetworkedEntity(
+    public (Entity Entity, NetworkId NetId) CreateNetworkedEntity(
         ArchetypeId archetypeId,
         Entity scopeEntity,
         Action<EntityBuilder>? setComponents = null)
     {
-        var netId = new NetworkIdComponent(_getPlayerId(), _nextNetworkedId++);
+        var netId = new NetworkId(_playerIdHolder.LocalPlayerId, _nextNetworkedId++);
         var meta = new MetadataComponent(netId, archetypeId, netId.Creator);
-        var entity = _store.CreateEntity(archetypeId, b =>
+        var entity = _world.CreateEntity(archetypeId, b =>
         {
             b.Add(meta);
             if (!scopeEntity.IsNull)
             {
-                var scope = new ScopeComponent(scopeEntity);
+                var scope = new InScopeComponent(scopeEntity);
                 b.Add(scope);
             }
             // NOTE: This is added "temporarily" in order to mark the entity as not yet propagated over the network
@@ -81,14 +79,12 @@ public sealed class NetworkedEntityManager : IDisposable
 
     public Entity CreateRemoteNetworkedEntity(MetadataComponent meta)
     {
-        return _store.CreateEntity(meta.Archetype, b => b.Add(meta));
+        return _world.CreateEntity(meta.Archetype, b => b.Add(meta));
     }
 
-    public bool TryGetEntityByNetworkId(NetworkIdComponent netId, [NotNullWhen(true)] out Entity? entity)
+    public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)
     {
-        // FIXME: Shouldn't this be cached?
-        var ix = _store.ComponentIndex<MetadataComponent, NetworkIdComponent>();
-        var matching = ix[netId];
+        var matching = _ix[netId];
 
         switch (matching.Count)
         {
@@ -99,7 +95,7 @@ public sealed class NetworkedEntityManager : IDisposable
                 entity = matching[0];
                 return true;
             default:
-                _logger.LogError("Multiple entities found with NetworkIdComponent {NetworkId}. This should not happen.", netId);
+                _logger.LogError("Multiple entities found with NetworkId {NetworkId}. This should not happen.", netId);
                 entity = null;
                 return false;
         }

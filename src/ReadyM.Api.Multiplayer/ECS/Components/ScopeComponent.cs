@@ -6,7 +6,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [NetworkedComponent]
 [StructLayout(LayoutKind.Auto)]
-public partial struct ScopeComponent(Entity scopeEntity) : ILinkComponent
+public partial struct InScopeComponent(Entity scopeEntity) : ILinkComponent
 {
     public Entity ScopeEntity = scopeEntity;
 

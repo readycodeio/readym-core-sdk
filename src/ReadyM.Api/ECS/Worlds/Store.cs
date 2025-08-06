@@ -13,6 +13,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^GetCommandBuffer$")] // TODO: Wrap to disable entity creation
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
+[WrapperInclude("^EventRecorder")]
 public sealed partial class Store
 {
     private byte _nextArchetypeId;

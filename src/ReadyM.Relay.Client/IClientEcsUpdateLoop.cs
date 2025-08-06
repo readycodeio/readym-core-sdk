@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
@@ -8,7 +9,8 @@ namespace ReadyM.Relay.Client;
 
 public interface IClientEcsUpdateLoop
 {
-    PendingActionScheduler<CommandBuffer> Scheduler { get; }
+    PendingActionScheduler<CommandBufferSynced> Scheduler { get; }
+    event Action<CommandBufferSynced>? OnUpdateLoop;
     bool IsRunning { get; }
     
     Task StartAsync(CancellationToken token);

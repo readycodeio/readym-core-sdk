@@ -636,7 +636,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         }
     }
     
-    public async ValueTask<TResult> RunAsync<TResult>(Func<TResult> func)
+    public async ValueTask<TResult> RunFuncAsync<TResult>(Func<TResult> func)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -677,7 +677,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T, TResult>(Func<T, TResult> func, T arg)
+    public async ValueTask<TResult> RunFuncAsync<T, TResult>(Func<T, TResult> func, T arg)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -718,7 +718,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T0, T1, TResult>(Func<T0, T1, TResult> func, T0 arg0, T1 arg1)
+    public async ValueTask<TResult> RunFuncAsync<T0, T1, TResult>(Func<T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -759,7 +759,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T0, T1, T2, TResult>(Func<T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
+    public async ValueTask<TResult> RunFuncAsync<T0, T1, T2, TResult>(Func<T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -910,7 +910,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         }
     }
     
-    public void Schedule<TResult>(Func<TResult> func)
+    public void ScheduleFunc<TResult>(Func<TResult> func)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -941,7 +941,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         }
     }
     
-    public void Schedule<T, TResult>(Func<T, TResult> func, T arg)
+    public void ScheduleFunc<T, TResult>(Func<T, TResult> func, T arg)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -972,7 +972,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         }
     }
     
-    public void Schedule<T0, T1, TResult>(Func<T0, T1, TResult> func, T0 arg0, T1 arg1)
+    public void ScheduleFunc<T0, T1, TResult>(Func<T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -1003,7 +1003,7 @@ public abstract class PendingActionScheduler : PendingActionSchedulerBase
         }
     }
     
-    public void Schedule<T0, T1, T2, TResult>(Func<T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
+    public void ScheduleFunc<T0, T1, T2, TResult>(Func<T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2167,7 +2167,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         }
     }
 
-    public async ValueTask<TResult> RunAsync<TResult>(Func<TContext, TResult> func)
+    public async ValueTask<TResult> RunFuncAsync<TResult>(Func<TContext, TResult> func)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2208,7 +2208,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T, TResult>(Func<TContext, T, TResult> func, T arg)
+    public async ValueTask<TResult> RunFuncAsync<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2249,7 +2249,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
+    public async ValueTask<TResult> RunFuncAsync<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2290,7 +2290,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         return result;
     }
     
-    public async ValueTask<TResult> RunAsync<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
+    public async ValueTask<TResult> RunFuncAsync<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2503,7 +2503,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         }
     }
 
-    public void Schedule<TResult>(Func<TContext, TResult> func)
+    public void ScheduleFunc<TResult>(Func<TContext, TResult> func)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2534,7 +2534,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         }
     }
     
-    public void Schedule<T, TResult>(Func<TContext, T, TResult> func, T arg)
+    public void ScheduleFunc<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2565,7 +2565,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         }
     }
     
-    public void Schedule<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
+    public void ScheduleFunc<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");
@@ -2596,7 +2596,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
         }
     }
     
-    public void Schedule<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
+    public void ScheduleFunc<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if (_thread == null)
             throw new InvalidOperationException("Cannot run action on a scheduled thread, no thread is currently set");

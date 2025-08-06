@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
@@ -19,9 +20,11 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     private readonly Stopwatch _lastUpdate = new Stopwatch();
     
-    private readonly PendingActionUpdater<CommandBuffer> _scheduler;
+    private readonly PendingActionUpdater<CommandBufferSynced> _scheduler;
     
-    public PendingActionScheduler<CommandBuffer> Scheduler => _scheduler;
+    public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
+
+    public event Action<CommandBufferSynced>? OnUpdateLoop;
 
     public bool IsRunning { get; private set; }
 
@@ -33,7 +36,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         CommandBuffer = cb.Synced;
 
         _logger = logger;
-        _scheduler = new(cb, logger);
+        _scheduler = new(CommandBuffer, logger);
     }
 
     public async Task StartAsync(CancellationToken token)
@@ -66,14 +69,13 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         {
             _lastUpdate.Restart();
             
-            lock (CommandBuffer)
-            {
-                CommandBuffer.Playback();
-            }
+            CommandBuffer.Playback();
 
             World.SystemRoot.Update(default);
 
             _scheduler.Update();
+            
+            OnUpdateLoop?.Invoke(CommandBuffer);
             
             // Wait for the next update cycle
             await Task.Delay(Constants.ClientEcsUpdateRateMs - (int)_lastUpdate.ElapsedMilliseconds, token);

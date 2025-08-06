@@ -6,11 +6,11 @@ namespace ReadyM.Api.Multiplayer.Extensions;
 
 public static class NetIdSerializationExtensions
 {
-    public static bool TryGetNetworkId(this NetDataReader reader, out NetworkIdComponent result)
+    public static bool TryGetNetworkId(this NetDataReader reader, out NetworkId result)
     {
         if (reader.AvailableBytes >= 6)
         {
-            result = reader.Get<NetworkIdComponent>();
+            result = reader.Get<NetworkId>();
             return true;
         }
 
