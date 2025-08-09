@@ -12,9 +12,9 @@ public interface IRelayClientNetworkThreadContext
     /// </summary>
     bool Connected { get; }
     
-    PlayerId PlayerId { get; }
+    PlayerId? PlayerId { get; }
     ReadOnlyList<PlayerId> AllPlayers { get; }
     
-    AreaId CurrentArea { get; }
+    AreaId? CurrentArea { get; }
     ReadOnlyList<PlayerId> AreaPlayers { get; }
 }

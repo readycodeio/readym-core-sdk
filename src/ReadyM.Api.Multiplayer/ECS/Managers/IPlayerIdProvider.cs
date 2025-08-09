@@ -4,5 +4,5 @@ namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
 public interface IPlayerIdProvider
 {
-    PlayerId LocalPlayerId { get; }
+    PlayerId? PlayerId { get; }
 }

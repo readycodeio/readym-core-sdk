@@ -26,8 +26,8 @@ public class RelayClient : IShimRecordableRelayClient
         public readonly List<PlayerId> AreaPlayers = new();
 
         public bool Connected { get; set; }
-        public PlayerId PlayerId { get; set; }
-        public AreaId CurrentArea { get; set; }
+        public PlayerId? PlayerId { get; set; }
+        public AreaId? CurrentArea { get; set; }
         
         public DisconnectReason LastDisconnectReason { get; set; }
 
@@ -67,41 +67,27 @@ public class RelayClient : IShimRecordableRelayClient
     
     // NOTE: This gets assigned early on inside the `OnConnected` event handler. From that point on it is 
     // readonly and immutable until the client disconnects. Since `PlayerId` for the client needs to be available
-    // for read from both the main thread the network thread, we have to make this field guarded by a memory barrier.
-    // The implicit memory barrier inside `_connectedSignal` is used in this case. Hence, it is only permissible to
-    // read from the property once the `Set()` method has been called on `_connectedSignal`.
-    // NOTE: It is important for thread safety of this approach that reconnects without the full `Stop()` and `Start()`
-    // cycle do not change the assigned `PlayerId` to a different value.
-    public PlayerId PlayerId
+    public PlayerId? PlayerId
     {
         get
         {
-            var playerId = _netThreadContext.PlayerId;
-            if (playerId == default || !IsRunning)
-                throw new InvalidOperationException(
-                    "PlayerId is not set. You need to call `Start()` and wait on the returned task before safely reading this property.");
-            return playerId;
+            if (!RequestedConnect)
+                return null;
+            return _netThreadContext.PlayerId;
         }
     }
+    
+    private volatile bool _isRunning;
+    private readonly ManualResetEventSlim _playerIdAssignedEvent = new();
+
+    public bool RequestedConnect { get; private set; }
+    public AreaId? RequestedAreaId { get; private set; }
     
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
     // would introduce a race condition each time.
 
-    public DisconnectReason LastDisconnectReason
-    {
-        get
-        {
-            if (IsRunning)
-                throw new InvalidOperationException("Call `Stop()` before safely reading this field.");
-            return _netThreadContext.LastDisconnectReason;
-        }
-    }
-    
-    // Only changed from the main thread. Not affected by disconnections.
-    public bool IsRunning { get; private set; }
-
-    public event Action? OnRequestedStart;
+    public event Action? OnStart;
     public event Action? OnRequestedStop;
 
     public event Action? OnRequestedConnect;
@@ -139,7 +125,7 @@ public class RelayClient : IShimRecordableRelayClient
     }
 
     private readonly Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[] _serverMessageHandlers =
-        new Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxServerRpcEvent + 1];
+        new Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxBuiltInEvent + 1];
     private readonly Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[] _clientMessageHandlers =
         new Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxClientRpcEvent + 1];
 
@@ -147,8 +133,7 @@ public class RelayClient : IShimRecordableRelayClient
     {
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
     public void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
@@ -160,7 +145,7 @@ public class RelayClient : IShimRecordableRelayClient
         
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
@@ -169,7 +154,7 @@ public class RelayClient : IShimRecordableRelayClient
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
         
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
     public void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
@@ -181,7 +166,7 @@ public class RelayClient : IShimRecordableRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
@@ -190,7 +175,7 @@ public class RelayClient : IShimRecordableRelayClient
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
         
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
     public void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
@@ -202,7 +187,7 @@ public class RelayClient : IShimRecordableRelayClient
         
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
@@ -211,7 +196,7 @@ public class RelayClient : IShimRecordableRelayClient
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
         
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
     public void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
@@ -223,7 +208,7 @@ public class RelayClient : IShimRecordableRelayClient
         
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
@@ -283,16 +268,9 @@ public class RelayClient : IShimRecordableRelayClient
     }
 
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
-    {
-        get
-        {
-            if (!IsRunning)
-                throw new InvalidOperationException("Relay client is not running, cannot access scheduler");
-            return _scheduler;
-        }
-    }
+        => _scheduler;
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger) 
+    public RelayClient(string host, int port, RelayConnectionOptions options, bool noDisconnect, ILogger logger) 
     {
         _logger = logger;
         
@@ -310,20 +288,24 @@ public class RelayClient : IShimRecordableRelayClient
         {
             AutoRecycle = true,
             EnableStatistics = true,
-#if NO_DISCONNECT
-            DisconnectTimeout = 3600_000,
-            PingInterval = 3600_000,
-            DisconnectOnUnreachable = false,
-#else
-            DisconnectOnUnreachable = true,
-#endif
             UpdateTime = Constants.ClientNetworkTickRateMs,
         };
+        
+        if (noDisconnect)
+        {
+            _client.DisconnectTimeout = 3600_000;
+            _client.PingInterval = 3600_000;
+            _client.DisconnectOnUnreachable = false;
+        }
+        else
+        {
+            _client.DisconnectOnUnreachable = true;
+        }
     }
 
     public void Dispose()
     {
-        if (IsRunning)
+        if (_isRunning)
         {
             Stop();
         }
@@ -338,70 +320,39 @@ public class RelayClient : IShimRecordableRelayClient
         return Server?.GetMaxSinglePacketSize(deliveryMethod) ?? 1300;
     }
 
-    public async Task StartAsync(CancellationToken token, bool autoConnect = true)
+    public void Start()
     {
-        if (IsRunning)
+        if (_isRunning)
         {
-            _logger.LogError("Relay client is already running");
+            _logger.LogWarning("Relay client is already running");
             return;
         }
+        _isRunning = true;
 
-        OnRequestedStart?.Invoke();
+        OnStart?.Invoke();
 
-        await Task.Delay(1, token);
-        _scheduler.SetThread(Thread.CurrentThread);
-
-        _logger.LogDebug("Starting on {Host}:{Port}", _host, _port);
+        _logger.LogDebug("Starting on {Host}:{Port}...", _host, _port);
         _client.Start();
-
-        var writer = new NetDataWriter();
-        _options.Serialize(writer);
-        
-        if (autoConnect)
-        {
-            _logger.LogInformation("Connecting to {Host}:{Port}", _host, _port);
-            _client.Connect(_host, _port, writer);
-            _logger.LogInformation("Connected to {Host}:{Port}", _host, _port);
-        }
-        
-        _logger.LogInformation("Running on {Host}:{Port}", _host, _port);
-        
-        IsRunning = true;
-
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
-                _client.PollEvents();
-                
-                if (_netThreadContext.Connected)
-                    break;
-
-                await Task.Delay(Constants.ClientNetworkTickRateMs, token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled exception in client thread (starting)");
-            }
-        }
-        
         _logger.LogDebug("Started on {Host}:{Port}", _host, _port);
     }
 
     public async Task RunAsync(CancellationToken token)
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running");
             return;
         }
-        
+
+        await Task.Delay(1, token);
+        _scheduler.SetThread(Thread.CurrentThread);
+
         while (!token.IsCancellationRequested)
         {
             try
             {
                 _client.PollEvents();
-                
+
                 OnClientUpdate?.Invoke(_netThreadContext);
 
                 var hadPendingActions = _scheduler.Update();
@@ -409,6 +360,10 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     await Task.Delay(Constants.ClientNetworkTickRateMs, token);
                 }
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(ex, "Client loop was cancelled");
             }
             catch (Exception ex)
             {
@@ -419,86 +374,138 @@ public class RelayClient : IShimRecordableRelayClient
 
     public void Stop()
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
-            _logger.LogError("Relay client is not running");
+            _logger.LogWarning("Relay client is not running");
             return;
         }
         
-        IsRunning = false;
+        _isRunning = false;
+        _scheduler.SetThread(null);
 
-        _logger.LogDebug("Stopping on {Host}:{Port}", _host, _port);
+        _logger.LogDebug("Stopping on {Host}:{Port}...", _host, _port);
 
         OnRequestedStop?.Invoke();
 
         // NOTE: `OnDisconnected` will be called by LiteNetLib when the client is disconnected.
-        _client.Stop();
+        _client.DisconnectAll();
+        _client.PollEvents();
 
+        _client.Stop();
+        
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
         // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
-        if (LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
+        if (_netThreadContext.LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
         {
-            _logger.LogWarning("Already disconnected: {Reason}", LastDisconnectReason);
+            _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectReason);
         }
 
         _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
     }
 
-    public void Connect()
+    public void RequestConnect()
     {
-        if (!IsRunning)
+        if (RequestedConnect)
         {
-            _logger.LogError("Relay client is not running");
+            _logger.LogWarning("Relay client is already connecting");
             return;
         }
+        RequestedConnect = true;
+
+        _logger.LogInformation("Connecting on {Host}:{Port}...", _host, _port);
         
         OnRequestedConnect?.Invoke();
         
         var writer = new NetDataWriter();
         _options.Serialize(writer);
-        
         _client.Connect(_host, _port, writer);
-        _logger.LogInformation("Explicitly connecting on {Host}:{Port}", _host, _port);
-    }
 
-    public void Disconnect()
+        _logger.LogInformation("Connected on {Host}:{Port}", _host, _port);
+
+        _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
+
+        if (_netThreadContext.PlayerId == null)
+            throw new TimeoutException($"Failed to assign PlayerId within {Constants.ClientConnectionTimeoutMs}ms");
+    }
+    
+    public void RequestDisconnect()
     {
-        if (!IsRunning)
+        if (!RequestedConnect)
         {
-            _logger.LogError("Relay client is not running");
+            _logger.LogWarning("Relay client is already disconnecting");
             return;
         }
+        RequestedConnect = false;
 
         _logger.LogInformation("Explicitly disconnecting from {Host}:{Port}", _host, _port);
 
         OnRequestedDisconnect?.Invoke();
         
         _client.DisconnectAll();
+        
+        _playerIdAssignedEvent.Reset();
     }
 
-    public void Reconnect()
+    public void RequestReconnect()
     {
-        Disconnect();
-        Connect();
+        RequestDisconnect();
+        RequestConnect();
     }
 
-    public void JoinArea(AreaId areaId)
+    public void RequestJoinArea(AreaId areaId)
     {
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+
+        if (RequestedAreaId != null)
+        {
+            _logger.LogWarning("Already requested to join a different area {AreaId}", RequestedAreaId.Value);
+            RequestLeaveArea();
+        }
+
+        if (RequestedAreaId == areaId)
+        {
+            _logger.LogWarning("Already requested to join area {AreaId}", areaId);
+            return;
+        }
+        
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+        
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
-        var playerId = PlayerId;
-        writer.Put(playerId);
+        writer.Put(playerId.Value);
         writer.Put(true); // Request joining area event
         areaId.Serialize(writer);
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
-    public void LeaveArea()
+    public void RequestLeaveArea()
     {
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+        
+        if (RequestedAreaId == null)
+        {
+            _logger.LogWarning("Already requested to leave area");
+            return;
+        }
+        RequestedAreaId = null;
+        
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+        
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
-        var playerId = PlayerId;
-        writer.Put(playerId);
+        writer.Put(playerId.Value);
         writer.Put(false); // Request leaving area event
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
@@ -526,7 +533,11 @@ public class RelayClient : IShimRecordableRelayClient
     public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
         where T : INetSerializable
     {
-        var message = RelayMessage.ToPeers(eventCode, PlayerId, peers, deliveryMethod);
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+
+        var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
         data.Serialize(message.Writer);
         SendMessage(message);
     }
@@ -534,7 +545,11 @@ public class RelayClient : IShimRecordableRelayClient
     public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
         where T : INetSerializable
     {
-        var message = RelayMessage.ByRelayMode(eventCode, PlayerId, mode, deliveryMethod);
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+
+        var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
         SendMessage(message);
     }
 
@@ -561,13 +576,30 @@ public class RelayClient : IShimRecordableRelayClient
             case RelayMessageCode.HandshakeConnected:
             {
                 var playerId = reader.Get<PlayerId>();
-                if (_netThreadContext.PlayerId != PlayerId.Invalid)
+                if (_netThreadContext.PlayerId != null && _netThreadContext.PlayerId != playerId)
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
                 _netThreadContext.Connected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
+                
+                _playerIdAssignedEvent.Set();
+                
+                var otherPlayerCount = reader.GetInt();
+                for (var i = 0; i < otherPlayerCount; i++)
+                {
+                    var otherPlayerId = reader.Get<PlayerId>();
+                    if (!_netThreadContext.AllPlayers.Contains(otherPlayerId))
+                    {
+                        _netThreadContext.AllPlayers.Add(otherPlayerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Received handshake for player {PlayerId} that already is marked as connected", otherPlayerId);
+                    }
+                }
+                
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
                 OnConnected?.Invoke(_netThreadContext, playerId);
                 break;
@@ -578,7 +610,7 @@ public class RelayClient : IShimRecordableRelayClient
                 var isJoining = reader.GetBool();
                 if (isJoining)
                 {
-                    if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                    if (_netThreadContext.PlayerId == null)
                     {
                         _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but PlayerId is not set", playerId, _netThreadContext.PlayerId);
                         break;
@@ -589,21 +621,31 @@ public class RelayClient : IShimRecordableRelayClient
                         break;
                     }
 
-                    if (_netThreadContext.CurrentArea != AreaId.Invalid)
+                    if (_netThreadContext.CurrentArea != null)
                     {
                         _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentArea);
                         break;
                     }
                     AreaId areaId = default;
                     areaId.Deserialize(reader);
+
                     _netThreadContext.CurrentArea = areaId;
                     _netThreadContext.AreaPlayers.Clear();
                     _netThreadContext.AreaPlayers.Add(playerId);
+
+                    var playerInAreaCount = reader.GetUShort();
+
+                    for (var i = 0; i < playerInAreaCount; i++)
+                    {
+                        var otherPlayerId = reader.Get<PlayerId>();
+                        _netThreadContext.AreaPlayers.Add(otherPlayerId);
+                    }
+
                     OnJoinedArea?.Invoke(_netThreadContext, areaId);
                 }
                 else
                 {
-                    if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                    if (_netThreadContext.PlayerId == null)
                     {
                         _logger.LogError("Received handshake for leaving area by player {PlayerId} but PlayerId is not set", playerId);
                         break;
@@ -614,13 +656,13 @@ public class RelayClient : IShimRecordableRelayClient
                         break;
                     }
 
-                    if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                    if (_netThreadContext.CurrentArea == null)
                     {
                         _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
                         break;
                     }
                     
-                    _netThreadContext.CurrentArea = AreaId.Invalid;
+                    _netThreadContext.CurrentArea = null;
                     _netThreadContext.AreaPlayers.Remove(playerId);
                     OnLeftArea?.Invoke(_netThreadContext);
                 }
@@ -646,14 +688,13 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     if (_netThreadContext.AllPlayers.Contains(playerId))
                     {
-                        _netThreadContext.AllPlayers.Remove(playerId);
                         if (_netThreadContext.AreaPlayers.Contains(playerId))
                         {
                             _logger.LogInformation("Player disconnected event for player {PlayerId} that is still in the area", playerId);
                             _netThreadContext.AreaPlayers.Remove(playerId);
-                            OnOtherPlayerLeftArea?.Invoke(_netThreadContext, playerId);
                         }
                         OnOtherPlayerDisconnected?.Invoke(_netThreadContext, playerId);
+                        _netThreadContext.AllPlayers.Remove(playerId);
                     }
                     else
                     {
@@ -668,7 +709,7 @@ public class RelayClient : IShimRecordableRelayClient
                 var isJoining = reader.GetBool();
                 if (isJoining)
                 {
-                    if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                    if (_netThreadContext.CurrentArea == null)
                     {
                         _logger.LogError("Received area event for player {PlayerId} but current area is not set", playerId);
                         break;
@@ -687,8 +728,8 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     if (_netThreadContext.AreaPlayers.Contains(playerId))
                     {
-                        _netThreadContext.AreaPlayers.Remove(playerId);
                         OnOtherPlayerLeftArea?.Invoke(_netThreadContext, playerId);
+                        _netThreadContext.AreaPlayers.Remove(playerId);
                     }
                     else
                     {
@@ -701,7 +742,7 @@ public class RelayClient : IShimRecordableRelayClient
             {
                 if (eventCode >= RelayMessageCode.MinBuiltInEvent)
                 {
-                    var serverHeader = new ServerEventHeader((byte)eventCode, PlayerId.Server);
+                    var serverHeader = new ServerEventHeader((byte)eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
                     serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                     return;
@@ -709,7 +750,7 @@ public class RelayClient : IShimRecordableRelayClient
                 
                 if (eventCode >= RelayMessageCode.MinServerRpcEvent)
                 {
-                    var serverHeader = new ServerEventHeader((byte)eventCode, PlayerId.Server);
+                    var serverHeader = new ServerEventHeader((byte)eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
                     serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                     return;
@@ -768,22 +809,12 @@ public class RelayClient : IShimRecordableRelayClient
         LogEventStats();
     }
     
+    // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected
     private void OnPeerDisconnectedEvent(NetPeer peer, DisconnectInfo info)
     {
         _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
         
-        var playerId = _netThreadContext.PlayerId;
-
-        if (_netThreadContext.CurrentArea != AreaId.Invalid)
-        {
-            if (_netThreadContext.AreaPlayers.Contains(playerId))
-            {
-                _netThreadContext.AreaPlayers.Remove(playerId);
-            }
-            _netThreadContext.CurrentArea = AreaId.Invalid;
-            OnLeftArea?.Invoke(_netThreadContext);
-        }
-
+        _netThreadContext.CurrentArea = null;
         _netThreadContext.Connected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();

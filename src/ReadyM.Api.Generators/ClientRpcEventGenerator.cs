@@ -1,19 +1,17 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using ReadyM.Api.Generators;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace ReadyM.Relay.Common.Generators;
+namespace ReadyM.Api.Generators;
 
 [Generator]
-public class ServerRpcHandlerGenerator : IIncrementalGenerator
+public class ClientRpcEventGenerator : IIncrementalGenerator
 {
-    private const string ContextTypeName = "IRelayServerNetworkThreadContext";
+    private const string ContextTypeName = "IRelayClientNetworkThreadContext";
     private const string PlayerIdTypeName = "PlayerId";
     private const string ContextParameterName = "__context";
     private const string SenderParameterName = "__sender";
@@ -22,80 +20,63 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var serverRpcMethods = context.SyntaxProvider
+        var rpcMethods = context.SyntaxProvider
             .CreateSyntaxProvider(Predicate, Transform)
             .Where(m => m is not null)
             .Collect();
 
-        context.RegisterSourceOutput(serverRpcMethods, GenerateSources);
+        context.RegisterSourceOutput(rpcMethods, GenerateSources);
     }
 
     private static bool Predicate(SyntaxNode node, CancellationToken _) =>
         node is MethodDeclarationSyntax method &&
         method.AttributeLists.Count > 0;
 
-    private static ServerRpcMethodInfo? Transform(GeneratorSyntaxContext context, CancellationToken _)
+    private static RpcMethodInfo? Transform(GeneratorSyntaxContext context, CancellationToken _)
     {
         if (context.Node is not MethodDeclarationSyntax methodSyntax)
             return null;
 
         var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax) as IMethodSymbol;
 
+        // Check for [RpcEvent] attribute via semantic model
         var rpcAttr = methodSymbol?.GetAttributes()
-            .FirstOrDefault(attr => attr.AttributeClass?.Name is
-            "ServerRpcHandlerAttribute" or
-            "ServerRpcHandler"
-            );
+            .FirstOrDefault(attr => attr.AttributeClass?.Name is "RpcEventAttribute" or "RpcEvent");
 
         if (rpcAttr == null)
             return null;
 
         var attributeSyntax = rpcAttr
             .ApplicationSyntaxReference?.GetSyntax() as AttributeSyntax;
-        var args = attributeSyntax.ArgumentList!.Arguments;
+        var args = attributeSyntax!.ArgumentList!.Arguments;
 
         var constants = args.Select(arg => context.SemanticModel.GetOperation(arg.Expression)?.ConstantValue.Value)
             .Where(val => val is not null)
             .Select(x => x!.ToString())
             .ToArray();
 
-        return new ServerRpcMethodInfo(methodSymbol, constants);
+        return new RpcMethodInfo(methodSymbol!, constants);
     }
 
-    private static void GenerateSources(SourceProductionContext context, ImmutableArray<ServerRpcMethodInfo?> rawMethods)
+    private static void GenerateSources(SourceProductionContext context, ImmutableArray<RpcMethodInfo?> rawMethods)
     {
         var methods = rawMethods
             .Where(m => m is not null)
             .Select(m => m!)
-            .OrderBy(m => m.EventName) // Deterministic order
+            .OrderBy(m => m.Symbol.ToDisplayString()) // Deterministic order
             .ToList();
 
-        var handlerDuplicates = methods.GroupBy(x => x.EventName)
-              .Where(g => g.Count() > 1)
-              .SelectMany(y => y)
-              .ToList();
-
-        foreach (var duplicate in handlerDuplicates)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor("ERROR", "Error", "Handler: {0} has a duplicate event name", "Error", DiagnosticSeverity.Error, true),
-                duplicate?.Symbol?.Locations[0],
-                duplicate?.EventName));
-        }
-
-        ProcessHandlers(context, methods);
-    }
-
-    private static void ProcessHandlers(SourceProductionContext context, List<ServerRpcMethodInfo?> methods)
-    {
         var groupsByClass = methods.GroupBy(m => m.Symbol.ContainingType, SymbolEqualityComparer.Default);
 
-        byte baseEventCode = 0;
+        var eventCode = 0;
 
         foreach (var group in groupsByClass)
         {
+            var minEventCode = eventCode;
+            var maxEventCode = eventCode;
+            
             var classSymbol = group.Key;
-            var ns = classSymbol.ContainingNamespace.ToDisplayString();
+            var ns = classSymbol!.ContainingNamespace.ToDisplayString();
             var className = classSymbol.Name;
             var fullClassName = classSymbol.ToDisplayString();
 
@@ -104,14 +85,13 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          using System;
                                          using LiteNetLib;
                                          using LiteNetLib.Utils;
-                                         using ReadyM.Api.Multiplayer.Server;
+                                         using ReadyM.Api.Multiplayer;
                                          using ReadyM.Api.Multiplayer.Protocol;
                                          using ReadyM.Api.Multiplayer.Protocol.Enums;
-                                         using ReadyM.Relay;
-                                         using ReadyM.Relay.Common;
+                                         using ReadyM.Api.Multiplayer.Client;
+                                         using ReadyM.Api.Multiplayer.Extensions;
                                          using ReadyM.Relay.Common.Protocol;
-                                         using ReadyM.Relay.Common.Rpc;
-                                         
+
                                          namespace {{ns}}
                                          {
                                              public partial class {{className}}
@@ -120,27 +100,17 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          """);
 
             var dispatchCases = new StringBuilder();
-            var initCalls = new StringBuilder();
-            var deinitCalls = new StringBuilder();
 
             foreach (var method in group)
             {
-                if (initCalls.Length > 0)
-                    initCalls.Append('\n');
-                if (deinitCalls.Length > 0)
-                    deinitCalls.Append('\n');
-                
-                var methodSymbol = method!.Symbol;
-                var methodName = methodSymbol.Name;
-
-                var eventName = method.AttributeParams.FirstOrDefault();
-                if (eventName is null)
+                if (eventCode > byte.MaxValue)
                 {
-                    sb.AppendLine($"""#error "EventName must be specified in ServerRpcHandler attribute for method '{methodName}'" """);
+                    sb.AppendLine("""#error "Too many RPC events; limit is 256." """);
                     break;
                 }
-                var eventCode = $"(RelayMessageCode.MinServerRpcEvent + {baseEventCode})";
-                var eventCodeByte = $"(byte){eventCode}";
+
+                var methodSymbol = method.Symbol;
+                var methodName = methodSymbol.Name;
 
                 var parameters = methodSymbol.Parameters;
 
@@ -160,7 +130,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                             valid = false;
                             break;
                         }
-                        // IRelayServerNetworkThreadContext __context
+                        // IRelayClientNetworkThreadContext __context
                         contextIndex = i;
                         paramTypes.Add((null, false, false));
                     }
@@ -186,7 +156,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                         eventCodeIndex = i;
                         paramTypes.Add((null, false, false));
                     }
-                    else if (param.Type.AllInterfaces.Any(x => x.Name == "INetSerializable"))
+                    else if (SerializationHelper.IsINetSerializable(param.Type))
                     {
                         // T payload
                         var isNetSerializable = true;
@@ -210,13 +180,91 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
                 if (!valid)
                 {
-                    sb.AppendLine($"""#error "Invalid server RPC handler '{methodName}'. Supported signatures: void OnX([IRelayServerNetworkThreadContext __context], [PlayerId __sender], [byte __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
+                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([IRelayClientNetworkThreadContext __context], [PlayerId __sender], [byte __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
                     continue;
                 }
 
-                dispatchCases.AppendLine($"            case {eventCodeByte}:\n            {{");
+                var shortName = methodName.StartsWith("On") ? methodName.Substring(2) : methodName;
 
+                var sendMethod = $"Send{shortName}";
+                var sendParamList = new StringBuilder();
+                
                 var payloadCount = 0;
+                for (var i = 0; i < paramTypes.Count; i++)
+                {
+                    if (i == senderIndex)
+                        continue;
+
+                    if (i == eventCodeIndex)
+                        continue;
+
+                    if (i == contextIndex)
+                        continue;
+
+                    if (payloadCount > 0)
+                        sendParamList.Append(", ");
+
+                    var payloadType = paramTypes[i].Type;
+                    sendParamList.Append(payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                    sendParamList.Append($" payload{payloadCount}");
+                    payloadCount++;
+                }
+                
+                var relayMode = method.AttributeParams.FirstOrDefault(); // enum
+
+                if (relayMode is null)
+                {
+                    sb.AppendLine($"""#warning "RelayMode must be specified in RpcEvent attribute for method '{methodName}'" """);
+                    relayMode = "0"; // default
+                }
+
+                sb.AppendLine($$"""
+                                        public void {{sendMethod}}({{sendParamList}})
+                                        {
+                                            var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCode}}, RelayClient.PlayerId!.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                            var writer = message.Writer;
+                                """);
+
+                payloadCount = 0;
+                for (var i = 0; i < paramTypes.Count; i++)
+                {
+                    var (_, isSerializablePrimitive, isNetSerializable) = paramTypes[i];
+
+                    if (i == senderIndex)
+                        continue;
+
+                    if (i == eventCodeIndex)
+                        continue;
+
+                    if (i == contextIndex)
+                        continue;
+
+                    if (isSerializablePrimitive)
+                    {
+                        sb.AppendLine($"            writer.Put(payload{payloadCount});");
+                    }
+                    else if (isNetSerializable)
+                    {
+                        sb.AppendLine($"            payload{payloadCount}.Serialize(writer);");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"            Serializer.SerializeObject(writer, payload{payloadCount});");
+                    }
+                    
+                    payloadCount++;
+                }
+                
+
+                sb.AppendLine("""
+                                          RelayClient.SendMessage(message);
+                                      }
+
+                              """);
+
+                dispatchCases.AppendLine($"                case {eventCode}:\n                {{");
+
+                payloadCount = 0;
                 for (var i = 0; i < paramTypes.Count; i++)
                 {
                     var (payloadType, isSerializablePrimitive, isNetSerializable) = paramTypes[i];
@@ -227,22 +275,22 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                     if (isSerializablePrimitive)
                     {
                         var getMethod = SerializationHelper.GetDeserializationMethod(payloadType!.SpecialType);
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = reader.{getMethod}();");
+                        dispatchCases.AppendLine($"                    var payload{payloadCount} = reader.{getMethod}();");
                     }
                     else if (isNetSerializable)
                     {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = new {payloadType}();");
-                        dispatchCases.AppendLine($"                payload{payloadCount}.Deserialize(reader);");
+                        dispatchCases.AppendLine($"                    var payload{payloadCount} = new {payloadType}();");
+                        dispatchCases.AppendLine($"                    payload{payloadCount}.Deserialize(reader);");
                     }
                     else
                     {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = Serializer.DeserializeObject<{payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(reader);");
+                        dispatchCases.AppendLine($"                    var payload{payloadCount} = Serializer.DeserializeObject<{payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(reader);");
                     }
 
                     payloadCount++;
                 }
 
-                dispatchCases.Append("                ");
+                dispatchCases.Append("                    ");
                 dispatchCases.Append(methodName);
                 dispatchCases.Append('(');
 
@@ -275,18 +323,16 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                 }
 
                 dispatchCases.AppendLine(");");
-                dispatchCases.AppendLine("                break;");
-                dispatchCases.AppendLine("            }");
+                dispatchCases.AppendLine("                    break;");
+                dispatchCases.AppendLine("                }");
 
-                initCalls.Append($"RelayServer.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
-                deinitCalls.Append($"RelayServer.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
-                
-                baseEventCode++;
+                maxEventCode = eventCode;
+                eventCode++;
             }
 
-            // Emit OnServerEvent
+            // Emit OnCustomEvent override
             sb.AppendLine($$"""
-                                    private void OnServerRpcEventHandler(IRelayServerNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+                                    protected void OnCustomRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
                                     {
                                         switch (header.EventCode)
                                         {
@@ -296,31 +342,28 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                         }
                                     }
                                     
-                                    public override void InitRpc(RpcRelayServer rpc)
+                                    protected void InitRpc()
                                     {
-                                        base.InitRpc(rpc);
-                                        {{initCalls}}
+                                        RelayClient.AddClientRpcMessageHandler((RelayMessageCode){{minEventCode}}, (RelayMessageCode){{maxEventCode}}, OnCustomRpcMessageHandler);
                                     }
                                     
-                                    public override void DeInitRpc()
+                                    protected void DeInitRpc()
                                     {
-                                        {{deinitCalls}}
-                                        base.DeInitRpc();
+                                        RelayClient.RemoveClientRpcMessageHandler((RelayMessageCode){{minEventCode}}, (RelayMessageCode){{maxEventCode}}, OnCustomRpcMessageHandler);
                                     }
                             """);
 
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
-            var hintName = $"{fullClassName.Replace('.', '_')}_RpcHandlers.g.cs";
+            var hintName = $"{fullClassName.Replace('.', '_')}_RpcEvents.g.cs";
             context.AddSource(hintName, sb.ToString());
         }
-    }  
+    }
 
-    private sealed class ServerRpcMethodInfo(IMethodSymbol symbol, string[] attr)
+    private sealed class RpcMethodInfo(IMethodSymbol symbol, string[] attr)
     {
         public IMethodSymbol Symbol { get; } = symbol;
         public string[] AttributeParams { get; } = attr;
-        public string EventName => AttributeParams.FirstOrDefault() ?? string.Empty;
     }
 }

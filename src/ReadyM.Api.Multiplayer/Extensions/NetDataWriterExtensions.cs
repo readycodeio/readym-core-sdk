@@ -11,7 +11,7 @@ public static class NetDataWriterExtensions
     public static void PutCustomRelayEventHeader(this NetDataWriter writer, RelayMessageCode eventCode, PlayerId playerId, RelayMode relayMode)
     {
         if (relayMode == RelayMode.Peers)
-            throw new ArgumentException("Use PutCustomEventHeader with PlayerId[] for RelayMode.Peers", nameof(relayMode));
+            throw new ArgumentException("Use PutCustomRelayEventHeader with PlayerId[] for RelayMode.Peers", nameof(relayMode));
         writer.Put((byte)eventCode);
         writer.Put(playerId);
         var flags = (byte)relayMode;

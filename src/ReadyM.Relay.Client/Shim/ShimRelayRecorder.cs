@@ -77,7 +77,7 @@ public class ShimRelayRecorder(ILogger logger)
         if (_relayClient != null)
             throw new InvalidOperationException("Relay client is already attached.");
 
-        if (relayClient.IsRunning)
+        if (relayClient.RequestedConnect)
             throw new InvalidOperationException("Relay client is already running. Please stop it before attaching to a recorder.");
         
         logger.LogDebug("Attaching shim relay client for recording");

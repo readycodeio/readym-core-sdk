@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -6,81 +7,127 @@ namespace ReadyM.Api.Generators;
 
 internal static class GeneratorHelper
 {
-    private static (string Name, ITypeSymbol Type, int Order) GetMember(ISymbol symbol)
+    private static (string Name, ITypeSymbol Type, int Order, bool ReadOnly) GetMemberEntry(ISymbol symbol)
     {
         if (symbol is IFieldSymbol f)
-            return (Name: f.Name, Type: f.Type, Order: f.DeclaringSyntaxReferences[0].Span.Start);
+            return (Name: f.Name, Type: f.Type, Order: f.DeclaringSyntaxReferences[0].Span.Start, ReadOnly: f.IsReadOnly);
         else if (symbol is IPropertySymbol p)
-            return (Name: p.Name, Type: p.Type, Order: p.DeclaringSyntaxReferences[0].Span.Start);
+            return (Name: p.Name, Type: p.Type, Order: p.DeclaringSyntaxReferences[0].Span.Start, ReadOnly: p.SetMethod == null);
         else
             throw new InvalidOperationException($"Unsupported symbol type: {symbol.GetType().Name}");
     }
 
-    public static GeneratorTypeInfo GetSymbolInfo(INamedTypeSymbol symbol, bool requireFields, bool requirePublic)
+    public static GeneratorTypeInfo GetSymbolInfo(INamedTypeSymbol symbol, bool mapFields, bool mapProperties, bool mapPrivate, bool mapPublic, bool mapInternal)
     {
         var ns = symbol.ContainingNamespace.ToDisplayString();
         var name = symbol.Name;
 
-        var writeFields = symbol.GetMembers()
-            .OfType<IFieldSymbol>()
-            .Where(f => f is { IsStatic: false, IsReadOnly: false })
-            .Where(f => !requirePublic || f is { DeclaredAccessibility : Accessibility.Public })
-            .Where(f => f.DeclaringSyntaxReferences.Length > 0)
-            .Select(GetMember)
-            .ToArray();
-        var allFields = symbol.GetMembers()
-            .OfType<IFieldSymbol>()
-            .Where(f => f is { IsStatic: false })
-            .Where(f => !requirePublic || f is { DeclaredAccessibility : Accessibility.Public })
-            .Where(f => f.DeclaringSyntaxReferences.Length > 0)
-            .Select(GetMember)
-            .ToArray();
-
-        (string Name, ITypeSymbol Type, int Order)[] writeProps;
-        (string Name, ITypeSymbol Type, int Order)[] allProps;
-
-        if (requireFields)
+        var errorMessages = new List<string>();
+        var allMembers = new List<(string Name, ITypeSymbol Type, int Order, bool ReadOnly)>();
+        foreach (var member in symbol.GetMembers())
         {
-            writeProps = [];
-            allProps = [];
-        }
-        else
-        {
-            writeProps = symbol.GetMembers()
-                .OfType<IPropertySymbol>()
-                .Where(p => p is { IsStatic: false, GetMethod: not null, SetMethod: not null, DeclaredAccessibility : Accessibility.Public })
-                .Where(f => f.DeclaringSyntaxReferences.Length > 0) 
-                .Select(GetMember)
-                .ToArray();
-            allProps = symbol.GetMembers()
-                .OfType<IPropertySymbol>()
-                .Where(p => p is { IsStatic: false, GetMethod: not null, DeclaredAccessibility : Accessibility.Public })
-                .Where(f => f.DeclaringSyntaxReferences.Length > 0) 
-                .Select(GetMember)
-                .ToArray();
-        }
+            (string Name, ITypeSymbol Type, int Order, bool ReadOnly) entry;
 
-        var useCons = writeFields.Length != allFields.Length || writeProps.Length != allProps.Length;
+            bool isField;
+            var useMember = true;
+            var canUseMember = true;
 
-        (string Name, ITypeSymbol Type, int Order)[] fields;
-        if (useCons)
-        {
-            fields = allFields.Concat(allProps).ToArray();
-        }
-        else
-        {
-            fields = writeFields.Concat(writeProps).ToArray();
+            if (member.DeclaredAccessibility == Accessibility.Private)
+            {
+                if (!mapPrivate)
+                    useMember = false;
+            }
+            else if (member.DeclaredAccessibility == Accessibility.Public)
+            {
+                if (!mapPublic)
+                    useMember = false;
+            }
+            else if (member.DeclaredAccessibility == Accessibility.Internal)
+            {
+                if (!mapInternal)
+                    useMember = false;
+            }
+            else
+            {
+                useMember = false;
+                canUseMember = false;
+            }
+
+            if (member.DeclaringSyntaxReferences.Length <= 0)
+            {
+                useMember = false;
+                canUseMember = false;
+            }
+            
+            if (member is IFieldSymbol f)
+            {
+                if (!mapFields)
+                    useMember = false;
+
+                if (f is not { IsStatic: false, IsReadOnly: false })
+                {
+                    useMember = false;
+                    canUseMember = false;
+                }
+
+                isField = true;
+            }
+            else if (member is IPropertySymbol p)
+            {
+                if (!mapProperties)
+                    useMember = false;
+                
+                if (p is not { IsStatic: false, GetMethod: not null, SetMethod: not null })
+                {
+                    useMember = false;
+                    canUseMember = false;
+                }
+
+                isField = false;
+            }
+            else
+            {
+                useMember = false;
+                canUseMember = false;
+                isField = false;
+                entry = default;
+            }
+
+            var hasExclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "ExcludeSerializable");
+            var hasInclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "IncludeSerializable");
+
+            if (hasInclude && hasExclude)
+            {
+                errorMessages.Add($"Cannot have `IncludeSerializable` and `ExcludeSerializable` on the same {(isField ? "field" : "property")}: {member.Name}");
+                continue;
+            }
+
+            if (canUseMember && hasInclude)
+            {
+                errorMessages.Add($"Invalid `IncludeSerializable` on the field {(isField ? "field" : "property")}: {member.Name}");
+                continue;
+            }
+
+            if (hasInclude)
+                useMember = true;
+            if (hasExclude)
+                useMember = false;
+
+            if (useMember)
+            {
+                entry = GetMemberEntry(member);
+                allMembers.Add(entry);
+            }
         }
 
         var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
-        
-        return new GeneratorTypeInfo
-        {
-            Namespace = ns,
-            Name = name,
-            Fields = fields,
-            IsNullable = thisNullable,
-            UseCons = useCons,
-        };
+
+        return new GeneratorTypeInfo(
+            name: name,
+            @namespace: ns,
+            members: allMembers.ToArray(),
+            isNullable: thisNullable,
+            errorMessages: errorMessages.ToArray()
+        );
     }
 }

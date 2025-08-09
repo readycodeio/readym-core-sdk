@@ -17,13 +17,11 @@ public readonly partial struct CustomRelayEventHeader(
     byte eventCode,
     PlayerId sender,
     PlayerId[]? peers,
-    RelayMode relayMode = RelayMode.AreaOfInterestOthers,
-    EventCaching eventCaching = EventCaching.DoNotCache
+    RelayMode relayMode = RelayMode.AreaOfInterestOthers
 )
 {
     public readonly byte EventCode = eventCode;
     public readonly PlayerId Sender = sender;
     public readonly PlayerId[]? Peers = peers;
     public readonly RelayMode RelayMode = relayMode;
-    public readonly EventCaching EventCaching = eventCaching;
 }

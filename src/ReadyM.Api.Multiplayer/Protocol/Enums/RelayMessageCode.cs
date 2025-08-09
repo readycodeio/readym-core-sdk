@@ -8,9 +8,9 @@ public enum RelayMessageCode : byte
     OtherPlayerConnectionEvent = 252,
     OtherPlayerAreaEvent = 251,
     
-    MaxBuiltInEvent = EcsUpdate,
+    MaxBuiltInEvent = EcsDelta,
 
-    EcsUpdate = 250,
+    EcsDelta = 250,
     EcsSnapshot = 249,
     EcsCreateEntity = 248,
     EcsDeleteEntity = 247,

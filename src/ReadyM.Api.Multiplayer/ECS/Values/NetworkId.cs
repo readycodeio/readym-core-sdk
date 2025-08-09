@@ -3,7 +3,7 @@ using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Serialization;
 
-namespace ReadyM.Api.Multiplayer.ECS.Components;
+namespace ReadyM.Api.Multiplayer.ECS.Values;
 
 [DeriveJsonSerializable]
 public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
@@ -12,14 +12,10 @@ public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkI
     public uint Id { get; private set; } = id; // 4 bytes
 
     public bool Equals(NetworkId other)
-    {
-        return Creator == other.Creator && Id == other.Id;
-    }
+        => Creator == other.Creator && Id == other.Id;
 
     public override bool Equals(object? obj)
-    {
-        return obj is NetworkId other && Equals(other);
-    }
+        => obj is NetworkId other && Equals(other);
 
     public override int GetHashCode()
     {
@@ -30,19 +26,13 @@ public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkI
     }
 
     public static bool operator ==(NetworkId left, NetworkId right)
-    {
-        return left.Equals(right);
-    }
+        => left.Equals(right);
 
     public static bool operator !=(NetworkId left, NetworkId right)
-    {
-        return !left.Equals(right);
-    }
+        => !left.Equals(right);
 
     public override string ToString()
-    {
-        return $"NetId[{Creator}, {Id}]";
-    }
+        => $"NetId[{Creator}, {Id}]";
 
     public void Serialize(NetDataWriter writer)
     {

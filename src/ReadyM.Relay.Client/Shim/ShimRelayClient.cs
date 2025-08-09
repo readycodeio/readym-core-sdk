@@ -24,8 +24,8 @@ public class ShimRelayClient : IRelayClient
         public readonly List<PlayerId> AreaPlayers = new();
 
         public bool Connected { get; set; }
-        public PlayerId PlayerId { get; set; }
-        public AreaId CurrentArea { get; set; }
+        public PlayerId? PlayerId { get; set; }
+        public AreaId? CurrentArea { get; set; }
         
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
@@ -46,34 +46,32 @@ public class ShimRelayClient : IRelayClient
 
     private readonly NetworkThreadContext _netThreadContext = new();
     private readonly PendingActionUpdater<IRelayClientNetworkThreadContext> _scheduler;
-    
-    public bool IsRunning { get; private set; }
 
-    public PlayerId PlayerId
+    private volatile bool _isRunning;
+    private volatile bool _isPlaying;
+
+    public bool IsPlaying
+        => _isPlaying;
+    
+    public bool RequestedConnect { get; private set; }
+    public AreaId? RequestedAreaId { get; private set; }
+
+    public PlayerId? PlayerId
     {
         get
         {
-            var playerId = _netThreadContext.PlayerId;
-            if (playerId == default || !IsRunning)
-                throw new InvalidOperationException(
-                    "PlayerId is not set. You need to call `Start()` and wait on the returned task before safely reading this property.");
-            return playerId;
+            if (!RequestedConnect)
+                return null;
+            lock (_lock)
+            {
+                return _recording!.PlayerId;
+            }
         }
     }
 
     private DisconnectReason _lastDisconnectReason;
 
-    public DisconnectReason LastDisconnectReason
-    {
-        get
-        {
-            if (IsRunning)
-                throw new InvalidOperationException("Call `Stop()` before safely reading this field.");
-            return _lastDisconnectReason;
-        }
-    }
-    
-    public event Action? OnRequestedStart;
+    public event Action? OnStart;
     public event Action? OnRequestedStop;
     public event Action? OnRequestedConnect;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
@@ -108,7 +106,7 @@ public class ShimRelayClient : IRelayClient
     }
 
     private readonly Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[] _serverMessageHandlers =
-        new Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxServerRpcEvent + 1];
+        new Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxBuiltInEvent + 1];
     private readonly Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[] _clientMessageHandlers =
         new Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxClientRpcEvent + 1];
 
@@ -284,7 +282,7 @@ public class ShimRelayClient : IRelayClient
     
     public void SetRecording(ShimRecording recording, int delay = 1_000)
     {
-        if (IsRunning)
+        if (_isRunning)
             throw new InvalidOperationException("Cannot set recording while the client is running");
         _delay = delay;
         lock (_lock)
@@ -294,14 +292,7 @@ public class ShimRelayClient : IRelayClient
     }
 
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
-    {
-        get
-        {
-            if (!IsRunning)
-                throw new InvalidOperationException("Scheduler is only available when the client is running");
-            return _scheduler;
-        }
-    }
+        => _scheduler;
 
     public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
         => 1300;
@@ -353,47 +344,52 @@ public class ShimRelayClient : IRelayClient
         }
     }
 
-    public async Task StartAsync(CancellationToken token, bool autoConnect = true)
+    public void StartPlaying()
+    {
+        if (!_isRunning)
+            throw new InvalidOperationException("Shim relay client is not running");
+
+        if (_isPlaying)
+        {
+            _logger.LogError("Shim relay client is already playing");
+            return;
+        }
+
+        _isPlaying = true;
+    }
+
+    public void StopPlaying()
+    {
+        if (!_isPlaying)
+        {
+            _logger.LogError("Shim relay client is not playing");
+            return;
+        }
+
+        _isPlaying = false;
+    }
+    
+    public void Start()
     {
         if (_recording == null)
             throw new InvalidOperationException("Recording is not set. Call `SetRecording()` before starting the client.");
         
-        if (IsRunning)
+        if (_isRunning)
         {
             _logger.LogError("Relay client is already running");
             return;
         }
-        
-        OnRequestedStart?.Invoke();
+        _isRunning = true;
 
-        await Task.Delay(1, token);
-        _scheduler.SetThread(Thread.CurrentThread);
-        
-        if (autoConnect)
-        {
-            PushRequest(new ShimRequestItem()
-            {
-                Kind = ShimRequestKind.RequestedConnect,
-            });
-        }
+        _logger.LogInformation("Starting shim relay client...");
 
-        IsRunning = true;
+        OnStart?.Invoke();
 
         _stopwatch = new Stopwatch();
         _stopwatch.Start();
         _index = 0;
 
-        _logger.LogInformation("Starting shim relay client");
-        
-        while (!token.IsCancellationRequested)
-        {
-            await ProcessLoop(token);
-            
-            if (_netThreadContext.Connected)
-                break;
-        }
-        
-        _logger.LogInformation("Shim relay client started successfully");
+        _logger.LogInformation("Started shim relay client");
     }
 
     public async Task RunAsync(CancellationToken token)
@@ -401,7 +397,7 @@ public class ShimRelayClient : IRelayClient
         if (_recording == null)
             throw new InvalidOperationException("Recording is not set. Call `SetRecording()` before starting the client.");
 
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running. Call `StartAsync()` first.");
             return;
@@ -411,41 +407,55 @@ public class ShimRelayClient : IRelayClient
         
         while (!token.IsCancellationRequested)
         {
+            if (!_isPlaying)
+            {
+                await Task.Delay(Constants.ClientNetworkTickRateMs, token);
+                continue;
+            }
+            
             await ProcessLoop(token);
         }
     }
 
     public void Stop()
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogInformation("Shim relay client is not running");
             return;
         }
         
-        IsRunning = false;
-        
+        _isRunning = false;
+        _scheduler.SetThread(null);
+
         _logger.LogDebug("Stopping shim relay client");
 
         OnRequestedStop?.Invoke();
 
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
         // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
-        if (LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
+        if (_lastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
         {
-            _logger.LogWarning("Shim relay client already disconnected: {Reason}", LastDisconnectReason);
+            _logger.LogWarning("Shim relay client already disconnected: {Reason}", _lastDisconnectReason);
         }
 
         _logger.LogDebug("Stopped shim relay client");
     }
 
-    public void Connect()
+    public void RequestConnect()
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running");
             return;
         }
+
+        if (RequestedConnect)
+        {
+            _logger.LogWarning("Relay client is already connecting");
+            return;
+        }
+        RequestedConnect = true;
         
         PushRequest(new ShimRequestItem()
         {
@@ -455,13 +465,20 @@ public class ShimRelayClient : IRelayClient
         OnRequestedConnect?.Invoke();
     }
 
-    public void Disconnect()
+    public void RequestDisconnect()
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running");
             return;
         }
+        
+        if (!RequestedConnect)
+        {
+            _logger.LogWarning("Relay client is already disconnecting");
+            return;
+        }
+        RequestedConnect = false;
         
         PushRequest(new ShimRequestItem()
         {
@@ -471,17 +488,35 @@ public class ShimRelayClient : IRelayClient
         OnRequestedDisconnect?.Invoke();
     }
 
-    public void Reconnect()
+    public void RequestReconnect()
     {
-        Disconnect();
-        Connect();
+        RequestDisconnect();
+        RequestConnect();
     }
 
-    public void JoinArea(AreaId areaId)
+    public void RequestJoinArea(AreaId areaId)
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running");
+            return;
+        }
+
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+
+        if (RequestedAreaId != null)
+        {
+            _logger.LogWarning("Already requested to join a different area {AreaId}", RequestedAreaId.Value);
+            RequestLeaveArea();
+        }
+
+        if (RequestedAreaId == areaId)
+        {
+            _logger.LogWarning("Already requested to join area {AreaId}", areaId);
             return;
         }
         
@@ -494,13 +529,26 @@ public class ShimRelayClient : IRelayClient
         OnRequestedJoinArea?.Invoke(areaId);
     }
 
-    public void LeaveArea()
+    public void RequestLeaveArea()
     {
-        if (!IsRunning)
+        if (!_isRunning)
         {
             _logger.LogError("Relay client is not running");
             return;
         }
+
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+        
+        if (RequestedAreaId == null)
+        {
+            _logger.LogWarning("Already requested to leave area");
+            return;
+        }
+        RequestedAreaId = null;
         
         PushRequest(new ShimRequestItem()
         {
@@ -550,7 +598,7 @@ public class ShimRelayClient : IRelayClient
             {
                 // Assumes RequestedStart first
                 var playerId = item.PlayerId;
-                if (_netThreadContext.PlayerId != PlayerId.Invalid)
+                if (_netThreadContext.PlayerId != null)
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
@@ -622,7 +670,7 @@ public class ShimRelayClient : IRelayClient
             {
                 // Assumes RequestedJoinArea first
                 var playerId = item.PlayerId;
-                if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                if (_netThreadContext.PlayerId == null)
                 {
                     _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but PlayerId is not set", playerId, _netThreadContext.PlayerId);
                     break;
@@ -656,7 +704,7 @@ public class ShimRelayClient : IRelayClient
             {
                 // Assumes RequestedLeaveArea first
                 var playerId = item.PlayerId;
-                if (_netThreadContext.PlayerId == PlayerId.Invalid)
+                if (_netThreadContext.PlayerId == null)
                 {
                     _logger.LogError("Received handshake for leaving area by player {PlayerId} but PlayerId is not set", playerId);
                     break;

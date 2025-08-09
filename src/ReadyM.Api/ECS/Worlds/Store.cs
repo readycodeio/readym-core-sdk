@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
+using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Generators;
 using ReadyM.Api.Idents;
 
@@ -21,7 +22,7 @@ public sealed partial class Store
 
     public SystemRoot SystemRoot { get; }
 
-    public Store(EntityStore wrapped)
+    public Store(EntityStore wrapped, IEnumerable<IArchetypeRegistration> registrations)
     {
         _wrapped = wrapped;
         SystemRoot = new SystemRoot();
@@ -29,6 +30,11 @@ public sealed partial class Store
 #if DEBUG
         SystemRoot.SetMonitorPerf(true);
 #endif
+        
+        foreach (var registration in registrations)
+        {
+            registration.Register(this);
+        }
     }
 
     public ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)

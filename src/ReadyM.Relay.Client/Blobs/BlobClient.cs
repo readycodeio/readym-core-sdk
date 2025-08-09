@@ -10,7 +10,6 @@ using ReadyM.Api.Multiplayer.Client.Blobs;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Shim;
-using ReadyM.Relay.Common;
 
 namespace ReadyM.Relay.Client.Blobs;
 
@@ -121,7 +120,7 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
 
     public async Task<bool> UploadBlobAsync(BlobInfo blob, CancellationToken ct = default)
     {
-        if (!_relayClient.IsRunning)
+        if (!_relayClient.RequestedConnect)
             throw new InvalidOperationException();
 
         ct.ThrowIfCancellationRequested();
@@ -145,15 +144,15 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
         _relayClient.SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
 
         _logger.LogInformation("Uploading file: {FileName} with request ID {RequestId}", blob.Name, requestId);
-        using (ct.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+        using (ct.Register(CancelCallback))
         {
             try
             {
                 return await tcs.Task;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                _logger.LogWarning("File upload for {FileName} was cancelled with request ID {RequestId}", blob.Name, requestId);
+                _logger.LogWarning(ex, "File upload for {FileName} was cancelled with request ID {RequestId}", blob.Name, requestId);
                 throw;
             }
             finally
@@ -161,11 +160,17 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
                 _blobUploadTasks.TryRemove(requestId, out _);
             }
         }
+
+        void CancelCallback()
+        {
+            _logger.LogWarning("Upload task for {FileName} with request ID {RequestId} was cancelled (TIMEOUT)", blob.Name, requestId);
+            tcs.TrySetCanceled();
+        }
     }
 
     public async Task<BlobInfo?> DownloadBlobAsync(string name, CancellationToken ct = default)
     {
-        if (!_relayClient.IsRunning)
+        if (!_relayClient.RequestedConnect)
             throw new InvalidOperationException();
 
         ct.ThrowIfCancellationRequested();
@@ -175,10 +180,10 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
         nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
         ct = nestedCt.Token;
 
-        var taskSource = new TaskCompletionSource<BlobInfo?>();
+        var tcs = new TaskCompletionSource<BlobInfo?>();
 
         var requestId = GetNextRequestId();
-        _blobDownloadTasks[requestId] = taskSource;
+        _blobDownloadTasks[requestId] = tcs;
 
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestDownloadBlob);
@@ -187,22 +192,28 @@ public class BlobClient : IShimRecordableBlobClient, IDisposable
         _relayClient.SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
         _logger.LogInformation("Requesting file download: {FileName} with request ID {RequestId}", name, requestId);
 
-        using (ct.Register(() => taskSource.TrySetCanceled(), useSynchronizationContext: false))
+        using (ct.Register(CancelCallback))
         {
             try
             {
                 ct.ThrowIfCancellationRequested();
-                return await taskSource.Task;
+                return await tcs.Task;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                _logger.LogWarning("File download for {FileName} was cancelled with request ID {RequestId}", name, requestId);
+                _logger.LogWarning(ex, "File download for {FileName} was cancelled with request ID {RequestId}", name, requestId);
                 throw;
             }
             finally
             {
                 _blobDownloadTasks.TryRemove(requestId, out _);
             }
+        }
+        
+        void CancelCallback()
+        {
+            _logger.LogWarning("Download task for {FileName} with request ID {RequestId} was cancelled (TIMEOUT)", name, requestId);
+            tcs.TrySetCanceled();
         }
     }
 }

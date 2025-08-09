@@ -12,4 +12,5 @@ public static class Constants
     public const int ShimClientTickRateMs = 1;
     public const int ServerEcsUpdateRateMs = 15;
     public const int ClientEcsUpdateRateMs = 33;
+    public const int ClientConnectionTimeoutMs = 2000;
 }

@@ -6,6 +6,7 @@ using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
+using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Relay.Client.State;
 
@@ -14,7 +15,7 @@ public class ClientNetworkedEntityState(NetworkedEntityManager netEntity, Client
     public (Entity Entity, NetworkId NetId) CreateNetworkedGlobalEntity(
         ArchetypeId archetypeId,
         Action<EntityBuilder>? setComponents = null)
-        => netEntity.CreateNetworkedEntity(archetypeId, default, setComponents);
+        => netEntity.CreateNetworkedEntity(archetypeId, null, setComponents);
 
     public (Entity Entity, NetworkId NetId) CreateNetworkedAreaEntity(
         ArchetypeId archetypeId,
@@ -27,7 +28,7 @@ public class ClientNetworkedEntityState(NetworkedEntityManager netEntity, Client
         }
         else
         {
-            logger.LogWarning("Attempted to create a networked entity in area but no area is set.");
+            logger.LogError("Attempted to create a networked entity in area but no area is set.");
             return (default, default);
         }
     }
@@ -43,14 +44,11 @@ public class ClientNetworkedEntityState(NetworkedEntityManager netEntity, Client
         }
         else
         {
-            logger.LogWarning("Attempted to create a networked entity for player but no player entity is set.");
+            logger.LogError("Attempted to create a networked entity for player but no player entity is set.");
             return (default, default);
         }
     }
     
-    public Entity CreateRemoteNetworkedEntity(MetadataComponent meta)
-        => netEntity.CreateRemoteNetworkedEntity(meta);
-
     public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)
         => netEntity.TryGetEntityByNetworkId(netId, out entity);
 }

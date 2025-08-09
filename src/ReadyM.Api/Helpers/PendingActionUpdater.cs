@@ -8,62 +8,36 @@ public class PendingActionUpdater<TContext>(TContext context, ILogger logger) : 
     public Thread? Thread
         => _thread;
 
-    public bool Update()
-    {
-        try
-        {
-            Monitor.Enter(_lock);
-            var count = _typeIndex;
-
-            var hasPendingActions = _group.Update();
-            
-            for (var i = 0; i < count; i++)
-            {
-                var group = _groups[i];
-                if (group.Update())
-                    hasPendingActions = true;
-            }
-
-            return hasPendingActions;
-        }
-        finally
-        {
-            Monitor.Exit(_lock);
-        }
-    }
+    private bool _insideUpdate;
     
-    public void SetThread(Thread? thread)
+    public override bool Update()
     {
-        _thread = thread;
-    }
-}
-
-public class PendingActionUpdater(ILogger logger) : PendingActionScheduler(logger)
-{
-    public Thread? Thread
-        => _thread;
-
-    public bool Update()
-    {
+        if (_insideUpdate)
+            return false;
+        
         try
         {
+            _insideUpdate = true;
             Monitor.Enter(_lock);
-            var count = _typeIndex;
 
-            var hasPendingActions = _group.Update();
+            (_oldQueue, _queue) = (_queue, _oldQueue);
+            var queueCount = _queueIndex;
+            _queue.Clear();
+            _queueIndex = 0;
             
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < queueCount; i++)
             {
-                var group = _groups[i];
-                if (group.Update())
-                    hasPendingActions = true;
+                var group = _oldQueue[i];
+                _oldQueue[i] = null;
+                group!.Update();
             }
-
-            return hasPendingActions;
+            
+            return queueCount > 0;
         }
         finally
         {
             Monitor.Exit(_lock);
+            _insideUpdate = false;
         }
     }
     

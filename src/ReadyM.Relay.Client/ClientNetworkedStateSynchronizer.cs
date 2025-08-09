@@ -1,44 +1,24 @@
 ﻿using System;
+using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
-using ReadyM.Api.Multiplayer.ECS.Systems;
-using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Client.ECS.Systems;
+using ReadyM.Relay.Client.State;
+using ReadyM.Relay.Common.ECS.Jobs;
 
 namespace ReadyM.Relay.Client;
 
-public class ClientNetworkedStateSynchronizer(
-    Store world,
-    NetworkedEntityManager netEntity,
-    ClientJobRegistry jobRegistry,
-    INetworkedComponentRegistry netComponentRegistry,
-    IRelayClient relayClient, 
-    IClientEcsUpdateLoop ecsLoop,
-    ILogger logger) : IDisposable
+public class ClientNetworkedStateSynchronizer : IDisposable
 {
-    protected IClientEcsUpdateLoop EcsLoop => ecsLoop;
-    
-    private class RegisterJobRegistryCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
-    {
-        public void AcceptComponent<T>(INetworkedComponentRegistry registry)
-            where T : struct, INetworkedComponent
-        {
-            var id = registry.GetNetworkedComponentId<T>();
-
-            owner.Logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.JobRegistry.DeltaReaderJobs.Add(id, new ApplyDeltaJob<T>(owner.NetEntity, () => owner.RelayClient.PlayerId));
-            owner.JobRegistry.SnapshotReaderJobs.Add(id, new ApplySnapshotJob<T>(owner.NetEntity));
-        }
-    }
+    protected IClientEcsUpdateLoop EcsLoop => _ecsLoop;
     
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
@@ -48,176 +28,216 @@ public class ClientNetworkedStateSynchronizer(
             var id = registry.GetNetworkedComponentId<T>();
             
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.World.SystemRoot.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
+            owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
         }
     }
 
-    protected readonly Store World = world;
-    protected readonly NetworkedEntityManager NetEntity = netEntity;
-    protected readonly IRelayClient RelayClient = relayClient;
-    protected readonly ILogger Logger = logger;
+    protected readonly ClientState State;
+    protected readonly NetworkedEntityManager NetEntity;
+    protected readonly IRelayClient RelayClient;
+    protected readonly ILogger Logger;
     
-    protected readonly ClientJobRegistry JobRegistry = jobRegistry;
-    
-    public bool IsRunning { get; private set; }
-    
-    public event Action? OnJoinedArea;
-    public event Action? OnLateJoinedArea;
-    public event Action? OnLeftArea;
-    public event Action<PlayerId>? OnOtherPlayerJoinedArea;
-    public event Action<PlayerId>? OnOtherPlayerLeftArea;
+    protected readonly JobRegistry JobRegistry;
+    private readonly IClientEcsUpdateLoop _ecsLoop;
 
-    public event Action? OnEcsSnapshot;
-    
+    private readonly SystemGroup _systemGroup;
+
+    public ClientNetworkedStateSynchronizer(NetworkedEntityManager netEntity,
+        ClientState state,
+        JobRegistry jobRegistry,
+        INetworkedComponentRegistry netComponentRegistry,
+        IRelayClient relayClient,
+        IClientEcsUpdateLoop ecsLoop,
+        ILogger logger)
+    {
+        State = state;
+        _ecsLoop = ecsLoop;
+        NetEntity = netEntity;
+        RelayClient = relayClient;
+        Logger = logger;
+        JobRegistry = jobRegistry;
+        
+        // When an ECS snapshot message is received, the client applies it to its ECS world. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotMessageHandler);
+        
+        // When an ECS delta message is received, the client applies it to its ECS world. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDelta, OnEcsDeltaMessageHandler);
+        
+        // When an ECS create entity message is received, the client creates a new entity in its ECS world. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);
+        
+        // When an ECS delete entity message is received, the client deletes the entity from its ECS world. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
+
+        // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
+        // sent to the server. 
+        NetEntity.OnEntityDelete += OnEntityDeleteHandler;
+
+        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
+        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
+        // server.
+        
+        _systemGroup = new SystemGroup("Network");
+        
+        _systemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
+        // NOTE: iterates over all network components with generics without reflection
+        netComponentRegistry.Accept(new RegisterSystemCallback(this));
+        
+        _ecsLoop.AddSystem(_systemGroup);
+    }
+
     public void Dispose()
     {
-        if (IsRunning)
-            Stop();
-        
         OnDispose();
     }
 
     protected virtual void OnDispose()
     {
-        // empty
-    }
-    
-    public void Start()
-    {
-        if (IsRunning)
-            throw new InvalidOperationException("NetworkedStateSynchronizer is already started.");
-        IsRunning = true;
-
-        NetEntity.OnEntityDelete += OnEntityDeleteHandler;
-
-        RelayClient.OnJoinedArea += OnJoinedAreaHandler;
-        RelayClient.OnLeftArea += OnLeftAreaHandler;
-        RelayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
-        RelayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
-        RelayClient.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
-        RelayClient.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
-
-        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
-        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
-        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
-
-        // NOTE: iterate over all components with generics without reflection
-        netComponentRegistry.Accept(new RegisterJobRegistryCallback(this));
-        netComponentRegistry.Accept(new RegisterSystemCallback(this));
-    }
-
-    public void Stop()
-    {
-        if (!IsRunning)
-            throw new InvalidOperationException("NetworkedStateSynchronizer is not started.");
-        IsRunning = false;
-
-        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityHandler);
-        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsUpdate, OnEcsUpdateHandler);
-        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotHandler);
-
-        RelayClient.OnRequestedLeaveArea -= OnRequestedLeaveAreaHandler;
-        RelayClient.OnRequestedJoinArea -= OnRequestedJoinAreaHandler;
-        RelayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
-        RelayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
-        RelayClient.OnLeftArea -= OnLeftAreaHandler;
-        RelayClient.OnJoinedArea -= OnJoinedAreaHandler;
+        _ecsLoop.RemoveSystem(_systemGroup);
+        
+        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
+        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);
+        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDelta, OnEcsDeltaMessageHandler);
+        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotMessageHandler);
 
         NetEntity.OnEntityDelete -= OnEntityDeleteHandler;
     }
     
     #region Event handlers
 
-    protected virtual void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
-    {
-        OnJoinedArea?.Invoke();
-        OnLateJoinedArea?.Invoke();
-    }
-
-    private void OnLeftAreaHandler(IRelayClientNetworkThreadContext obj)
-    {
-        OnLeftArea?.Invoke();
-    }
-
-    protected virtual void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
-    {
-        OnOtherPlayerJoinedArea?.Invoke(playerId);
-    }
+    // NOTE: This static variable is used as a side channel to communicate that a network event is being processed.
+    // This is in order to prevent events triggered by the ECS world from sending out spurious secondary messages to
+    // the server.
+    [ThreadStatic] private static bool _skipEcsEventMessages;
     
-    protected virtual void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+    protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        OnOtherPlayerLeftArea?.Invoke(playerId);
-    }
-    
-    protected virtual void OnRequestedJoinAreaHandler(AreaId areaId)
-    {
-        // empty
-    }
-
-    protected virtual void OnRequestedLeaveAreaHandler()
-    {
-        // empty
-    }
-
-    protected void OnEcsSnapshotHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
-    {
-        ecsLoop.Scheduler.Schedule((_, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule((context0, self, readerCopy) =>
         {
-            while (readerCopy.TryGetNetworkedComponentId(out var componentId))
+            try
             {
-                if (!self.JobRegistry.SnapshotReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
+                _skipEcsEventMessages = true;
+                
+                var scopeNetId = readerCopy.Get<NetworkId>();
+                self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
+        
+                var entityCount = readerCopy.GetUInt();
+                for (var i = 0; i < entityCount; i++)
                 {
-                    self.Logger.LogError("No snapshot reader job registered for component ID: {Id}", componentId);
-                    return;
+                    var meta = readerCopy.Get<MetadataComponent>();
+
+                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out _))
+                    {
+                        self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
+                    }
+                    else
+                    {
+                        self.Logger.LogWarning("Received snapshot create event for already existing entity: {Id}", meta.NetId);
+                    }
+                }
+                
+                self.JobRegistry.ApplySnapshot(readerCopy);
+            }
+            finally
+            {
+                _skipEcsEventMessages = false;
+            }
+        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+    }
+    
+    protected void OnEcsDeltaMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    {
+        _ecsLoop.Scheduler.Schedule((_, self, readerCopy) =>
+        {
+            try
+            {
+                _skipEcsEventMessages = true;
+                self.JobRegistry.ApplyDelta(readerCopy);
+            }
+            finally
+            {
+                _skipEcsEventMessages = false;
+            }
+        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+    }
+
+    // NOTE: Someone else created an entity, and we are notified about it
+    protected void OnEcsCreateEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    {
+        _ecsLoop.Scheduler.Schedule((cb, self, readerCopy) =>
+        {
+            try
+            {
+                _skipEcsEventMessages = true;
+
+                var scopeNetId = readerCopy.Get<NetworkId>();
+                self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
+                
+                var queryCount = readerCopy.GetUInt();
+                for (var i = 0; i < queryCount; i++)
+                {
+                    var meta = readerCopy.Get<MetadataComponent>();
+                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
+                    {
+                        self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
+                    }
+                    else
+                    {
+                        self.Logger.LogError("Received create event for already existing entity: {Id}", meta.NetId);
+                    }
                 }
 
-                readerJob.Execute(readerCopy);
+                self.JobRegistry.ApplySnapshot(readerCopy);
             }
-            
-            self.OnEcsSnapshot?.Invoke();
-        }, this, ecsLoop.Scheduler.MakeSafe(reader));
-    }
-    
-    protected void OnEcsUpdateHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
-    {
-        ecsLoop.Scheduler.Schedule((_, self, readerCopy) =>
-        {
-            var componentId = readerCopy.Get<NetworkedComponentId>();
-            if (!self.JobRegistry.DeltaReaderJobs.TryGetValue(componentId, out var readerJob) || readerJob == null)
+            finally
             {
-                self.Logger.LogError("No delta reader job registered for component ID: {Id}", componentId);
-                return;
+                _skipEcsEventMessages = false;
             }
-
-            readerJob.Execute(readerCopy);
-        }, this, ecsLoop.Scheduler.MakeSafe(reader));
+        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
     }
 
-    protected void OnEcsDeleteEntityHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    // NOTE: Someone else deleted an entity, and we are notified about it
+    protected void OnEcsDeleteEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkId>();
-        ecsLoop.Scheduler.Schedule((cb, self, netId0) =>
+        _ecsLoop.Scheduler.Schedule((cb, self, netId0) =>
         {
-            if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
+            try
             {
-                self.Logger.LogDebug("Queueing remote entity for destruction: {Id}", netId0);
-                cb.DeleteEntity(entity.Value.Id);
+                _skipEcsEventMessages = true;
+                if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
+                {
+                    self.Logger.LogDebug("Deleting remove entity: {Id}", netId0);
+                    entity.Value.DeleteEntity();
+                }
+                else
+                {
+                    self.Logger.LogError("Received destroy event for locally non-existent entity: {Id}", netId0);
+                }
             }
-            else
+            finally
             {
-                self.Logger.LogError("Received destroy event for locally non-existent entity: {Id}", netId0);
+                _skipEcsEventMessages = false;
             }
+            
         }, this, netId);
     }
 
+    // NOTE: We deleted the entity, and we need to message the server about it
     protected void OnEntityDeleteHandler(NetworkId netId)
     {
-        if (netId.Creator == RelayClient.PlayerId)
-        {
-            // our own entity - send destroy event
-            Logger.LogDebug("Networked entity destroyed: {NetworkId} (owned)", netId);
-            RelayClient.SendMessageRelayMode(RelayMessageCode.EcsDeleteEntity, netId, RelayMode.AreaOfInterestOthers, DeliveryMethod.ReliableOrdered); // TODO: Use RPC API instead
-        }
+        if (_skipEcsEventMessages)
+            return;
+        
+        _ecsLoop.Scheduler.EnsureThread();
+
+        if (netId.Creator != RelayClient.PlayerId)
+            return;
+
+        // Our own entity - send destroy event to the server. The server will react by deleting it on the server and
+        // resending a separate message to the other clients
+        Logger.LogDebug("Networked entity destroyed: {NetworkId} (owned)", netId);
+        RelayClient.SendMessageToServer(RelayMessageCode.EcsDeleteEntity, netId, DeliveryMethod.ReliableOrdered);
     }
 
     #endregion

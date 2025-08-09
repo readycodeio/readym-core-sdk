@@ -6,13 +6,14 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
 public sealed class NetworkedEntityManager : IDisposable
 {
     private readonly Store _world;
-    private readonly IPlayerIdProvider _playerIdHolder;
+    private readonly IPlayerIdProvider _playerIdProvider;
     private readonly ILogger _logger;
 
     private readonly ComponentIndex<MetadataComponent, NetworkId> _ix;
@@ -23,12 +24,11 @@ public sealed class NetworkedEntityManager : IDisposable
     // NOTE: This event will be fired on the ECS thread.
     public event Action<NetworkId>? OnEntityDelete;
 
-    // FIXME: getPlayerId should be replaced with an interface IRelayClient that can be mocked in tests
-    public NetworkedEntityManager(Store world, ILogger logger, IPlayerIdProvider playerIdHolder)
+    public NetworkedEntityManager(Store world, ILogger logger, IPlayerIdProvider playerIdProvider)
     {
         _world = world;
         _logger = logger;
-        _playerIdHolder = playerIdHolder;
+        _playerIdProvider = playerIdProvider;
         
         _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
 
@@ -56,17 +56,21 @@ public sealed class NetworkedEntityManager : IDisposable
 
     public (Entity Entity, NetworkId NetId) CreateNetworkedEntity(
         ArchetypeId archetypeId,
-        Entity scopeEntity,
+        Entity? scopeEntity,
         Action<EntityBuilder>? setComponents = null)
     {
-        var netId = new NetworkId(_playerIdHolder.LocalPlayerId, _nextNetworkedId++);
+        var playerId = _playerIdProvider.PlayerId;
+        if (playerId == null)
+            throw new InvalidOperationException();
+        
+        var netId = new NetworkId(playerId.Value, ++_nextNetworkedId);
         var meta = new MetadataComponent(netId, archetypeId, netId.Creator);
         var entity = _world.CreateEntity(archetypeId, b =>
         {
             b.Add(meta);
-            if (!scopeEntity.IsNull)
+            if (scopeEntity != null)
             {
-                var scope = new InScopeComponent(scopeEntity);
+                var scope = new InScopeComponent(scopeEntity.Value);
                 b.Add(scope);
             }
             // NOTE: This is added "temporarily" in order to mark the entity as not yet propagated over the network
@@ -77,9 +81,17 @@ public sealed class NetworkedEntityManager : IDisposable
         return (entity, netId);
     }
 
-    public Entity CreateRemoteNetworkedEntity(MetadataComponent meta)
+    public Entity CreateRemoteNetworkedEntity(MetadataComponent meta, Entity? scopeEntity)
     {
-        return _world.CreateEntity(meta.Archetype, b => b.Add(meta));
+        return _world.CreateEntity(meta.Archetype, b =>
+        {
+            b.Add(meta);
+            if (scopeEntity != null)
+            {
+                var scope = new InScopeComponent(scopeEntity.Value);
+                b.Add(scope);
+            }
+        });
     }
 
     public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)

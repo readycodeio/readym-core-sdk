@@ -1,15 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <LangVersion>13.0</LangVersion>
         <Nullable>enable</Nullable>
-        <EnforceExtendedAnalyzerRules>True</EnforceExtendedAnalyzerRules>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <Platforms>AnyCPU</Platforms>
-        <TargetFramework>netstandard2.0</TargetFramework>
         <RootNamespace>ReadyM.Relay.Common.Generators</RootNamespace>
+        <TargetFrameworks>net9.0;netstandard2.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -21,6 +20,6 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
-        <PackageReference Include="System.Text.Json" Version="9.0.7" />
+        <PackageReference Include="System.Text.Json" Version="9.0.6" />
     </ItemGroup>
 </Project>

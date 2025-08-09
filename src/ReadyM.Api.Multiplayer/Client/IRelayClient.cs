@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -31,23 +32,18 @@ namespace ReadyM.Api.Multiplayer.Client;
 /// ownership could be transferred to another player. Retaning the owner addressing mode allows the old owner to
 /// re-relay the message to the new owner in that specific rare case.
 /// </summary>
-public interface IRelayClient : IDisposable
+public interface IRelayClient : IPlayerIdProvider, IDisposable
 {
-    /// <summary>
-    /// Whether the client is started and either connected or in the process of connecting to the server. This
-    /// property doesn't get set to `false` as a result of a disconnect. It will remain `true` until `Stop()` is
-    /// explicitly called.
-    /// </summary>
-    bool IsRunning { get; }
+    bool RequestedConnect { get; }
 
-    PlayerId PlayerId { get; }
+    AreaId? RequestedAreaId { get; }
 
     /// <summary>
     /// Fired immediately after the client requests connection to the server. The client is not yet connected when
     /// this is fired.
     /// Always called from the thread calling `Start()`.
     /// </summary>
-    event Action OnRequestedStart;
+    event Action OnStart;
     
     /// <summary>
     /// Fired immediately after the client requests disconnection from the server. This will NOT fire if the client
@@ -187,15 +183,19 @@ public interface IRelayClient : IDisposable
 
     int GetMaxPacketSize(DeliveryMethod deliveryMethod);
 
-    Task StartAsync(CancellationToken token, bool autoConnect = true);
+    // NOTE: These are worker-thread side methods.
+    void Start();
     Task RunAsync(CancellationToken token);
     void Stop();
 
-    void Connect();
-    void Disconnect();
-    void Reconnect();
-    void JoinArea(AreaId areaId);
-    void LeaveArea();
+    // NOTE: These are user side methods.
+    // TODO: Separate into two different interfaces
+    void RequestConnect();
+    void RequestDisconnect();
+    void RequestReconnect();
+    
+    void RequestJoinArea(AreaId areaId);
+    void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);
     void SendMessage(RelayMessage message);

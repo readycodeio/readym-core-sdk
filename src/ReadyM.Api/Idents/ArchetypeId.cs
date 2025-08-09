@@ -15,34 +15,28 @@ public struct ArchetypeId : IEquatable<ArchetypeId>, INetSerializable
     }
     
     public bool Equals(ArchetypeId other)
-    {
-        return _id == other._id;
-    }
+        => _id == other._id;
 
     public override bool Equals(object? obj)
-    {
-        return obj is ArchetypeId other && Equals(other);
-    }
+        => obj is ArchetypeId other && Equals(other);
 
     public override int GetHashCode()
-    {
-        return _id.GetHashCode();
-    }
+        => _id.GetHashCode();
+
+    public override string ToString()
+        => $"ArchetypeId[{_id}]";
 
     public static bool operator ==(ArchetypeId left, ArchetypeId right)
-    {
-        return left.Equals(right);
-    }
+        => left.Equals(right);
 
     public static bool operator !=(ArchetypeId left, ArchetypeId right)
-    {
-        return !left.Equals(right);
-    }
+        => !left.Equals(right);
 
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(_id);
     }
+    
     public void Deserialize(NetDataReader reader)
     {
         _id = reader.GetByte();

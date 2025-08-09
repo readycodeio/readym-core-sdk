@@ -5,38 +5,21 @@ using System.Linq;
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Relay.Common.ECS.Archetypes;
 using ReadyM.Relay.Common.ECS.Components;
-using ReadyM.Relay.Common.ECS.Registry;
+using ReadyM.Relay.Common.ECS.Jobs;
 
 namespace ReadyM.Relay.Client.State;
 
 public class ClientState : IDisposable
 {
-    private class RegisterAreaComponentsCallback(EntityBuilder builder) : IAreaComponentRegistryCallback
-    {
-        public void AcceptComponent<T>(IAreaComponentRegistry registry)
-            where T : struct, IComponent
-        {
-            builder.Add<T>();
-        }
-    }
-    
-    private class RegisterPlayerComponentsCallback(EntityBuilder builder) : IPlayerComponentRegistryCallback
-    {
-        public void AcceptComponent<T>(IPlayerComponentRegistry registry)
-            where T : struct, IComponent
-        {
-            builder.Add<T>();
-        }
-    }
-
     private enum PendingEventKind
     {
         Connected,
@@ -51,10 +34,12 @@ public class ClientState : IDisposable
     
     private struct PendingEvent
     {
+        public bool Invalidated;
         public PendingEventKind Kind;
         public AreaId AreaId;
         public PlayerId PlayerId;
         public bool IsNotify;
+        public DisconnectReason DisconnectReason;
     }
     
     public struct AreaEntry
@@ -77,14 +62,8 @@ public class ClientState : IDisposable
     private readonly Store _world;
     private readonly IRelayClient _relayClient;
     private readonly IClientEcsUpdateLoop _ecsLoop;
-    private readonly ClientNetworkedStateSynchronizer _synchronizer;
+    private readonly JobRegistry _jobRegistry;
     private readonly ILogger _logger;
-
-    private readonly ArchetypeId _areaArchetype;
-    private readonly ArchetypeId _playerArchetype;
-
-    public ArchetypeId AreaArchetype => _areaArchetype;
-    public ArchetypeId PlayerArchetype => _playerArchetype;
     
     private readonly List<PlayerId> _allPlayers = new List<PlayerId>();
     private readonly Dictionary<PlayerId, PlayerEntry> _playerEntries = new Dictionary<PlayerId, PlayerEntry>();
@@ -92,11 +71,9 @@ public class ClientState : IDisposable
     // NOTE: For performance. The same as _pendingPlayerEntries[_localPlayerId]
     private PlayerEntry? _localPlayerEntry;
 
-    private AreaEntry? _currentAreaEntry = new()
-    {
-        AreaPlayers = new List<PlayerId>(),
-    };
-    
+    private AreaEntry? _currentAreaEntry = null;
+
+    private readonly object _lock = new();
     private readonly List<PendingEvent> _pendingEvents = new List<PendingEvent>();
 
     public bool IsConnected
@@ -127,7 +104,7 @@ public class ClientState : IDisposable
         => _currentAreaEntry?.AreaEntity;
     
     public event Action<PlayerId, Entity>? OnConnected;
-    public event Action<PlayerId, Entity>? OnDisconnected;
+    public event Action<PlayerId, Entity, DisconnectReason>? OnDisconnected;
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -136,33 +113,26 @@ public class ClientState : IDisposable
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
     
+    public ArchetypeId AreaArchetype { get; }
+    public ArchetypeId PlayerArchetype { get; }
+    
     public ClientState(
         Store world,
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
-        ClientNetworkedStateSynchronizer synchronizer,
-        IAreaComponentRegistry areaComponentRegistry,
-        IPlayerComponentRegistry playerComponentRegistry,
+        JobRegistry jobRegistry,
+        DefaultAreaArchetypeRegistration areaArchetype,
+        DefaultPlayerArchetypeRegistration playerArchetype,
         ILogger logger)
     {
         _world = world;
         _relayClient = relayClient;
         _ecsLoop = ecsLoop;
-        _synchronizer = synchronizer;
+        _jobRegistry = jobRegistry;
         _logger = logger;
         
-        _areaArchetype = world.RegisterArchetype(b =>
-        {
-            b.Add<MetadataComponent>();
-            b.Add<AreaScopeComponent>();
-            areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b));
-        });
-        _playerArchetype = world.RegisterArchetype(b =>
-        {
-            b.Add<MetadataComponent>();
-            b.Add<PlayerScopeComponent>();
-            playerComponentRegistry.Accept(new RegisterPlayerComponentsCallback(b));
-        });
+        AreaArchetype = areaArchetype.AreaArchetype;
+        PlayerArchetype = playerArchetype.PlayerArchetype;
         
         _relayClient.OnConnected += OnConnectedHandler;
         _relayClient.OnDisconnected += OnDisconnectedHandler;
@@ -173,12 +143,12 @@ public class ClientState : IDisposable
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
         
-        _synchronizer.OnEcsSnapshot += OnEcsSnapshotHandler;
+        _jobRegistry.OnApplySnapshot += OnApplySnapshotHandler;
     }
 
     public void Dispose()
     {
-        _synchronizer.OnEcsSnapshot -= OnEcsSnapshotHandler;
+        _jobRegistry.OnApplySnapshot -= OnApplySnapshotHandler;
         
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
@@ -189,508 +159,790 @@ public class ClientState : IDisposable
         _relayClient.OnDisconnected -= OnDisconnectedHandler;
         _relayClient.OnConnected -= OnConnectedHandler;
     }
-
+    
     private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0, playerId0) =>
+        lock (_lock)
         {
-            // NOTE: Connection event is always appended, even if there's a disconnected event already in the queue
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
-               Kind = PendingEventKind.Connected,
-               PlayerId = playerId0,
+                Kind = PendingEventKind.Connected,
+                PlayerId = playerId,
             });
-            foreach (var otherPlayerId in context0.AllPlayers)
+            foreach (var otherPlayerId in context.AllPlayers)
             {
-                if (otherPlayerId == playerId0)
+                if (otherPlayerId == playerId)
                     continue;
-                self._pendingEvents.Add(new PendingEvent()
+                _pendingEvents.Add(new PendingEvent()
                 {
                     Kind = PendingEventKind.OtherPlayerCreated,
                     PlayerId = otherPlayerId,
                     IsNotify = true,
                 });
             }
-        }, this, context, playerId);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0) =>
+        lock (_lock)
         {
-            // NOTE: Disconnection event invalidates all other events in the queue
-            self._pendingEvents.Clear();
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.Disconnected,
-                PlayerId = context0.PlayerId,
+                PlayerId = context.PlayerId!.Value,
+                DisconnectReason = disconnectReason,
             });
-        }, this, context);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0, areaId0) =>
+        lock (_lock)
         {
-            // NOTE: Join area event is always appended, even if there's a left area event already in the queue
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.JoinedArea,
-                AreaId = areaId0,
-                PlayerId = context0.PlayerId,
+                AreaId = areaId,
+                PlayerId = context.PlayerId!.Value,
             });
-            foreach (var otherPlayerId in context0.AreaPlayers)
+            foreach (var otherPlayerId in context.AreaPlayers)
             {
-                if (otherPlayerId == context0.PlayerId)
+                if (otherPlayerId == context.PlayerId)
                     continue;
-                self._pendingEvents.Add(new PendingEvent()
+                _pendingEvents.Add(new PendingEvent()
                 {
                     Kind = PendingEventKind.OtherPlayerInsideArea,
                     PlayerId = otherPlayerId,
                     IsNotify = true,
                 });
             }
-        }, this, context, areaId);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0) =>
+        lock (_lock)
         {
-            if (self._currentAreaEntry == null)
+            var areaId = context.CurrentArea;
+            if (areaId == null)
             {
-                self._logger.LogWarning("LeftArea event received, but no current area. This should not happen.");
+                _logger.LogError("LeftArea event received, but no current area. This should not happen.");
+                return;
+            }
+
+            var playerId = context.PlayerId;
+            if (playerId == null)
+            {
+                _logger.LogError("LeftArea event received, but no player ID. This should not happen.");
                 return;
             }
             
-            var areaId = self._currentAreaEntry.Value.AreaId;
-            for (var i = 0; i < self._pendingEvents.Count;)
-            {
-                var pendingEvent = self._pendingEvents[i];
-                if (pendingEvent.Kind == PendingEventKind.JoinedArea)
-                {
-                    // Cancel any pending JoinedArea event because we are leaving the area
-                    areaId = pendingEvent.AreaId;
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else if (pendingEvent.Kind == PendingEventKind.LeftArea && pendingEvent.AreaId == areaId)
-                {
-                    // NOTE: There should be at most one LeftArea and one JoinedArea event in the queue at the same time
-                    throw new InvalidOperationException();
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerInsideArea && pendingEvent.AreaId == areaId)
-                {
-                    // Cancel any pending OtherPlayerJoinedArea events for the same area that we are leaving
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerOutsideArea && pendingEvent.AreaId == areaId)
-                {
-                    // Cancel any pending OtherPlayerLeftArea events for the same area that we are leaving
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else
-                {
-                    i++;
-                }
-            }
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.LeftArea,
-                AreaId = self._currentAreaEntry.Value.AreaId,
-                PlayerId = context0.PlayerId,
+                AreaId = areaId.Value,
+                PlayerId = playerId.Value,
             });
-        }, this, context);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, playerId0) =>
+        lock (_lock)
         {
-            // NOTE: Other player connection event is always appended, even if there's a disconnection event already in the queue
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.OtherPlayerCreated,
-                PlayerId = playerId0,
+                PlayerId = playerId,
             });
-        }, this, playerId);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, playerId0) =>
+        lock (_lock)
         {
-            for (var i = 0; i < self._pendingEvents.Count;)
-            {
-                var pendingEvent = self._pendingEvents[i];
-                if (pendingEvent.Kind == PendingEventKind.OtherPlayerCreated && pendingEvent.PlayerId == playerId0)
-                {
-                    // Cancel any pending OtherPlayerConnected event for the same player that is disconnecting
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerDeleted && pendingEvent.PlayerId == playerId0)
-                {
-                    // NOTE: There should be at most one OtherPlayerDisconnected event in the queue at the same time
-                    throw new InvalidOperationException();
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerInsideArea && pendingEvent.PlayerId == playerId0)
-                {
-                    // Cancel any pending JoinedArea event for the same player that is disconnecting
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerOutsideArea && pendingEvent.PlayerId == playerId0)
-                {
-                    // Cancel any pending LeftArea event for the same player that is disconnecting
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else
-                {
-                    i++;
-                }
-            }
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.OtherPlayerDeleted,
-                PlayerId = playerId0,
+                PlayerId = playerId,
             });
-        }, this, playerId);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0, playerId0) =>
+        lock (_lock)
         {
-            // NOTE: Other player join area event is always appended, even if there's a left area event already in the queue
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.OtherPlayerInsideArea,
-                AreaId = context0.CurrentArea,
-                PlayerId = playerId0,
+                AreaId = context.CurrentArea!.Value,
+                PlayerId = playerId,
             });
-        }, this, context, playerId);
+        }
+        
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
 
     private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, context0, playerId0) =>
+        lock (_lock)
         {
-            if (self._currentAreaEntry == null)
+            var areaId = context.CurrentArea;
+            if (areaId == null)
             {
-                self._logger.LogWarning("OtherPlayerLeftArea event received, but no current area. This should not happen.");
+                _logger.LogError("OtherPlayerLeftArea event received, but no current area. This should not happen.");
                 return;
             }
             
-            var areaId = self._currentAreaEntry.Value.AreaId;
-            for (var i = 0; i < self._pendingEvents.Count;)
-            {
-                var pendingEvent = self._pendingEvents[i];
-                if (pendingEvent.Kind == PendingEventKind.JoinedArea)
-                {
-                    // Adjust areaId to the last joined area
-                    areaId = pendingEvent.AreaId;
-                    i++;
-                }
-                else if (pendingEvent.Kind == PendingEventKind.LeftArea)
-                {
-                    // Adjust areaId to the last left area
-                    areaId = default;
-                    i++;
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerInsideArea && pendingEvent.PlayerId == playerId0 && pendingEvent.AreaId == areaId)
-                {
-                    // Cancel any pending OtherPlayerJoinedArea event for the same player that is leaving the area
-                    self._pendingEvents.RemoveAt(i);
-                }
-                else if (pendingEvent.Kind == PendingEventKind.OtherPlayerOutsideArea && pendingEvent.PlayerId == playerId0 && pendingEvent.AreaId == areaId)
-                {
-                    // NOTE: There should be at most one OtherPlayerLeftArea event in the queue at the same time
-                    throw new InvalidOperationException();
-                }
-                else
-                {
-                    i++;
-                }
-            }
-            self._pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.OtherPlayerOutsideArea,
-                AreaId = context0.CurrentArea,
-                PlayerId = playerId0,
+                AreaId = areaId.Value,
+                PlayerId = playerId,
             });
-        }, this, context, playerId);
+        }
+
+        _ecsLoop.Scheduler.Schedule((_, self) =>
+        {
+            self.ProcessPendingEvents();
+        }, this);
     }
     
-    private void OnEcsSnapshotHandler()
+    private void OnApplySnapshotHandler()
     {
         _ecsLoop.Scheduler.Schedule((_, self) =>
         {
-            while (self._pendingEvents.Count > 0)
+            self.ProcessPendingEvents();
+        }, this);
+    }
+
+    private void PrunePendingEvents()
+    {
+        void InvalidateRange(int fromIndex, int toIndex)
+        {
+            for (var i = fromIndex; i <= toIndex; i++)
             {
-                var pendingEvent = self._pendingEvents[0];
+                var p = _pendingEvents[i];
+                p.Invalidated = true;
+                _pendingEvents[i] = p;
+            }
+        }
+        
+        void InvalidateOne(int index)
+        {
+            var p = _pendingEvents[index];
+            p.Invalidated = true;
+            _pendingEvents[index] = p;
+        }
+        
+        int? lastConnectedIndex = null;
+        var playerId = _localPlayerEntry?.PlayerId;
 
-                switch (pendingEvent.Kind)
+        int? lastJoinedIndex = null;
+        var areaId = _currentAreaEntry?.AreaId;
+        
+        Dictionary<PlayerId, int> connectedPlayers = new();
+        Dictionary<PlayerId, int> areaPlayers = new();
+        
+        for (var i = 0; i < _pendingEvents.Count; i++)
+        {
+            var pendingEvent = _pendingEvents[i];
+            
+            if (pendingEvent.Invalidated)
+                continue;
+            
+            switch (pendingEvent.Kind)
+            {
+                case PendingEventKind.Connected:
                 {
-                    case PendingEventKind.Connected:
+                    if (playerId == pendingEvent.PlayerId)
                     {
-                        var playerId = pendingEvent.PlayerId;
-                        var playerQuery = self._world.Query<PlayerScopeComponent, MetadataComponent>()
-                            .HasValue<PlayerScopeComponent, PlayerId>(playerId);
-
-                        if (playerQuery.Count == 0)
-                            goto finish;
-
-                        if (self._localPlayerEntry == null)
-                        {
-                            self._logger.LogWarning("Connected event received, but no local player entry found. This should not happen.");
-                            break;
-                        }
-                        
-                        var meta = self._localPlayerEntry.Value.PlayerEntity.GetComponent<MetadataComponent>();
-                        
-                        var playerEntity = playerQuery.Entities.First();
-                        var playerEntry = new PlayerEntry()
-                        {
-                            PlayerId = playerId,
-                            PlayerEntity = playerEntity,
-                            PlayerNetworkId = meta.NetId,
-                            CurrentAreaId = null,
-                        };
-
-                        self._localPlayerEntry = playerEntry;
-                        self._allPlayers.Add(playerId);
-                        self._playerEntries.Add(playerId, playerEntry);
-                        
-                        self.OnConnected?.Invoke(playerId, playerEntity);
+                        pendingEvent.Invalidated = true;
                         break;
                     }
-                    case PendingEventKind.Disconnected:
+                    
+                    if (lastConnectedIndex != null)
                     {
-                        if (self._localPlayerEntry == null)
-                        {
-                            self._logger.LogWarning("Disconnected event received, but no local player entry found. This should not happen.");
-                            break;
-                        }
-                        
-                        var playerId = pendingEvent.PlayerId;
-                        
-                        if (self._currentAreaEntry != null)
-                        {
-                            var areaId = self._currentAreaEntry.Value.AreaId;
-                            while (self._currentAreaEntry.Value.AreaPlayers.Count > 0)
-                            {
-                                var otherPlayerId = self._currentAreaEntry.Value.AreaPlayers[0];
-                                if (otherPlayerId != playerId)
-                                    self.OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfDisconnected);
-                                self._currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
-                                var otherPlayerEntry = self._playerEntries[otherPlayerId];
-                                otherPlayerEntry.CurrentAreaId = null;
-                                self._playerEntries[otherPlayerId] = otherPlayerEntry;
-                            }
-
-                            self.OnLeftArea?.Invoke(areaId, self._currentAreaEntry.Value.AreaEntity);
-                            self._currentAreaEntry = null;
-                        }
-
-                        while (self._allPlayers.Count > 0)
-                        {
-                            var otherPlayerId = self._allPlayers[0];
-                            if (otherPlayerId != playerId)
-                            {
-                                var otherPlayerEntry = self._playerEntries[otherPlayerId];
-                                self.OnOtherPlayerDeleted?.Invoke(otherPlayerId, otherPlayerEntry.PlayerEntity, OtherPlayerDeletedReason.NotifyBeforeSelfDisconnected);
-                            }
-                            self._allPlayers.RemoveAt(0);
-                            self._playerEntries.Remove(otherPlayerId);
-                        }
-                        
-                        self.OnDisconnected?.Invoke(pendingEvent.PlayerId, self._localPlayerEntry.Value.PlayerEntity);
-                        self._localPlayerEntry = null;
-                        break;
+                        // NOTE: Assume the previous playerId should be assumed disconnected. Remove all events
+                        // from the previous playerId, but keep the current event.
+                        InvalidateRange(lastConnectedIndex.Value, i - 1);
                     }
-                    case PendingEventKind.JoinedArea:
-                    {
-                        var playerId = pendingEvent.PlayerId;
-                        var areaId = pendingEvent.AreaId;
-                        var areaQuery = self._world.Query<AreaScopeComponent, MetadataComponent>()
-                            .HasValue<AreaScopeComponent, AreaId>(areaId);
-                        
-                        if (areaQuery.Count == 0)
-                            goto finish;
-                        
-                        var areaEntity = areaQuery.Entities.First();
-
-                        var meta = areaEntity.GetComponent<MetadataComponent>();
-
-                        var areaEntry = new AreaEntry()
-                        {
-                            AreaId = areaId,
-                            AreaEntity = areaEntity,
-                            AreaNetworkId = meta.NetId,
-                            AreaPlayers = new List<PlayerId>()
-                            {
-                                playerId,
-                            },
-                        };
-
-                        self._currentAreaEntry = areaEntry;
-
-                        var playerEntry = self._playerEntries[playerId];
-                        playerEntry.CurrentAreaId = areaId;
-                        self._playerEntries[playerId] = playerEntry;
-                        self._localPlayerEntry = playerEntry;
-                        
-                        self.OnJoinedArea?.Invoke(areaId, areaEntity);
-                        break;
-                    }
-                    case PendingEventKind.LeftArea:
-                    {
-                        if (self._currentAreaEntry == null)
-                        {
-                            self._logger.LogWarning("LeftArea event received, but no current area entry found. This should not happen.");
-                            break;
-                        }
-                        
-                        var playerId = pendingEvent.PlayerId;
-                        var areaId = self._currentAreaEntry.Value.AreaId;
-                        
-                        while (self._currentAreaEntry.Value.AreaPlayers.Count > 0)
-                        {
-                            var otherPlayerId = self._currentAreaEntry.Value.AreaPlayers[0];
-                            if (otherPlayerId == playerId)
-                                continue;
-                            self.OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfLeft);
-                            self._currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
-                            var otherPlayerEntry = self._playerEntries[otherPlayerId];
-                            otherPlayerEntry.CurrentAreaId = null;
-                            self._playerEntries[otherPlayerId] = otherPlayerEntry;
-                        }
-
-                        self.OnLeftArea?.Invoke(areaId, self._currentAreaEntry.Value.AreaEntity);
-                        
-                        self._currentAreaEntry = null;
-                        var localPlayer = self._playerEntries[playerId];
-                        localPlayer.CurrentAreaId = null;
-                        self._playerEntries[playerId] = localPlayer;
-                        self._localPlayerEntry = localPlayer;
-                        break;
-                    }
-                    case PendingEventKind.OtherPlayerCreated:
-                    {
-                        var playerId = pendingEvent.PlayerId;
-                        
-                        var playerQuery = self._world.Query<PlayerScopeComponent, MetadataComponent>()
-                            .HasValue<PlayerScopeComponent, PlayerId>(playerId);
-
-                        if (playerQuery.Count == 0)
-                            goto finish;
-
-                        var playerEntity = playerQuery.Entities.First();
-
-                        var meta = playerEntity.GetComponent<MetadataComponent>();
-                        
-                        var playerEntry = new PlayerEntry()
-                        {
-                            PlayerId = playerId,
-                            PlayerEntity = playerEntity,
-                            PlayerNetworkId = meta.NetId,
-                            CurrentAreaId = null,
-                        };
-                        
-                        self._allPlayers.Add(playerId);
-                        self._playerEntries.Add(playerId, playerEntry);
-
-                        var reason = pendingEvent.IsNotify
-                            ? OtherPlayerCreatedReason.NotifyAfterSelfConnected
-                            : OtherPlayerCreatedReason.OtherConnected;
-                        self.OnOtherPlayerCreated?.Invoke(playerId, playerEntity, reason);
-                        break;
-                    }
-                    case PendingEventKind.OtherPlayerDeleted:
-                    {
-                        var playerId = pendingEvent.PlayerId;
-                        
-                        var playerEntry = self._playerEntries[playerId];
-                        if (playerEntry.CurrentAreaId != null && playerEntry.CurrentAreaId == CurrentAreaId)
-                        {
-                            var areaId = playerEntry.CurrentAreaId.Value;
-                            self.OnOtherPlayerOutsideArea?.Invoke(playerId, areaId, OtherPlayerOutsideAreaReason.OtherDisconnected);
-                            self._currentAreaEntry!.Value.AreaPlayers.Remove(playerId);
-                        }
-                        
-                        self.OnOtherPlayerDeleted?.Invoke(playerId, playerEntry.PlayerEntity, OtherPlayerDeletedReason.OtherDisconnected);
-                        self._allPlayers.Remove(playerId);
-                        self._playerEntries.Remove(playerId);
-                        
-                        if (playerEntry.CurrentAreaId != null && playerEntry.CurrentAreaId == CurrentAreaId)
-                        {
-                            self._currentAreaEntry!.Value.AreaPlayers.Remove(playerId);
-                        }
-                        
-                        break;
-                    }
-                    case PendingEventKind.OtherPlayerInsideArea:
-                    {
-                        if (self._currentAreaEntry == null)
-                        {
-                            self._logger.LogWarning("OtherPlayerInsideArea event received, but no current area entry found. This should not happen.");
-                            break;
-                        }
-                        
-                        var playerId = pendingEvent.PlayerId;
-                        var areaId = pendingEvent.AreaId;
-                        
-                        var playerQuery = self._world.Query<PlayerScopeComponent, MetadataComponent>()
-                            .HasValue<PlayerScopeComponent, PlayerId>(playerId);
-                        
-                        if (playerQuery.Count == 0)
-                            goto finish;
-                        
-                        var areaQuery = self._world.Query<AreaScopeComponent, MetadataComponent>()
-                            .HasValue<AreaScopeComponent, AreaId>(areaId);
-                        
-                        if (areaQuery.Count == 0)
-                            goto finish;
-
-                        if (self._currentAreaEntry.Value.AreaId == areaId)
-                        {
-                            self._currentAreaEntry.Value.AreaPlayers.Add(playerId);
-                        }
-
-                        var playerEntry = self._playerEntries[playerId];
-                        playerEntry.CurrentAreaId = areaId;
-                        self._playerEntries[playerId] = playerEntry;
-                        
-                        var reason = pendingEvent.IsNotify
-                            ? OtherPlayerInsideAreaReason.NotifyAfterSelfJoined
-                            : OtherPlayerInsideAreaReason.OtherJoined;
-                        self.OnOtherPlayerInsideArea?.Invoke(playerId, areaId, reason);
-                        break;
-                    }
-                    case PendingEventKind.OtherPlayerOutsideArea:
-                    {
-                        if (self._currentAreaEntry == null)
-                        {
-                            self._logger.LogWarning("OtherPlayerOutsideArea event received, but no current area entry found. This should not happen.");
-                            break;
-                        }
-                        
-                        var playerId = pendingEvent.PlayerId;
-                        var areaId = pendingEvent.AreaId;
-
-                        self._currentAreaEntry.Value.AreaPlayers.Remove(playerId);
-                        
-                        var playerEntry = self._playerEntries[playerId];
-                        playerEntry.CurrentAreaId = null;
-                        self._playerEntries[playerId] = playerEntry;
-
-                        self.OnOtherPlayerOutsideArea?.Invoke(playerId, areaId, OtherPlayerOutsideAreaReason.OtherLeft);
-                        break;
-                    }
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(pendingEvent.Kind), pendingEvent.Kind, null);
+                    
+                    lastConnectedIndex = i;
+                    playerId = pendingEvent.PlayerId;
+                    break;
                 }
+                case PendingEventKind.Disconnected:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (lastConnectedIndex != null)
+                    {
+                        // NOTE: Remove all events from the current playerId, including the current event.
+                        InvalidateRange(lastConnectedIndex.Value, i);
+                        pendingEvent.Invalidated = true;
+                    }
+                    
+                    lastConnectedIndex = null;
+                    playerId = null;
+
+                    lastJoinedIndex = null;
+                    areaId = null;
+                    
+                    connectedPlayers.Clear();
+                    areaPlayers.Clear();
+                    break;
+                }
+                case PendingEventKind.JoinedArea:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (areaId == pendingEvent.AreaId)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (lastJoinedIndex != null)
+                    {
+                        // NOTE: Assume the previous areaId should be assumed left. Remove all events
+                        // from the previous areaId, but keep the current event.
+                        InvalidateRange(lastJoinedIndex.Value, i - 1);
+                    }
+
+                    lastJoinedIndex = i;
+                    areaId = pendingEvent.AreaId;
+                    break;
+                }
+                case PendingEventKind.LeftArea:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (lastJoinedIndex != null)
+                    {
+                        // NOTE: Remove all events from the current areaId, including the current event.
+                        InvalidateRange(lastJoinedIndex.Value, i);
+                        pendingEvent.Invalidated = true;
+                    }
+                    
+                    lastJoinedIndex = null;
+                    areaId = null;
+                    areaPlayers.Clear();
+                    break;
+                }
+                case PendingEventKind.OtherPlayerCreated:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (connectedPlayers.TryGetValue(pendingEvent.PlayerId, out _))
+                    {
+                        // NOTE: If the player is already connected, remove the current duplicate event.
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    connectedPlayers.Add(pendingEvent.PlayerId, i);
+                    break;
+                }
+                case PendingEventKind.OtherPlayerDeleted:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (connectedPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerConnectedIndex))
+                    {
+                        // NOTE: Remove the corresponding connected event
+                        InvalidateOne(otherPlayerConnectedIndex);
+                        pendingEvent.Invalidated = true;
+                    }
+                    
+                    connectedPlayers.Remove(pendingEvent.PlayerId);
+                    areaPlayers.Remove(pendingEvent.PlayerId);
+                    break;
+                }
+                case PendingEventKind.OtherPlayerInsideArea:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (areaId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerJoinedIndex))
+                    {
+                        // NOTE: If the player already joined, remove the current duplicate event.
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+
+                    areaPlayers.Add(pendingEvent.PlayerId, i);
+                    break;
+                }
+                case PendingEventKind.OtherPlayerOutsideArea:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+
+                    if (areaId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+                    
+                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerJoinedIndex))
+                    {
+                        InvalidateOne(otherPlayerJoinedIndex);;
+                        pendingEvent.Invalidated = true;
+                    }
+
+                    areaPlayers.Remove(pendingEvent.PlayerId);
+                    break;
+                }
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+                
+            _pendingEvents[i] = pendingEvent;
+        }
+    }
+
+    private void ProcessPendingEvents()
+    {
+        var remove = false;
+
+        while (true)
+        {
+            PendingEvent pendingEvent;
+            
+            lock (_lock)
+            {
+                if (remove)
+                    _pendingEvents.RemoveAt(0);
+                
+                PrunePendingEvents();
+
+                if (_pendingEvents.Count == 0)
+                    break;
+            
+                pendingEvent = _pendingEvents[0];
+                remove = true;
             }
             
-            finish: return;
-        }, this);
+            if (pendingEvent.Invalidated)
+                continue;
+
+            switch (pendingEvent.Kind)
+            {
+                case PendingEventKind.Connected:
+                {
+                    if (_localPlayerEntry != null)
+                    {
+                        _logger.LogError("Connected event received, but local player entry already exists. This should not happen.");
+                        _localPlayerEntry = null;
+                        // break; skipped on purpose
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+                    var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
+                        .HasValue<PlayerScopeComponent, PlayerId>(playerId);
+
+                    if (playerQuery.Count == 0)
+                        return; // exit loop
+                    
+                    var playerEntity = playerQuery.Entities.First();
+                    var meta = playerEntity.GetComponent<MetadataComponent>();
+                    
+                    var playerEntry = new PlayerEntry()
+                    {
+                        PlayerId = playerId,
+                        PlayerEntity = playerEntity,
+                        PlayerNetworkId = meta.NetId,
+                        CurrentAreaId = null,
+                    };
+
+                    _localPlayerEntry = playerEntry;
+                    _allPlayers.Add(playerId);
+                    _playerEntries.Add(playerId, playerEntry);
+                    
+                    OnConnected?.Invoke(playerId, playerEntity);
+                    break;
+                }
+                case PendingEventKind.Disconnected:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogWarning("Disconnected event received, but no local player entry found. This happens when the player disconnects before the Connected event is processed.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+                    
+                    if (_currentAreaEntry != null)
+                    {
+                        var areaId = _currentAreaEntry.Value.AreaId;
+                        while (_currentAreaEntry.Value.AreaPlayers.Count > 0)
+                        {
+                            var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[0];
+                            if (otherPlayerId != playerId)
+                                OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfDisconnected);
+                            _currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
+                            var otherPlayerEntry = _playerEntries[otherPlayerId];
+                            otherPlayerEntry.CurrentAreaId = null;
+                            _playerEntries[otherPlayerId] = otherPlayerEntry;
+                        }
+
+                        OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
+                        _currentAreaEntry = null;
+                    }
+
+                    while (_allPlayers.Count > 0)
+                    {
+                        var otherPlayerId = _allPlayers[0];
+                        if (otherPlayerId != playerId)
+                        {
+                            var otherPlayerEntry = _playerEntries[otherPlayerId];
+                            OnOtherPlayerDeleted?.Invoke(otherPlayerId, otherPlayerEntry.PlayerEntity, OtherPlayerDeletedReason.NotifyBeforeSelfDisconnected);
+                        }
+                        _allPlayers.RemoveAt(0);
+                        _playerEntries.Remove(otherPlayerId);
+                    }
+                    
+                    OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry.Value.PlayerEntity, pendingEvent.DisconnectReason);
+                    _localPlayerEntry = null;
+                    break;
+                }
+                case PendingEventKind.JoinedArea:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("JoinedArea event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+
+                    if (_currentAreaEntry != null)
+                    {
+                        _logger.LogError("JoinedArea event received, but already in an area. This should not happen.");
+                        _currentAreaEntry = null;
+                        // break; skipped on purpose
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+                    var areaId = pendingEvent.AreaId;
+                    var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
+                        .HasValue<AreaScopeComponent, AreaId>(areaId);
+                    
+                    if (areaQuery.Count == 0)
+                        return; // exit loop
+                    
+                    var areaEntity = areaQuery.Entities.First();
+
+                    var meta = areaEntity.GetComponent<MetadataComponent>();
+
+                    var areaEntry = new AreaEntry()
+                    {
+                        AreaId = areaId,
+                        AreaEntity = areaEntity,
+                        AreaNetworkId = meta.NetId,
+                        AreaPlayers = new List<PlayerId>()
+                        {
+                            playerId,
+                        },
+                    };
+
+                    _currentAreaEntry = areaEntry;
+
+                    var playerEntry = _playerEntries[playerId];
+                    playerEntry.CurrentAreaId = areaId;
+                    _playerEntries[playerId] = playerEntry;
+                    _localPlayerEntry = playerEntry;
+                    
+                    OnJoinedArea?.Invoke(areaId, areaEntity);
+                    break;
+                }
+                case PendingEventKind.LeftArea:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("LeftArea event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    if (_currentAreaEntry == null)
+                    {
+                        _logger.LogWarning("LeftArea event received, but no current area entry found. This happens when a player leaves before the JoinedArea event is processed.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+                    var areaId = _currentAreaEntry.Value.AreaId;
+                    
+                    while (_currentAreaEntry.Value.AreaPlayers.Count > 0)
+                    {
+                        var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[0];
+                        if (otherPlayerId == playerId)
+                            continue;
+                        OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfLeft);
+                        _currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
+                        var otherPlayerEntry = _playerEntries[otherPlayerId];
+                        otherPlayerEntry.CurrentAreaId = null;
+                        _playerEntries[otherPlayerId] = otherPlayerEntry;
+                    }
+
+                    OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
+                    
+                    _currentAreaEntry = null;
+                    var localPlayer = _playerEntries[playerId];
+                    localPlayer.CurrentAreaId = null;
+                    _playerEntries[playerId] = localPlayer;
+                    _localPlayerEntry = localPlayer;
+                    break;
+                }
+                case PendingEventKind.OtherPlayerCreated:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerCreated event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+
+                    if (_playerEntries.ContainsKey(playerId))
+                    {
+                        _logger.LogError("OtherPlayerCreated event received for player {PlayerId}, but player entry already exists. This should not happen.", playerId);
+                        _playerEntries.Remove(playerId);
+                        // break; skipped on purpose
+                    }
+                    
+                    var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
+                        .HasValue<PlayerScopeComponent, PlayerId>(playerId);
+
+                    if (playerQuery.Count == 0)
+                        return; // exit loop
+
+                    var playerEntity = playerQuery.Entities.First();
+
+                    var meta = playerEntity.GetComponent<MetadataComponent>();
+                    
+                    var playerEntry = new PlayerEntry()
+                    {
+                        PlayerId = playerId,
+                        PlayerEntity = playerEntity,
+                        PlayerNetworkId = meta.NetId,
+                        CurrentAreaId = null,
+                    };
+                    
+                    _allPlayers.Add(playerId);
+                    _playerEntries.Add(playerId, playerEntry);
+
+                    var reason = pendingEvent.IsNotify
+                        ? OtherPlayerCreatedReason.NotifyAfterSelfConnected
+                        : OtherPlayerCreatedReason.OtherConnected;
+                    OnOtherPlayerCreated?.Invoke(playerId, playerEntity, reason);
+                    break;
+                }
+                case PendingEventKind.OtherPlayerDeleted:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerDeleted event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+                    
+                    if (!_playerEntries.TryGetValue(playerId, out var playerEntry))
+                    {
+                        _logger.LogWarning("OtherPlayerDeleted event received for player {PlayerId}, but no player entry found. This happens when the other player disconnects before the OtherPlayerCreated event is processed.", playerId);
+                        break;
+                    }
+                    
+                    if (playerEntry.CurrentAreaId != null && playerEntry.CurrentAreaId == CurrentAreaId)
+                    {
+                        var areaId = playerEntry.CurrentAreaId.Value;
+                        OnOtherPlayerOutsideArea?.Invoke(playerId, areaId, OtherPlayerOutsideAreaReason.OtherDisconnected);
+                        _currentAreaEntry!.Value.AreaPlayers.Remove(playerId);
+                    }
+                    
+                    OnOtherPlayerDeleted?.Invoke(playerId, playerEntry.PlayerEntity, OtherPlayerDeletedReason.OtherDisconnected);
+                    _allPlayers.Remove(playerId);
+                    _playerEntries.Remove(playerId);
+                    
+                    if (playerEntry.CurrentAreaId != null && playerEntry.CurrentAreaId == CurrentAreaId)
+                    {
+                        _currentAreaEntry!.Value.AreaPlayers.Remove(playerId);
+                    }
+                    
+                    break;
+                }
+                case PendingEventKind.OtherPlayerInsideArea:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerInsideArea event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    if (_currentAreaEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerInsideArea event received, but no current area entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+
+                    if (!_playerEntries.TryGetValue(playerId, out var playerEntry))
+                    {
+                        _logger.LogWarning("OtherPlayerInsideArea event received for player {PlayerId}, but no player entry found. This should not happen.", playerId);
+                        break;
+                    }
+
+                    if (playerEntry.CurrentAreaId != null)
+                    {
+                        _logger.LogError("OtherPlayerInsideArea event received for player {PlayerId}, but player is already inside area {CurrentAreaId}. This should not happen.",
+                            playerId, playerEntry.CurrentAreaId);
+                        playerEntry.CurrentAreaId = null;
+                        _playerEntries[playerId] = playerEntry;
+                        // NOTE: no break; here on purpose
+                    }
+
+                    var areaId = pendingEvent.AreaId;
+                    
+                    if (_currentAreaEntry.Value.AreaId != areaId)
+                    {
+                        _logger.LogWarning("Received OtherPlayerInsideArea event for player {PlayerId} in area {AreaId}, but current area is {CurrentAreaId}",
+                            playerId, areaId, _currentAreaEntry.Value.AreaId);
+                        break;
+                    }
+                    
+                    var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
+                        .HasValue<PlayerScopeComponent, PlayerId>(playerId);
+                    
+                    if (playerQuery.Count == 0)
+                        return; // exit loop
+                    
+                    var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
+                        .HasValue<AreaScopeComponent, AreaId>(areaId);
+                    
+                    if (areaQuery.Count == 0)
+                        return; // exit loop
+
+                    _currentAreaEntry.Value.AreaPlayers.Add(playerId);
+
+                    playerEntry.CurrentAreaId = areaId;
+                    _playerEntries[playerId] = playerEntry;
+                    
+                    var reason = pendingEvent.IsNotify
+                        ? OtherPlayerInsideAreaReason.NotifyAfterSelfJoined
+                        : OtherPlayerInsideAreaReason.OtherJoined;
+                    OnOtherPlayerInsideArea?.Invoke(playerId, areaId, reason);
+                    break;
+                }
+                case PendingEventKind.OtherPlayerOutsideArea:
+                {
+                    if (_localPlayerEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerOutsideArea event received, but no local player entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    if (_currentAreaEntry == null)
+                    {
+                        _logger.LogError("OtherPlayerOutsideArea event received, but no current area entry found. This should not happen.");
+                        break;
+                    }
+                    
+                    var playerId = pendingEvent.PlayerId;
+
+                    if (!_playerEntries.TryGetValue(playerId, out var playerEntry))
+                    {
+                        _logger.LogWarning("OtherPlayerOutsideArea event received for player {PlayerId}, but no player entry found. This happens when a player disconnects before the OtherPlayerOutsideArea event gets processed.", playerId);
+                        break;
+                    }
+                    
+                    if (playerEntry.CurrentAreaId == null)
+                    {
+                        _logger.LogWarning("OtherPlayerOutsideArea event received for player {PlayerId}, but player is already outside area. This happens when a player leaves before the OtherPlayerInsideArea event is processed.", playerId);
+                        break;
+                    }
+                    
+                    var areaId = pendingEvent.AreaId;
+
+                    _currentAreaEntry.Value.AreaPlayers.Remove(playerId);
+                    
+                    playerEntry.CurrentAreaId = null;
+                    _playerEntries[playerId] = playerEntry;
+
+                    OnOtherPlayerOutsideArea?.Invoke(playerId, areaId, OtherPlayerOutsideAreaReason.OtherLeft);
+                    break;
+                }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(pendingEvent.Kind), pendingEvent.Kind, null);
+            }
+        }
     }
 }

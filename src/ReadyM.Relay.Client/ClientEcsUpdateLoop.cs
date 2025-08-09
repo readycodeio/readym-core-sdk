@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
@@ -7,10 +6,13 @@ using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Helpers;
-using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Relay.Client;
 
+/// <summary>
+/// This class is responsible for scheduling ECS operations on the client side. The current implementation assumes
+/// that the update loop tick will be called externally from the game code, on the appropriate thread.
+/// </summary>
 public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 {
     public readonly Store World;
@@ -18,8 +20,6 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     private readonly ILogger _logger;
 
-    private readonly Stopwatch _lastUpdate = new Stopwatch();
-    
     private readonly PendingActionUpdater<CommandBufferSynced> _scheduler;
     
     public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
@@ -39,7 +39,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         _scheduler = new(CommandBuffer, logger);
     }
 
-    public async Task StartAsync(CancellationToken token)
+    public void Start()
     {
         if (IsRunning)
         {
@@ -51,13 +51,12 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         
         _logger.LogInformation("Starting ECS update loop");
 
-        await Task.Delay(1, token);
         _scheduler.SetThread(Thread.CurrentThread);
         
         _logger.LogInformation("ECS update loop started successfully");
     }
 
-    public async Task RunAsync(CancellationToken token)
+    public void Tick(UpdateTick tick)
     {
         if (!IsRunning)
         {
@@ -65,23 +64,29 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             return;
         }
         
-        while (!token.IsCancellationRequested)
-        {
-            _lastUpdate.Restart();
-            
-            CommandBuffer.Playback();
+        CommandBuffer.Playback();
 
-            World.SystemRoot.Update(default);
+        World.SystemRoot.Update(tick);
 
-            _scheduler.Update();
-            
-            OnUpdateLoop?.Invoke(CommandBuffer);
-            
-            // Wait for the next update cycle
-            await Task.Delay(Constants.ClientEcsUpdateRateMs - (int)_lastUpdate.ElapsedMilliseconds, token);
-        }
+        _scheduler.Update();
+        
+        OnUpdateLoop?.Invoke(CommandBuffer);
     }
 
+    public void Wait(Task task)
+    {
+        while (true)
+        {
+            if (task.IsCompleted || task.IsFaulted || task.IsCanceled)
+                break;
+            
+            Tick(default);
+            
+            // FIXME: This is very ugly
+            Thread.Sleep(33);
+        }
+    }
+    
     public void Stop()
     {
         if (!IsRunning)
@@ -91,7 +96,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         }
 
         IsRunning = false;
-        _scheduler.SetThread(null!);
+        _scheduler.SetThread(null);
         _logger.LogInformation("ECS update loop stopped.");
     }
 

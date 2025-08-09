@@ -14,8 +14,6 @@ namespace ReadyM.Api.Multiplayer.Server;
 
 public interface IRelayServer : IDisposable
 {
-    bool IsRunning { get; }
-
     PendingActionScheduler<IRelayServerNetworkThreadContext> Scheduler { get; }
     
     Task StartAsync(CancellationToken token);
