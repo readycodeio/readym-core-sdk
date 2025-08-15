@@ -13,7 +13,7 @@ using ReadyM.Relay.Client.Shim;
 
 namespace ReadyM.Relay.Client.Blobs;
 
-public class BlobClient : IShimRecordableBlobClient, IDisposable
+public class BlobClient : IBlobClient, IDisposable
 {
     private readonly IRelayClient _relayClient;
     private readonly ILogger _logger;

@@ -5,11 +5,11 @@ namespace ReadyM.Api.Multiplayer.Server.Rpc;
 
 public readonly struct ServerRpcEventEntry: IEquatable<ServerRpcEventEntry>, IComparable<ServerRpcEventEntry>
 {
-    public byte EventCode { get; }
+    public RelayMessageCode EventCode { get; }
 
-    public ServerRpcEventEntry(byte eventCode)
+    public ServerRpcEventEntry(RelayMessageCode eventCode)
     {
-        if (eventCode < (int)RelayMessageCode.MinServerRpcEvent || eventCode > (int)RelayMessageCode.MaxServerRpcEvent)
+        if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), "Invalid server rpc event code");
         EventCode = eventCode;
     }

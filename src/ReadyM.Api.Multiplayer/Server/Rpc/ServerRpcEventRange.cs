@@ -1,4 +1,5 @@
 ﻿using System;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Server.Rpc;
 
@@ -7,10 +8,10 @@ public readonly struct ServerRpcEventRange
     private readonly ServerRpcEventEntry _minEventCode;
     private readonly ServerRpcEventEntry _maxEventCode;
 
-    public byte MinEventCode => _minEventCode.EventCode;
-    public byte MaxEventCode => _maxEventCode.EventCode;
+    public RelayMessageCode MinEventCode => _minEventCode.EventCode;
+    public RelayMessageCode MaxEventCode => _maxEventCode.EventCode;
 
-    public ServerRpcEventRange(byte minEventCode, byte maxEventCode)
+    public ServerRpcEventRange(RelayMessageCode minEventCode, RelayMessageCode maxEventCode)
         : this(new ServerRpcEventEntry(minEventCode), new ServerRpcEventEntry(maxEventCode)) { }
 
     public ServerRpcEventRange(ServerRpcEventEntry minEventCode, ServerRpcEventEntry maxEventCode)

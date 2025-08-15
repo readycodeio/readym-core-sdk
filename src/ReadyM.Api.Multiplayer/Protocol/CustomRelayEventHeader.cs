@@ -14,13 +14,13 @@ namespace ReadyM.Api.Multiplayer.Protocol;
 /// </summary>
 [DeriveJsonSerializable]
 public readonly partial struct CustomRelayEventHeader(
-    byte eventCode,
+    RelayMessageCode eventCode,
     PlayerId sender,
     PlayerId[]? peers,
     RelayMode relayMode = RelayMode.AreaOfInterestOthers
 )
 {
-    public readonly byte EventCode = eventCode;
+    public readonly RelayMessageCode EventCode = eventCode;
     public readonly PlayerId Sender = sender;
     public readonly PlayerId[]? Peers = peers;
     public readonly RelayMode RelayMode = relayMode;

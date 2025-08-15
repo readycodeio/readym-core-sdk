@@ -743,7 +743,7 @@ public class RelayClient : IShimRecordableRelayClient
             {
                 if (eventCode >= RelayMessageCode.MinBuiltInEvent)
                 {
-                    var serverHeader = new ServerEventHeader((byte)eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
                     serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                     return;
@@ -751,7 +751,7 @@ public class RelayClient : IShimRecordableRelayClient
                 
                 if (eventCode >= RelayMessageCode.MinServerRpcEvent)
                 {
-                    var serverHeader = new ServerEventHeader((byte)eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
                     serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                     return;

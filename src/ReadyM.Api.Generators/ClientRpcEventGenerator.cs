@@ -15,7 +15,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
     private const string PlayerIdTypeName = "PlayerId";
     private const string ContextParameterName = "__context";
     private const string SenderParameterName = "__sender";
-    private const string EventCodeTypeName = "Byte";
+    private const string EventCodeTypeName = "RelayMessageCode";
     private const string EventCodeParameterName = "__eventCode";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -68,12 +68,12 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
         var groupsByClass = methods.GroupBy(m => m.Symbol.ContainingType, SymbolEqualityComparer.Default);
 
-        var eventCode = 0;
+        var eventCodeByte = 0;
 
         foreach (var group in groupsByClass)
         {
-            var minEventCode = eventCode;
-            var maxEventCode = eventCode;
+            var minEventCode = eventCodeByte;
+            var maxEventCode = eventCodeByte;
             
             var classSymbol = group.Key;
             var ns = classSymbol!.ContainingNamespace.ToDisplayString();
@@ -103,7 +103,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
             foreach (var method in group)
             {
-                if (eventCode > byte.MaxValue)
+                if (eventCodeByte > byte.MaxValue)
                 {
                     sb.AppendLine("""#error "Too many RPC events; limit is 256." """);
                     break;
@@ -152,7 +152,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                             valid = false;
                             break;
                         }
-                        // byte __eventCode
+                        // RelayMessageCode __eventCode
                         eventCodeIndex = i;
                         paramTypes.Add((null, false, false));
                     }
@@ -180,7 +180,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
                 if (!valid)
                 {
-                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([IRelayClientNetworkThreadContext __context], [PlayerId __sender], [byte __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
+                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([IRelayClientNetworkThreadContext __context], [PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
                     continue;
                 }
 
@@ -221,7 +221,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 sb.AppendLine($$"""
                                         public void {{sendMethod}}({{sendParamList}})
                                         {
-                                            var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCode}}, RelayClient.PlayerId!.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                            var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCodeByte}}, RelayClient.PlayerId!.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                             var writer = message.Writer;
                                 """);
 
@@ -262,7 +262,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
                               """);
 
-                dispatchCases.AppendLine($"                case {eventCode}:\n                {{");
+                dispatchCases.AppendLine($"                case {eventCodeByte}:\n                {{");
 
                 payloadCount = 0;
                 for (var i = 0; i < paramTypes.Count; i++)
@@ -326,15 +326,15 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 dispatchCases.AppendLine("                    break;");
                 dispatchCases.AppendLine("                }");
 
-                maxEventCode = eventCode;
-                eventCode++;
+                maxEventCode = eventCodeByte;
+                eventCodeByte++;
             }
 
             // Emit OnCustomEvent override
             sb.AppendLine($$"""
                                     protected void OnCustomRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
                                     {
-                                        switch (header.EventCode)
+                                        switch ((byte)header.EventCode)
                                         {
                             {{dispatchCases}}
                                             default:

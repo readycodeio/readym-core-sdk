@@ -1,4 +1,5 @@
 ﻿using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Protocol;
@@ -9,8 +10,8 @@ namespace ReadyM.Api.Multiplayer.Protocol;
 /// - 2 bytes for sender
 /// </summary>
 [DeriveJsonSerializable]
-public readonly partial struct ServerEventHeader(byte eventCode, PlayerId sender)
+public readonly partial struct ServerEventHeader(RelayMessageCode eventCode, PlayerId sender)
 {
-    public readonly byte EventCode = eventCode;
+    public readonly RelayMessageCode EventCode = eventCode;
     public readonly PlayerId Sender = sender;
 }

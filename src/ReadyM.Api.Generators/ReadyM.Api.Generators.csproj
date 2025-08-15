@@ -8,7 +8,11 @@
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <Platforms>AnyCPU</Platforms>
         <RootNamespace>ReadyM.Relay.Common.Generators</RootNamespace>
-        <TargetFrameworks>net9.0;netstandard2.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(DesignTimeBuild)'=='true' and '$(TargetFrameworks)'!=''">
+        <TargetFramework>netstandard2.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

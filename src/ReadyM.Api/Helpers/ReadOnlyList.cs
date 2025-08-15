@@ -19,4 +19,7 @@ public readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
 
     IEnumerator IEnumerable.GetEnumerator()
         => ((IEnumerable)list).GetEnumerator();
+    
+    public bool Contains(T item)
+        => list.Contains(item);
 }

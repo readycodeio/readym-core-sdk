@@ -8,6 +8,7 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Client;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -16,7 +17,7 @@ using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimRelayClient : IRelayClient
+public class ShimPlaybackRelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
@@ -34,15 +35,19 @@ public class ShimRelayClient : IRelayClient
             => new(AreaPlayers);
     }
 
+    private readonly ShimReplayDependencyTracker _depTracker;
+    private readonly ShimRelayMessageParser _parser;
     private readonly ILogger _logger;
     
-    private ShimRecording? _recording;
     private int _delay;
     private Stopwatch? _stopwatch;
-    private int _index;
 
     private readonly object _lock = new();
-    private readonly List<ShimRequestItem> _requests = new();
+
+    private PlayerId? _playerId;
+    private List<ShimRequestItem> _requestItems = new();
+    private int _responseItemIndex;
+    private List<ShimResponseItem> _responseItems = new();
 
     private readonly NetworkThreadContext _netThreadContext = new();
     private readonly PendingActionUpdater<IRelayClientNetworkThreadContext> _scheduler;
@@ -64,7 +69,7 @@ public class ShimRelayClient : IRelayClient
                 return null;
             lock (_lock)
             {
-                return _recording!.PlayerId;
+                return _playerId;
             }
         }
     }
@@ -236,8 +241,10 @@ public class ShimRelayClient : IRelayClient
 
     public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
 
-    public ShimRelayClient(ILogger logger)
+    public ShimPlaybackRelayClient(ShimReplayDependencyTracker depTracker, ShimRelayMessageParser parser, ILogger logger)
     {
+        _depTracker = depTracker;
+        _parser = parser;
         _logger = logger;
         _scheduler = new(_netThreadContext, _logger);
     }
@@ -247,36 +254,11 @@ public class ShimRelayClient : IRelayClient
         Stop();
     }
 
-    private bool PeekRequest(out ShimRequestItem requestItem)
+    private void AddRequest(ShimRequestItem requestItem)
     {
         lock (_lock)
         {
-            if (_requests.Count == 0)
-            {
-                requestItem = default;
-                return false;
-            }
-        
-            requestItem = _requests[0];
-            return true;
-        }
-    }
-
-    private ShimRequestItem PopRequest()
-    {
-        lock (_lock)
-        {
-            var result = _requests[0];
-            _requests.RemoveAt(0);
-            return result;
-        }
-    }
-
-    private void PushRequest(ShimRequestItem requestItem)
-    {
-        lock (_lock)
-        {
-            _requests.Add(requestItem);
+            _requestItems.Add(requestItem);
         }
     }
     
@@ -287,7 +269,9 @@ public class ShimRelayClient : IRelayClient
         _delay = delay;
         lock (_lock)
         {
-            _recording = recording;
+            _playerId = recording.PlayerId;
+            _requestItems = new();
+            _responseItems = new List<ShimResponseItem>(recording.ResponseItems);
         }
     }
 
@@ -301,16 +285,16 @@ public class ShimRelayClient : IRelayClient
     {
         try
         {
-            ShimItem? item = null;
+            ShimResponseItem? responseItem = null;
             lock (_lock)
             {
-                if (_index < _recording!.Items.Count)
+                if (_responseItemIndex < _responseItems.Count)
                 {
-                    item = _recording.Items[_index];
+                    responseItem = _responseItems[_responseItemIndex];
                 }
             }
 
-            if (item == null)
+            if (responseItem == null)
             {
                 await Task.Delay(Constants.ClientNetworkTickRateMs, token);
                 goto finish;
@@ -318,15 +302,29 @@ public class ShimRelayClient : IRelayClient
 
             var elapsed = _stopwatch!.ElapsedMilliseconds - _delay;
 
-            if (item.Value.Elapsed > elapsed)
+            if (responseItem.Value.Elapsed > elapsed)
             {
                 await Task.Delay(Constants.ClientNetworkTickRateMs, token);
                 goto finish;
             }
 
-            _index++;
-            ProcessItem(item.Value);
-            
+            if (ProcessResponseItem(responseItem.Value))
+            {
+                _responseItemIndex++;
+
+                for (var i = 0; i < _requestItems.Count;)
+                {
+                    var requestItem = _requestItems[i];
+                    if (_depTracker.CheckRequestCanDelete(requestItem, responseItem.Value))
+                    {
+                        _requestItems.RemoveAt(i);
+                        continue;
+                    }
+
+                    i++;
+                }
+            }
+
             finish:
             {
                 OnClientUpdate?.Invoke(_netThreadContext);
@@ -371,9 +369,6 @@ public class ShimRelayClient : IRelayClient
     
     public void Start()
     {
-        if (_recording == null)
-            throw new InvalidOperationException("Recording is not set. Call `SetRecording()` before starting the client.");
-        
         if (_isRunning)
         {
             _logger.LogError("Relay client is already running");
@@ -387,16 +382,13 @@ public class ShimRelayClient : IRelayClient
 
         _stopwatch = new Stopwatch();
         _stopwatch.Start();
-        _index = 0;
+        _responseItemIndex = 0;
 
         _logger.LogInformation("Started shim relay client");
     }
 
     public async Task RunAsync(CancellationToken token)
     {
-        if (_recording == null)
-            throw new InvalidOperationException("Recording is not set. Call `SetRecording()` before starting the client.");
-
         if (!_isRunning)
         {
             _logger.LogError("Relay client is not running. Call `StartAsync()` first.");
@@ -457,7 +449,7 @@ public class ShimRelayClient : IRelayClient
         }
         RequestedConnect = true;
         
-        PushRequest(new ShimRequestItem()
+        AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedConnect,
         });
@@ -480,7 +472,7 @@ public class ShimRelayClient : IRelayClient
         }
         RequestedConnect = false;
         
-        PushRequest(new ShimRequestItem()
+        AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedDisconnect,
         });
@@ -520,7 +512,7 @@ public class ShimRelayClient : IRelayClient
             return;
         }
         
-        PushRequest(new ShimRequestItem()
+        AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedJoinArea,
             AreaId = areaId,
@@ -550,7 +542,7 @@ public class ShimRelayClient : IRelayClient
         }
         RequestedAreaId = null;
         
-        PushRequest(new ShimRequestItem()
+        AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedLeaveArea,
         });
@@ -558,46 +550,90 @@ public class ShimRelayClient : IRelayClient
         OnRequestedLeaveArea?.Invoke();
     }
 
+    [ThreadStatic] private static NetDataReader? _reader;
+
     public void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod)
     {
-        _logger.LogTrace("Sending message to server with delivery method {DeliveryMethod}", deliveryMethod);
+        var reader = _reader ??= new NetDataReader();
+        reader.SetSource(writer.Data, 0, writer.Length);
+     
+        var eventCode = (RelayMessageCode)reader.GetByte();
+        var requestItem = new ShimRequestItem();
+        
+        if (eventCode >= RelayMessageCode.MinBuiltInEvent)
+        {
+            var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+            requestItem.Kind = ShimRequestKind.SentBuiltInMessage;
+            requestItem.ServerHeader = serverHeader;
+            requestItem.CustomData = _parser.GetBuiltInRequestCustomData(serverHeader, reader);
+        }
+        else if (eventCode >= RelayMessageCode.MinServerRpcEvent)
+        {
+            var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+            requestItem.Kind = ShimRequestKind.SentServerRpcMessage;
+            requestItem.ServerHeader = serverHeader;
+            requestItem.CustomData = _parser.GetServerRpcRequestCustomData(serverHeader, reader);
+        }
+        else
+        {
+            var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
+            requestItem.Kind = ShimRequestKind.SentClientRpcMessage;
+            requestItem.ClientHeader = clientHeader;
+            requestItem.CustomData = _parser.GetClientRpcRequestCustomData(clientHeader, reader);
+        }
+
+        requestItem.RawData = new ShimBuffer(writer.Data, 1, writer.Length);
+        
+        AddRequest(requestItem);
     }
 
     public void SendMessage(RelayMessage message)
     {
-        _logger.LogTrace("Sending message to server: {Message}", message);
+        SendRawMessage(message.Writer, message.DeliveryMethod);
     }
 
-    public void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod) where T : INetSerializable
+    public void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
     {
-        _logger.LogTrace("Sending message to server: {EventCode} with data {Data}", eventCode, data);
+        var message = RelayMessage.ToServer(eventCode, deliveryMethod);
+        data.Serialize(message.Writer);
+        SendMessage(message);
     }
 
-    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod) where T : INetSerializable
+    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
     {
-        _logger.LogTrace("Sending message to peers: {EventCode} with data {Data} to players {Peers}", eventCode, data, string.Join(", ", peers));
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+
+        var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
+        data.Serialize(message.Writer);
+        SendMessage(message);
     }
 
-    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod) where T : INetSerializable
+    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
+        where T : INetSerializable
     {
-        _logger.LogTrace("Sending message to peers in relay mode {Mode}: {EventCode} with data {Data}", mode, eventCode, data);
+        var playerId = PlayerId;
+        if (playerId == null)
+            throw new Exception("PlayerId cannot be null");
+
+        var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
+        SendMessage(message);
     }
 
-    public bool ProcessItem(ShimItem item)
+    public bool ProcessResponseItem(ShimResponseItem responseItem)
     {
-        switch (item.Kind)
+        if (_depTracker.CheckResponseShouldWait(responseItem, _netThreadContext, _requestItems))
+            return false;
+        
+        switch (responseItem.Kind)
         {
-            case ShimItemKind.RequestedConnect:
-            {
-                if (!PeekRequest(out var request) || request.Kind != ShimRequestKind.RequestedConnect)
-                    return false;
-                PopRequest();
-                break;
-            }
-            case ShimItemKind.Connected:
+            case ShimResponseKind.Connected:
             {
                 // Assumes RequestedStart first
-                var playerId = item.PlayerId;
+                var playerId = responseItem.PlayerId;
                 if (_netThreadContext.PlayerId != null)
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
@@ -609,25 +645,21 @@ public class ShimRelayClient : IRelayClient
                 OnConnected?.Invoke(_netThreadContext, playerId);
                 break;
             }
-            case ShimItemKind.RequestedDisconnect:
-            {
-                if (!PeekRequest(out var request) || request.Kind != ShimRequestKind.RequestedDisconnect)
-                    return false;
-                PopRequest();
-                break;
-            }
-            case ShimItemKind.Disconnected:
+            case ShimResponseKind.Disconnected:
             {
                 // Assumes RequestedStop first
-                _logger.LogInformation("Disconnected from server: {Reason}", item.DisconnectReason);
+                _logger.LogInformation("Disconnected from server: {Reason}", responseItem.DisconnectReason);
                 _netThreadContext.Connected = false;
-                _lastDisconnectReason = item.DisconnectReason;
-                OnDisconnected?.Invoke(_netThreadContext, item.DisconnectReason);
+                _lastDisconnectReason = responseItem.DisconnectReason;
+                OnDisconnected?.Invoke(_netThreadContext, responseItem.DisconnectReason);
                 break;
             }
-            case ShimItemKind.OtherPlayerConnected:
+            case ShimResponseKind.OtherPlayerConnected:
             {
-                var playerId = item.PlayerId;
+                if (!_netThreadContext.Connected)
+                    return false;  
+
+                var playerId = responseItem.PlayerId;
                 if (!_netThreadContext.AllPlayers.Contains(playerId))
                 {
                     _netThreadContext.AllPlayers.Add(playerId);
@@ -639,9 +671,12 @@ public class ShimRelayClient : IRelayClient
                 }
                 break;
             }
-            case ShimItemKind.OtherPlayerDisconnected:
+            case ShimResponseKind.OtherPlayerDisconnected:
             {
-                var playerId = item.PlayerId;
+                if (!_netThreadContext.Connected)
+                    return false;  
+
+                var playerId = responseItem.PlayerId;
                 if (_netThreadContext.AllPlayers.Contains(playerId))
                 {
                     _netThreadContext.AllPlayers.Remove(playerId);
@@ -659,17 +694,13 @@ public class ShimRelayClient : IRelayClient
                 }
                 break;
             }
-            case ShimItemKind.RequestedJoinArea:
+            case ShimResponseKind.JoinedArea:
             {
-                if (!PeekRequest(out var request) || request.Kind != ShimRequestKind.RequestedJoinArea)
-                    return false;
-                PopRequest();
-                break;
-            }
-            case ShimItemKind.JoinedArea:
-            {
+                if (!_netThreadContext.Connected)
+                    return false;  
+
                 // Assumes RequestedJoinArea first
-                var playerId = item.PlayerId;
+                var playerId = responseItem.PlayerId;
                 if (_netThreadContext.PlayerId == null)
                 {
                     _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but PlayerId is not set", playerId, _netThreadContext.PlayerId);
@@ -681,29 +712,27 @@ public class ShimRelayClient : IRelayClient
                     break;
                 }
 
-                if (_netThreadContext.CurrentArea != AreaId.Invalid)
+                if (_netThreadContext.CurrentArea != null)
                 {
                     _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentArea);
                     break;
                 }
-                var areaId = item.AreaId;
+                var areaId = responseItem.AreaId;
                 _netThreadContext.CurrentArea = areaId;
                 _netThreadContext.AreaPlayers.Clear();
                 _netThreadContext.AreaPlayers.Add(playerId);
                 OnJoinedArea?.Invoke(_netThreadContext, areaId);
                 break;
             }
-            case ShimItemKind.RequestedLeaveArea:
+            case ShimResponseKind.LeftArea:
             {
-                if (!PeekRequest(out var request) || request.Kind != ShimRequestKind.RequestedLeaveArea)
+                if (!_netThreadContext.Connected)
                     return false;
-                PopRequest();
-                break;
-            }
-            case ShimItemKind.LeftArea:
-            {
+                if (_netThreadContext.CurrentArea == null)
+                    return false;
+
                 // Assumes RequestedLeaveArea first
-                var playerId = item.PlayerId;
+                var playerId = responseItem.PlayerId;
                 if (_netThreadContext.PlayerId == null)
                 {
                     _logger.LogError("Received handshake for leaving area by player {PlayerId} but PlayerId is not set", playerId);
@@ -715,21 +744,26 @@ public class ShimRelayClient : IRelayClient
                     break;
                 }
 
-                if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                if (_netThreadContext.CurrentArea == null)
                 {
                     _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
                     break;
                 }
                 
-                _netThreadContext.CurrentArea = AreaId.Invalid;
+                _netThreadContext.CurrentArea = null;
                 _netThreadContext.AreaPlayers.Remove(playerId);
                 OnLeftArea?.Invoke(_netThreadContext);
                 break;
             }
-            case ShimItemKind.OtherPlayerJoinedArea:
+            case ShimResponseKind.OtherPlayerJoinedArea:
             {
-                var playerId = item.PlayerId;
-                if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                if (!_netThreadContext.Connected)
+                    return false;
+                if (_netThreadContext.CurrentArea == null)
+                    return false;
+                
+                var playerId = responseItem.PlayerId;
+                if (_netThreadContext.CurrentArea == null)
                 {
                     _logger.LogError("Received area event for player {PlayerId} but current area is not set", playerId);
                     break;
@@ -745,9 +779,14 @@ public class ShimRelayClient : IRelayClient
                 }
                 break;
             }
-            case ShimItemKind.OtherPlayerLeftArea:
+            case ShimResponseKind.OtherPlayerLeftArea:
             {
-                var playerId = item.PlayerId;
+                if (!_netThreadContext.Connected)
+                    return false;
+                if (_netThreadContext.CurrentArea == null)
+                    return false;
+
+                var playerId = responseItem.PlayerId;
                 if (_netThreadContext.AreaPlayers.Contains(playerId))
                 {
                     _netThreadContext.AreaPlayers.Remove(playerId);
@@ -759,55 +798,58 @@ public class ShimRelayClient : IRelayClient
                 }
                 break;
             }
-            case ShimItemKind.PingUpdated:
-            {
-                OnPingUpdated?.Invoke(_netThreadContext, item.Ping);
-                break;
-            }
-            case ShimItemKind.AnyBuiltInMessage:
+            case ShimResponseKind.PingUpdated:
             {
                 if (!_netThreadContext.Connected)
                     return false;
                 
-                var serverHeader = item.ServerHeader;
-                var rawData = item.RawData;
-                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.Length);
-                var serverHandler = _serverMessageHandlers[serverHeader.EventCode];
+                OnPingUpdated?.Invoke(_netThreadContext, responseItem.Ping);
+                break;
+            }
+            case ShimResponseKind.AnyBuiltInMessage:
+            {
+                if (!_netThreadContext.Connected)
+                    return false;  
+                
+                var serverHeader = responseItem.ServerHeader;
+                var rawData = responseItem.RawData;
+                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
+                var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
                 serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                 break;
             }
-            case ShimItemKind.AnyServerMessage:
+            case ShimResponseKind.AnyServerMessage:
             {
                 if (!_netThreadContext.Connected)
                     return false;
                 
-                var serverHeader = item.ServerHeader;
-                var rawData = item.RawData;
-                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.Length);
-                var serverHandler = _serverMessageHandlers[serverHeader.EventCode];
+                var serverHeader = responseItem.ServerHeader;
+                var rawData = responseItem.RawData;
+                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
+                var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
                 serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
                 break;
             }
-            case ShimItemKind.AnyClientMessage:
+            case ShimResponseKind.AnyClientMessage:
             {
                 if (!_netThreadContext.Connected)
                     return false;
                 
-                var clientHeader = item.ClientHeader;
+                var clientHeader = responseItem.ClientHeader;
                 if (clientHeader.RelayMode == RelayMode.AreaOfInterestOthers || clientHeader.RelayMode == RelayMode.AreaOfInterestAll)
                 {
-                    if (_netThreadContext.CurrentArea == AreaId.Invalid)
+                    if (_netThreadContext.CurrentArea == null)
                         return false;
                 }
                 
-                var rawData = item.RawData;
-                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.Length);
-                var clientHandler = _clientMessageHandlers[clientHeader.EventCode];
+                var rawData = responseItem.RawData;
+                var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
+                var clientHandler = _clientMessageHandlers[(int)clientHeader.EventCode];
                 clientHandler?.Invoke(_netThreadContext, clientHeader, reader);
                 break;
             }
             default:
-                throw new ArgumentOutOfRangeException(nameof(item.Kind), item.Kind, $"Unknown ShimItemKind: {item.Kind}");
+                throw new ArgumentOutOfRangeException(nameof(responseItem.Kind), responseItem.Kind, $"Unknown ShimItemKind: {responseItem.Kind}");
         }
 
         return true;

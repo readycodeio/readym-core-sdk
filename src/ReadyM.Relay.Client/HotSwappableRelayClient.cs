@@ -375,19 +375,19 @@ public class HotSwappableRelayClient : IRelayClient
     
     private void OnAnyBuiltInMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var handler = _serverMessageHandlers[header.EventCode];
+        var handler = _serverMessageHandlers[(int)header.EventCode];
         handler?.Invoke(context, header, reader);
     }
     
     private void OnAnyServerRpcMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var handler = _serverMessageHandlers[header.EventCode];
+        var handler = _serverMessageHandlers[(int)header.EventCode];
         handler?.Invoke(context, header, reader);
     }
     
     private void OnAnyClientRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
     {
-        var handler = _clientMessageHandlers[header.EventCode];
+        var handler = _clientMessageHandlers[(int)header.EventCode];
         handler?.Invoke(context, header, reader);
     }
     

@@ -5,9 +5,13 @@
         <Nullable>enable</Nullable>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
-        <TargetFrameworks>net9.0;netstandard2.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(DesignTimeBuild)'=='true' and '$(TargetFrameworks)'!=''">
+        <TargetFramework>netstandard2.0</TargetFramework>
+    </PropertyGroup>
+    
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />

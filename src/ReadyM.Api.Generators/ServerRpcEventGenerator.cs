@@ -123,7 +123,9 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                     sb.AppendLine($"""#error "EventName must be specified in ServerRpcHandler attribute for method '{methodName}'" """);
                     break;
                 }
-                var eventCode = $"(byte)(SystemEvent.MinServerRpcEvent + {baseEventCode})";
+                
+                var eventCode = $"(RelayMessageCode.MinServerRpcEvent + {baseEventCode})";
+                var eventCodeByte = $"(byte){eventCode}";
 
                 var parameters = methodSymbol.Parameters;
 
@@ -183,7 +185,7 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                                         public void {{sendMethod}}({{argList}})
                                         {
                                             var writer = new NetDataWriter();
-                                            writer.PutServerRpcEventHeader({{eventCode}});
+                                            writer.PutServerRpcEventHeader({{eventCodeByte}});
                                 """);
 
                 if (hasPayload)

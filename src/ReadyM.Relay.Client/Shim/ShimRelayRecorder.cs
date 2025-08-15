@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -10,9 +11,11 @@ using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimRelayRecorder(ILogger logger)
+public class ShimRelayRecorder(ShimRelayMessageParser parser, ILogger logger)
 {
-    private ShimRecording? _recording;
+    private readonly object _lock = new();
+    
+    private readonly List<ShimResponseItem> _responseItems = new();
     private IShimRecordableRelayClient? _relayClient;
     private bool _isRecording;
     private readonly Stopwatch _stopwatch = new Stopwatch();
@@ -24,25 +27,12 @@ public class ShimRelayRecorder(ILogger logger)
     public event Action? OnRecordingStopped;
     
     public IShimRecordableRelayClient? RelayClient => _relayClient; 
-    
-    public void SetRecording(ShimRecording recording)
-    {
-        if (_isRecording)
-            throw new InvalidOperationException("Cannot set recording while already recording.");
-        if (_recording != null)
-            throw new InvalidOperationException("Recording is already set.");
 
-        _recording = recording;
-    }
-
-    public ShimRecording? GetRecording()
+    public ShimRecording GetRecording()
     {
-        if (_recording == null)
-            return null;
-        
-        lock (_recording)
+        lock (_lock)
         {
-            return new ShimRecording(_recording, _relayClient?.PlayerId);
+            return new ShimRecording(_responseItems, _relayClient?.PlayerId);
         }
     }
 
@@ -83,22 +73,18 @@ public class ShimRelayRecorder(ILogger logger)
         logger.LogDebug("Attaching shim relay client for recording");
         
         _relayClient = relayClient;
-        _relayClient.OnRequestedConnect += OnRequestedConnectHandler;
         _relayClient.OnConnected += OnConnectedHandler;
-        _relayClient.OnRequestedDisconnect += OnRequestedDisconnectHandler;
         _relayClient.OnDisconnected += OnDisconnectedHandler;
         _relayClient.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
         _relayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
-        _relayClient.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
         _relayClient.OnJoinedArea += OnJoinedAreaHandler;
-        _relayClient.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
         _relayClient.OnLeftArea += OnLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
         _relayClient.OnPingUpdated += OnPingUpdatedHandler;
         _relayClient.OnAnyBuiltInMessage += OnAnyBuiltInMessageHandler;
-        _relayClient.OnAnyServerRpcMessage += OnAnyServerMessageHandler;
-        _relayClient.OnAnyClientRpcMessage += OnAnyClientMessageHandler;
+        _relayClient.OnAnyServerRpcMessage += OnAnyServerRpcMessageHandler;
+        _relayClient.OnAnyClientRpcMessage += OnAnyClientRpcMessageHandler;
     }
 
     public void Detach()
@@ -110,192 +96,157 @@ public class ShimRelayRecorder(ILogger logger)
         
         logger.LogDebug("Detaching shim relay client from recording");
 
-        _relayClient.OnAnyClientRpcMessage -= OnAnyClientMessageHandler;
-        _relayClient.OnAnyServerRpcMessage -= OnAnyServerMessageHandler;
+        _relayClient.OnAnyClientRpcMessage -= OnAnyClientRpcMessageHandler;
+        _relayClient.OnAnyServerRpcMessage -= OnAnyServerRpcMessageHandler;
         _relayClient.OnAnyBuiltInMessage -= OnAnyBuiltInMessageHandler;
         _relayClient.OnPingUpdated -= OnPingUpdatedHandler;
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnLeftArea -= OnLeftAreaHandler;
-        _relayClient.OnRequestedLeaveArea -= OnRequestedLeaveAreaHandler;
         _relayClient.OnJoinedArea -= OnJoinedAreaHandler;
-        _relayClient.OnRequestedJoinArea -= OnRequestedJoinAreaHandler;
         _relayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
         _relayClient.OnOtherPlayerConnected -= OnOtherPlayerConnectedHandler;
         _relayClient.OnDisconnected -= OnDisconnectedHandler;
-        _relayClient.OnRequestedDisconnect -= OnRequestedDisconnectHandler;
         _relayClient.OnConnected -= OnConnectedHandler;
-        _relayClient.OnRequestedConnect -= OnRequestedConnectHandler;
         
         _relayClient = null;
     }
 
-    private void AddItem(ShimItem item)
+    private void AddResponseItem(ShimResponseItem responseItem)
     {
-        item.Elapsed = _stopwatch.ElapsedMilliseconds;
-        lock (_recording!)
+        responseItem.Elapsed = _stopwatch.ElapsedMilliseconds;
+        lock (_lock)
         {
-            _recording.AddItem(item);
+            _responseItems.Add(responseItem);
         }
-    }
-
-    private void OnRequestedConnectHandler()
-    {
-        var item = new ShimItem()
-        {
-            Kind = ShimItemKind.RequestedConnect,
-        };
-        AddItem(item);
     }
     
     private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.Connected,
+            Kind = ShimResponseKind.Connected,
             PlayerId = playerId,
         };
-        AddItem(item);
-    }
-
-    private void OnRequestedDisconnectHandler()
-    {
-        var item = new ShimItem()
-        {
-            Kind = ShimItemKind.RequestedDisconnect,
-        };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.Disconnected,
+            Kind = ShimResponseKind.Disconnected,
             DisconnectReason = disconnectReason,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.OtherPlayerConnected,
+            Kind = ShimResponseKind.OtherPlayerConnected,
             PlayerId = playerId,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.OtherPlayerDisconnected,
+            Kind = ShimResponseKind.OtherPlayerDisconnected,
             PlayerId = playerId,
         };
-        AddItem(item);
-    }
-
-    private void OnRequestedJoinAreaHandler(AreaId areaId)
-    {
-        var item = new ShimItem()
-        {
-            Kind = ShimItemKind.RequestedJoinArea,
-            AreaId = areaId,
-        };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.JoinedArea,
+            Kind = ShimResponseKind.JoinedArea,
             AreaId = areaId,
         };
-        AddItem(item);
-    }
-
-    private void OnRequestedLeaveAreaHandler()
-    {
-        var item = new ShimItem()
-        {
-            Kind = ShimItemKind.RequestedLeaveArea,
-        };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.LeftArea,
+            Kind = ShimResponseKind.LeftArea,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.OtherPlayerJoinedArea,
+            Kind = ShimResponseKind.OtherPlayerJoinedArea,
             PlayerId = playerId,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.OtherPlayerLeftArea,
+            Kind = ShimResponseKind.OtherPlayerLeftArea,
             PlayerId = playerId,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnPingUpdatedHandler(IRelayClientNetworkThreadContext context, int ping)
     {
-        var item = new ShimItem()
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.PingUpdated,
+            Kind = ShimResponseKind.PingUpdated,
             Ping = ping,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private void OnAnyBuiltInMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var item = new ShimItem()
+        var customData = parser.GetBuiltInResponseCustomData(header, reader);
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.AnyBuiltInMessage,
+            Kind = ShimResponseKind.AnyBuiltInMessage,
             ServerHeader = header,
             RawData = GetShimBuffer(reader),
+            CustomData = customData,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
-    private void OnAnyServerMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    private void OnAnyServerRpcMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var item = new ShimItem()
+        var customData = parser.GetServerRpcResponseCustomData(header, reader);
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.AnyServerMessage,
+            Kind = ShimResponseKind.AnyServerMessage,
             ServerHeader = header,
             RawData = GetShimBuffer(reader),
+            CustomData = customData,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
-    private void OnAnyClientMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
+    private void OnAnyClientRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
     {
-        var item = new ShimItem()
+        var customData = parser.GetClientRpcResponseCustomData(header, reader);
+        var responseItem = new ShimResponseItem()
         {
-            Kind = ShimItemKind.AnyClientMessage,
+            Kind = ShimResponseKind.AnyClientMessage,
             ClientHeader = header,
             RawData = GetShimBuffer(reader),
+            CustomData = customData,
         };
-        AddItem(item);
+        AddResponseItem(responseItem);
     }
 
     private ShimBuffer GetShimBuffer(NetDataReader reader)

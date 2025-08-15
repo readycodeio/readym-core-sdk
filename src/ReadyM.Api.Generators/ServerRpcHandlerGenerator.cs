@@ -17,7 +17,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
     private const string PlayerIdTypeName = "PlayerId";
     private const string ContextParameterName = "__context";
     private const string SenderParameterName = "__sender";
-    private const string EventCodeTypeName = "Byte";
+    private const string EventCodeTypeName = "RelayMessageCode";
     private const string EventCodeParameterName = "__eventCode";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -182,7 +182,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                             valid = false;
                             break;
                         }
-                        // byte __eventCode
+                        // RelayMessageCode  __eventCode
                         eventCodeIndex = i;
                         paramTypes.Add((null, false, false));
                     }
@@ -210,11 +210,11 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
                 if (!valid)
                 {
-                    sb.AppendLine($"""#error "Invalid server RPC handler '{methodName}'. Supported signatures: void OnX([IRelayServerNetworkThreadContext __context], [PlayerId __sender], [byte __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
+                    sb.AppendLine($"""#error "Invalid server RPC handler '{methodName}'. Supported signatures: void OnX([IRelayServerNetworkThreadContext __context], [PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
                     continue;
                 }
 
-                dispatchCases.AppendLine($"            case {eventCodeByte}:\n            {{");
+                dispatchCases.AppendLine($"            case {eventCode}:\n            {{");
 
                 var payloadCount = 0;
                 for (var i = 0; i < paramTypes.Count; i++)
