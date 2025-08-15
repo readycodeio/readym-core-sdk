@@ -1,4 +1,5 @@
 ﻿using System;
+using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -108,7 +109,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
     // NOTE: This static variable is used as a side channel to communicate that a network event is being processed.
     // This is in order to prevent events triggered by the ECS world from sending out spurious secondary messages to
     // the server.
-    [ThreadStatic] private static bool _skipEcsEventMessages;
+    [ThreadStatic] private static int _skipEcsEventMessages;
     
     protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
@@ -116,7 +117,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         {
             try
             {
-                _skipEcsEventMessages = true;
+                _skipEcsEventMessages++;
                 
                 var scopeNetId = readerCopy.Get<NetworkId>();
                 self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
@@ -140,7 +141,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             }
             finally
             {
-                _skipEcsEventMessages = false;
+                _skipEcsEventMessages--;
             }
         }, this, _ecsLoop.Scheduler.MakeSafe(reader));
     }
@@ -151,12 +152,12 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         {
             try
             {
-                _skipEcsEventMessages = true;
+                _skipEcsEventMessages++;
                 self.JobRegistry.ApplyDelta(readerCopy);
             }
             finally
             {
-                _skipEcsEventMessages = false;
+                _skipEcsEventMessages--;
             }
         }, this, _ecsLoop.Scheduler.MakeSafe(reader));
     }
@@ -168,7 +169,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         {
             try
             {
-                _skipEcsEventMessages = true;
+                _skipEcsEventMessages++;
 
                 var scopeNetId = readerCopy.Get<NetworkId>();
                 self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
@@ -191,7 +192,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             }
             finally
             {
-                _skipEcsEventMessages = false;
+                _skipEcsEventMessages--;
             }
         }, this, _ecsLoop.Scheduler.MakeSafe(reader));
     }
@@ -204,7 +205,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         {
             try
             {
-                _skipEcsEventMessages = true;
+                _skipEcsEventMessages++;
                 if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
                 {
                     self.Logger.LogDebug("Deleting remove entity: {Id}", netId0);
@@ -217,16 +218,16 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             }
             finally
             {
-                _skipEcsEventMessages = false;
+                _skipEcsEventMessages--;
             }
             
         }, this, netId);
     }
 
     // NOTE: We deleted the entity, and we need to message the server about it
-    protected void OnEntityDeleteHandler(NetworkId netId)
+    protected void OnEntityDeleteHandler(NetworkId netId, Entity entity)
     {
-        if (_skipEcsEventMessages)
+        if (_skipEcsEventMessages > 0)
             return;
         
         _ecsLoop.Scheduler.EnsureThread();

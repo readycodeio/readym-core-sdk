@@ -10,6 +10,7 @@ using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Relay.Common.ECS.Archetypes;
@@ -60,6 +61,7 @@ public class ClientState : IDisposable
     }
 
     private readonly Store _world;
+    private readonly NetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
     private readonly IClientEcsUpdateLoop _ecsLoop;
     private readonly JobRegistry _jobRegistry;
@@ -118,6 +120,7 @@ public class ClientState : IDisposable
     
     public ClientState(
         Store world,
+        NetworkedEntityManager netEntity,
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
         JobRegistry jobRegistry,
@@ -126,6 +129,7 @@ public class ClientState : IDisposable
         ILogger logger)
     {
         _world = world;
+        _netEntity = netEntity;
         _relayClient = relayClient;
         _ecsLoop = ecsLoop;
         _jobRegistry = jobRegistry;
@@ -354,12 +358,12 @@ public class ClientState : IDisposable
 
     private void PrunePendingEvents()
     {
-        void InvalidateRange(int fromIndex, int toIndex)
+        void InvalidateRange(int fromIndex, int toIndex, Func<PendingEvent, bool>? predicate = null)
         {
             for (var i = fromIndex; i <= toIndex; i++)
             {
                 var p = _pendingEvents[i];
-                p.Invalidated = true;
+                p.Invalidated = predicate?.Invoke(p) ?? true;
                 _pendingEvents[i] = p;
             }
         }
@@ -370,6 +374,20 @@ public class ClientState : IDisposable
             p.Invalidated = true;
             _pendingEvents[index] = p;
         }
+
+        bool IsAreaEvent(PendingEvent p)
+            => p.Kind switch
+            {
+                PendingEventKind.Connected
+                    or PendingEventKind.Disconnected
+                    or PendingEventKind.OtherPlayerCreated
+                    or PendingEventKind.OtherPlayerDeleted => false,
+                PendingEventKind.JoinedArea
+                    or PendingEventKind.LeftArea
+                    or PendingEventKind.OtherPlayerInsideArea
+                    or PendingEventKind.OtherPlayerOutsideArea => true,
+                _ => throw new ArgumentOutOfRangeException()
+            };
         
         int? lastConnectedIndex = null;
         var playerId = _localPlayerEntry?.PlayerId;
@@ -451,7 +469,7 @@ public class ClientState : IDisposable
                     {
                         // NOTE: Assume the previous areaId should be assumed left. Remove all events
                         // from the previous areaId, but keep the current event.
-                        InvalidateRange(lastJoinedIndex.Value, i - 1);
+                        InvalidateRange(lastJoinedIndex.Value, i - 1, IsAreaEvent);
                     }
 
                     lastJoinedIndex = i;
@@ -469,7 +487,7 @@ public class ClientState : IDisposable
                     if (lastJoinedIndex != null)
                     {
                         // NOTE: Remove all events from the current areaId, including the current event.
-                        InvalidateRange(lastJoinedIndex.Value, i);
+                        InvalidateRange(lastJoinedIndex.Value, i, IsAreaEvent);
                         pendingEvent.Invalidated = true;
                     }
                     
@@ -640,6 +658,7 @@ public class ClientState : IDisposable
                     }
                     
                     var playerId = pendingEvent.PlayerId;
+                    var cb = _ecsLoop.CommandBuffer;
                     
                     if (_currentAreaEntry != null)
                     {
@@ -656,6 +675,8 @@ public class ClientState : IDisposable
                         }
 
                         OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
+
+                        _netEntity.DeleteScopeEntity(_currentAreaEntry.Value.AreaEntity, true);
                         _currentAreaEntry = null;
                     }
 
@@ -672,6 +693,8 @@ public class ClientState : IDisposable
                     }
                     
                     OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry.Value.PlayerEntity, pendingEvent.DisconnectReason);
+                    
+                    _netEntity.DeleteAllNetworkedEntities(true);
                     _localPlayerEntry = null;
                     break;
                 }
@@ -829,6 +852,7 @@ public class ClientState : IDisposable
                     }
                     
                     OnOtherPlayerDeleted?.Invoke(playerId, playerEntry.PlayerEntity, OtherPlayerDeletedReason.OtherDisconnected);
+                    _netEntity.DeleteScopeEntity(playerEntry.PlayerEntity, true);
                     _allPlayers.Remove(playerId);
                     _playerEntries.Remove(playerId);
                     
