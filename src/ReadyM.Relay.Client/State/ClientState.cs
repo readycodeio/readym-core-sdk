@@ -763,13 +763,16 @@ public class ClientState : IDisposable
                     var playerId = pendingEvent.PlayerId;
                     var areaId = _currentAreaEntry.Value.AreaId;
                     
-                    while (_currentAreaEntry.Value.AreaPlayers.Count > 0)
+                    for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                     {
-                        var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[0];
+                        var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[i];
                         if (otherPlayerId == playerId)
+                        {
+                            i++;
                             continue;
+                        }
                         OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfLeft);
-                        _currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
+                        _currentAreaEntry.Value.AreaPlayers.RemoveAt(i);
                         var otherPlayerEntry = _playerEntries[otherPlayerId];
                         otherPlayerEntry.CurrentAreaId = null;
                         _playerEntries[otherPlayerId] = otherPlayerEntry;
@@ -777,6 +780,7 @@ public class ClientState : IDisposable
 
                     OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
                     
+                    _netEntity.DeleteScopeEntity(_currentAreaEntry.Value.AreaEntity, true);
                     _currentAreaEntry = null;
                     var localPlayer = _playerEntries[playerId];
                     localPlayer.CurrentAreaId = null;

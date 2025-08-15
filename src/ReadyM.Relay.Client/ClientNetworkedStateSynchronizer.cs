@@ -213,7 +213,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 }
                 else
                 {
-                    self.Logger.LogError("Received destroy event for locally non-existent entity: {Id}", netId0);
+                    self.Logger.LogWarning("Received destroy event for locally non-existent entity: {Id}", netId0);
                 }
             }
             finally

@@ -471,6 +471,7 @@ public class RelayClient : IShimRecordableRelayClient
             _logger.LogWarning("Already requested to join area {AreaId}", areaId);
             return;
         }
+        RequestedAreaId = areaId;
         
         var playerId = PlayerId;
         if (playerId == null)
@@ -662,9 +663,9 @@ public class RelayClient : IShimRecordableRelayClient
                         break;
                     }
                     
+                    OnLeftArea?.Invoke(_netThreadContext);
                     _netThreadContext.CurrentArea = null;
                     _netThreadContext.AreaPlayers.Remove(playerId);
-                    OnLeftArea?.Invoke(_netThreadContext);
                 }
                 break;
             }

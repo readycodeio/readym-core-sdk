@@ -148,7 +148,8 @@ public sealed class NetworkedEntityManager : IDisposable
         }
         finally
         {
-            _skipNetSync--;
+            if (skipSync)
+               _skipNetSync--;
         }
     }
 
