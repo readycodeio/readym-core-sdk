@@ -42,7 +42,7 @@ public class ShimRelayRecorder(ILogger logger)
         
         lock (_recording)
         {
-            return new ShimRecording(_recording);
+            return new ShimRecording(_recording, _relayClient?.PlayerId);
         }
     }
 
@@ -96,6 +96,7 @@ public class ShimRelayRecorder(ILogger logger)
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
         _relayClient.OnPingUpdated += OnPingUpdatedHandler;
+        _relayClient.OnAnyBuiltInMessage += OnAnyBuiltInMessageHandler;
         _relayClient.OnAnyServerRpcMessage += OnAnyServerMessageHandler;
         _relayClient.OnAnyClientRpcMessage += OnAnyClientMessageHandler;
     }
@@ -111,6 +112,7 @@ public class ShimRelayRecorder(ILogger logger)
 
         _relayClient.OnAnyClientRpcMessage -= OnAnyClientMessageHandler;
         _relayClient.OnAnyServerRpcMessage -= OnAnyServerMessageHandler;
+        _relayClient.OnAnyBuiltInMessage -= OnAnyBuiltInMessageHandler;
         _relayClient.OnPingUpdated -= OnPingUpdatedHandler;
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
@@ -259,6 +261,17 @@ public class ShimRelayRecorder(ILogger logger)
         {
             Kind = ShimItemKind.PingUpdated,
             Ping = ping,
+        };
+        AddItem(item);
+    }
+
+    private void OnAnyBuiltInMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    {
+        var item = new ShimItem()
+        {
+            Kind = ShimItemKind.AnyBuiltInMessage,
+            ServerHeader = header,
+            RawData = GetShimBuffer(reader),
         };
         AddItem(item);
     }
