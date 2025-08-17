@@ -89,7 +89,7 @@ public sealed class NetworkedEntityManager : IDisposable
         });
         return (entity, netId);
     }
-
+    
     public Entity CreateRemoteNetworkedEntity(MetadataComponent meta, Entity? scopeEntity)
     {
         return _world.CreateEntity(meta.Archetype, b =>
@@ -122,7 +122,7 @@ public sealed class NetworkedEntityManager : IDisposable
         }
     }
 
-    public void DeleteScopeEntity(Entity scopeEntity, bool skipSync)
+    public void DeleteEntitiesInScope(Entity scopeEntity, bool skipSync)
     {
         if (!scopeEntity.Tags.Has<ScopeEntityTag>())
             throw new InvalidOperationException("Entity is not a scope entity.");
@@ -144,7 +144,6 @@ public sealed class NetworkedEntityManager : IDisposable
                     _commandBuffer.DeleteEntity(entity.Id);
                 });
             _commandBuffer.Playback();
-            scopeEntity.DeleteEntity();
         }
         finally
         {

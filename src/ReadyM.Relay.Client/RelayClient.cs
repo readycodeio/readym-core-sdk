@@ -25,9 +25,9 @@ public class RelayClient : IShimRecordableRelayClient
         public readonly List<PlayerId> AllPlayers = new();
         public readonly List<PlayerId> AreaPlayers = new();
 
-        public bool Connected { get; set; }
+        public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
-        public AreaId? CurrentArea { get; set; }
+        public AreaId? CurrentAreaId { get; set; }
         
         public DisconnectReason LastDisconnectReason { get; set; }
 
@@ -581,7 +581,7 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
-                _netThreadContext.Connected = true;
+                _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
                 
@@ -622,15 +622,17 @@ public class RelayClient : IShimRecordableRelayClient
                         break;
                     }
 
-                    if (_netThreadContext.CurrentArea != null)
+                    if (_netThreadContext.CurrentAreaId != null)
                     {
-                        _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentArea);
+                        _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentAreaId);
                         break;
                     }
                     AreaId areaId = default;
                     areaId.Deserialize(reader);
 
-                    _netThreadContext.CurrentArea = areaId;
+                    _logger.LogInformation("NETWORK JOINING {AreaId} by player {PlayerId}", areaId, playerId);
+                    
+                    _netThreadContext.CurrentAreaId = areaId;
                     _netThreadContext.AreaPlayers.Clear();
                     _netThreadContext.AreaPlayers.Add(playerId);
 
@@ -657,14 +659,17 @@ public class RelayClient : IShimRecordableRelayClient
                         break;
                     }
 
-                    if (_netThreadContext.CurrentArea == null)
+                    if (_netThreadContext.CurrentAreaId == null)
                     {
                         _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
                         break;
                     }
                     
                     OnLeftArea?.Invoke(_netThreadContext);
-                    _netThreadContext.CurrentArea = null;
+                    
+                    _logger.LogInformation("NETWORK LEAVING {AreaId} by player {PlayerId}", _netThreadContext.CurrentAreaId, playerId);
+
+                    _netThreadContext.CurrentAreaId = null;
                     _netThreadContext.AreaPlayers.Remove(playerId);
                 }
                 break;
@@ -710,7 +715,7 @@ public class RelayClient : IShimRecordableRelayClient
                 var isJoining = reader.GetBool();
                 if (isJoining)
                 {
-                    if (_netThreadContext.CurrentArea == null)
+                    if (_netThreadContext.CurrentAreaId == null)
                     {
                         _logger.LogError("Received area event for player {PlayerId} but current area is not set", playerId);
                         break;
@@ -815,8 +820,8 @@ public class RelayClient : IShimRecordableRelayClient
     {
         _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
         
-        _netThreadContext.CurrentArea = null;
-        _netThreadContext.Connected = false;
+        _netThreadContext.CurrentAreaId = null;
+        _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
         _netThreadContext.LastDisconnectReason = info.Reason;

@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
@@ -91,8 +91,9 @@ public class ClientState : IDisposable
         => _localPlayerEntry?.PlayerEntity;
 
     public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> AllPlayers => new(_allPlayers);
-    public ReadOnlyDictionary<PlayerId, PlayerEntry> PlayerEntries => new(_playerEntries);
-
+    public System.Collections.ObjectModel.ReadOnlyDictionary<PlayerId, PlayerEntry> PlayerEntries => new(_playerEntries);
+    public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> AreaPlayers => (_currentAreaEntry?.AreaPlayers).NullableWrapReadOnly();
+    
     public bool JoinedArea
         => _currentAreaEntry is { } value && value.AreaId != AreaId.Invalid;
 
@@ -227,6 +228,7 @@ public class ClientState : IDisposable
                 _pendingEvents.Add(new PendingEvent()
                 {
                     Kind = PendingEventKind.OtherPlayerInsideArea,
+                    AreaId = areaId,
                     PlayerId = otherPlayerId,
                     IsNotify = true,
                 });
@@ -243,7 +245,7 @@ public class ClientState : IDisposable
     {
         lock (_lock)
         {
-            var areaId = context.CurrentArea;
+            var areaId = context.CurrentAreaId;
             if (areaId == null)
             {
                 _logger.LogError("LeftArea event received, but no current area. This should not happen.");
@@ -312,7 +314,7 @@ public class ClientState : IDisposable
             _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.OtherPlayerInsideArea,
-                AreaId = context.CurrentArea!.Value,
+                AreaId = context.CurrentAreaId!.Value,
                 PlayerId = playerId,
             });
         }
@@ -327,7 +329,7 @@ public class ClientState : IDisposable
     {
         lock (_lock)
         {
-            var areaId = context.CurrentArea;
+            var areaId = context.CurrentAreaId;
             if (areaId == null)
             {
                 _logger.LogError("OtherPlayerLeftArea event received, but no current area. This should not happen.");
@@ -573,7 +575,7 @@ public class ClientState : IDisposable
                     
                     if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerJoinedIndex))
                     {
-                        InvalidateOne(otherPlayerJoinedIndex);;
+                        InvalidateOne(otherPlayerJoinedIndex);
                         pendingEvent.Invalidated = true;
                     }
 
@@ -658,17 +660,21 @@ public class ClientState : IDisposable
                     }
                     
                     var playerId = pendingEvent.PlayerId;
-                    var cb = _ecsLoop.CommandBuffer;
                     
                     if (_currentAreaEntry != null)
                     {
                         var areaId = _currentAreaEntry.Value.AreaId;
-                        while (_currentAreaEntry.Value.AreaPlayers.Count > 0)
+                        for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                         {
-                            var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[0];
-                            if (otherPlayerId != playerId)
-                                OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfDisconnected);
-                            _currentAreaEntry.Value.AreaPlayers.RemoveAt(0);
+                            var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[i];
+                            if (otherPlayerId == playerId)
+                            {
+                                i++;
+                                continue;
+                            }
+                                
+                            OnOtherPlayerOutsideArea?.Invoke(otherPlayerId, areaId, OtherPlayerOutsideAreaReason.NotifyBeforeSelfDisconnected);
+                            _currentAreaEntry.Value.AreaPlayers.RemoveAt(i);
                             var otherPlayerEntry = _playerEntries[otherPlayerId];
                             otherPlayerEntry.CurrentAreaId = null;
                             _playerEntries[otherPlayerId] = otherPlayerEntry;
@@ -676,24 +682,33 @@ public class ClientState : IDisposable
 
                         OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
-                        _netEntity.DeleteScopeEntity(_currentAreaEntry.Value.AreaEntity, true);
+                        _currentAreaEntry.Value.AreaPlayers.Clear();
+                        var playerEntry = _playerEntries[playerId];
+                        playerEntry.CurrentAreaId = null;
+                        _playerEntries[playerId] = playerEntry;
+                        _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true);
                         _currentAreaEntry = null;
                     }
 
-                    while (_allPlayers.Count > 0)
+                    for (var i = 0; i < _allPlayers.Count;)
                     {
-                        var otherPlayerId = _allPlayers[0];
-                        if (otherPlayerId != playerId)
+                        var otherPlayerId = _allPlayers[i];
+                        if (otherPlayerId == playerId)
                         {
-                            var otherPlayerEntry = _playerEntries[otherPlayerId];
-                            OnOtherPlayerDeleted?.Invoke(otherPlayerId, otherPlayerEntry.PlayerEntity, OtherPlayerDeletedReason.NotifyBeforeSelfDisconnected);
+                            i++;
+                            continue;
                         }
-                        _allPlayers.RemoveAt(0);
+                        
+                        var otherPlayerEntry = _playerEntries[otherPlayerId];
+                        OnOtherPlayerDeleted?.Invoke(otherPlayerId, otherPlayerEntry.PlayerEntity, OtherPlayerDeletedReason.NotifyBeforeSelfDisconnected);
+                        _allPlayers.RemoveAt(i);
                         _playerEntries.Remove(otherPlayerId);
                     }
                     
                     OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry.Value.PlayerEntity, pendingEvent.DisconnectReason);
                     
+                    _allPlayers.Clear();
+                    _playerEntries.Clear();
                     _netEntity.DeleteAllNetworkedEntities(true);
                     _localPlayerEntry = null;
                     break;
@@ -715,6 +730,9 @@ public class ClientState : IDisposable
                     
                     var playerId = pendingEvent.PlayerId;
                     var areaId = pendingEvent.AreaId;
+                    
+                    _logger.LogInformation("ECS JOINING (before query) {AreaId} by player {PlayerId}", areaId, playerId);
+                    
                     var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
                         .HasValue<AreaScopeComponent, AreaId>(areaId);
                     
@@ -742,6 +760,8 @@ public class ClientState : IDisposable
                     playerEntry.CurrentAreaId = areaId;
                     _playerEntries[playerId] = playerEntry;
                     _localPlayerEntry = playerEntry;
+                    
+                    _logger.LogInformation("ECS JOINING {AreaId} by player {PlayerId}", areaId, playerId);
                     
                     OnJoinedArea?.Invoke(areaId, areaEntity);
                     break;
@@ -780,7 +800,9 @@ public class ClientState : IDisposable
 
                     OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
                     
-                    _netEntity.DeleteScopeEntity(_currentAreaEntry.Value.AreaEntity, true);
+                    _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
+
+                    _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true);
                     _currentAreaEntry = null;
                     var localPlayer = _playerEntries[playerId];
                     localPlayer.CurrentAreaId = null;
@@ -856,7 +878,7 @@ public class ClientState : IDisposable
                     }
                     
                     OnOtherPlayerDeleted?.Invoke(playerId, playerEntry.PlayerEntity, OtherPlayerDeletedReason.OtherDisconnected);
-                    _netEntity.DeleteScopeEntity(playerEntry.PlayerEntity, true);
+                    _netEntity.DeleteEntitiesInScope(playerEntry.PlayerEntity, true);
                     _allPlayers.Remove(playerId);
                     _playerEntries.Remove(playerId);
                     

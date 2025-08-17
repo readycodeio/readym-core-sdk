@@ -9,7 +9,7 @@
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(DesignTimeBuild)'=='true' and '$(TargetFrameworks)'!=''">
+    <PropertyGroup Condition="'$(DesignTimeBuild)' == 'true'">
         <TargetFramework>netstandard2.0</TargetFramework>
     </PropertyGroup>
     

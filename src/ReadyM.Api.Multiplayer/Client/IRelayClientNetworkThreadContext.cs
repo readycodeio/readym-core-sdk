@@ -10,11 +10,11 @@ public interface IRelayClientNetworkThreadContext
     /// the client disconnects as a result of a network error, this will be set to `false`, while `IsRunning` will
     /// remain `true` until `Stop()` is called.
     /// </summary>
-    bool Connected { get; }
+    bool IsConnected { get; }
     
     PlayerId? PlayerId { get; }
     ReadOnlyList<PlayerId> AllPlayers { get; }
     
-    AreaId? CurrentArea { get; }
+    AreaId? CurrentAreaId { get; }
     ReadOnlyList<PlayerId> AreaPlayers { get; }
 }

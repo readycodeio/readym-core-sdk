@@ -22,4 +22,12 @@ public readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
     
     public bool Contains(T item)
         => list.Contains(item);
+    
+    private static readonly List<T> _emptyList = new List<T>();
+    
+    public static ReadOnlyList<T> Empty
+        => new ReadOnlyList<T>(_emptyList);
+
+    public ReadOnlyList<T> Copy()
+        => new ReadOnlyList<T>(new List<T>(list));
 }

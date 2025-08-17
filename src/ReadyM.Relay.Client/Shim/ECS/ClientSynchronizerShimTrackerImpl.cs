@@ -33,14 +33,14 @@ public class ClientSynchronizerShimTrackerImpl : ShimDependencyTrackerImplBase<S
     
     public override bool CheckResponseShouldWait(ShimResponseItem responseItem, IRelayClientNetworkThreadContext context, IEnumerable<ShimRequestItem> requestItems)
     {
-        if (!context.Connected)
+        if (!context.IsConnected)
             return true;
 
         var responseData = responseItem.GetCustomData<ShimEcsDependencyData>();
         
         if (responseData.AreaId != null)
         {
-            if (context.CurrentArea != responseData.AreaId)
+            if (context.CurrentAreaId != responseData.AreaId)
                 return true;
         }
 

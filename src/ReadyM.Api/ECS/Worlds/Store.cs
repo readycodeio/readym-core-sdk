@@ -17,8 +17,14 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^EventRecorder")]
 public sealed partial class Store
 {
+    private struct ArchetypeEntry
+    {
+        public Action<EntityBuilder> Constructor;
+        public Action<Entity>? LateInit;
+    }
+    
     private byte _nextArchetypeId;
-    private readonly Dictionary<ArchetypeId, Action<EntityBuilder>> _archetypeConstructors = [];
+    private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
     public SystemRoot SystemRoot { get; }
 
@@ -37,26 +43,32 @@ public sealed partial class Store
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilder> populateComponents)
+    public ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
-        _archetypeConstructors[archetypeId] = populateComponents;
+        _archetypeEntries[archetypeId] = new ()
+        {
+            Constructor = constructor,
+            LateInit = lateInit
+        };
         return archetypeId;
     }
 
     public Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
-        if (!_archetypeConstructors.TryGetValue(archetypeId, out var constructor))
+        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
         }
 
         var batch = _wrapped.Batch();
         var builder = new EntityBuilder(batch);
-        constructor!.Invoke(builder);
+        entry.Constructor.Invoke(builder);
         setComponents?.Invoke(builder);
-        return batch.CreateEntity();
+        var entity = batch.CreateEntity();
+        entry.LateInit?.Invoke(entity);
+        return entity;
     }
     
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)

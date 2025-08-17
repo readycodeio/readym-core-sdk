@@ -24,9 +24,9 @@ public class ShimPlaybackRelayClient : IRelayClient
         public readonly List<PlayerId> AllPlayers = new();
         public readonly List<PlayerId> AreaPlayers = new();
 
-        public bool Connected { get; set; }
+        public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
-        public AreaId? CurrentArea { get; set; }
+        public AreaId? CurrentAreaId { get; set; }
         
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
@@ -638,7 +638,7 @@ public class ShimPlaybackRelayClient : IRelayClient
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
-                _netThreadContext.Connected = true;
+                _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
@@ -649,14 +649,14 @@ public class ShimPlaybackRelayClient : IRelayClient
             {
                 // Assumes RequestedStop first
                 _logger.LogInformation("Disconnected from server: {Reason}", responseItem.DisconnectReason);
-                _netThreadContext.Connected = false;
+                _netThreadContext.IsConnected = false;
                 _lastDisconnectReason = responseItem.DisconnectReason;
                 OnDisconnected?.Invoke(_netThreadContext, responseItem.DisconnectReason);
                 break;
             }
             case ShimResponseKind.OtherPlayerConnected:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;  
 
                 var playerId = responseItem.PlayerId;
@@ -673,7 +673,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.OtherPlayerDisconnected:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;  
 
                 var playerId = responseItem.PlayerId;
@@ -696,7 +696,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.JoinedArea:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;  
 
                 // Assumes RequestedJoinArea first
@@ -712,13 +712,13 @@ public class ShimPlaybackRelayClient : IRelayClient
                     break;
                 }
 
-                if (_netThreadContext.CurrentArea != null)
+                if (_netThreadContext.CurrentAreaId != null)
                 {
-                    _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentArea);
+                    _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but already in area {CurrentArea}", playerId, _netThreadContext.PlayerId, _netThreadContext.CurrentAreaId);
                     break;
                 }
                 var areaId = responseItem.AreaId;
-                _netThreadContext.CurrentArea = areaId;
+                _netThreadContext.CurrentAreaId = areaId;
                 _netThreadContext.AreaPlayers.Clear();
                 _netThreadContext.AreaPlayers.Add(playerId);
                 OnJoinedArea?.Invoke(_netThreadContext, areaId);
@@ -726,9 +726,9 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.LeftArea:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
-                if (_netThreadContext.CurrentArea == null)
+                if (_netThreadContext.CurrentAreaId == null)
                     return false;
 
                 // Assumes RequestedLeaveArea first
@@ -744,26 +744,26 @@ public class ShimPlaybackRelayClient : IRelayClient
                     break;
                 }
 
-                if (_netThreadContext.CurrentArea == null)
+                if (_netThreadContext.CurrentAreaId == null)
                 {
                     _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
                     break;
                 }
                 
-                _netThreadContext.CurrentArea = null;
+                _netThreadContext.CurrentAreaId = null;
                 _netThreadContext.AreaPlayers.Remove(playerId);
                 OnLeftArea?.Invoke(_netThreadContext);
                 break;
             }
             case ShimResponseKind.OtherPlayerJoinedArea:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
-                if (_netThreadContext.CurrentArea == null)
+                if (_netThreadContext.CurrentAreaId == null)
                     return false;
                 
                 var playerId = responseItem.PlayerId;
-                if (_netThreadContext.CurrentArea == null)
+                if (_netThreadContext.CurrentAreaId == null)
                 {
                     _logger.LogError("Received area event for player {PlayerId} but current area is not set", playerId);
                     break;
@@ -781,9 +781,9 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.OtherPlayerLeftArea:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
-                if (_netThreadContext.CurrentArea == null)
+                if (_netThreadContext.CurrentAreaId == null)
                     return false;
 
                 var playerId = responseItem.PlayerId;
@@ -800,7 +800,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.PingUpdated:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
                 
                 OnPingUpdated?.Invoke(_netThreadContext, responseItem.Ping);
@@ -808,7 +808,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.AnyBuiltInMessage:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;  
                 
                 var serverHeader = responseItem.ServerHeader;
@@ -820,7 +820,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.AnyServerMessage:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
                 
                 var serverHeader = responseItem.ServerHeader;
@@ -832,13 +832,13 @@ public class ShimPlaybackRelayClient : IRelayClient
             }
             case ShimResponseKind.AnyClientMessage:
             {
-                if (!_netThreadContext.Connected)
+                if (!_netThreadContext.IsConnected)
                     return false;
                 
                 var clientHeader = responseItem.ClientHeader;
                 if (clientHeader.RelayMode == RelayMode.AreaOfInterestOthers || clientHeader.RelayMode == RelayMode.AreaOfInterestAll)
                 {
-                    if (_netThreadContext.CurrentArea == null)
+                    if (_netThreadContext.CurrentAreaId == null)
                         return false;
                 }
                 

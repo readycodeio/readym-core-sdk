@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
+using ReadyM.Relay.Client.Blobs;
+using ReadyM.Relay.Client.Host;
 using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
@@ -16,23 +18,25 @@ public class ShimRelayRecorder(ShimRelayMessageParser parser, ILogger logger)
     private readonly object _lock = new();
     
     private readonly List<ShimResponseItem> _responseItems = new();
-    private IShimRecordableRelayClient? _relayClient;
+    private IShimRecordableRelayClient? _attachedRelayClient;
     private bool _isRecording;
     private readonly Stopwatch _stopwatch = new Stopwatch();
     
     public bool IsAttached
-        => _relayClient != null;
+        => _attachedRelayClient != null;
 
+    public event Action<IRelayClient>? OnAttached;
+    public event Action<IRelayClient>? OnDetached;
     public event Action? OnRecordingStarted;
     public event Action? OnRecordingStopped;
     
-    public IShimRecordableRelayClient? RelayClient => _relayClient; 
+    public IShimRecordableRelayClient? AttachedRelayClient => _attachedRelayClient; 
 
     public ShimRecording GetRecording()
     {
         lock (_lock)
         {
-            return new ShimRecording(_responseItems, _relayClient?.PlayerId);
+            return new ShimRecording(_responseItems, _attachedRelayClient?.PlayerId);
         }
     }
 
@@ -64,7 +68,7 @@ public class ShimRelayRecorder(ShimRelayMessageParser parser, ILogger logger)
     {
         if (_isRecording)
             throw new InvalidOperationException("Cannot attach relay client while recording is in progress.");
-        if (_relayClient != null)
+        if (_attachedRelayClient != null)
             throw new InvalidOperationException("Relay client is already attached.");
 
         if (relayClient.RequestedConnect)
@@ -72,44 +76,47 @@ public class ShimRelayRecorder(ShimRelayMessageParser parser, ILogger logger)
         
         logger.LogDebug("Attaching shim relay client for recording");
         
-        _relayClient = relayClient;
-        _relayClient.OnConnected += OnConnectedHandler;
-        _relayClient.OnDisconnected += OnDisconnectedHandler;
-        _relayClient.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
-        _relayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
-        _relayClient.OnJoinedArea += OnJoinedAreaHandler;
-        _relayClient.OnLeftArea += OnLeftAreaHandler;
-        _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
-        _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
-        _relayClient.OnPingUpdated += OnPingUpdatedHandler;
-        _relayClient.OnAnyBuiltInMessage += OnAnyBuiltInMessageHandler;
-        _relayClient.OnAnyServerRpcMessage += OnAnyServerRpcMessageHandler;
-        _relayClient.OnAnyClientRpcMessage += OnAnyClientRpcMessageHandler;
+        _attachedRelayClient = relayClient;
+        _attachedRelayClient.OnConnected += OnConnectedHandler;
+        _attachedRelayClient.OnDisconnected += OnDisconnectedHandler;
+        _attachedRelayClient.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
+        _attachedRelayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
+        _attachedRelayClient.OnJoinedArea += OnJoinedAreaHandler;
+        _attachedRelayClient.OnLeftArea += OnLeftAreaHandler;
+        _attachedRelayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
+        _attachedRelayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
+        _attachedRelayClient.OnPingUpdated += OnPingUpdatedHandler;
+        _attachedRelayClient.OnAnyBuiltInMessage += OnAnyBuiltInMessageHandler;
+        _attachedRelayClient.OnAnyServerRpcMessage += OnAnyServerRpcMessageHandler;
+        _attachedRelayClient.OnAnyClientRpcMessage += OnAnyClientRpcMessageHandler;
+
+        OnAttached?.Invoke(_attachedRelayClient);
     }
 
     public void Detach()
     {
         if (_isRecording)
             throw new InvalidOperationException("Cannot detach relay client while recording is in progress.");
-        if (_relayClient == null)
+        if (_attachedRelayClient == null)
             throw new InvalidOperationException("Relay client is not attached.");
         
         logger.LogDebug("Detaching shim relay client from recording");
 
-        _relayClient.OnAnyClientRpcMessage -= OnAnyClientRpcMessageHandler;
-        _relayClient.OnAnyServerRpcMessage -= OnAnyServerRpcMessageHandler;
-        _relayClient.OnAnyBuiltInMessage -= OnAnyBuiltInMessageHandler;
-        _relayClient.OnPingUpdated -= OnPingUpdatedHandler;
-        _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
-        _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
-        _relayClient.OnLeftArea -= OnLeftAreaHandler;
-        _relayClient.OnJoinedArea -= OnJoinedAreaHandler;
-        _relayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
-        _relayClient.OnOtherPlayerConnected -= OnOtherPlayerConnectedHandler;
-        _relayClient.OnDisconnected -= OnDisconnectedHandler;
-        _relayClient.OnConnected -= OnConnectedHandler;
+        OnDetached?.Invoke(_attachedRelayClient);
         
-        _relayClient = null;
+        _attachedRelayClient.OnAnyClientRpcMessage -= OnAnyClientRpcMessageHandler;
+        _attachedRelayClient.OnAnyServerRpcMessage -= OnAnyServerRpcMessageHandler;
+        _attachedRelayClient.OnAnyBuiltInMessage -= OnAnyBuiltInMessageHandler;
+        _attachedRelayClient.OnPingUpdated -= OnPingUpdatedHandler;
+        _attachedRelayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
+        _attachedRelayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
+        _attachedRelayClient.OnLeftArea -= OnLeftAreaHandler;
+        _attachedRelayClient.OnJoinedArea -= OnJoinedAreaHandler;
+        _attachedRelayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
+        _attachedRelayClient.OnOtherPlayerConnected -= OnOtherPlayerConnectedHandler;
+        _attachedRelayClient.OnDisconnected -= OnDisconnectedHandler;
+        _attachedRelayClient.OnConnected -= OnConnectedHandler;
+        _attachedRelayClient = null;
     }
 
     private void AddResponseItem(ShimResponseItem responseItem)
