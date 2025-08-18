@@ -216,7 +216,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 _skipEcsEventMessages++;
                 if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
                 {
-                    self.Logger.LogDebug("Deleting remove entity: {Id}", netId0);
+                    self.Logger.LogDebug("Deleting remote entity: {Id}", netId0);
                     entity.Value.DeleteEntity();
                 }
                 else
