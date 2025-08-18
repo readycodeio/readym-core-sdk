@@ -113,6 +113,11 @@ namespace {info.Namespace};
 public partial struct {info.Name}
 {{
 ");
+        foreach (var error in info.ErrorMessage)
+        {
+            sb.AppendLine($"    #error {error}");
+        }
+
         var useReadWrite = new bool[info.Members.Length];
         var readMethods = new string[info.Members.Length];
         var writeMethods = new string[info.Members.Length];

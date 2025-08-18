@@ -3,15 +3,16 @@
     <PropertyGroup>
         <Nullable>enable</Nullable>
         <LangVersion>13.0</LangVersion>
-        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(IntermediateOutputPath)\generated</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(DesignTimeBuild)' == 'true'">
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
+    <ItemGroup>
+        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+        <Compile Include="$(CompilerGeneratedFilesOutputPath)/**/*.cs" Condition="'$(TargetFramework)' == 'net9.0' and '$(DesignTimeBuild)' == 'true' and '$(BuildingInsideRider)' == 'true'" />
+    </ItemGroup>
     
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2024.3.0"/>
@@ -25,10 +26,6 @@
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS.Boost\Friflo.Engine.ECS.Boost.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <Compile Remove="Generated\**" />
     </ItemGroup>
 
 </Project>

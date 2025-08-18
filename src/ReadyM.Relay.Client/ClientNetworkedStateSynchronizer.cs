@@ -120,7 +120,11 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 _skipEcsEventMessages++;
                 
                 var scopeNetId = readerCopy.Get<NetworkId>();
-                self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
+                Entity? scopeEntity = null;
+                if (scopeNetId != default)
+                {
+                    self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity);
+                }
         
                 var entityCount = readerCopy.GetUInt();
                 for (var i = 0; i < entityCount; i++)
@@ -172,7 +176,11 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 _skipEcsEventMessages++;
 
                 var scopeNetId = readerCopy.Get<NetworkId>();
-                self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity);
+                Entity? scopeEntity = null;
+                if (scopeNetId != default)
+                {
+                    self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity);
+                }
                 
                 var queryCount = readerCopy.GetUInt();
                 for (var i = 0; i < queryCount; i++)

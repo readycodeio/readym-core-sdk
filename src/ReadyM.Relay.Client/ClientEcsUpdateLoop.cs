@@ -25,6 +25,8 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
 
     public event Action<CommandBufferSynced>? OnUpdateLoop;
+    public event Action? OnStarted;
+    public event Action? OnStopped;
 
     public bool IsRunning { get; private set; }
 
@@ -52,6 +54,8 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         _logger.LogInformation("Starting ECS update loop");
 
         _scheduler.SetThread(Thread.CurrentThread);
+        
+        OnStarted?.Invoke();
         
         _logger.LogInformation("ECS update loop started successfully");
     }
@@ -86,7 +90,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             Thread.Sleep(33);
         }
     }
-    
+
     public void Stop()
     {
         if (!IsRunning)
@@ -97,6 +101,9 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
         IsRunning = false;
         _scheduler.SetThread(null);
+        
+        OnStopped?.Invoke();
+        
         _logger.LogInformation("ECS update loop stopped.");
     }
 

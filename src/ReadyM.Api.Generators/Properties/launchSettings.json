@@ -3,7 +3,7 @@
   "profiles": {
     "Generators": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../ReadyM.Relay.Common.Wukong/ReadyM.Relay.Common.Wukong.csproj"
+      "targetProject": "../ReadyM.Api.Multiplayer/ReadyM.Api.Multiplayer.csproj"
     }
   }
 }

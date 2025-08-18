@@ -16,7 +16,7 @@ public class ClientSendEntityCreatedSystem(JobRegistry jobRegistry, ClientState 
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
     {
-        filter = base.SetupFilter(filter, context);
+        filter = SetupBaseFilter(filter);
 
         if (context.IsGlobal)
             filter = filter.WithoutAnyComponents(ComponentTypes.Get<InScopeComponent>());

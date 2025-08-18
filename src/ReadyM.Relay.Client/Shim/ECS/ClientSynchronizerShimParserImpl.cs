@@ -4,6 +4,7 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
+using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -54,20 +55,39 @@ public class ClientSynchronizerShimParserImpl(NetworkedEntityManager netEntity, 
 
             if (!netEntity.TryGetEntityByNetworkId(scopeNetId, out var scopeEntity))
             {
-                logger.LogError("Failed to find scope entity {NetworkId} in ECS snapshot", scopeNetId);
+                logger.LogError("Failed to find scope entity {NetworkId} in ECS {EventCode}", scopeNetId, header.EventCode);
                 return default;
             }
 
             return GetDataForScopeEntity(scopeEntity.Value);
         }
-        else if (header.EventCode == RelayMessageCode.EcsDelta || header.EventCode == RelayMessageCode.EcsDeleteEntity)
+        else if (header.EventCode is RelayMessageCode.EcsDelta)
         {
+            reader.Get<NetworkedComponentId>();
             var firstNetId = reader.Get<NetworkId>();
 
             if (!netEntity.TryGetEntityByNetworkId(firstNetId, out var firstEntity))
             {
                 // NOTE: Deltas are unreliable so we might get that message early, or too late, etc.
-                logger.LogWarning("Failed to find entity {NetworkId} in ECS delta", firstEntity);
+                logger.LogWarning("Failed to find entity {NetworkId} in ECS {EventCode}", firstNetId, header.EventCode);
+                return default;
+            }
+
+            if (!firstEntity.Value.TryGetComponent<InScopeComponent>(out var inScopeComp))
+                // NOTE: global scope
+                return default;
+
+            return GetDataForScopeEntity(inScopeComp.ScopeEntity);
+        }
+        else if (header.EventCode is RelayMessageCode.EcsDeleteEntity)
+        {
+            reader.Get<NetworkedComponentId>();
+            var firstNetId = reader.Get<NetworkId>();
+
+            if (!netEntity.TryGetEntityByNetworkId(firstNetId, out var firstEntity))
+            {
+                // NOTE: Deltas are unreliable so we might get that message early, or too late, etc.
+                logger.LogWarning("Failed to find entity {NetworkId} in ECS {EventCode}", firstNetId, header.EventCode);
                 return default;
             }
 

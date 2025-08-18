@@ -830,8 +830,12 @@ public class ClientState : IDisposable
                     var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
                         .HasValue<PlayerScopeComponent, PlayerId>(playerId);
 
+                    _logger.LogInformation("ECS OTHER CONNECTED player {PlayerId} (before query)", playerId);
+
                     if (playerQuery.Count == 0)
                         return; // exit loop
+
+                    _logger.LogInformation("ECS OTHER CONNECTED player {PlayerId}", playerId);
 
                     var playerEntity = playerQuery.Entities.First();
 
@@ -932,6 +936,8 @@ public class ClientState : IDisposable
                     var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
                         .HasValue<PlayerScopeComponent, PlayerId>(playerId);
                     
+                    _logger.LogInformation("ECS OTHER JOINING player {PlayerId} into area {AreaId} (before query)", playerId, areaId);
+
                     if (playerQuery.Count == 0)
                         return; // exit loop
                     
@@ -940,6 +946,8 @@ public class ClientState : IDisposable
                     
                     if (areaQuery.Count == 0)
                         return; // exit loop
+                    
+                    _logger.LogInformation("ECS OTHER JOINING player {PlayerId} into area {AreaId}", playerId, areaId);
 
                     _currentAreaEntry.Value.AreaPlayers.Add(playerId);
 

@@ -18,7 +18,7 @@ using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Relay.Client;
 
-public class RelayClient : IShimRecordableRelayClient
+public class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
@@ -750,7 +750,17 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
-                    serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
+
+                    if (serverHandler != null)
+                    {
+                        var position = reader.Position;
+                        foreach (var handlerUntyped in serverHandler.GetInvocationList())
+                        {
+                            reader.SetPosition(position);
+                            var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>)handlerUntyped;
+                            handler.Invoke(_netThreadContext, serverHeader, reader);
+                        }
+                    }
                     return;
                 }
                 
@@ -758,13 +768,36 @@ public class RelayClient : IShimRecordableRelayClient
                 {
                     var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
-                    serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
+                    
+                    if (serverHandler != null)
+                    {
+                        var position = reader.Position;
+                        foreach (var handlerUntyped in serverHandler.GetInvocationList())
+                        {
+                            reader.SetPosition(position);
+                            var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>)handlerUntyped;
+                            handler.Invoke(_netThreadContext, serverHeader, reader);
+                        }
+                    }
                     return;
                 }
+
+                {
+                    var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
+                    var clientHandler = _clientMessageHandlers[(byte)eventCode];
                 
-                var header = reader.GetCustomRelayEventHeader(eventCode);
-                var clientHandler = _clientMessageHandlers[(byte)eventCode];
-                clientHandler?.Invoke(_netThreadContext, header, reader);
+                    if (clientHandler != null)
+                    {
+                        var position = reader.Position;
+                        foreach (var handlerUntyped in clientHandler.GetInvocationList())
+                        {
+                            reader.SetPosition(position);
+                            var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
+                            handler.Invoke(_netThreadContext, clientHeader, reader);
+                        }
+                    }
+                }
+                
                 break;
             }
         }

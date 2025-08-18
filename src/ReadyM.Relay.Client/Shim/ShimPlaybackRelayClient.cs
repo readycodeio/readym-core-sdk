@@ -54,6 +54,7 @@ public class ShimPlaybackRelayClient : IRelayClient
 
     private volatile bool _isRunning;
     private volatile bool _isPlaying;
+    private readonly ManualResetEventSlim _playerIdAssignedEvent = new();
 
     public bool IsPlaying
         => _isPlaying;
@@ -449,12 +450,14 @@ public class ShimPlaybackRelayClient : IRelayClient
         }
         RequestedConnect = true;
         
+        OnRequestedConnect?.Invoke();
+        
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedConnect,
         });
         
-        OnRequestedConnect?.Invoke();
+        _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
     }
 
     public void RequestDisconnect()
@@ -641,6 +644,22 @@ public class ShimPlaybackRelayClient : IRelayClient
                 _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
+                
+                _playerIdAssignedEvent.Set();
+
+                for (var i = 0; i < responseItem.OtherPlayers!.Count; i++)
+                {
+                    var otherPlayerId = responseItem.OtherPlayers[i];
+                    if (!_netThreadContext.AllPlayers.Contains(otherPlayerId))
+                    {
+                        _netThreadContext.AllPlayers.Add(otherPlayerId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Received handshake for player {PlayerId} that already is marked as connected", otherPlayerId);
+                    }
+                }
+
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
                 OnConnected?.Invoke(_netThreadContext, playerId);
                 break;
@@ -699,7 +718,6 @@ public class ShimPlaybackRelayClient : IRelayClient
                 if (!_netThreadContext.IsConnected)
                     return false;  
 
-                // Assumes RequestedJoinArea first
                 var playerId = responseItem.PlayerId;
                 if (_netThreadContext.PlayerId == null)
                 {
@@ -721,6 +739,18 @@ public class ShimPlaybackRelayClient : IRelayClient
                 _netThreadContext.CurrentAreaId = areaId;
                 _netThreadContext.AreaPlayers.Clear();
                 _netThreadContext.AreaPlayers.Add(playerId);
+                
+                for (var i = 0; i < responseItem.OtherPlayers!.Count; i++)
+                {
+                    var otherPlayerId = responseItem.OtherPlayers[i];
+                    if (otherPlayerId == playerId)
+                    {
+                        _logger.LogError("Received handshake for joining area {AreaId} by player {PlayerId} but other player list contains the same player", areaId, playerId);
+                        continue;
+                    }
+                    _netThreadContext.AreaPlayers.Add(otherPlayerId);
+                }
+
                 OnJoinedArea?.Invoke(_netThreadContext, areaId);
                 break;
             }
@@ -815,7 +845,17 @@ public class ShimPlaybackRelayClient : IRelayClient
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
-                serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
+                
+                if (serverHandler != null)
+                {
+                    var position = reader.Position;
+                    foreach (var handlerUntyped in serverHandler.GetInvocationList())
+                    {
+                        reader.SetPosition(position);
+                        var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>) handlerUntyped;
+                        handler.Invoke(_netThreadContext, serverHeader, reader);
+                    }
+                }
                 break;
             }
             case ShimResponseKind.AnyServerMessage:
@@ -827,7 +867,17 @@ public class ShimPlaybackRelayClient : IRelayClient
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
-                serverHandler?.Invoke(_netThreadContext, serverHeader, reader);
+                
+                if (serverHandler != null)
+                {
+                    var position = reader.Position;
+                    foreach (var handlerUntyped in serverHandler.GetInvocationList())
+                    {
+                        reader.SetPosition(position);
+                        var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>) handlerUntyped;
+                        handler.Invoke(_netThreadContext, serverHeader, reader);
+                    }
+                }
                 break;
             }
             case ShimResponseKind.AnyClientMessage:
@@ -845,7 +895,17 @@ public class ShimPlaybackRelayClient : IRelayClient
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var clientHandler = _clientMessageHandlers[(int)clientHeader.EventCode];
-                clientHandler?.Invoke(_netThreadContext, clientHeader, reader);
+                
+                if (clientHandler != null)
+                {
+                    var position = reader.Position;
+                    foreach (var handlerUntyped in clientHandler.GetInvocationList())
+                    {
+                        reader.SetPosition(position);
+                        var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>) handlerUntyped;
+                        handler.Invoke(_netThreadContext, clientHeader, reader);
+                    }
+                }
                 break;
             }
             default:

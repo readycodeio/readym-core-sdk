@@ -1,6 +1,9 @@
+using ReadyM.Api.Serialization;
+
 namespace ReadyM.Relay.Client.Shim;
 
-public struct ShimBlobDependencyData
+[DeriveJsonSerializable]
+public partial struct ShimBlobDependencyData(int requestId)
 {
-    public int RequestId;
+    public int RequestId = requestId;
 }

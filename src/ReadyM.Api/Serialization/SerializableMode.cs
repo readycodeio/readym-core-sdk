@@ -11,5 +11,5 @@ public enum SerializableMode : byte
     MapPrivate = 1 << 2,
     MapPublic = 1 << 3,
     MapInternal = 1 << 4,
-    Default = MapFields | MapPrivate
+    Default = MapFields | MapPublic | MapPrivate
 }

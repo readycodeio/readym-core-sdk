@@ -8,6 +8,7 @@ using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Client.Shim;
 
 namespace ReadyM.Relay.Client;
 
@@ -375,20 +376,50 @@ public class HotSwappableRelayClient : IRelayClient
     
     private void OnAnyBuiltInMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var handler = _serverMessageHandlers[(int)header.EventCode];
-        handler?.Invoke(context, header, reader);
+        var serverHandler = _serverMessageHandlers[(int)header.EventCode];
+        
+        if (serverHandler != null)
+        {
+            var position = reader.Position;
+            foreach (var handlerUntyped in serverHandler.GetInvocationList())
+            {
+                reader.SetPosition(position);
+                var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>) handlerUntyped;
+                handler.Invoke(context, header, reader);
+            }
+        }
     }
     
     private void OnAnyServerRpcMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        var handler = _serverMessageHandlers[(int)header.EventCode];
-        handler?.Invoke(context, header, reader);
+        var serverHandler = _serverMessageHandlers[(int)header.EventCode];
+        
+        if (serverHandler != null)
+        {
+            var position = reader.Position;
+            foreach (var handlerUntyped in serverHandler.GetInvocationList())
+            {
+                reader.SetPosition(position);
+                var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>) handlerUntyped;
+                handler.Invoke(context, header, reader);
+            }
+        }
     }
     
     private void OnAnyClientRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
     {
-        var handler = _clientMessageHandlers[(int)header.EventCode];
-        handler?.Invoke(context, header, reader);
+        var clientHandler = _clientMessageHandlers[(int)header.EventCode];
+        
+        if (clientHandler != null)
+        {
+            var position = reader.Position;
+            foreach (var handlerUntyped in clientHandler.GetInvocationList())
+            {
+                reader.SetPosition(position);
+                var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>) handlerUntyped;
+                handler.Invoke(context, header, reader);
+            }
+        }
     }
     
     private void OnClientUpdateHandler(IRelayClientNetworkThreadContext context)

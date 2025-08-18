@@ -87,12 +87,15 @@ public sealed class NetworkedEntityManager : IDisposable
             b.AddTag<LocallyCreatedEntityTag>();
             setComponents?.Invoke(b);
         });
+        
+        _logger.LogDebug("Network entity {NetId} created (locally)", meta.NetId);
+        
         return (entity, netId);
     }
     
     public Entity CreateRemoteNetworkedEntity(MetadataComponent meta, Entity? scopeEntity)
     {
-        return _world.CreateEntity(meta.Archetype, b =>
+        var entity = _world.CreateEntity(meta.Archetype, b =>
         {
             b.Add(meta);
             if (scopeEntity != null)
@@ -101,6 +104,10 @@ public sealed class NetworkedEntityManager : IDisposable
                 b.Add(scope);
             }
         });
+        
+        _logger.LogDebug("Network entity {NetId} created (remote)", meta.NetId);
+
+        return entity;
     }
 
     public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)

@@ -9,9 +9,9 @@ namespace ReadyM.Api.Multiplayer.Protocol;
 /// - 1 byte for eventCode
 /// - 2 bytes for sender
 /// </summary>
-[DeriveJsonSerializable]
-public readonly partial struct ServerEventHeader(RelayMessageCode eventCode, PlayerId sender)
+[DeriveJsonSerializable(mode: SerializableMode.MapFields | SerializableMode.MapPublic)]
+public partial struct ServerEventHeader(RelayMessageCode eventCode, PlayerId sender)
 {
-    public readonly RelayMessageCode EventCode = eventCode;
-    public readonly PlayerId Sender = sender;
+    public RelayMessageCode EventCode = eventCode;
+    public PlayerId Sender = sender;
 }

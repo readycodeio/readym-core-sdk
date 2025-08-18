@@ -127,7 +127,7 @@ public class BlobClient : IBlobClient, IDisposable
 
         // add a default timeout of 15 seconds
         var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(15));
+        nestedCt.CancelAfter(TimeSpan.FromSeconds(15_000));
         ct = nestedCt.Token;
 
         var tcs = new TaskCompletionSource<bool>();
@@ -177,7 +177,7 @@ public class BlobClient : IBlobClient, IDisposable
 
         // add a default timeout of 10 seconds
         var nestedCt = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        nestedCt.CancelAfter(TimeSpan.FromSeconds(10));
+        nestedCt.CancelAfter(TimeSpan.FromSeconds(10_000));
         ct = nestedCt.Token;
 
         var tcs = new TaskCompletionSource<BlobInfo?>();

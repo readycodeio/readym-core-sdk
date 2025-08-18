@@ -28,12 +28,6 @@ public class ShimController
         var shimSerializer = new ShimSerializer(_textSerializer);
         var recording = _shimRecorder.GetRecording();
 
-        if (recording == null)
-        {
-            _logger.LogError("Shim recording is null. Cannot save recording.");
-            return;
-        }
-
         _logger.LogInformation("Saving shim recording to: {Path}", recordShimFile);
         shimSerializer.Save(recording, recordShimFile);
     }

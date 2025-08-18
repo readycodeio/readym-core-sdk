@@ -111,7 +111,11 @@ namespace {info.Namespace}
         private {maskType} _dirtyMask;
 
 ");
-
+        foreach (var error in info.ErrorMessage)
+        {
+            sb.AppendLine($"    #error {error}");
+        }
+        
         var usePutGet = new bool[info.Members.Length];
         var isEnum = new bool[info.Members.Length];
         var enumBaseType = new SpecialType[info.Members.Length];

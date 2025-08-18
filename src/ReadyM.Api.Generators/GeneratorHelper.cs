@@ -64,9 +64,15 @@ internal static class GeneratorHelper
                 if (!mapFields)
                     useMember = false;
 
-                if (f is not { IsStatic: false, IsReadOnly: false })
+                if (f is { IsStatic: true })
                 {
+                    // Static readonly fields are not serialized
                     useMember = false;
+                    canUseMember = false;
+                }
+                
+                if (f is { IsReadOnly: true })
+                {
                     canUseMember = false;
                 }
 
@@ -77,9 +83,14 @@ internal static class GeneratorHelper
                 if (!mapProperties)
                     useMember = false;
                 
-                if (p is not { IsStatic: false, GetMethod: not null, SetMethod: not null })
+                if (p is { IsStatic: true })
                 {
                     useMember = false;
+                    canUseMember = false;
+                }
+                
+                if (p is not { GetMethod: not null, SetMethod: not null })
+                {
                     canUseMember = false;
                 }
 
@@ -102,16 +113,16 @@ internal static class GeneratorHelper
                 continue;
             }
 
-            if (canUseMember && hasInclude)
-            {
-                errorMessages.Add($"Invalid `IncludeSerializable` on the field {(isField ? "field" : "property")}: {member.Name}");
-                continue;
-            }
-
             if (hasInclude)
                 useMember = true;
             if (hasExclude)
                 useMember = false;
+
+            if (!canUseMember && useMember)
+            {
+                errorMessages.Add($"Cannot use {(isField ? "field" : "property")}: {member.Name}");
+                continue;
+            }
 
             if (useMember)
             {

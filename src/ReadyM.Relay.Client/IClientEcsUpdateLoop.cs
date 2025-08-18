@@ -3,18 +3,19 @@ using System.Threading.Tasks;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Multiplayer.Client.Blobs;
 
 namespace ReadyM.Relay.Client;
 
 public interface IClientEcsUpdateLoop
 {
     PendingActionScheduler<CommandBufferSynced> Scheduler { get; }
-    event Action<CommandBufferSynced>? OnUpdateLoop;
+    CommandBufferSynced CommandBuffer { get; }
     bool IsRunning { get; }
     
-    CommandBufferSynced CommandBuffer { get; }
-    
+    event Action? OnStarted;
+    event Action? OnStopped;
+    event Action<CommandBufferSynced>? OnUpdateLoop;
+
     void Start();
     void Stop();
     void AddSystem(BaseSystem system);
