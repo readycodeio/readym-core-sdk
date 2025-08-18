@@ -15,8 +15,8 @@ public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerI
     /// </summary>
     public ushort RawValue => _id;
 
-    public static PlayerId Invalid => default;
     public static PlayerId Server => default;
+    public static PlayerId Invalid => default;
     public static PlayerId Max => new(ushort.MaxValue);
 
     public void Serialize(NetDataWriter writer)
