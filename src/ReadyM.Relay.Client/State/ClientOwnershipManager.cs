@@ -10,13 +10,13 @@ public class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager
 {
     public bool TryGetOwner(NetworkId netId, out PlayerId ownerId)
         => ownership.TryGetOwner(netId, out ownerId);
-    
+
     public bool TryGetOwner(Entity entity, out PlayerId ownerId)
         => ownership.TryGetOwner(entity, out ownerId);
-    
+
     public bool OwnsEntity(NetworkId netId)
         => ownership.TryGetOwner(netId, out var ownerId) && ownerId == state.LocalPlayerId;
-    
+
     public bool OwnsEntity(Entity entity)
         => ownership.TryGetOwner(entity, out var ownerId) && ownerId == state.LocalPlayerId;
 }

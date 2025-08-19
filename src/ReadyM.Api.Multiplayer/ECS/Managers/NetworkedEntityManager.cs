@@ -7,6 +7,7 @@ using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Values;
+using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
@@ -66,14 +67,16 @@ public sealed class NetworkedEntityManager : IDisposable
     public (Entity Entity, NetworkId NetId) CreateNetworkedEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
-        Action<EntityBuilder>? setComponents = null)
+        Action<EntityBuilder>? setComponents = null,
+        PlayerId? ownerOverride = null)
     {
         var playerId = _playerIdProvider.PlayerId;
         if (playerId == null)
             throw new InvalidOperationException();
         
         var netId = new NetworkId(playerId.Value, ++_nextNetworkedId);
-        var meta = new MetadataComponent(netId, archetypeId, netId.Creator);
+        var owner = ownerOverride ?? netId.Creator;
+        var meta = new MetadataComponent(netId, archetypeId, owner);
         var entity = _world.CreateEntity(archetypeId, b =>
         {
             b.Add(meta);

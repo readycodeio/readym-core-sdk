@@ -4,6 +4,7 @@ using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Relay.Common.ECS.Systems;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
@@ -26,6 +27,6 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
 
     protected override bool OwnsEntity(MetadataComponent meta, SendContext context)
     {
-        return meta.Owner == relay.PlayerId;
+        return meta.Owner == relay.PlayerId; // TODO: use ClientOwnershipManager?
     }
 }
