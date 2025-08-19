@@ -84,6 +84,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         // NOTE: iterates over all network components with generics without reflection
         netComponentRegistry.Accept(new RegisterSystemCallback(this));
         
+        _systemGroup.SetMonitorPerf(true);
         _ecsLoop.AddSystem(_systemGroup);
     }
 
