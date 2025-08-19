@@ -279,21 +279,20 @@ namespace {info.Namespace}
         for (var i = 0; i < info.Members.Length; i++)
         {
             var field = info.Members[i];
-            var propertyName = char.ToUpper(field.Name[1]) + field.Name.Substring(2);
 
             if (usePutGet[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {propertyName} = reader.{getMethod}();");
+                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {field.Name} = reader.{getMethod}();");
             }
             else if (isEnum[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {propertyName} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
+                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {field.Name} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
             }
             else
             {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ {field.Name}.Deserialize(reader); _dirtyMask |= ({maskType})1 << {i}; }}");
+                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ {field.Name}.Deserialize(reader); }}");
             }
         }
 
