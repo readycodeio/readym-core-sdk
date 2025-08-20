@@ -12,7 +12,7 @@ public struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId
 {
     public NetworkId NetId { get; private set; } = netId;
     public ArchetypeId Archetype { get; private set; } = archetype;
-    public PlayerId Owner = owner;
+    public PlayerId Owner { get; set; } = owner;
 
     public void Serialize(NetDataWriter writer)
     {
