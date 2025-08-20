@@ -14,11 +14,12 @@ public enum RelayMessageCode : byte
     EcsSnapshot = 249,
     EcsCreateEntity = 248,
     EcsDeleteEntity = 247,
+    EcsChangeOwnership = 246,
     
-    RequestDownloadBlob = 246,
-    DownloadBlobData = 245,
-    RequestUploadBlob = 244,
-    UploadBlobAck = 243,
+    RequestDownloadBlob = 245,
+    DownloadBlobData = 244,
+    RequestUploadBlob = 243,
+    UploadBlobAck = 242,
     
     MinBuiltInEvent = UploadBlobAck,
     MaxAnyCustomEvent = MinBuiltInEvent - 1,
