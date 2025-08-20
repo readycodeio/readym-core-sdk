@@ -13,6 +13,8 @@ namespace ReadyM.Relay.Common.Generators;
 [Generator]
 public class ServerRpcEventGenerator : IIncrementalGenerator
 {
+    private const string ContextTypeName = "IRelayClientNetworkThreadContext";
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var serverRpcMethods = context.SyntaxProvider
@@ -97,9 +99,13 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                                          using System;
                                          using LiteNetLib;
                                          using LiteNetLib.Utils;
-                                         using ReadyM.Relay.Common;
+                                         using ReadyM.Api.Multiplayer;
+                                         using ReadyM.Api.Multiplayer.Protocol;
+                                         using ReadyM.Api.Multiplayer.Protocol.Enums;
+                                         using ReadyM.Api.Multiplayer.Client;
+                                         using ReadyM.Api.Multiplayer.Extensions;
+                                         using ReadyM.Api.Multiplayer.Server.Rpc;
                                          using ReadyM.Relay.Common.Protocol;
-                                         using ReadyM.Relay.Common.Protocol.Enums;
 
                                          namespace {{ns}}
                                          {
@@ -184,8 +190,10 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                 sb.AppendLine($$"""
                                         public void {{sendMethod}}({{argList}})
                                         {
-                                            var writer = new NetDataWriter();
-                                            writer.PutServerRpcEventHeader({{eventCodeByte}});
+                                            var message = RelayMessage.ToServer({{eventCode}}, DeliveryMethod.ReliableOrdered);
+                                            var writer = message.Writer;
+                                            //var writer = new NetDataWriter();
+                                            //writer.PutServerRpcEventHeader({{eventCode}});
                                 """);
 
                 if (hasPayload)
@@ -205,7 +213,7 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                 }
 
                 sb.AppendLine("""
-                                          RelayClient.SendMessageToServer(writer, DeliveryMethod.ReliableOrdered);
+                                          RelayClient.SendMessage(message);
                                       }
 
                               """);
@@ -241,14 +249,14 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                 dispatchCases.AppendLine("                break;");
                 dispatchCases.AppendLine("            }");
 
-                initMethods.AppendLine($"RelayClient.AddServerRpcEventHandler(new ServerRpcEventEntry({eventCode}), OnServerEvent);");
-                deinitMethods.AppendLine($"RelayClient.RemoveServerRpcEventHandler(new ServerRpcEventEntry({eventCode}), OnServerEvent);");
+                initMethods.AppendLine($"RelayClient.AddServerRpcMessageHandler({eventCode}, OnServerEvent);");
+                deinitMethods.AppendLine($"RelayClient.RemoveServerRpcMessageHandler({eventCode}, OnServerEvent);");
                 baseEventCode++;
             }
 
             // Emit OnServerEvent override
             sb.AppendLine($$"""
-                                    protected void OnServerEvent(ServerRpcEventHeader header, NetDataReader reader)
+                                    protected void OnServerEvent(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
                                     {
                                         switch (header.EventCode)
                                         {
@@ -260,14 +268,12 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                                     
                                     protected void InitRpc()
                                     {
-                                        base.InitRpc();
                                         {{initMethods}}
                                     }
                                     
                                     protected void DeInitRpc()
                                     {
                                         {{deinitMethods}}
-                                        base.DeInitRpc();
                                     }
                             """);
 
