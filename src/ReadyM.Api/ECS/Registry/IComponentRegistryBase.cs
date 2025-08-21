@@ -11,6 +11,9 @@ public interface IComponentRegistryBase<out TRegistry, TComponent>
     TRegistry RegisterComponent<T>()
         where T : struct, TComponent;
     
+    TRegistry RegisterComponent<T>(T defaultValue)
+        where T : struct, TComponent;
+    
     // NOTE: Visitor pattern to handle generics without reflection.
     void Accept(IComponentRegistryCallbackBase<TRegistry, TComponent> callbackBase);
 }

@@ -32,6 +32,18 @@ public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentR
         
         return (TRegistry)(object)this;
     }
+    
+    public virtual TRegistry RegisterComponent<T>(T defaultValue)
+        where T : struct, TComponent
+    {
+        _componentTypes.Add(typeof(T));
+        _acceptCallbacks.Add(callback =>
+        {
+            callback.AcceptComponent((TRegistry)(object)this, defaultValue);
+        });
+        
+        return (TRegistry)(object)this;
+    }
 
     public void Accept(IComponentRegistryCallbackBase<TRegistry, TComponent> callbackBase)
     {

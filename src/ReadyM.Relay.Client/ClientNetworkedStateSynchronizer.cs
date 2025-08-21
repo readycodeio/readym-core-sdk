@@ -33,6 +33,11 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
             owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
         }
+
+        public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue) where T : struct, INetworkedComponent
+        {
+            AcceptComponent<T>(registry);
+        }
     }
 
     protected readonly ClientState State;
