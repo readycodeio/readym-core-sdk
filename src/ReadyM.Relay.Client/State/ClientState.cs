@@ -91,8 +91,10 @@ public class ClientState : IDisposable
         => _localPlayerEntry?.PlayerEntity;
 
     public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> AllPlayers => new(_allPlayers);
+    public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> OtherPlayers => new([.. _allPlayers.Where(p => p != LocalPlayerId)]);
     public System.Collections.ObjectModel.ReadOnlyDictionary<PlayerId, PlayerEntry> PlayerEntries => new(_playerEntries);
     public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> AreaPlayers => (_currentAreaEntry?.AreaPlayers).NullableWrapReadOnly();
+    public ReadyM.Api.Helpers.ReadOnlyList<PlayerId> OtherAreaPlayers => (_currentAreaEntry?.AreaPlayers.Where(p => p != LocalPlayerId).ToList()).NullableWrapReadOnly();
     
     public bool JoinedArea
         => _currentAreaEntry is { } value && value.AreaId != AreaId.Invalid;
