@@ -272,6 +272,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         _ecsLoop.Scheduler.EnsureThread();
 
+        // TODO: Check by Owner, not Creator
         if (netId.Creator != RelayClient.PlayerId)
             return;
 
