@@ -2,9 +2,6 @@ namespace ReadyM.Api.ECS.Registry;
 
 public interface IComponentRegistryCallbackBase<in TRegistry, in TComponent>
 {
-    void AcceptComponent<T>(TRegistry registry)
-        where T : struct, TComponent;
-    
-    void AcceptComponent<T>(TRegistry registry, T defaultValue)
+    void AcceptComponent<T>(TRegistry registry, T defaultValue = default)
         where T : struct, TComponent;
 }

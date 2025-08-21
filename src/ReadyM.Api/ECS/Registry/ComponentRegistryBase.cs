@@ -20,20 +20,8 @@ public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentR
             registration.Register(registry);
         }
     }
-
-    public virtual TRegistry RegisterComponent<T>()
-        where T : struct, TComponent
-    {
-        _componentTypes.Add(typeof(T));
-        _acceptCallbacks.Add(callback =>
-        {
-            callback.AcceptComponent<T>((TRegistry)(object)this);
-        });
-        
-        return (TRegistry)(object)this;
-    }
     
-    public virtual TRegistry RegisterComponent<T>(T defaultValue)
+    public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
         _componentTypes.Add(typeof(T));

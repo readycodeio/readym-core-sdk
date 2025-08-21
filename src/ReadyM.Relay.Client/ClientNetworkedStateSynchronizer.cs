@@ -25,18 +25,13 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
-        public void AcceptComponent<T>(INetworkedComponentRegistry registry)
+        public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue = default)
             where T : struct, INetworkedComponent
         {
             var id = registry.GetNetworkedComponentId<T>();
 
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
             owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
-        }
-
-        public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue) where T : struct, INetworkedComponent
-        {
-            AcceptComponent<T>(registry);
         }
     }
 

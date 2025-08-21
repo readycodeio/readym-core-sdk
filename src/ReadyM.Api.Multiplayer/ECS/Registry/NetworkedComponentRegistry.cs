@@ -11,11 +11,11 @@ public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistrat
     private byte _nextComponentId;
     private readonly Dictionary<Type, NetworkedComponentId> _ids = new();
 
-    public override INetworkedComponentRegistry RegisterComponent<T>()
+    public override INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
     {
         var id = new NetworkedComponentId(_nextComponentId++);
         _ids.Add(typeof(T), id);
-        return base.RegisterComponent<T>();
+        return base.RegisterComponent(defaultValue);
     }
 
     public NetworkedComponentId GetNetworkedComponentId<T>()
