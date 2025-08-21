@@ -110,6 +110,8 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         NetEntity.OnEntityDelete -= OnEntityDeleteHandler;
     }
+    
+    protected virtual void OnOwnershipChanged(Entity entity) { }
 
     #region Event handlers
 
@@ -172,6 +174,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                     if (self.NetEntity.TryGetEntityByNetworkId(netId, out var entity))
                     {
                         entity.Value.GetComponent<MetadataComponent>().Owner = newOwner;
+                        OnOwnershipChanged(entity.Value);
                     }
                     else
                     {
