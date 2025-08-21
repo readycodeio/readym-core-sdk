@@ -71,6 +71,9 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         // When an ECS delete entity message is received, the client deletes the entity from its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
+        
+        // When an ECS change ownership message is received, the client updates the ownership of the entity in its ECS world. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
         // sent to the server. 
