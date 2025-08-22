@@ -45,5 +45,5 @@ public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerI
         => left._id != right._id;
 
     public override string ToString()
-        => _id == Invalid._id ? "PlayerId.Invalid" : $"PlayerId[{_id}]";
+        => _id == Invalid._id ? "PlayerId.Server" : $"PlayerId[{_id}]";
 }
