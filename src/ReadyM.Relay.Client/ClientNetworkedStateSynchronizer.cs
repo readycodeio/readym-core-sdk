@@ -42,6 +42,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     protected readonly JobRegistry JobRegistry;
     private readonly IClientEcsUpdateLoop _ecsLoop;
+    private readonly ClientOwnershipManager _ownershipManager;
 
     private readonly SystemGroup _systemGroup;
 
@@ -51,10 +52,12 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         INetworkedComponentRegistry netComponentRegistry,
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
+        ClientOwnershipManager ownershipManager,
         ILogger logger)
     {
         State = state;
         _ecsLoop = ecsLoop;
+        _ownershipManager = ownershipManager;
         NetEntity = netEntity;
         RelayClient = relayClient;
         Logger = logger;
@@ -71,7 +74,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         // When an ECS delete entity message is received, the client deletes the entity from its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
-        
+
         // When an ECS change ownership message is received, the client updates the ownership of the entity in its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
@@ -110,7 +113,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         NetEntity.OnEntityDelete -= OnEntityDeleteHandler;
     }
-    
+
     protected virtual void OnOwnershipChanged(Entity entity) { }
 
     #region Event handlers
@@ -278,8 +281,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
         _ecsLoop.Scheduler.EnsureThread();
 
-        // TODO: Check by Owner, not Creator
-        if (netId.Creator != RelayClient.PlayerId)
+        if (!_ownershipManager.OwnsEntity(netId))
             return;
 
         // Our own entity - send destroy event to the server. The server will react by deleting it on the server and
