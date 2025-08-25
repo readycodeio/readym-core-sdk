@@ -1,22 +1,24 @@
 using LiteNetLib.Utils;
-using ReadyM.Relay.Common.ECS;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
 public static class NetIdSerializationExtensions
 {
-    public static bool TryGetNetworkId(this NetDataReader reader, out NetworkIdComponent result)
+    public static bool TryGetNetworkId(this NetDataReader reader, out NetworkId result)
     {
         if (reader.AvailableBytes >= 6)
         {
-            result = reader.Get<NetworkIdComponent>(); // for some reason, extension syntax doesn't work here
+            result = reader.Get<NetworkId>();
             return true;
         }
 
         result = default;
         return false;
     }
-
+    
     public static bool TryGetNetworkedComponentId(this NetDataReader reader, out NetworkedComponentId result)
     {
         if (reader.AvailableBytes >= 1)

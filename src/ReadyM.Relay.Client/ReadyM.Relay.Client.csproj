@@ -5,21 +5,24 @@
         <LangVersion>13.0</LangVersion>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <Platforms>AnyCPU</Platforms>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2024.3.0"/>
         <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.6" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
+        <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
         <PackageReference Include="System.Text.Encodings.Web" Version="9.0.6" />
         <PackageReference Include="System.Text.Json" Version="9.0.6" />
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
+        <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
         <ProjectReference Include="..\ReadyM.Relay.Common\ReadyM.Relay.Common.csproj" />
-        <ProjectReference Include="..\ReadyM.Relay.Common.Generators\ReadyM.Relay.Common.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
 </Project>

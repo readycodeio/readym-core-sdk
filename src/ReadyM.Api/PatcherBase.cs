@@ -10,7 +10,7 @@ public abstract class PatcherBase : IDisposable
     public void Patch()
     {
         if (IsDisposed)
-            throw new ObjectDisposedException(nameof(SystemUpdateLoop), "Mod is already disposed.");
+            throw new ObjectDisposedException("Mod is already disposed.");
         if (IsPatched)
             throw new InvalidOperationException("Mod is already patched.");
         IsPatched = true;
@@ -25,7 +25,7 @@ public abstract class PatcherBase : IDisposable
     public void Unpatch()
     {
         if (IsDisposed)
-            throw new ObjectDisposedException(nameof(SystemUpdateLoop), "Mod is already disposed.");
+            throw new ObjectDisposedException("Mod is already disposed.");
         if (!IsPatched)
             throw new InvalidOperationException("Mod is not patched.");
         IsPatched = false;
