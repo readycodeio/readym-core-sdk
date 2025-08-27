@@ -421,12 +421,7 @@ public class RelayClient : IRelayClient
 
         var writer = new NetDataWriter();
         _options.Serialize(writer);
-        var peer = _client.Connect(_host, _port, writer);
-
-        if (peer != null)
-        {
-            _logger.LogInformation("Connected on {Host}:{Port}", _host, _port);
-        }
+        _client.Connect(_host, _port, writer);
 
         _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
 
