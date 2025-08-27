@@ -202,7 +202,7 @@ public class ClientState : IDisposable
             _pendingEvents.Add(new PendingEvent()
             {
                 Kind = PendingEventKind.Disconnected,
-                PlayerId = context.PlayerId!.Value,
+                PlayerId = context.PlayerId ?? PlayerId.Invalid,
                 DisconnectReason = disconnectReason,
             });
         }
