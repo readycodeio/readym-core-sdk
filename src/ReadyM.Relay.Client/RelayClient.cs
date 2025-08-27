@@ -425,7 +425,7 @@ public class RelayClient : IRelayClient
         _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
 
         if (_netThreadContext.PlayerId == null)
-            throw new TimeoutException($"Failed to assign PlayerId within {Constants.ClientConnectionTimeoutMs}ms");
+            _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
     }
     
     public void RequestDisconnect()
