@@ -23,6 +23,10 @@ public interface IClientEcsUpdateLoop
         where T : BaseSystem, new();
     void RemoveSystem(BaseSystem system);
 
-    void Tick(UpdateTick tick);
+    /// <summary>
+    /// Executes one tick of the ECS update loop. Should be called regularly, e.g. from a game loop or a timer.
+    /// </summary>
+    /// <param name="deltaTime">Time in seconds from the previous tick.</param>
+    void Tick(float deltaTime);
     void Wait(Task task);
 }

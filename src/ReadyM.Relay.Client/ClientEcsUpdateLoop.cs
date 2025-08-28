@@ -21,7 +21,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     private readonly ILogger _logger;
 
     private readonly PendingActionUpdater<CommandBufferSynced> _scheduler;
-    
+
     public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
 
     public event Action<CommandBufferSynced>? OnUpdateLoop;
@@ -29,6 +29,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     public event Action? OnStopped;
 
     public bool IsRunning { get; private set; }
+    private float _applicationTime = 0f;
 
     public ClientEcsUpdateLoop(Store world, ILogger logger)
     {
@@ -50,42 +51,45 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         }
 
         IsRunning = true;
-        
+
         _logger.LogInformation("Starting ECS update loop");
 
         _scheduler.SetThread(Thread.CurrentThread);
-        
+
         OnStarted?.Invoke();
-        
+
         _logger.LogInformation("ECS update loop started successfully");
     }
 
-    public void Tick(UpdateTick tick)
+    public void Tick(float deltaTime)
     {
         if (!IsRunning)
         {
             _logger.LogError("ECS update loop is not running. Call `StartAsync()` first.");
             return;
         }
-        
+
         CommandBuffer.Playback();
 
-        World.SystemRoot.Update(tick);
+        _applicationTime += deltaTime;
+        World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
 
         _scheduler.Update();
-        
+
         OnUpdateLoop?.Invoke(CommandBuffer);
     }
 
     public void Wait(Task task)
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         while (true)
         {
             if (task.IsCompleted || task.IsFaulted || task.IsCanceled)
                 break;
-            
-            Tick(default);
-            
+
+            Tick(stopwatch.ElapsedMilliseconds);
+            stopwatch.Restart();
+
             // FIXME: This is very ugly
             Thread.Sleep(33);
         }
@@ -101,9 +105,9 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
         IsRunning = false;
         _scheduler.SetThread(null);
-        
+
         OnStopped?.Invoke();
-        
+
         _logger.LogInformation("ECS update loop stopped.");
     }
 
