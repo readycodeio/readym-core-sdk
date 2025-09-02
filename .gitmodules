@@ -2,5 +2,5 @@
 	path = src/Friflo.Engine.ECS
 	url = git@github.com:readycodeio/Friflo.Engine.ECS.git
 [submodule "LiteNetLib"]
-	path = LiteNetLib
+	path = src/LiteNetLib
 	url = https://github.com/RevenantX/LiteNetLib.git
