@@ -290,6 +290,10 @@ public class RelayClient : IRelayClient
             AutoRecycle = true,
             EnableStatistics = true,
             UpdateTime = Constants.ClientNetworkTickRateMs,
+#if DEBUG
+            SimulateLatency = true,
+            SimulatePacketLoss = true,
+#endif
         };
 
         if (noDisconnect)
