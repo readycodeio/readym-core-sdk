@@ -116,7 +116,7 @@ public class HotSwappableRelayClient : IRelayClient
     public event Action? OnRequestedStop;
 
     public event Action? OnRequestedConnect;
-    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
     public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
     
@@ -338,8 +338,8 @@ public class HotSwappableRelayClient : IRelayClient
     private void OnRequestedConnectHandler()
         => OnRequestedConnect?.Invoke();
 
-    private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
-        => OnConnected?.Invoke(context, playerId);
+    private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId, uint nextId)
+        => OnConnected?.Invoke(context, playerId, nextId);
 
     private void OnRequestedDisconnectHandler()
         => OnRequestedDisconnect?.Invoke();

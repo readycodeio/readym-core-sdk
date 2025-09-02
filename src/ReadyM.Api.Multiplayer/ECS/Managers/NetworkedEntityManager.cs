@@ -43,6 +43,11 @@ public sealed class NetworkedEntityManager : IDisposable
     {
         _world.OnEntityDelete -= OnEntityDeleteHandler;
     }
+    
+    public void SetNextNetworkedId(uint nextId)
+    {
+        _nextNetworkedId = nextId;
+    }
 
     public bool IsNetworkEntityDeleted(NetworkId netId)
     {
