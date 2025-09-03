@@ -108,7 +108,6 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
                                          using ReadyM.Api.Multiplayer.Client;
                                          using ReadyM.Api.Multiplayer.Extensions;
                                          using ReadyM.Api.Multiplayer.Server.Rpc;
-                                         using ReadyM.Relay.Common.Protocol;
 
                                          namespace {{ns}}
                                          {

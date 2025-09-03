@@ -8,7 +8,6 @@ using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Api.Multiplayer.Server;
 

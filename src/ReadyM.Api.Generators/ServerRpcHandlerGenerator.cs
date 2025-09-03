@@ -109,7 +109,6 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          using ReadyM.Api.Multiplayer.Protocol.Enums;
                                          using ReadyM.Relay;
                                          using ReadyM.Relay.Common;
-                                         using ReadyM.Relay.Common.Protocol;
                                          using ReadyM.Relay.Common.Rpc;
                                          
                                          namespace {{ns}}

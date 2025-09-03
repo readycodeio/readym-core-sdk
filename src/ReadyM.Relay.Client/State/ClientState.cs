@@ -109,7 +109,7 @@ public class ClientState : IDisposable
         => _currentAreaEntry?.AreaEntity;
 
     public event Action<PlayerId, Entity>? OnConnected;
-    public event Action<PlayerId, Entity, DisconnectReason>? OnDisconnected;
+    public event Action<PlayerId, Entity?, DisconnectReason>? OnDisconnected;
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -630,12 +630,6 @@ public class ClientState : IDisposable
                 }
                 case PendingEventKind.Disconnected:
                 {
-                    if (_localPlayerEntry == null)
-                    {
-                        _logger.LogWarning("Disconnected event received, but no local player entry found. This happens when the player disconnects before the Connected event is processed.");
-                        break;
-                    }
-
                     var playerId = pendingEvent.PlayerId;
 
                     if (_currentAreaEntry != null)
@@ -682,7 +676,7 @@ public class ClientState : IDisposable
                         _playerEntries.Remove(otherPlayerId);
                     }
 
-                    OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry.Value.PlayerEntity, pendingEvent.DisconnectReason);
+                    OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry?.PlayerEntity, pendingEvent.DisconnectReason);
 
                     _allPlayers.Clear();
                     _playerEntries.Clear();

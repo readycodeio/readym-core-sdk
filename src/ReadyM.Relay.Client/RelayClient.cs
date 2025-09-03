@@ -13,7 +13,6 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Relay.Client;
 
@@ -429,7 +428,10 @@ public class RelayClient : IRelayClient
         _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
 
         if (_netThreadContext.PlayerId == null)
+        {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
+            OnDisconnected?.Invoke(_netThreadContext, DisconnectReason.ConnectionFailed);
+        }
     }
 
     public void RequestDisconnect()
@@ -612,7 +614,7 @@ public class RelayClient : IRelayClient
 
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
                 _logger.LogDebug("Next available NetworkId is {NextNetworkId}", nextId);
-                
+
                 OnConnected?.Invoke(_netThreadContext, playerId, nextId);
                 break;
             }

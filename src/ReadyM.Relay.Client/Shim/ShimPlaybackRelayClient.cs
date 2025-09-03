@@ -12,7 +12,6 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;

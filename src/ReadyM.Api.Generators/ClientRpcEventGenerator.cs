@@ -90,7 +90,6 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                                          using ReadyM.Api.Multiplayer.Protocol.Enums;
                                          using ReadyM.Api.Multiplayer.Client;
                                          using ReadyM.Api.Multiplayer.Extensions;
-                                         using ReadyM.Relay.Common.Protocol;
 
                                          namespace {{ns}}
                                          {
