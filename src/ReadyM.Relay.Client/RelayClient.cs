@@ -483,7 +483,10 @@ public class RelayClient : IRelayClient
 
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
@@ -511,7 +514,10 @@ public class RelayClient : IRelayClient
 
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
@@ -545,7 +551,10 @@ public class RelayClient : IRelayClient
     {
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
         data.Serialize(message.Writer);
@@ -557,7 +566,10 @@ public class RelayClient : IRelayClient
     {
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
         SendMessage(message);
