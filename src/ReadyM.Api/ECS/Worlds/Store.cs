@@ -22,7 +22,7 @@ public sealed partial class Store
         public Action<EntityBuilder> Constructor;
         public Action<Entity>? LateInit;
     }
-    
+
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
@@ -36,7 +36,7 @@ public sealed partial class Store
 #if DEBUG
         SystemRoot.SetMonitorPerf(true);
 #endif
-        
+
         foreach (var registration in registrations)
         {
             registration.Register(this);
@@ -47,7 +47,7 @@ public sealed partial class Store
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
-        _archetypeEntries[archetypeId] = new ()
+        _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
             Constructor = constructor,
             LateInit = lateInit
@@ -70,7 +70,7 @@ public sealed partial class Store
         entry.LateInit?.Invoke(entity);
         return entity;
     }
-    
+
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
     {
         var batch = _wrapped.Batch();
