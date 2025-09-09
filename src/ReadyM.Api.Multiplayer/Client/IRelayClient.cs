@@ -61,7 +61,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// event fires will result in an exception.
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
 
     event Action OnRequestedDisconnect;
     

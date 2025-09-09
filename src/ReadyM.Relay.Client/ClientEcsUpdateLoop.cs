@@ -69,7 +69,14 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             return;
         }
 
-        CommandBuffer.Playback();
+        try
+        {
+            CommandBuffer.Playback();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Error during CommandBuffer playback");
+        }
 
         _applicationTime += deltaTime;
         World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));

@@ -108,7 +108,7 @@ public class ShimRelayRecorder : IDisposable
         }
     }
     
-    private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
+    private void OnConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId, uint nextId)
     {
         var otherPlayers = context.AllPlayers.ToList();
         otherPlayers.Remove(playerId);
@@ -117,6 +117,7 @@ public class ShimRelayRecorder : IDisposable
             Kind = ShimResponseKind.Connected,
             PlayerId = playerId,
             OtherPlayers = otherPlayers,
+            NextId = nextId
         };
         AddResponseItem(responseItem);
     }

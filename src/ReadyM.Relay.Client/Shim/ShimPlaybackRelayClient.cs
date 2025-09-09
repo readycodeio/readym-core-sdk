@@ -12,7 +12,6 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Common.Protocol;
 using ReadyM.Relay.Common.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
@@ -80,7 +79,7 @@ public class ShimPlaybackRelayClient : IRelayClient
     public event Action? OnStart;
     public event Action? OnRequestedStop;
     public event Action? OnRequestedConnect;
-    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
     public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
@@ -637,6 +636,7 @@ public class ShimPlaybackRelayClient : IRelayClient
             {
                 // Assumes RequestedStart first
                 var playerId = responseItem.PlayerId;
+                var nextId = responseItem.NextId;
                 if (_netThreadContext.PlayerId != null)
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
@@ -661,7 +661,9 @@ public class ShimPlaybackRelayClient : IRelayClient
                 }
 
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
-                OnConnected?.Invoke(_netThreadContext, playerId);
+                _logger.LogDebug("Next available NetworkId is {NextNetworkId}", nextId);
+
+                OnConnected?.Invoke(_netThreadContext, playerId, nextId);
                 break;
             }
             case ShimResponseKind.Disconnected:

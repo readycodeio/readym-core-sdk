@@ -13,8 +13,6 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Client.Shim;
-using ReadyM.Relay.Common.Protocol;
 
 namespace ReadyM.Relay.Client;
 
@@ -91,7 +89,7 @@ public class RelayClient : IRelayClient
     public event Action? OnRequestedStop;
 
     public event Action? OnRequestedConnect;
-    public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnConnected;
+    public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
     public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
 
@@ -290,6 +288,10 @@ public class RelayClient : IRelayClient
             AutoRecycle = true,
             EnableStatistics = true,
             UpdateTime = Constants.ClientNetworkTickRateMs,
+#if DEBUG
+            SimulateLatency = true,
+            SimulatePacketLoss = true,
+#endif
         };
 
         if (noDisconnect)
@@ -426,7 +428,10 @@ public class RelayClient : IRelayClient
         _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
 
         if (_netThreadContext.PlayerId == null)
+        {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
+            OnDisconnected?.Invoke(_netThreadContext, DisconnectReason.ConnectionFailed);
+        }
     }
 
     public void RequestDisconnect()
@@ -478,7 +483,10 @@ public class RelayClient : IRelayClient
 
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
@@ -506,7 +514,10 @@ public class RelayClient : IRelayClient
 
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestAreaEvent);
@@ -540,7 +551,10 @@ public class RelayClient : IRelayClient
     {
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
         data.Serialize(message.Writer);
@@ -552,7 +566,10 @@ public class RelayClient : IRelayClient
     {
         var playerId = PlayerId;
         if (playerId == null)
-            throw new Exception("PlayerId cannot be null");
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
 
         var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
         SendMessage(message);
@@ -581,6 +598,7 @@ public class RelayClient : IRelayClient
             case RelayMessageCode.HandshakeConnected:
             {
                 var playerId = reader.Get<PlayerId>();
+                var nextId = reader.GetUInt();
                 if (_netThreadContext.PlayerId != null && _netThreadContext.PlayerId != playerId)
                 {
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
@@ -607,7 +625,9 @@ public class RelayClient : IRelayClient
                 }
 
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
-                OnConnected?.Invoke(_netThreadContext, playerId);
+                _logger.LogDebug("Next available NetworkId is {NextNetworkId}", nextId);
+
+                OnConnected?.Invoke(_netThreadContext, playerId, nextId);
                 break;
             }
             case RelayMessageCode.AreaEvent:
