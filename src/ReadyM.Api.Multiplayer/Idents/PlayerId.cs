@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Idents;
 
 [DeriveJsonSerializable]
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerId>
 {
     private ushort _id = id;

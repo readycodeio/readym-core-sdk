@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -21,10 +20,14 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
         return relay.GetMaxPacketSize(DeliveryMethod.ReliableOrdered);
     }
 
-    protected override IEnumerable<PlayerId> SentOwners()
+    protected override uint SentOwners()
     {
         if (relay.PlayerId.HasValue)
-            yield return relay.PlayerId.Value;
+        {
+            return 1u << relay.PlayerId.Value.RawValue;
+        }
+
+        return 0;
     }
 
     protected override void Send(PlayerId _, NetDataWriter data, SendContext context)
