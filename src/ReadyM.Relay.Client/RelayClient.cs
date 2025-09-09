@@ -848,9 +848,7 @@ public class RelayClient : IRelayClient
         // Round trip time. LiteNetLib reports one way latency, so we double it.
         // We add a random jitter so that the results are not always divisible by 2.
         OnPingUpdated?.Invoke(_netThreadContext, 2 * latency + _rng.Next(2));
-
-        // Print stats every time too
-
+        
         // NOTE: We need to read this once so that it is atomic
         var bytesReceived = _client.Statistics.BytesReceived;
         var bytesSent = _client.Statistics.BytesSent;
@@ -880,7 +878,6 @@ public class RelayClient : IRelayClient
         var avgSent = (long)(dSent / delta.TotalSeconds);
 
         _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s", avgRecv, avgSent);
-        LogEventStats();
     }
 
     // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected
@@ -898,19 +895,17 @@ public class RelayClient : IRelayClient
         OnDisconnected?.Invoke(_netThreadContext, info.Reason);
     }
 
-    private void LogEventStats()
+    public void LogEventStats()
     {
-#if DEBUG
         foreach (var kvp in _statsSent.OrderByDescending(x => x.Value))
         {
-            _logger.LogTrace("Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            _logger.LogDebug("Event {Event}: sent {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
 
         _logger.LogTrace("----------------------------------------");
         foreach (var kvp in _statsRecv.OrderByDescending(x => x.Value))
         {
-            _logger.LogTrace("Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
+            _logger.LogDebug("Event {Event}: recv {Bytes} B, avg {Average} B", kvp.Key, kvp.Value.Bytes, kvp.Value.Bytes / kvp.Value.Count);
         }
-#endif
     }
 }

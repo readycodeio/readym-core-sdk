@@ -44,7 +44,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the thread calling `Start()`.
     /// </summary>
     event Action OnStart;
-    
+
     /// <summary>
     /// Fired immediately after the client requests disconnection from the server. This will NOT fire if the client
     /// got disconnected from the server unwillingly, e.g. due to a network error.
@@ -64,7 +64,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
 
     event Action OnRequestedDisconnect;
-    
+
     /// <summary>
     /// Fired when an expected or unexpected disconnection from the server. After this event is fired,
     /// no further events related to messages from the server will be fired untile successful reconnection. Similarly,
@@ -95,7 +95,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the MAIN thread.
     /// </summary>
     event Action<AreaId>? OnRequestedJoinArea;
-    
+
     /// <summary>
     /// Fired when the client has successfully joined an area of interest. Before this event is fired, the client
     /// will not receive any messages addressed to the area of interest. The client will always leave an area of
@@ -112,7 +112,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the MAIN thread.
     /// </summary>
     event Action? OnRequestedLeaveArea;
-    
+
     /// <summary>
     /// Fired when the client has successfully left an area of interest. Before joining another area of interest,
     /// the client will not receive any area of interest addressed messages. The client is considered to be in no
@@ -120,7 +120,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext> OnLeftArea;
-    
+
     /// <summary>
     /// Fired when another player joins our area of interest. We are not going to be informed about players joining
     /// areas of interest where we ourselves are not joined. When we join a new area of interest, this event will fire
@@ -130,7 +130,7 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
-    
+
     /// <summary>
     /// Counterpart to `OnOtherPlayerJoinedArea`. Fires when another player leaves our area of interest. This will
     /// also fire for players that were in the area of interest and got disconnected. This will fire before the
@@ -140,13 +140,13 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
-    
+
     /// <summary>
     /// Used to measure ping. Currently only measures round-trip ping to the server.
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, int>? OnPingUpdated;
-    
+
     /// <summary>
     /// Fired for each message successfully received by us. The following messages will be received:
     /// 1) Directly addressed to us.
@@ -155,30 +155,31 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage;
+
     event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage;
     event Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage;
-    
+
     void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    
+
     void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
     void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    
+
     void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
     void AddClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
     void RemoveClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
     void RemoveClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
-    
+
     /// <summary>
     /// Fired on each server update tick.
     /// This is called from the thread calling `RunAsync()`.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
-    
+
     PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler { get; }
 
     int GetMaxPacketSize(DeliveryMethod deliveryMethod);
@@ -193,17 +194,23 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     void RequestConnect();
     void RequestDisconnect();
     void RequestReconnect();
-    
+
     void RequestJoinArea(AreaId areaId);
     void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);
     void SendMessage(RelayMessage message);
-    
+
     void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
+
     void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
+
     void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
+
+#if DEBUG
+    void LogEventStats();
+#endif
 }
