@@ -29,7 +29,7 @@ namespace ReadyM.Api.Multiplayer.Client;
 /// `IRelayClient` also has to know of entity ownership, at least to the extent that this feature is used for
 /// addressing messages. In particular, one of the addressing modes allows us to indicate that the entity should be
 /// relayed to the owner of the entity. This owner cannot be pre-concretized because while the message is in flight,
-/// ownership could be transferred to another player. Retaning the owner addressing mode allows the old owner to
+/// ownership could be transferred to another player. Retaining the owner addressing mode allows the old owner to
 /// re-relay the message to the new owner in that specific rare case.
 /// </summary>
 public interface IRelayClient : IPlayerIdProvider, IDisposable
@@ -210,7 +210,5 @@ public interface IRelayClient : IPlayerIdProvider, IDisposable
     void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
 
-#if DEBUG
     void LogEventStats();
-#endif
 }
