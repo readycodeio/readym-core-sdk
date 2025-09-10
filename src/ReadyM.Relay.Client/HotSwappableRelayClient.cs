@@ -327,6 +327,8 @@ public class HotSwappableRelayClient : IRelayClient
         where T : INetSerializable
         => _client!.SendMessageRelayMode(eventCode, data, mode, deliveryMethod);
 
+    public void LogEventStats() => _client?.LogEventStats();
+
     #region Event handlers
     
     private void OnRequestedStartHandler()

@@ -625,6 +625,11 @@ public class ShimPlaybackRelayClient : IRelayClient
         SendMessage(message);
     }
 
+    public void LogEventStats()
+    {
+        // do nothing
+    }
+
     public bool ProcessResponseItem(ShimResponseItem responseItem)
     {
         if (_depTracker.CheckResponseShouldWait(responseItem, _netThreadContext, _requestItems))

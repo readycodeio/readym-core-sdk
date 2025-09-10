@@ -14,19 +14,24 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
         => filter;
-    
+
     protected override int GetMaxPacketSize()
     {
         return relay.GetMaxPacketSize(DeliveryMethod.ReliableOrdered);
     }
 
-    protected override void Send(NetDataWriter data, SendContext context)
+    protected override uint SentOwners()
     {
-        relay.SendRawMessage(data, DeliveryMethod.ReliableOrdered);
+        if (relay.PlayerId.HasValue)
+        {
+            return 1u << relay.PlayerId.Value.RawValue;
+        }
+
+        return 0;
     }
 
-    protected override bool OwnsEntity(MetadataComponent meta, SendContext context)
+    protected override void Send(PlayerId _, NetDataWriter data, SendContext context)
     {
-        return meta.Owner == relay.PlayerId; // TODO: use ClientOwnershipManager?
+        relay.SendRawMessage(data, DeliveryMethod.ReliableOrdered);
     }
 }

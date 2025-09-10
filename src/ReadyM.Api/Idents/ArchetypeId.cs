@@ -1,19 +1,16 @@
 using System;
+using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Idents;
 
-public struct ArchetypeId : IEquatable<ArchetypeId>, INetSerializable
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public struct ArchetypeId(byte id) : IEquatable<ArchetypeId>, INetSerializable
 {
     public static ArchetypeId None => new(0);
     
-    private byte _id;
-    
-    public ArchetypeId(byte id)
-    {
-        _id = id;
-    }
-    
+    private byte _id = id;
+
     public bool Equals(ArchetypeId other)
         => _id == other._id;
 

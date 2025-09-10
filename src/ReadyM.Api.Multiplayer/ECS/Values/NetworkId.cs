@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Serialization;
@@ -6,6 +7,7 @@ using ReadyM.Api.Serialization;
 namespace ReadyM.Api.Multiplayer.ECS.Values;
 
 [DeriveJsonSerializable]
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
 {
     public PlayerId Creator { get; private set; } = creator; // 2 bytes
