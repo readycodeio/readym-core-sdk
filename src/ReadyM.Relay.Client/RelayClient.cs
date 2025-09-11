@@ -276,7 +276,7 @@ public class RelayClient : IRelayClient
         _options = options;
         _host = host;
         _port = port;
-        _scheduler = new(_netThreadContext, _logger);
+        _scheduler = new PendingActionUpdater<IRelayClientNetworkThreadContext>(_netThreadContext, _logger);
 
         _listener = new EventBasedNetListener();
         _listener.NetworkReceiveEvent += OnListenerNetworkReceiveEvent;
@@ -348,7 +348,7 @@ public class RelayClient : IRelayClient
             return;
         }
 
-        await Task.Delay(1, token);
+        await Task.Yield();
         _scheduler.SetThread(Thread.CurrentThread);
 
         while (!token.IsCancellationRequested)
@@ -848,7 +848,7 @@ public class RelayClient : IRelayClient
         // Round trip time. LiteNetLib reports one way latency, so we double it.
         // We add a random jitter so that the results are not always divisible by 2.
         OnPingUpdated?.Invoke(_netThreadContext, 2 * latency + _rng.Next(2));
-        
+
         // NOTE: We need to read this once so that it is atomic
         var bytesReceived = _client.Statistics.BytesReceived;
         var bytesSent = _client.Statistics.BytesSent;
