@@ -287,7 +287,6 @@ public class RelayClient : IRelayClient
         {
             AutoRecycle = true,
             EnableStatistics = true,
-            UpdateTime = Constants.ClientNetworkTickRateMs,
 #if DEBUG
             SimulateLatency = true,
             SimulatePacketLoss = true,
@@ -360,6 +359,8 @@ public class RelayClient : IRelayClient
                 OnClientUpdate?.Invoke(_netThreadContext);
 
                 var hadPendingActions = _scheduler.Update();
+                _client.TriggerUpdate();
+
                 if (!hadPendingActions)
                 {
                     await Task.Delay(Constants.ClientNetworkTickRateMs, token);
