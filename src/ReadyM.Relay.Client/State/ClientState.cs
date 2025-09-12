@@ -719,10 +719,10 @@ public class ClientState : IDisposable
                         AreaId = areaId,
                         AreaEntity = areaEntity,
                         AreaNetworkId = meta.NetId,
-                        AreaPlayers = new List<PlayerId>()
-                        {
-                            playerId,
-                        },
+                        AreaPlayers =
+                        [
+                            playerId
+                        ],
                     };
 
                     _currentAreaEntry = areaEntry;

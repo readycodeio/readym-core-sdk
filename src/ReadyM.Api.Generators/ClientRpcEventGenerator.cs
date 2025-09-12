@@ -217,6 +217,11 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                     relayMode = "0"; // default
                 }
 
+                if (relayMode == "4" && !paramTypes.First(x => x.Type != null).Type!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Contains("NetworkId"))
+                {
+                    sb.AppendLine($"""#error "RelayMode.EntityOwner requires the first parameter to be NetworkId in method '{methodName}'" """);
+                }
+
                 sb.AppendLine($$"""
                                         public void {{sendMethod}}({{sendParamList}})
                                         {
