@@ -7,7 +7,7 @@
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
         <Platforms>AnyCPU</Platforms>
-        <RootNamespace>ReadyM.Relay.Common.Generators</RootNamespace>
+        <RootNamespace>ReadyM.Api.Generators</RootNamespace>
         <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
     </PropertyGroup>
 

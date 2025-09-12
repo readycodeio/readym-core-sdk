@@ -13,6 +13,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Common.Extensions;
 
 namespace ReadyM.Relay.Client;
 
@@ -20,8 +21,8 @@ public class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
-        public readonly List<PlayerId> AllPlayers = new();
-        public readonly List<PlayerId> AreaPlayers = new();
+        public readonly List<PlayerId> AllPlayers = [];
+        public readonly List<PlayerId> AreaPlayers = [];
 
         public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
@@ -276,7 +277,7 @@ public class RelayClient : IRelayClient
         _options = options;
         _host = host;
         _port = port;
-        _scheduler = new(_netThreadContext, _logger);
+        _scheduler = new PendingActionUpdater<IRelayClientNetworkThreadContext>(_netThreadContext, _logger);
 
         _listener = new EventBasedNetListener();
         _listener.NetworkReceiveEvent += OnListenerNetworkReceiveEvent;
@@ -287,21 +288,21 @@ public class RelayClient : IRelayClient
         {
             AutoRecycle = true,
             EnableStatistics = true,
-            UpdateTime = Constants.ClientNetworkTickRateMs,
-#if DEBUG
-            SimulateLatency = true,
-            SimulatePacketLoss = true,
-#endif
+            UnsyncedEvents = true
+// #if DEBUG
+//             SimulateLatency = true,
+//             SimulatePacketLoss = true,
+// #endif
         };
 
         if (noDisconnect)
         {
             _client.DisconnectTimeout = 3600_000;
-            _client.PingInterval = 3600_000;
             _client.DisconnectOnUnreachable = false;
         }
         else
         {
+            _client.DisconnectTimeout = 5000;
             _client.DisconnectOnUnreachable = true;
         }
     }
@@ -348,7 +349,7 @@ public class RelayClient : IRelayClient
             return;
         }
 
-        await Task.Delay(1, token);
+        await Task.Yield();
         _scheduler.SetThread(Thread.CurrentThread);
 
         while (!token.IsCancellationRequested)
@@ -360,6 +361,8 @@ public class RelayClient : IRelayClient
                 OnClientUpdate?.Invoke(_netThreadContext);
 
                 var hadPendingActions = _scheduler.Update();
+                _client.TriggerUpdate();
+
                 if (!hadPendingActions)
                 {
                     await Task.Delay(Constants.ClientNetworkTickRateMs, token);
@@ -528,14 +531,14 @@ public class RelayClient : IRelayClient
 
     public void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod)
     {
-        Server?.Send(writer, deliveryMethod);
+        Server?.SendImmediately(writer, deliveryMethod);
         var ev = writer.Data[0];
         AppendToSentStats((RelayMessageCode)ev, writer.Length);
     }
 
     public void SendMessage(RelayMessage message)
     {
-        Server?.Send(message.Writer, message.DeliveryMethod);
+        Server?.SendImmediately(message.Writer, message.DeliveryMethod);
         AppendToSentStats(message.EventCode, message.Writer.Length);
     }
 
@@ -604,9 +607,9 @@ public class RelayClient : IRelayClient
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
 
-                _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
+                _netThreadContext.IsConnected = true;
 
                 _playerIdAssignedEvent.Set();
 
@@ -848,7 +851,7 @@ public class RelayClient : IRelayClient
         // Round trip time. LiteNetLib reports one way latency, so we double it.
         // We add a random jitter so that the results are not always divisible by 2.
         OnPingUpdated?.Invoke(_netThreadContext, 2 * latency + _rng.Next(2));
-        
+
         // NOTE: We need to read this once so that it is atomic
         var bytesReceived = _client.Statistics.BytesReceived;
         var bytesSent = _client.Statistics.BytesSent;

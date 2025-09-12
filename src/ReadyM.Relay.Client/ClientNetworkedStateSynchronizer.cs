@@ -126,7 +126,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule((context0, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
         {
             try
             {
@@ -165,7 +165,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     protected void OnEcsChangeOwnershipMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule((context0, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
         {
             try
             {
@@ -177,7 +177,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                     if (self.NetEntity.TryGetEntityByNetworkId(netId, out var entity))
                     {
                         entity.Value.GetComponent<MetadataComponent>().Owner = newOwner;
-                        OnOwnershipChanged(entity.Value);
+                        self.OnOwnershipChanged(entity.Value);
                     }
                     else
                     {
@@ -194,7 +194,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     protected void OnEcsDeltaMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule((_, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -211,7 +211,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
     // NOTE: Someone else created an entity, and we are notified about it
     protected void OnEcsCreateEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule((cb, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule(static (cb, self, readerCopy) =>
         {
             try
             {
@@ -251,7 +251,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
     protected void OnEcsDeleteEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkId>();
-        _ecsLoop.Scheduler.Schedule((cb, self, netId0) =>
+        _ecsLoop.Scheduler.Schedule(static (cb, self, netId0) =>
         {
             try
             {

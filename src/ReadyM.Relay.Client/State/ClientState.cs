@@ -191,7 +191,7 @@ public class ClientState : IDisposable
             }
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
@@ -206,7 +206,7 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
@@ -233,7 +233,7 @@ public class ClientState : IDisposable
             }
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
@@ -262,7 +262,7 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -276,7 +276,7 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -290,7 +290,7 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -305,7 +305,7 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -327,12 +327,12 @@ public class ClientState : IDisposable
             });
         }
 
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnApplySnapshotHandler()
     {
-        _ecsLoop.Scheduler.Schedule((_, self) => { self.ProcessPendingEvents(); }, this);
+        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void PrunePendingEvents()
@@ -719,10 +719,10 @@ public class ClientState : IDisposable
                         AreaId = areaId,
                         AreaEntity = areaEntity,
                         AreaNetworkId = meta.NetId,
-                        AreaPlayers = new List<PlayerId>()
-                        {
-                            playerId,
-                        },
+                        AreaPlayers =
+                        [
+                            playerId
+                        ],
                     };
 
                     _currentAreaEntry = areaEntry;

@@ -35,7 +35,7 @@ public abstract class PendingActionSchedulerBase
             return writer;
         
         var writerCopy = new NetDataWriter(true, writer.Length);
-        writerCopy.PutArray(writer.Data, writer.Length);
+        writerCopy.Put(writer.Data);
         return writerCopy;
     }
     

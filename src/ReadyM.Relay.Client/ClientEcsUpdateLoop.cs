@@ -6,6 +6,7 @@ using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client;
 
@@ -98,7 +99,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             stopwatch.Restart();
 
             // FIXME: This is very ugly
-            Thread.Sleep(33);
+            Thread.Sleep(Constants.ClientEcsUpdateRateMs);
         }
     }
 

@@ -41,7 +41,7 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
 
         var startedEvent = new ManualResetEventSlim();
 
-        _isolatedNoParallelismAsyncContextThread = new();
+        _isolatedNoParallelismAsyncContextThread = new AsyncContextThread();
         
         _task = _isolatedNoParallelismAsyncContextThread.Factory.Run(async () =>
         {
