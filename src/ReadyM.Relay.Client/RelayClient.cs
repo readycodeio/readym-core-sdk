@@ -298,11 +298,11 @@ public class RelayClient : IRelayClient
         if (noDisconnect)
         {
             _client.DisconnectTimeout = 3600_000;
-            _client.PingInterval = 3600_000;
             _client.DisconnectOnUnreachable = false;
         }
         else
         {
+            _client.DisconnectTimeout = 5000;
             _client.DisconnectOnUnreachable = true;
         }
     }
