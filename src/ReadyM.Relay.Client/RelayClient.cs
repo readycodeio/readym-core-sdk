@@ -13,6 +13,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Common.Extensions;
 
 namespace ReadyM.Relay.Client;
 
@@ -287,10 +288,11 @@ public class RelayClient : IRelayClient
         {
             AutoRecycle = true,
             EnableStatistics = true,
-#if DEBUG
-            SimulateLatency = true,
-            SimulatePacketLoss = true,
-#endif
+            UnsyncedEvents = true
+// #if DEBUG
+//             SimulateLatency = true,
+//             SimulatePacketLoss = true,
+// #endif
         };
 
         if (noDisconnect)
@@ -529,14 +531,14 @@ public class RelayClient : IRelayClient
 
     public void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod)
     {
-        Server?.Send(writer, deliveryMethod);
+        Server?.SendImmediately(writer, deliveryMethod);
         var ev = writer.Data[0];
         AppendToSentStats((RelayMessageCode)ev, writer.Length);
     }
 
     public void SendMessage(RelayMessage message)
     {
-        Server?.Send(message.Writer, message.DeliveryMethod);
+        Server?.SendImmediately(message.Writer, message.DeliveryMethod);
         AppendToSentStats(message.EventCode, message.Writer.Length);
     }
 
