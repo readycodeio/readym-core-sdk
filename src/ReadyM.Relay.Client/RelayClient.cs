@@ -21,8 +21,8 @@ public class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
-        public readonly List<PlayerId> AllPlayers = new();
-        public readonly List<PlayerId> AreaPlayers = new();
+        public readonly List<PlayerId> AllPlayers = [];
+        public readonly List<PlayerId> AreaPlayers = [];
 
         public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
@@ -607,9 +607,9 @@ public class RelayClient : IRelayClient
                     _logger.LogError("Missing handshake for player {PlayerId} but already assigned {AssignedPlayerId}", playerId, _netThreadContext.PlayerId);
                 }
 
-                _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
+                _netThreadContext.IsConnected = true;
 
                 _playerIdAssignedEvent.Set();
 

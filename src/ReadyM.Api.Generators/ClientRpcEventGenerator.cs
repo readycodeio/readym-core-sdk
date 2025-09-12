@@ -225,7 +225,10 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 sb.AppendLine($$"""
                                         public void {{sendMethod}}({{sendParamList}})
                                         {
-                                            var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCodeByte}}, RelayClient.PlayerId!.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                            if (!RelayClient.PlayerId.HasValue)
+                                                return;
+                                        
+                                            var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCodeByte}}, RelayClient.PlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                             var writer = message.Writer;
                                 """);
 
