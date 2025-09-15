@@ -657,8 +657,7 @@ public class RelayClient : IRelayClient
                         break;
                     }
 
-                    AreaId areaId = default;
-                    areaId.Deserialize(reader);
+                    var areaId = reader.Get<AreaId>();
 
                     _logger.LogInformation("NETWORK JOINING {AreaId} by player {PlayerId}", areaId, playerId);
 
