@@ -818,20 +818,18 @@ public class RelayClient : IRelayClient
 
                     return;
                 }
+                
+                var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
+                var clientHandler = _clientMessageHandlers[(byte)eventCode];
 
+                if (clientHandler != null)
                 {
-                    var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
-                    var clientHandler = _clientMessageHandlers[(byte)eventCode];
-
-                    if (clientHandler != null)
+                    var position = reader.Position;
+                    foreach (var handlerUntyped in clientHandler.GetInvocationList())
                     {
-                        var position = reader.Position;
-                        foreach (var handlerUntyped in clientHandler.GetInvocationList())
-                        {
-                            reader.SetPosition(position);
-                            var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(_netThreadContext, clientHeader, reader);
-                        }
+                        reader.SetPosition(position);
+                        var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
+                        handler.Invoke(_netThreadContext, clientHeader, reader);
                     }
                 }
 

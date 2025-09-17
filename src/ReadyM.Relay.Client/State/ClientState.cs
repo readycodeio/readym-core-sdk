@@ -707,7 +707,7 @@ public class ClientState : IDisposable
                     var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
                         .HasValue<AreaScopeComponent, AreaId>(areaId);
 
-                    if (areaQuery.Count == 0)
+                    if (areaQuery.Count == 0) // TODO: or no master client set, move MasterClient to AreaScopeComponent
                         return; // exit loop
 
                     var areaEntity = areaQuery.Entities.First();

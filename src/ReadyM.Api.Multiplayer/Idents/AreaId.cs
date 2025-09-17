@@ -9,12 +9,6 @@ public partial struct AreaId(ushort id) : INetSerializable, IEquatable<AreaId>
 {
     private ushort _id = id;
 
-    /// <summary>
-    /// Numeric identifier for a player. This can change over time, so it should not be used as a persistent identifier.
-    /// Rely on the <see cref="PlayerId"/> as a unique identifier for the current session.
-    /// </summary>
-    public ushort RawValue => _id;
-
     public static AreaId Invalid => default;
     public static AreaId Max => new(ushort.MaxValue);
 
@@ -32,7 +26,7 @@ public partial struct AreaId(ushort id) : INetSerializable, IEquatable<AreaId>
         => _id == other._id;
 
     public override bool Equals(object? obj)
-        => obj is PlayerId other && Equals(other);
+        => obj is AreaId other && Equals(other);
 
     public override int GetHashCode()
         => _id.GetHashCode();
