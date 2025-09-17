@@ -712,9 +712,12 @@ public class ClientState : IDisposable
 
                     var areaEntity = areaQuery.Entities.First();
 
+                    if (areaEntity.GetComponent<AreaScopeComponent>().MasterClient == PlayerId.Invalid)
+                        return; // exit loop
+
                     var meta = areaEntity.GetComponent<MetadataComponent>();
 
-                    var areaEntry = new AreaEntry()
+                    var areaEntry = new AreaEntry
                     {
                         AreaId = areaId,
                         AreaEntity = areaEntity,
