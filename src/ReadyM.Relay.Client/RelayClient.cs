@@ -270,7 +270,7 @@ public class RelayClient : IRelayClient
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
         => _scheduler;
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, bool noDisconnect, ILogger logger)
+    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger, bool noDisconnect, bool simulateLatency)
     {
         _logger = logger;
 
@@ -288,12 +288,14 @@ public class RelayClient : IRelayClient
         {
             AutoRecycle = true,
             EnableStatistics = true,
-            UnsyncedEvents = true
-// #if DEBUG
-//             SimulateLatency = true,
-//             SimulatePacketLoss = true,
-// #endif
+            UnsyncedEvents = true,
         };
+        
+        if (simulateLatency)
+        {
+            _client.SimulateLatency = true;
+            _client.SimulatePacketLoss = true;
+        }
 
         if (noDisconnect)
         {
@@ -657,8 +659,7 @@ public class RelayClient : IRelayClient
                         break;
                     }
 
-                    AreaId areaId = default;
-                    areaId.Deserialize(reader);
+                    var areaId = reader.Get<AreaId>();
 
                     _logger.LogInformation("NETWORK JOINING {AreaId} by player {PlayerId}", areaId, playerId);
 
@@ -819,20 +820,18 @@ public class RelayClient : IRelayClient
 
                     return;
                 }
+                
+                var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
+                var clientHandler = _clientMessageHandlers[(byte)eventCode];
 
+                if (clientHandler != null)
                 {
-                    var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
-                    var clientHandler = _clientMessageHandlers[(byte)eventCode];
-
-                    if (clientHandler != null)
+                    var position = reader.Position;
+                    foreach (var handlerUntyped in clientHandler.GetInvocationList())
                     {
-                        var position = reader.Position;
-                        foreach (var handlerUntyped in clientHandler.GetInvocationList())
-                        {
-                            reader.SetPosition(position);
-                            var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(_netThreadContext, clientHeader, reader);
-                        }
+                        reader.SetPosition(position);
+                        var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
+                        handler.Invoke(_netThreadContext, clientHeader, reader);
                     }
                 }
 
