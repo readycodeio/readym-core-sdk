@@ -17,7 +17,7 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
 
     protected override int GetMaxPacketSize()
     {
-        return relay.GetMaxPacketSize(DeliveryMethod.ReliableOrdered);
+        return relay.GetMaxPacketSize(DeliveryMethod.Unreliable);
     }
 
     protected override uint SentOwners()
@@ -32,6 +32,6 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
 
     protected override void Send(PlayerId _, NetDataWriter data, SendContext context)
     {
-        relay.SendRawMessage(data, DeliveryMethod.ReliableOrdered);
+        relay.SendRawMessage(data, DeliveryMethod.Unreliable);
     }
 }

@@ -294,7 +294,7 @@ public class RelayClient : IRelayClient
         if (simulateLatency)
         {
             _client.SimulateLatency = true;
-            _client.SimulatePacketLoss = true;
+            // _client.SimulatePacketLoss = true;
         }
 
         if (noDisconnect)
