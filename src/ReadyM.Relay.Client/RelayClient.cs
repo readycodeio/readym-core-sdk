@@ -270,7 +270,7 @@ public class RelayClient : IRelayClient
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
         => _scheduler;
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger, bool noDisconnect, bool simulateLatency)
+    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger, bool noDisconnect)
     {
         _logger = logger;
 
@@ -290,12 +290,6 @@ public class RelayClient : IRelayClient
             EnableStatistics = true,
             UnsyncedEvents = true,
         };
-        
-        if (simulateLatency)
-        {
-            _client.SimulateLatency = true;
-            // _client.SimulatePacketLoss = true;
-        }
 
         if (noDisconnect)
         {
