@@ -28,7 +28,7 @@ public sealed partial class Store
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
     public SystemRoot SystemRoot { get; }
-    public ReaderWriterLockSlim WorldLock { get; } = new();
+    public ReaderWriterLockSlim WorldLock { get; } = new(LockRecursionPolicy.SupportsRecursion);
 
     public Store(EntityStore wrapped, IEnumerable<IArchetypeRegistration> registrations)
     {
