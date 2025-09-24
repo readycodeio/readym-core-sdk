@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.ECS.Registry;
@@ -27,6 +28,7 @@ public sealed partial class Store
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
     public SystemRoot SystemRoot { get; }
+    public ReaderWriterLockSlim WorldLock { get; } = new();
 
     public Store(EntityStore wrapped, IEnumerable<IArchetypeRegistration> registrations)
     {
@@ -62,21 +64,37 @@ public sealed partial class Store
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
         }
 
-        var batch = _wrapped.Batch();
-        var builder = new EntityBuilder(batch);
-        entry.Constructor.Invoke(builder);
-        setComponents?.Invoke(builder);
-        var entity = batch.CreateEntity();
-        entry.LateInit?.Invoke(entity);
-        return entity;
+        WorldLock.EnterWriteLock();
+        try
+        {
+            var batch = _wrapped.Batch();
+            var builder = new EntityBuilder(batch);
+            entry.Constructor.Invoke(builder);
+            setComponents?.Invoke(builder);
+            var entity = batch.CreateEntity();
+            entry.LateInit?.Invoke(entity);
+            return entity;
+        }
+        finally
+        {
+            WorldLock.ExitWriteLock();
+        }
     }
 
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
     {
-        var batch = _wrapped.Batch();
-        var builder = new EntityBuilder(batch);
-        setComponents?.Invoke(builder);
-        return batch.CreateEntity();
+        WorldLock.EnterWriteLock();
+        try
+        {
+            var batch = _wrapped.Batch();
+            var builder = new EntityBuilder(batch);
+            setComponents?.Invoke(builder);
+            return batch.CreateEntity();
+        }
+        finally
+        {
+            WorldLock.ExitWriteLock();
+        }
     }
 
     /// <summary>

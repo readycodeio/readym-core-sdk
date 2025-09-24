@@ -32,8 +32,6 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     public bool IsRunning { get; private set; }
     private float _applicationTime = 0f;
 
-    public ReaderWriterLockSlim WorldLock { get; } = new();
-
     public ClientEcsUpdateLoop(Store world, ILogger logger)
     {
         World = world;
@@ -72,7 +70,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             return;
         }
 
-        WorldLock.EnterWriteLock();
+        World.WorldLock.EnterWriteLock();
         try
         {
             CommandBuffer.Playback();
@@ -83,7 +81,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         }
         finally
         {
-            WorldLock.ExitWriteLock();
+            World.WorldLock.ExitWriteLock();
         }
 
         _applicationTime += deltaTime;

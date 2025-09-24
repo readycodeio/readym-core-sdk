@@ -259,7 +259,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
                 {
                     self.Logger.LogDebug("Deleting remote entity: {Id}", netId0);
-                    entity.Value.DeleteEntity();
+                    cb.DeleteEntity(entity.Value.Id);
                 }
                 else
                 {

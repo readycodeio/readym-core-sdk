@@ -11,7 +11,6 @@ public interface IClientEcsUpdateLoop
 {
     PendingActionScheduler<CommandBufferSynced> Scheduler { get; }
     CommandBufferSynced CommandBuffer { get; }
-    ReaderWriterLockSlim WorldLock { get; }
     bool IsRunning { get; }
     
     event Action? OnStarted;
