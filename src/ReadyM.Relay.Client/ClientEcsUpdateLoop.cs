@@ -32,6 +32,8 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     public bool IsRunning { get; private set; }
     private float _applicationTime = 0f;
 
+    public ReaderWriterLockSlim WorldLock { get; } = new();
+
     public ClientEcsUpdateLoop(Store world, ILogger logger)
     {
         World = world;
@@ -70,6 +72,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             return;
         }
 
+        WorldLock.EnterWriteLock();
         try
         {
             CommandBuffer.Playback();
@@ -78,11 +81,16 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         {
             _logger.LogError(ex, "Error during CommandBuffer playback");
         }
+        finally
+        {
+            WorldLock.ExitWriteLock();
+        }
 
         _applicationTime += deltaTime;
         World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
 
         _scheduler.Update();
+
 
         OnUpdateLoop?.Invoke(CommandBuffer);
     }
