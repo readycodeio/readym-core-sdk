@@ -15,12 +15,15 @@ public abstract class PatcherBase : IDisposable
             throw new InvalidOperationException("Mod is already patched.");
         IsPatched = true;
         OnPatch();
+        OnCommit();
     }
     
     protected virtual void OnPatch()
     {
         // empty
     }
+
+    protected abstract void OnCommit();
     
     public void Unpatch()
     {
@@ -30,6 +33,7 @@ public abstract class PatcherBase : IDisposable
             throw new InvalidOperationException("Mod is not patched.");
         IsPatched = false;
         OnUnpatch();
+        OnCommit();
     }
 
     protected virtual void OnUnpatch()

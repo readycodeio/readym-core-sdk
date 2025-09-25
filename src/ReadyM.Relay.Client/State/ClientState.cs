@@ -158,7 +158,7 @@ public class ClientState : IDisposable
     public void Dispose()
     {
         _ecsLoop.OnUpdateLoop -= ProcessPendingEvents;
-        
+
         _jobRegistry.OnApplySnapshot -= OnApplySnapshotHandler;
 
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
@@ -572,7 +572,7 @@ public class ClientState : IDisposable
     }
 
     private void ProcessPendingEvents(CommandBufferSynced _) => ProcessPendingEvents();
-    
+
     private void ProcessPendingEvents()
     {
         var removeAndContinue = false;
@@ -621,6 +621,8 @@ public class ClientState : IDisposable
                 }
 
                 var playerId = pendingEvent.PlayerId;
+
+
                 var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
                     .HasValue<PlayerScopeComponent, PlayerId>(playerId);
 
@@ -630,7 +632,7 @@ public class ClientState : IDisposable
                 var playerEntity = playerQuery.Entities.First();
                 var meta = playerEntity.GetComponent<MetadataComponent>();
 
-                var playerEntry = new PlayerEntry()
+                var playerEntry = new PlayerEntry
                 {
                     PlayerId = playerId,
                     PlayerEntity = playerEntity,

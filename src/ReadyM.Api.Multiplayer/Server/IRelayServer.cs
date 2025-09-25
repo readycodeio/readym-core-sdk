@@ -69,5 +69,5 @@ public interface IRelayServer : IDisposable
     void SendToAll(ReadOnlyList<PlayerId> playerIds, NetDataWriter writer, DeliveryMethod deliveryMethod);
     void SendToAllExcept(ReadOnlyList<PlayerId> playerIds, PlayerId exceptPlayerId, NetDataWriter writer, DeliveryMethod deliveryMethod);
 
-    int GetMaxPacketSize();
+    int? GetMaxPacketSize(DeliveryMethod deliveryMethod);
 }

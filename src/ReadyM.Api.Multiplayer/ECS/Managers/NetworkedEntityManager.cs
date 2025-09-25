@@ -20,7 +20,7 @@ public sealed class NetworkedEntityManager : IDisposable
 
     private readonly ComponentIndex<MetadataComponent, NetworkId> _ix;
     private readonly HashSet<NetworkId> _netIdTombstones = [];
-    
+
     private uint _nextNetworkedId;
 
     // NOTE: This event will be fired on the ECS thread.
@@ -33,7 +33,7 @@ public sealed class NetworkedEntityManager : IDisposable
         _commandBuffer.ReuseBuffer = true;
         _logger = logger;
         _playerIdProvider = playerIdProvider;
-        
+
         _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
 
         _world.OnEntityDelete += OnEntityDeleteHandler;
@@ -43,7 +43,7 @@ public sealed class NetworkedEntityManager : IDisposable
     {
         _world.OnEntityDelete -= OnEntityDeleteHandler;
     }
-    
+
     public void SetNextNetworkedId(uint nextId)
     {
         _nextNetworkedId = nextId;
@@ -55,16 +55,16 @@ public sealed class NetworkedEntityManager : IDisposable
     }
 
     private int _skipNetSync;
-    
+
     private void OnEntityDeleteHandler(EntityDelete evt)
     {
         if (evt.Entity.TryGetComponent<MetadataComponent>(out var meta))
         {
             _netIdTombstones.Add(meta.NetId);
-            
+
             if (_skipNetSync == 0)
                 OnEntityDelete?.Invoke(meta.NetId, evt.Entity);
-            
+
             _logger.LogDebug("Network entity {NetId} deleted", meta.NetId);
         }
     }
@@ -78,7 +78,7 @@ public sealed class NetworkedEntityManager : IDisposable
         var playerId = _playerIdProvider.PlayerId;
         if (playerId == null)
             throw new InvalidOperationException();
-        
+
         var netId = new NetworkId(playerId.Value, ++_nextNetworkedId);
         var owner = ownerOverride ?? netId.Creator;
         var meta = new MetadataComponent(netId, archetypeId, owner);
@@ -90,17 +90,18 @@ public sealed class NetworkedEntityManager : IDisposable
                 var scope = new InScopeComponent(scopeEntity.Value);
                 b.Add(scope);
             }
+
             // NOTE: This is added "temporarily" in order to mark the entity as not yet propagated over the network
             // Once the entity is propagated, this tag gets removed.
             b.AddTag<LocallyCreatedEntityTag>();
             setComponents?.Invoke(b);
         });
-        
+
         _logger.LogDebug("Network entity {NetId} created (locally)", meta.NetId);
-        
+
         return (entity, netId);
     }
-    
+
     public Entity CreateRemoteNetworkedEntity(MetadataComponent meta, Entity? scopeEntity)
     {
         var entity = _world.CreateEntity(meta.Archetype, b =>
@@ -112,7 +113,7 @@ public sealed class NetworkedEntityManager : IDisposable
                 b.Add(scope);
             }
         });
-        
+
         _logger.LogDebug("Network entity {NetId} created (remote)", meta.NetId);
 
         return entity;
@@ -142,49 +143,33 @@ public sealed class NetworkedEntityManager : IDisposable
         if (!scopeEntity.Tags.Has<ScopeEntityTag>())
             throw new InvalidOperationException("Entity is not a scope entity.");
 
-        try
-        {
-            // NOTE: Scope related entity deletes are not synchronized over the network because each
-            // client individually already deletes all those entities on their own. Having them also 
-            // synchronize using the normal EcsDeleteEntity events would result in an attempt to delete
-            // the same entities twice. It would also waste a whole lot of traffic.
-            if (skipSync)
-                _skipNetSync++;
-            // NOTE: Deleting all scope entities "atomically" so that they don't accidentally become global without their
-            // InScopeComponent links.
-            _world.Query<MetadataComponent>()
-                .HasValue<InScopeComponent, Entity>(scopeEntity)
-                .ForEachEntity((ref MetadataComponent meta, Entity entity) =>
-                {
-                    _commandBuffer.DeleteEntity(entity.Id);
-                });
-            _commandBuffer.Playback();
-        }
-        finally
-        {
-            if (skipSync)
-               _skipNetSync--;
-        }
+        // NOTE: Scope related entity deletes are not synchronized over the network because each
+        // client individually already deletes all those entities on their own. Having them also 
+        // synchronize using the normal EcsDeleteEntity events would result in an attempt to delete
+        // the same entities twice. It would also waste a whole lot of traffic.
+        if (skipSync)
+            _skipNetSync++;
+        // NOTE: Deleting all scope entities "atomically" so that they don't accidentally become global without their
+        // InScopeComponent links.
+        _world.Query<MetadataComponent>()
+            .HasValue<InScopeComponent, Entity>(scopeEntity)
+            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+        _commandBuffer.Playback();
+
+        if (skipSync)
+            _skipNetSync--;
     }
 
     public void DeleteAllNetworkedEntities(bool skipSync)
     {
-        try
-        {
-            if (skipSync)
-                _skipNetSync++;
-            // When we disconnect all networked entities get deleted
-            _world.Query<MetadataComponent>()
-                .ForEachEntity((ref MetadataComponent meta, Entity entity) =>
-                {
-                    _commandBuffer.DeleteEntity(entity.Id);
-                });
-            _commandBuffer.Playback();
-        }
-        finally
-        {
-            if (skipSync)
-                _skipNetSync--;
-        }
+        if (skipSync)
+            _skipNetSync++;
+        // When we disconnect all networked entities get deleted
+        _world.Query<MetadataComponent>()
+            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+        _commandBuffer.Playback();
+
+        if (skipSync)
+            _skipNetSync--;
     }
 }
