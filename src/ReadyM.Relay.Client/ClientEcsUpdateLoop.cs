@@ -85,13 +85,12 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
             _applicationTime += deltaTime;
             World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
+            _scheduler.Update();
         }
         finally
         {
             World.WorldLock.ExitWriteLock();
         }
-
-        _scheduler.Update();
 
         OnUpdateLoop?.Invoke(CommandBuffer);
     }

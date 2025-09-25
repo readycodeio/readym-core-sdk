@@ -64,9 +64,9 @@ public sealed partial class Store
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
         }
 
-        WorldLock.EnterWriteLock();
         try
         {
+            WorldLock.EnterWriteLock();
             var batch = _wrapped.Batch();
             var builder = new EntityBuilder(batch);
             entry.Constructor.Invoke(builder);
@@ -83,9 +83,9 @@ public sealed partial class Store
 
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
     {
-        WorldLock.EnterWriteLock();
         try
         {
+            WorldLock.EnterWriteLock();
             var batch = _wrapped.Batch();
             var builder = new EntityBuilder(batch);
             setComponents?.Invoke(builder);
