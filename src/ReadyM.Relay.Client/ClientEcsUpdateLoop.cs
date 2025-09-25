@@ -72,25 +72,16 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
         try
         {
-            World.WorldLock.EnterWriteLock();
-
-            try
-            {
-                CommandBuffer.Playback();
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Error during CommandBuffer playback");
-            }
-
-            _applicationTime += deltaTime;
-            World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
-            _scheduler.Update();
+            CommandBuffer.Playback();
         }
-        finally
+        catch (InvalidOperationException ex)
         {
-            World.WorldLock.ExitWriteLock();
+            _logger.LogError(ex, "Error during CommandBuffer playback");
         }
+
+        _applicationTime += deltaTime;
+        World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
+        _scheduler.Update();
 
         OnUpdateLoop?.Invoke(CommandBuffer);
     }

@@ -143,49 +143,33 @@ public sealed class NetworkedEntityManager : IDisposable
         if (!scopeEntity.Tags.Has<ScopeEntityTag>())
             throw new InvalidOperationException("Entity is not a scope entity.");
 
-        try
-        {
-            _world.WorldLock.EnterWriteLock();
-            // NOTE: Scope related entity deletes are not synchronized over the network because each
-            // client individually already deletes all those entities on their own. Having them also 
-            // synchronize using the normal EcsDeleteEntity events would result in an attempt to delete
-            // the same entities twice. It would also waste a whole lot of traffic.
-            if (skipSync)
-                _skipNetSync++;
-            // NOTE: Deleting all scope entities "atomically" so that they don't accidentally become global without their
-            // InScopeComponent links.
-            _world.Query<MetadataComponent>()
-                .HasValue<InScopeComponent, Entity>(scopeEntity)
-                .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
-            _commandBuffer.Playback();
-        }
-        finally
-        {
-            _world.WorldLock.ExitWriteLock();
+        // NOTE: Scope related entity deletes are not synchronized over the network because each
+        // client individually already deletes all those entities on their own. Having them also 
+        // synchronize using the normal EcsDeleteEntity events would result in an attempt to delete
+        // the same entities twice. It would also waste a whole lot of traffic.
+        if (skipSync)
+            _skipNetSync++;
+        // NOTE: Deleting all scope entities "atomically" so that they don't accidentally become global without their
+        // InScopeComponent links.
+        _world.Query<MetadataComponent>()
+            .HasValue<InScopeComponent, Entity>(scopeEntity)
+            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+        _commandBuffer.Playback();
 
-            if (skipSync)
-                _skipNetSync--;
-        }
+        if (skipSync)
+            _skipNetSync--;
     }
 
     public void DeleteAllNetworkedEntities(bool skipSync)
     {
-        try
-        {
-            _world.WorldLock.EnterWriteLock();
-            if (skipSync)
-                _skipNetSync++;
-            // When we disconnect all networked entities get deleted
-            _world.Query<MetadataComponent>()
-                .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
-            _commandBuffer.Playback();
-        }
-        finally
-        {
-            _world.WorldLock.ExitWriteLock();
+        if (skipSync)
+            _skipNetSync++;
+        // When we disconnect all networked entities get deleted
+        _world.Query<MetadataComponent>()
+            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+        _commandBuffer.Playback();
 
-            if (skipSync)
-                _skipNetSync--;
-        }
+        if (skipSync)
+            _skipNetSync--;
     }
 }
