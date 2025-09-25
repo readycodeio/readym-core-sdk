@@ -29,9 +29,10 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             where T : struct, INetworkedComponent
         {
             var id = registry.GetNetworkedComponentId<T>();
+            var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner.RelayClient));
+            owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
         }
     }
 
