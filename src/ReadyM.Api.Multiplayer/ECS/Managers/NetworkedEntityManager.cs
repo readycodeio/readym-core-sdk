@@ -26,13 +26,16 @@ public sealed class NetworkedEntityManager : IDisposable
     // NOTE: This event will be fired on the ECS thread.
     public event Action<NetworkId, Entity>? OnEntityDelete;
 
-    public NetworkedEntityManager(Store world, ILogger logger, IPlayerIdProvider playerIdProvider)
+    public NetworkedEntityManager(
+        Store world, 
+        IPlayerIdProvider playerIdProvider,
+        ILogger logger)
     {
         _world = world;
+        _playerIdProvider = playerIdProvider;
         _commandBuffer = world.GetCommandBuffer();
         _commandBuffer.ReuseBuffer = true;
         _logger = logger;
-        _playerIdProvider = playerIdProvider;
 
         _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
 

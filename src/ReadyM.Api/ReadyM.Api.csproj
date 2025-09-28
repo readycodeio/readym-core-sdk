@@ -22,4 +22,8 @@
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Mapping\" />
+    </ItemGroup>
+
 </Project>

@@ -10,26 +10,28 @@ public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistrat
     : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
     private byte _nextComponentId;
-    private readonly Dictionary<Type, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> _ids = new();
+    private readonly Dictionary<Type, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> _componentIds = new();
+    private readonly Dictionary<NetworkedComponentId, Type> _componentTypes = new();
 
-    public override INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
-    {
-        var id = new NetworkedComponentId(_nextComponentId++);
-        _ids.Add(typeof(T), (id, DeliveryMethod.Unreliable));
-        return base.RegisterComponent(defaultValue);
-    }
-
+    public new INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
+        where T : struct, INetworkedComponent
+        => RegisterComponent<T>(DeliveryMethod.Unreliable, defaultValue);
+    
     public INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable, T defaultValue = default)
         where T : struct, INetworkedComponent
     {
         var id = new NetworkedComponentId(_nextComponentId++);
-        _ids.Add(typeof(T), (id, deliveryMethod));
+        _componentIds.Add(typeof(T), (id, deliveryMethod));
+        _componentTypes.Add(id, typeof(T));
         return base.RegisterComponent(defaultValue);
     }
 
     public NetworkedComponentId GetNetworkedComponentId<T>()
-        => _ids[typeof(T)].Id;
+        => _componentIds[typeof(T)].Id;
+
+    public Type GetComponentType(NetworkedComponentId componentId)
+        => _componentTypes[componentId];
 
     public DeliveryMethod GetNetworkedComponentDeliveryMethod<T>()
-        => _ids[typeof(T)].DeliveryMethod;
+        => _componentIds[typeof(T)].DeliveryMethod;
 }

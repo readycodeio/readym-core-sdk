@@ -4,5 +4,6 @@ namespace ReadyM.Api.ECS.Registry;
 
 public interface IPlayerComponentRegistry : IComponentRegistryBase<IPlayerComponentRegistry, IComponent>
 {
-    // empty
+    void RegisterComponent<T>(T defaultValue = default)
+        where T : struct, IComponent;
 }

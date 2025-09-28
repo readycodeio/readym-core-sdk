@@ -1,19 +1,16 @@
 using System;
+using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public struct NetworkedComponentId : IEquatable<NetworkedComponentId>, INetSerializable
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public struct NetworkedComponentId(byte id) : IEquatable<NetworkedComponentId>, INetSerializable
 {
     public static NetworkedComponentId None => new(0);
     
-    private byte _id;
-    
-    public NetworkedComponentId(byte id)
-    {
-        _id = id;
-    }
-    
+    private byte _id = id;
+
     public bool Equals(NetworkedComponentId other)
     {
         return _id == other._id;

@@ -6,7 +6,6 @@ using LiteNetLib;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -118,9 +117,6 @@ public class ClientState : IDisposable
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
-    public ArchetypeId AreaArchetype { get; }
-    public ArchetypeId PlayerArchetype { get; }
-
     public ClientState(
         Store world,
         NetworkedEntityManager netEntity,
@@ -137,9 +133,6 @@ public class ClientState : IDisposable
         _ecsLoop = ecsLoop;
         _jobRegistry = jobRegistry;
         _logger = logger;
-
-        AreaArchetype = areaArchetype.AreaArchetype;
-        PlayerArchetype = playerArchetype.PlayerArchetype;
 
         _ecsLoop.OnUpdateLoop += ProcessPendingEvents;
 

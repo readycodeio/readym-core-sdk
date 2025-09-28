@@ -15,6 +15,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
+[WrapperInclude("^GetEntity.*")]
 public sealed partial class Store
 {
     private struct ArchetypeEntry

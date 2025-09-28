@@ -21,7 +21,7 @@ public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentR
         }
     }
     
-    public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
+    protected TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
         _componentTypes.Add(typeof(T));
