@@ -135,27 +135,37 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
                 var scopeNetId = readerCopy.Get<NetworkId>();
                 Entity? scopeEntity = null;
-                if (scopeNetId != default)
-                {
-                    self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity);
-                }
-
+                
                 var entityCount = readerCopy.GetUInt();
                 for (var i = 0; i < entityCount; i++)
                 {
                     var meta = readerCopy.Get<MetadataComponent>();
 
-                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out _))
+                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
                     }
                     else
                     {
-                        self.Logger.LogWarning("Received snapshot create event for already existing entity: {Id}", meta.NetId);
+                        self.Logger.LogError("Received snapshot create event for already existing entity: {Id} scope: {Scope}, already existing {Existing}", meta.NetId, scopeNetId, entity);
+                    }
+                    
+                    if (i == 0 && scopeNetId != default)
+                    {
+                        // NOTE: The scope entity is always the first being created
+                        
+                        self.Logger.LogInformation("Looking up scope entity with NetId {ScopeNetId}", scopeNetId);
+                        if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
+                            throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");
                     }
                 }
 
                 self.JobRegistry.ApplySnapshot(readerCopy);
+
+                if (scopeEntity != null)
+                {
+                    self.Logger.LogInformation("Scope entity after applying snapshot: {ScopeEntity}", scopeEntity);
+                }
             }
             finally
             {
@@ -222,7 +232,8 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 Entity? scopeEntity = null;
                 if (scopeNetId != default)
                 {
-                    self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity);
+                    if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
+                        throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");
                 }
 
                 var queryCount = readerCopy.GetUInt();
@@ -240,6 +251,11 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 }
 
                 self.JobRegistry.ApplySnapshot(readerCopy);
+                
+                if (scopeEntity != null)
+                {
+                    self.Logger.LogInformation("Scope entity after applying snapshot: {ScopeEntity}", scopeEntity);
+                }
             }
             finally
             {

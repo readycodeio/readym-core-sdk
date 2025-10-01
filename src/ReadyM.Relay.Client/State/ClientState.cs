@@ -676,7 +676,10 @@ public class ClientState : IDisposable
                     var playerEntry = _playerEntries[playerId];
                     playerEntry.CurrentAreaId = null;
                     _playerEntries[playerId] = playerEntry;
-                    _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true);
+
+                    // NOTE: The entity for the area scope gets deleted, however the ECS deletion message is NOT sent to the
+                    // server. Scope entities are managed from the server and clients independently.
+                    _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true, true);
                     _currentAreaEntry = null;
                 }
 
@@ -796,7 +799,9 @@ public class ClientState : IDisposable
 
                 _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
 
-                _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true);
+                // NOTE: The entity for the area scope gets deleted, however the ECS deletion message is NOT sent to the
+                // server. Scope entities are managed from the server and clients independently.
+                _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true, true);
                 _currentAreaEntry = null;
                 var localPlayer = _playerEntries[playerId];
                 localPlayer.CurrentAreaId = null;
@@ -876,7 +881,10 @@ public class ClientState : IDisposable
                 }
 
                 OnOtherPlayerDeleted?.Invoke(playerId, playerEntry.PlayerEntity, OtherPlayerDeletedReason.OtherDisconnected);
-                _netEntity.DeleteEntitiesInScope(playerEntry.PlayerEntity, true);
+
+                // NOTE: The entity for the player scope gets deleted, however the ECS deletion message is NOT sent to the
+                // server. Scope entities are managed from the server and clients independently.
+                _netEntity.DeleteEntitiesInScope(playerEntry.PlayerEntity, true, true);
                 _allPlayers.Remove(playerId);
                 _playerEntries.Remove(playerId);
 

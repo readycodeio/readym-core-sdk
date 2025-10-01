@@ -138,7 +138,7 @@ public sealed class NetworkedEntityManager : IDisposable
         }
     }
 
-    public void DeleteEntitiesInScope(Entity scopeEntity, bool skipSync)
+    public void DeleteEntitiesInScope(Entity scopeEntity, bool skipSync, bool deleteScopeEntity)
     {
         if (!scopeEntity.Tags.Has<ScopeEntityTag>())
             throw new InvalidOperationException("Entity is not a scope entity.");
@@ -156,6 +156,9 @@ public sealed class NetworkedEntityManager : IDisposable
             .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();
 
+        if (deleteScopeEntity)
+            scopeEntity.DeleteEntity();
+        
         if (skipSync)
             _skipNetSync--;
     }
