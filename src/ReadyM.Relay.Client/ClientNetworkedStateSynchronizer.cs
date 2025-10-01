@@ -147,7 +147,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                     }
                     else
                     {
-                        self.Logger.LogError("Received snapshot create event for already existing entity: {Id} scope: {Scope}, already existing {Existing}", meta.NetId, scopeNetId, entity);
+                        self.Logger.LogError("Received snapshot create event for already existing entity: {Id} scope: {Scope}", meta.NetId, scopeNetId);
                     }
                     
                     if (i == 0 && scopeNetId != default)
@@ -161,11 +161,6 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 }
 
                 self.JobRegistry.ApplySnapshot(readerCopy);
-
-                if (scopeEntity != null)
-                {
-                    self.Logger.LogInformation("Scope entity after applying snapshot: {ScopeEntity}", scopeEntity);
-                }
             }
             finally
             {
@@ -251,11 +246,6 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 }
 
                 self.JobRegistry.ApplySnapshot(readerCopy);
-                
-                if (scopeEntity != null)
-                {
-                    self.Logger.LogInformation("Scope entity after applying snapshot: {ScopeEntity}", scopeEntity);
-                }
             }
             finally
             {
