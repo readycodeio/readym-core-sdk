@@ -254,18 +254,7 @@ public class RelayClient : IRelayClient
 
     public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
 
-    public NetPeer? Server
-    {
-        get
-        {
-            if (_client.FirstPeer == null)
-            {
-                _logger.LogError("Disconnected from server");
-            }
-
-            return _client.FirstPeer;
-        }
-    }
+    public NetPeer? Server => _client.FirstPeer;
 
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
         => _scheduler;
