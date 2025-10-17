@@ -712,7 +712,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync(Action<TContext> action)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
@@ -741,7 +741,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync<T>(Action<TContext, T> action, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
@@ -779,7 +779,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
@@ -817,7 +817,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -854,7 +854,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -891,7 +891,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask RunAsync<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -928,7 +928,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
 
     public async ValueTask<TResult> RunFuncAsync<TResult>(Func<TContext, TResult> func)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -966,7 +966,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask<TResult> RunFuncAsync<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1004,7 +1004,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask<TResult> RunFuncAsync<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1042,7 +1042,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public async ValueTask<TResult> RunFuncAsync<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1080,7 +1080,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule(Action<TContext> action)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1099,7 +1099,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule<T>(Action<TContext, T> action, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1126,7 +1126,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1153,7 +1153,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1180,7 +1180,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1207,7 +1207,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void Schedule<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1234,7 +1234,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
 
     public void ScheduleFunc<TResult>(Func<TContext, TResult> func)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1261,7 +1261,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void ScheduleFunc<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1288,7 +1288,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void ScheduleFunc<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1315,7 +1315,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void ScheduleFunc<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1342,7 +1342,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously(Action<TContext> action)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1370,7 +1370,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously<T>(Action<TContext, T> action, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1407,7 +1407,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1444,7 +1444,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1481,7 +1481,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1518,7 +1518,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public void RunSynchronously<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1555,7 +1555,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
 
     public TResult RunSynchronously<TResult>(Func<TContext, TResult> func)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1593,7 +1593,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public TResult RunSynchronously<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1631,7 +1631,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public TResult RunSynchronously<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1669,7 +1669,7 @@ public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerB
     
     public TResult RunSynchronously<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (_thread == null || _thread == Thread.CurrentThread)
+        if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
                 Update();

@@ -40,7 +40,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         CommandBuffer = cb.Synced;
 
         _logger = logger;
-        _scheduler = new(CommandBuffer, logger);
+        _scheduler = new PendingActionUpdater<CommandBufferSynced>(CommandBuffer, logger);
     }
 
     public void Start()
