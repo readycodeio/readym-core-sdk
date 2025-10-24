@@ -28,6 +28,8 @@ public sealed partial class Store
 
     public SystemRoot SystemRoot { get; }
 
+    // TODO: the ArchetypeId on client and server are only in sync because the order of registration is the same
+    // This is fragile and should be fixed. It's only a coincidence that the DI injection order is the same.
     public Store(EntityStore wrapped, IEnumerable<IArchetypeRegistration> registrations)
     {
         _wrapped = wrapped;
