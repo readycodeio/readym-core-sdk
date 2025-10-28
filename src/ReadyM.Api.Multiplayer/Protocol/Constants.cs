@@ -6,6 +6,7 @@ public static class Constants
 {
     public static PlayerId UnsetPeerId = PlayerId.Invalid;
     public const string RoomPropertyAnnotationPrefix = "roomProperty/";
+    public const string AssignedPlayerList = "assignedPlayers";
     public const string VirtualServerId = "serverId";
     public const int ServerNetworkTickRateMs = 5;
     public const int ClientNetworkTickRateMs = 2;
