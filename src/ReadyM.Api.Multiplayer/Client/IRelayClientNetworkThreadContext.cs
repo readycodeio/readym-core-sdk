@@ -1,4 +1,5 @@
-﻿using ReadyM.Api.Helpers;
+﻿using LiteNetLib;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.Client;
@@ -11,6 +12,7 @@ public interface IRelayClientNetworkThreadContext
     /// remain `true` until `Stop()` is called.
     /// </summary>
     bool IsConnected { get; }
+    DisconnectReason LastDisconnectReason { get; }
     
     PlayerId? PlayerId { get; }
     ReadOnlyList<PlayerId> AllPlayers { get; }

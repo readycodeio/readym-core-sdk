@@ -418,7 +418,7 @@ public class RelayClient : IRelayClient
         if (_netThreadContext.PlayerId == null)
         {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
-            OnDisconnected?.Invoke(_netThreadContext, DisconnectReason.ConnectionFailed);
+            OnDisconnected?.Invoke(_netThreadContext, _netThreadContext.LastDisconnectReason);
         }
     }
 
