@@ -24,6 +24,7 @@ public class ShimPlaybackRelayClient : IRelayClient
         public readonly List<PlayerId> AreaPlayers = new();
 
         public bool IsConnected { get; set; }
+        public DisconnectReason LastDisconnectReason => DisconnectReason.Timeout; // unused in Shimming
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
         
