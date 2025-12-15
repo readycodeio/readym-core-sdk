@@ -121,6 +121,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
             var dispatchCases = new StringBuilder();
             var initCalls = new StringBuilder();
             var deinitCalls = new StringBuilder();
+            var eventCodes = new StringBuilder();
 
             foreach (var method in group)
             {
@@ -139,7 +140,6 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                     break;
                 }
                 var eventCode = $"(RelayMessageCode.MinServerRpcEvent + {baseEventCode})";
-                var eventCodeByte = $"(byte){eventCode}";
 
                 var parameters = methodSymbol.Parameters;
 
@@ -277,6 +277,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                 dispatchCases.AppendLine("                break;");
                 dispatchCases.AppendLine("            }");
 
+                eventCodes.Append($"public readonly RelayMessageCode {eventName}Code = {eventCode};\n");
                 initCalls.Append($"RelayServer.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
                 deinitCalls.Append($"RelayServer.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
                 
@@ -285,6 +286,8 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
             // Emit OnServerEvent
             sb.AppendLine($$"""
+                                    {{eventCodes}}
+                                    
                                     private void OnServerRpcEventHandler(IRelayServerNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
                                     {
                                         switch (header.EventCode)
