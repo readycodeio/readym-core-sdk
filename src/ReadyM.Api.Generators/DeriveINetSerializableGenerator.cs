@@ -68,6 +68,7 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
 
 using System.Diagnostics.Contracts;
 using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer.Extensions;
 
 namespace {info.Namespace};
 
