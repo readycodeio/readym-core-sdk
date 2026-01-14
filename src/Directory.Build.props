@@ -26,4 +26,8 @@
         <DebugSymbols>true</DebugSymbols>
         <IntermediateOutputPath>obj\Testing\</IntermediateOutputPath>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+    </PropertyGroup>
 </Project>
