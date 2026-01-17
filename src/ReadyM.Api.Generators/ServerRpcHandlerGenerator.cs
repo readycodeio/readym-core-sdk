@@ -111,10 +111,10 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          using ReadyM.Relay.Common;
                                          using ReadyM.Relay.Common.Rpc;
                                          
-                                         namespace {{ns}}
+                                         namespace {{ns}};
+                                         
+                                         public partial class {{className}}
                                          {
-                                             public partial class {{className}}
-                                             {
 
                                          """);
 
@@ -125,11 +125,6 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
             foreach (var method in group)
             {
-                if (initCalls.Length > 0)
-                    initCalls.Append('\n');
-                if (deinitCalls.Length > 0)
-                    deinitCalls.Append('\n');
-                
                 var methodSymbol = method!.Symbol;
                 var methodName = methodSymbol.Name;
 
@@ -277,41 +272,46 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                 dispatchCases.AppendLine("                break;");
                 dispatchCases.AppendLine("            }");
 
-                eventCodes.Append($"public readonly RelayMessageCode {eventName}Code = {eventCode};\n");
-                initCalls.Append($"RelayServer.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
-                deinitCalls.Append($"RelayServer.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
+                if (eventCodes.Length > 0)
+                    eventCodes.AppendLine();
+                eventCodes.Append($"    public readonly RelayMessageCode {eventName}Code = {eventCode};");
+                if (initCalls.Length > 0)
+                    initCalls.AppendLine();
+                initCalls.Append($"        RelayServer.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
+                if (deinitCalls.Length > 0)
+                    deinitCalls.AppendLine();
+                deinitCalls.Append($"        RelayServer.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
                 
                 baseEventCode++;
             }
 
             // Emit OnServerEvent
             sb.AppendLine($$"""
-                                    {{eventCodes}}
+                            {{eventCodes}}
                                     
-                                    private void OnServerRpcEventHandler(IRelayServerNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+                                private void OnServerRpcEventHandler(IRelayServerNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+                                {
+                                    switch (header.EventCode)
                                     {
-                                        switch (header.EventCode)
-                                        {
                             {{dispatchCases}}
-                                            default:
-                                                throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
-                                        }
+                                        default:
+                                            throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
                                     }
+                                }
+                                   
+                                public override void InitRpc(RpcRelayServer rpc)
+                                {
+                                    base.InitRpc(rpc);
+                            {{initCalls}}
+                                }
                                     
-                                    public override void InitRpc(RpcRelayServer rpc)
-                                    {
-                                        base.InitRpc(rpc);
-                                        {{initCalls}}
-                                    }
-                                    
-                                    public override void DeInitRpc()
-                                    {
-                                        {{deinitCalls}}
-                                        base.DeInitRpc();
-                                    }
+                                public override void DeInitRpc()
+                                {
+                            {{deinitCalls}}
+                                    base.DeInitRpc();
+                                }
                             """);
 
-            sb.AppendLine("    }");
             sb.AppendLine("}");
 
             var hintName = $"{fullClassName.Replace('.', '_')}_RpcHandlers.g.cs";

@@ -9,6 +9,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Relay.Client.State;
 
+[Obsolete]
 public class ClientNetworkedEntityState(NetworkedEntityManager netEntity, ClientState state, ILogger logger)
 {
     public (Entity Entity, NetworkId NetId) CreateNetworkedGlobalEntity(
