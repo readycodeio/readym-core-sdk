@@ -4,7 +4,7 @@ using Friflo.Engine.ECS;
 namespace ReadyM.Api.ECS.Components;
 
 public readonly struct MappingComponent<TGameObject>(TGameObject gameObject) 
-    : IIndexedComponent<TGameObject>, IEquatable<MappingComponent<TGameObject>>
+    : IIndexedComponent<TGameObject>
     where TGameObject : class
 {
     private readonly TGameObject _gameObject = gameObject;
