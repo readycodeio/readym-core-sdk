@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace ReadyM.Api.Helpers;
 
 public class DataSideChannel
 {
-    private class EntryBase
+    internal class EntryBase
     {
         public bool IsSet;
     }
@@ -15,74 +16,94 @@ public class DataSideChannel
         public T? Data;
     }
     
-    private readonly Dictionary<Type, EntryBase> _entries = new();
-
     public readonly struct Scope<T> : IDisposable
     {
-        private readonly DataSideChannel _channel;
+        private readonly ThreadEntry _threadEntry;
 
-        public Scope(DataSideChannel channel, T data)
+        internal Scope(ThreadEntry threadEntry, T data)
         {
-            _channel = channel;
-            _channel.PushData(data);
+            _threadEntry = threadEntry;
+            _threadEntry.PushData(data);
         }
 
         public void Dispose()
         {
-            _channel.PopData<T>();
+            _threadEntry.PopData<T>();
         }
     }
+
+    internal readonly struct ThreadEntry()
+    {
+        private readonly Dictionary<Type, EntryBase> _typeEntries = new();
+        
+        public readonly void PushData<T>(T data)
+        {
+            if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry))
+            {
+                typeEntry = new Entry<T> { Data = data };
+                _typeEntries.Add(typeof(T), typeEntry);
+            }
+        
+            if (typeEntry.IsSet)
+                throw new InvalidOperationException($"Data of type {typeof(T)} is already set in the side channel.");
+        
+            typeEntry.IsSet = true;
+            var typedEntry = (Entry<T>)typeEntry;
+            typedEntry.Data = data;
+        }
+    
+        public readonly void PopData<T>()
+        {
+            if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
+                throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
+        
+            typeEntry.IsSet = false;
+        }
+    
+        public readonly T? GetData<T>()
+        {
+            if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
+                throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
+        
+            var typedEntry = (Entry<T>)typeEntry;
+            return typedEntry.Data;
+        }
+    
+        public readonly bool TryGetData<T>(out T? data)
+        {
+            if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
+            {
+                data = default;
+                return false;
+            }
+        
+            var typedEntry = (Entry<T>)typeEntry;
+            data = typedEntry.Data;
+            return true;
+        }
+    
+        public readonly bool HasData<T>()
+            => _typeEntries.TryGetValue(typeof(T), out var typeEntry) && typeEntry.IsSet;
+    }
+    
+    private readonly ThreadLocal<ThreadEntry> _threadEntries = new(() => new ThreadEntry());
     
     public Scope<T> PushScope<T>(T data = default)
         where T : struct
-        => new(this, data);
+        => new(_threadEntries.Value, data);
 
     public void PushData<T>(T data)
-    {
-        if (!_entries.TryGetValue(typeof(T), out var entry))
-        {
-            entry = new Entry<T> { Data = data };
-            _entries.Add(typeof(T), entry);
-        }
-        
-        if (entry.IsSet)
-            throw new InvalidOperationException($"Data of type {typeof(T)} is already set in the side channel.");
-        
-        entry.IsSet = true;
-        var typedEntry = (Entry<T>)entry;
-        typedEntry.Data = data;
-    }
+        => _threadEntries.Value.PushData(data);
     
     public void PopData<T>()
-    {
-        if (!_entries.TryGetValue(typeof(T), out var entry) || !entry.IsSet)
-            throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
-        
-        entry.IsSet = false;
-    }
+        => _threadEntries.Value.PopData<T>();
     
     public T? GetData<T>()
-    {
-        if (!_entries.TryGetValue(typeof(T), out var entry) || !entry.IsSet)
-            throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
-        
-        var typedEntry = (Entry<T>)entry;
-        return typedEntry.Data;
-    }
+        => _threadEntries.Value.GetData<T>();
     
     public bool TryGetData<T>(out T? data)
-    {
-        if (!_entries.TryGetValue(typeof(T), out var entry) || !entry.IsSet)
-        {
-            data = default;
-            return false;
-        }
-        
-        var typedEntry = (Entry<T>)entry;
-        data = typedEntry.Data;
-        return true;
-    }
+        => _threadEntries.Value.TryGetData<T>(out data);
     
     public bool HasData<T>()
-        => _entries.TryGetValue(typeof(T), out var entry) && entry.IsSet;
+        => _threadEntries.Value.HasData<T>();
 }

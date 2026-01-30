@@ -139,7 +139,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 var entityCount = readerCopy.GetUInt();
                 for (var i = 0; i < entityCount; i++)
                 {
-                    var meta = readerCopy.Get<MetadataComponent>();
+                    var meta = MetadataComponent.Deserialize(readerCopy);
 
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
                     {
@@ -234,7 +234,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
                 var queryCount = readerCopy.GetUInt();
                 for (var i = 0; i < queryCount; i++)
                 {
-                    var meta = readerCopy.Get<MetadataComponent>();
+                    var meta = MetadataComponent.Deserialize(readerCopy);
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
