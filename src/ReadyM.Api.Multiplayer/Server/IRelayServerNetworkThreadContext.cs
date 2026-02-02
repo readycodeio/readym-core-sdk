@@ -1,7 +1,7 @@
 using System;
 using LiteNetLib;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Server;
 

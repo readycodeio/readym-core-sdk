@@ -1,4 +1,4 @@
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Api.Serialization;
 

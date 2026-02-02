@@ -1,6 +1,6 @@
 ﻿using System;
 using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 

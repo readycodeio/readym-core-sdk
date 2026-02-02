@@ -7,10 +7,10 @@ using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Values;
-using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
+// TODO: Make this internal
 public sealed class NetworkedEntityManager : IDisposable
 {
     private readonly Store _world;

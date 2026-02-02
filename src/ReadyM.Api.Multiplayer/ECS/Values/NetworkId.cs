@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.ECS.Values;

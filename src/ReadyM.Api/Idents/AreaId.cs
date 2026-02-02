@@ -2,7 +2,7 @@
 using LiteNetLib.Utils;
 using ReadyM.Api.Serialization;
 
-namespace ReadyM.Api.Multiplayer.Idents;
+namespace ReadyM.Api.Idents;
 
 [DeriveJsonSerializable]
 public partial struct AreaId(ushort id) : INetSerializable, IEquatable<AreaId>

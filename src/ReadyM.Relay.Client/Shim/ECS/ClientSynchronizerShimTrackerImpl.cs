@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common.Shim;
 
-namespace ReadyM.Relay.Client.Shim;
+namespace ReadyM.Relay.Client.Shim.ECS;
 
 public class ClientSynchronizerShimTrackerImpl : ShimDependencyTrackerImplBase<ShimEcsDependencyData>
 {

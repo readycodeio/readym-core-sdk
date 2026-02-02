@@ -7,9 +7,9 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common.Shim;
@@ -565,14 +565,14 @@ public class ShimPlaybackRelayClient : IRelayClient
         
         if (eventCode >= RelayMessageCode.MinBuiltInEvent)
         {
-            var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+            var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
             requestItem.Kind = ShimRequestKind.SentBuiltInMessage;
             requestItem.ServerHeader = serverHeader;
             requestItem.CustomData = _parser.GetBuiltInRequestCustomData(serverHeader, reader);
         }
         else if (eventCode >= RelayMessageCode.MinServerRpcEvent)
         {
-            var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+            var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
             requestItem.Kind = ShimRequestKind.SentServerRpcMessage;
             requestItem.ServerHeader = serverHeader;
             requestItem.CustomData = _parser.GetServerRpcRequestCustomData(serverHeader, reader);

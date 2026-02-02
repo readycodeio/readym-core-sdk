@@ -3,7 +3,6 @@ using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Values;
-using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 

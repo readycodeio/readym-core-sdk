@@ -1,7 +1,7 @@
 ﻿using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Client;

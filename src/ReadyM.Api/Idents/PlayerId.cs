@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 using ReadyM.Api.Serialization;
 
-namespace ReadyM.Api.Multiplayer.Idents;
+namespace ReadyM.Api.Idents;
 
 [DeriveJsonSerializable]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

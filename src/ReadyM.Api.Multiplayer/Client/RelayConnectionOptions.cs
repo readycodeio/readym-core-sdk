@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Client;
 

@@ -10,7 +10,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Common.ECS.Components;
 
-namespace ReadyM.Relay.Client.Shim;
+namespace ReadyM.Relay.Client.Shim.ECS;
 
 public class ClientSynchronizerShimParserImpl(NetworkedEntityManager netEntity, ILogger logger) : ShimBuiltInMessageParserImplBase<ShimEcsDependencyData>
 {

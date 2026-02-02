@@ -2,7 +2,7 @@
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
-namespace ReadyM.Relay.Client.Shim;
+namespace ReadyM.Relay.Client.Shim.Blobs;
 
 public class BlobClientShimParserImpl : ShimBuiltInMessageParserImplBase<ShimBlobDependencyData>
 {
