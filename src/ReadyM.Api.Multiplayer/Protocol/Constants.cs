@@ -8,6 +8,7 @@ public static class Constants
     public const string RoomPropertyAnnotationPrefix = "roomProperty/";
     public const string AssignedPlayerList = "assignedPlayers";
     public const string VirtualServerId = "serverId";
+    public const string RegionLabel = "region";
     public const string AgonesLastAllocated = "agones.dev/last-allocated";
     public const int ServerNetworkTickRateMs = 5;
     public const int ClientNetworkTickRateMs = 2;
