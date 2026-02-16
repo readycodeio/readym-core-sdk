@@ -7,7 +7,7 @@ namespace ReadyM.Api.Command;
 public class ConsoleCommandMatcher(
     ConsoleCommandParser parser,
     ConsoleCommandRegistry registry,
-    ConsoleCommandTypeConverter converter)
+    ConsoleArgumentTypeConverter converter)
 {
     public ConsoleCommandRegistry Registry
         => registry;

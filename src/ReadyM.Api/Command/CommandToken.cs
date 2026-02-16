@@ -16,5 +16,7 @@ public enum CommandToken
     RightBracket,
     LeftBrace,
     RightBrace,
+    LeftAngle,
+    RightAngle,
     Comma
 }

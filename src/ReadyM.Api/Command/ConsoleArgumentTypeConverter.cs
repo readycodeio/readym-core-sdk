@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Command;
 
-public class ConsoleCommandTypeConverter(IReadOnlyList<IConsoleCommandTypeConversion> conversions)
+public class ConsoleArgumentTypeConverter(IReadOnlyList<IConsoleArgumentTypeConversion> conversions)
 {
     public bool CanConvert(Type destType, object? source)
     {

@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Command;
 
-public interface IConsoleCommandTypeConversion
+public interface IConsoleArgumentTypeConversion
 {
     bool TryConvert(Type destType, object? source, out object? dest);
 }
