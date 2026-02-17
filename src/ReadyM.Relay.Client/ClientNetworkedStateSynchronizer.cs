@@ -127,7 +127,7 @@ public class ClientNetworkedStateSynchronizer : IDisposable
 
     protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
+        _ecsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
