@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using ReadyM.Api.Multiplayer.Client;
 
 namespace ReadyM.Relay.Client.Host;
 
-public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDisposable
+public class RelayClientService(IRelayClient relayClient, ILogger logger) : IHostedService, IAsyncDisposable
 {
     private AsyncContextThread? _isolatedNoParallelismAsyncContextThread;
     private Task? _task;
@@ -15,25 +16,25 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
 
     public IRelayClient RelayClient
         => relayClient;
-    
+
     public bool IsRunning { get; private set; }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (IsRunning)
-            Stop();
-        
+            await StopAsync();
+
         _isolatedNoParallelismAsyncContextThread?.Dispose();
         _task?.Dispose();
         _source?.Dispose();
     }
-    
-    public void Start()
+
+    public async Task StartAsync(CancellationToken ct = default)
     {
         if (IsRunning)
             return;
         IsRunning = true;
-        
+
         logger.LogInformation("Starting RelayClientService...");
 
         _source = new CancellationTokenSource();
@@ -42,7 +43,7 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
         var startedEvent = new ManualResetEventSlim();
 
         _isolatedNoParallelismAsyncContextThread = new AsyncContextThread();
-        
+
         _task = _isolatedNoParallelismAsyncContextThread.Factory.Run(async () =>
         {
             try
@@ -53,29 +54,33 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
             {
                 startedEvent.Set();
             }
+
             await relayClient.RunAsync(stoppingToken);
         });
 
         startedEvent.Wait(stoppingToken);
-        
+
         logger.LogInformation("Started RelayClientService.");
     }
 
-    public void Stop()
+    public async Task StopAsync(CancellationToken ct = default)
     {
         if (!IsRunning)
             return;
-        
+
         logger.LogInformation("Stopping RelayClientService...");
 
         _source?.Cancel();
-        
-        _isolatedNoParallelismAsyncContextThread?.Join();
-        _task?.GetAwaiter().GetResult();
+
+        if (_isolatedNoParallelismAsyncContextThread is not null)
+            await _isolatedNoParallelismAsyncContextThread.JoinAsync();
+
+        if (_task is not null)
+            await _task;
 
         IsRunning = false;
         relayClient.Stop();
-        
+
         logger.LogInformation("Stopped RelayClientService.");
     }
 }
