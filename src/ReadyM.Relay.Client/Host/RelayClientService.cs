@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.Client;
 
 namespace ReadyM.Relay.Client.Host;
 
-public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsyncDisposable
+public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDisposable
 {
     private AsyncContextThread? _isolatedNoParallelismAsyncContextThread;
     private Task? _task;
@@ -18,10 +18,10 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsy
 
     public bool IsRunning { get; private set; }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         if (IsRunning)
-            await StopAsync();
+            Stop();
 
         _isolatedNoParallelismAsyncContextThread?.Dispose();
         _task?.Dispose();
@@ -62,7 +62,7 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsy
         logger.LogInformation("Started RelayClientService.");
     }
 
-    public async Task StopAsync(CancellationToken ct = default)
+    public void Stop()
     {
         if (!IsRunning)
             return;
@@ -71,11 +71,8 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsy
 
         _source?.Cancel();
 
-        if (_isolatedNoParallelismAsyncContextThread is not null)
-            await _isolatedNoParallelismAsyncContextThread.JoinAsync();
-
-        if (_task is not null)
-            await _task;
+        _isolatedNoParallelismAsyncContextThread?.Join();
+        _task?.GetAwaiter().GetResult();
 
         IsRunning = false;
         relayClient.Stop();
