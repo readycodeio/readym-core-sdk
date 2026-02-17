@@ -28,7 +28,7 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsy
         _source?.Dispose();
     }
 
-    public async Task StartAsync(CancellationToken ct = default)
+    public void Start()
     {
         if (IsRunning)
             return;
