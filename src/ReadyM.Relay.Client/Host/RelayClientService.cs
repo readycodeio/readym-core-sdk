@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using ReadyM.Api.Multiplayer.Client;
 
 namespace ReadyM.Relay.Client.Host;
 
-public class RelayClientService(IRelayClient relayClient, ILogger logger) : IHostedService, IAsyncDisposable
+public class RelayClientService(IRelayClient relayClient, ILogger logger) : IAsyncDisposable
 {
     private AsyncContextThread? _isolatedNoParallelismAsyncContextThread;
     private Task? _task;
