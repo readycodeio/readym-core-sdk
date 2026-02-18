@@ -15,25 +15,25 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
 
     public IRelayClient RelayClient
         => relayClient;
-    
+
     public bool IsRunning { get; private set; }
 
     public void Dispose()
     {
         if (IsRunning)
             Stop();
-        
+
         _isolatedNoParallelismAsyncContextThread?.Dispose();
         _task?.Dispose();
         _source?.Dispose();
     }
-    
+
     public void Start()
     {
         if (IsRunning)
             return;
         IsRunning = true;
-        
+
         logger.LogInformation("Starting RelayClientService...");
 
         _source = new CancellationTokenSource();
@@ -42,7 +42,7 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
         var startedEvent = new ManualResetEventSlim();
 
         _isolatedNoParallelismAsyncContextThread = new AsyncContextThread();
-        
+
         _task = _isolatedNoParallelismAsyncContextThread.Factory.Run(async () =>
         {
             try
@@ -53,11 +53,12 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
             {
                 startedEvent.Set();
             }
+
             await relayClient.RunAsync(stoppingToken);
         });
 
         startedEvent.Wait(stoppingToken);
-        
+
         logger.LogInformation("Started RelayClientService.");
     }
 
@@ -65,17 +66,17 @@ public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDis
     {
         if (!IsRunning)
             return;
-        
+
         logger.LogInformation("Stopping RelayClientService...");
 
         _source?.Cancel();
-        
+
         _isolatedNoParallelismAsyncContextThread?.Join();
         _task?.GetAwaiter().GetResult();
 
         IsRunning = false;
         relayClient.Stop();
-        
+
         logger.LogInformation("Stopped RelayClientService.");
     }
 }

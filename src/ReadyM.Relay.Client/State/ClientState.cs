@@ -615,14 +615,13 @@ public class ClientState : IDisposable
 
                 var playerId = pendingEvent.PlayerId;
 
-
                 var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
                     .HasValue<PlayerScopeComponent, PlayerId>(playerId);
 
                 if (playerQuery.Count == 0)
                     return false; // exit loop
 
-                var playerEntity = playerQuery.Entities.First();
+                var playerEntity = playerQuery.Entities.Single();
                 var meta = playerEntity.GetComponent<MetadataComponent>();
 
                 var playerEntry = new PlayerEntry
