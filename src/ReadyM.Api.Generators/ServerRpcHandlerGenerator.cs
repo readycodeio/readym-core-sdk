@@ -104,12 +104,11 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          using System;
                                          using LiteNetLib;
                                          using LiteNetLib.Utils;
-                                         using ReadyM.Api.Multiplayer.Server;
                                          using ReadyM.Api.Multiplayer.Protocol;
                                          using ReadyM.Api.Multiplayer.Protocol.Enums;
                                          using ReadyM.Relay;
                                          using ReadyM.Relay.Common;
-                                         using ReadyM.Relay.Common.Rpc;
+                                         using ReadyM.Relay.Server.Rpc;
                                          
                                          namespace {{ns}};
                                          

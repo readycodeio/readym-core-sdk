@@ -1,5 +1,4 @@
-﻿using ReadyM.Relay.Client.Shim.Blobs;
-using ReadyM.Relay.Client.Shim.ECS;
+﻿using ReadyM.Relay.Client.Shim.ECS;
 using ReadyM.Relay.Common.Serialization;
 
 namespace ReadyM.Relay.Client.Serialization;
