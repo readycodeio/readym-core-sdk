@@ -7,7 +7,6 @@ public class ClientShimTextSerializerRegistration : ITextRelaySerializerRegistra
 {
     public void Register(TextRelaySerializer serializer)
     {
-        serializer.RegisterPolymorphicType<ShimBlobDependencyData>("shimBlob");
         serializer.RegisterPolymorphicType<ShimEcsDependencyData>("shimEcs");
     }
 }
