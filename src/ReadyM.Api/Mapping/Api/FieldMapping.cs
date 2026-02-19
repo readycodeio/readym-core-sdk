@@ -2,20 +2,20 @@
 
 namespace ReadyM.Api.Mapping.Api;
 
-public sealed class FieldMapping<TValue>(
+public sealed class FieldMapping<TComponent, TValue>(
     Action<TValue> setToGame,
-    Func<TValue> getFromGame
+    Func<TComponent, TValue> loadFromGame
 )
 {
     public void SyncToGame(TValue value) => setToGame(value);
-    public TValue GetValueFromGame() => getFromGame();
+    public TValue LoadFromGame(TComponent component) => loadFromGame(component);
 }
 
-public sealed class FieldMapping<TContext, TValue>(
+public sealed class FieldMapping<TComponent, TContext, TValue>(
     Action<TContext, TValue> setToGame,
-    Func<TContext, TValue> getFromGame
+    Func<TComponent, TContext, TValue> loadFromGame
 )
 {
     public void SyncToGame(TContext context, TValue value) => setToGame(context, value);
-    public TValue GetValueFromGame(TContext context) => getFromGame(context);
+    public TValue LoadFromGame(TComponent component, TContext context) => loadFromGame(component, context);
 }

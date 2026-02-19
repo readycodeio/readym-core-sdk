@@ -1,12 +1,14 @@
-﻿namespace ReadyM.Api.Mapping.Api;
+﻿using Friflo.Engine.ECS;
+
+namespace ReadyM.Api.Mapping.Api;
 
 public interface IComponentFieldMappingRegistry
 {
-    FieldMapping<TValue> Get<TComponent, TValue>(
+    FieldMapping<TComponent, TValue> Get<TComponent, TValue>(
         BoundField<TComponent, TValue> field)
-        where TComponent : struct;
+        where TComponent : IComponent;
 
-    FieldMapping<TContext, TValue> Get<TComponent, TValue, TContext>(
+    FieldMapping<TComponent, TContext, TValue> Get<TComponent, TValue, TContext>(
         BoundField<TComponent, TValue, TContext> field)
-        where TComponent : struct;
+        where TComponent : IComponent;
 }
