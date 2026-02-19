@@ -35,7 +35,7 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
         var symbol = model.GetDeclaredSymbol(node) as INamedTypeSymbol;
-        
+
         var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetworkedComponentAttribute", "Mode", (1 << 0) | (1 << 2));
 
         var mapFields = (mode & (1 << 0)) != 0;
@@ -43,16 +43,16 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         var mapPrivate = (mode & (1 << 2)) != 0;
         var mapPublic = (mode & (1 << 3)) != 0;
         var mapInternal = (mode & (1 << 4)) != 0;
-        
+
         var name = symbol!.Name;
         var source = GenerateNetworkedComponent(
             symbol,
             mapFields: mapFields,
-            mapProperties: mapProperties, 
-            mapPrivate: mapPrivate, 
-            mapPublic: mapPublic, 
+            mapProperties: mapProperties,
+            mapPrivate: mapPrivate,
+            mapPublic: mapPublic,
             mapInternal: mapInternal);
-        
+
         return (name, source);
     }
 
@@ -61,9 +61,9 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         var info = GeneratorHelper.GetSymbolInfo(
             symbol,
             mapFields: mapFields,
-            mapProperties: mapProperties, 
-            mapPrivate: mapPrivate, 
-            mapPublic: mapPublic, 
+            mapProperties: mapProperties,
+            mapPrivate: mapPrivate,
+            mapPublic: mapPublic,
             mapInternal: mapInternal);
 
         string maskType;
@@ -109,42 +109,62 @@ namespace {info.Namespace}
     public partial struct {info.Name} : INetworkedComponent
     {{
         private {maskType} _dirtyMask;
+        private {maskType} _apiMask;
 
 ");
         foreach (var error in info.ErrorMessage)
         {
             sb.AppendLine($"    #error {error}");
         }
-        
+
+        var propertyNames = new string[info.Members.Length];
         var usePutGet = new bool[info.Members.Length];
         var isEnum = new bool[info.Members.Length];
         var enumBaseType = new SpecialType[info.Members.Length];
         var isEquatable = new bool[info.Members.Length];
         var isDeltaEquatable = new bool[info.Members.Length];
-        
         for (var i = 0; i < info.Members.Length; i++)
         {
+            var field = info.Members[i];
+
             usePutGet[i] = SerializationHelper.IsSerializablePrimitive(info.Members[i].Type.SpecialType);
             isEnum[i] = info.Members[i].Type.TypeKind == TypeKind.Enum;
             isEquatable[i] = SerializationHelper.IsEquatable(info.Members[i].Type);
             isDeltaEquatable[i] = SerializationHelper.IsDeltaEquatable(info.Members[i].Type);
-            
+
             if (isEnum[i])
             {
                 enumBaseType[i] = SerializationHelper.GetEnumBaseType(info.Members[i].Type);
             }
+
+            var fieldName = field.Name;
+            if (fieldName.StartsWith("_"))
+                propertyNames[i] = char.ToUpper(fieldName[1]) + fieldName.Substring(2);
+            else
+                propertyNames[i] = char.ToUpper(fieldName[0]) + fieldName.Substring(2);
         }
 
+        // public enum Fields : int
+        // {
+        //     Field1,
+        //     Field2,
+        //     ...
+        // }
+        sb.Append("        public enum Fields : int\n        {\n");
+        foreach (var name in propertyNames)
+        {
+            sb.AppendLine($"            {name},");
+        }
+
+        sb.AppendLine("        }\n");
+
+
+        // Getters and [Obsolete] setters
         for (var i = 0; i < info.Members.Length; i++)
         {
             var field = info.Members[i];
             var type = field.Type.ToDisplayString();
-            var fieldName = field.Name;
-            string propertyName;
-            if (fieldName.StartsWith("_"))
-                propertyName = char.ToUpper(fieldName[1]) + fieldName.Substring(2);
-            else
-                propertyName = char.ToUpper(fieldName[0]) + fieldName.Substring(2);
+            var propertyName = propertyNames[i];
 
             if (field.ReadOnly)
             {
@@ -156,46 +176,104 @@ namespace {info.Namespace}
                 sb.AppendLine($"        public {type} {propertyName}");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            get => {field.Name};");
-
-                if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
-                {
-                    sb.AppendLine($"            set {{ if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-                else if (field.Type.Name == "Vector3")
-                {
-                    sb.AppendLine($"            set {{ if (Vector3.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-                else if (field.Type.Name == "Vector2")
-                {
-                    sb.AppendLine($"            set {{ if (Vector2.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-                else if (isDeltaEquatable[i])
-                {
-                    if (field.Type.IsValueType)
-                        sb.AppendLine($"            set {{ if (!{field.Name}.DeltaEquals(value, {VectorComparisonEpsilon})) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                    else
-                        sb.AppendLine($"            set {{ if (!({field.Name}?.DeltaEquals(value, {VectorComparisonEpsilon}) ?? value is null)) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-                else if (isEquatable[i])
-                {
-                    if (field.Type.IsValueType)
-                        sb.AppendLine($"            set {{ if (!{field.Name}.Equals(value)) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                    else
-                        sb.AppendLine($"            set {{ if (!({field.Name}?.Equals(value) ?? value is null)) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-                else
-                {
-                    sb.AppendLine($"            set {{ if ({field.Name} != value) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
-                }
-
+                sb.AppendLine($"            [Obsolete] set => {propertyName}_SetFromGame(value);");
                 sb.AppendLine("        }\n");
             }
         }
 
-        sb.AppendLine($$"""
-                                public void Serialize(NetDataWriter writer)
-                                {
-                        """);
+        // New setters for setting from Game and from API
+        for (var i = 0; i < info.Members.Length; i++)
+        {
+            var field = info.Members[i];
+            var type = field.Type.ToDisplayString();
+            var propertyName = propertyNames[i];
+
+            if (field.ReadOnly)
+            {
+                continue;
+            }
+
+            // Set from Game setter
+
+            sb.AppendLine($"        public void {propertyName}_SetFromGame({type} value)");
+            sb.AppendLine("        {");
+
+            if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
+            {
+                sb.AppendLine($"            if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+            else if (field.Type.Name == "Vector3")
+            {
+                sb.AppendLine($"            if (Vector3.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+            else if (field.Type.Name == "Vector2")
+            {
+                sb.AppendLine($"            if (Vector2.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+            else if (isDeltaEquatable[i])
+            {
+                if (field.Type.IsValueType)
+                    sb.AppendLine($"            if (!{field.Name}.DeltaEquals(value, {VectorComparisonEpsilon})) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+                else
+                    sb.AppendLine($"            if (!({field.Name}?.DeltaEquals(value, {VectorComparisonEpsilon}) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+            else if (isEquatable[i])
+            {
+                if (field.Type.IsValueType)
+                    sb.AppendLine($"            if (!{field.Name}.Equals(value)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+                else
+                    sb.AppendLine($"            if (!({field.Name}?.Equals(value) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+            else
+            {
+                sb.AppendLine($"            if ({field.Name} != value) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
+            }
+
+            sb.AppendLine("        }\n");
+
+            // Set from API setter
+
+            sb.AppendLine($"        public void {propertyName}_SetFromApi({type} value)");
+            sb.AppendLine("        {");
+
+            if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
+            {
+                sb.AppendLine($"            if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+            else if (field.Type.Name == "Vector3")
+            {
+                sb.AppendLine($"            if (Vector3.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+            else if (field.Type.Name == "Vector2")
+            {
+                sb.AppendLine($"            if (Vector2.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+            else if (isDeltaEquatable[i])
+            {
+                if (field.Type.IsValueType)
+                    sb.AppendLine($"            if (!{field.Name}.DeltaEquals(value, {VectorComparisonEpsilon})) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+                else
+                    sb.AppendLine($"            if (!({field.Name}?.DeltaEquals(value, {VectorComparisonEpsilon}) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+            else if (isEquatable[i])
+            {
+                if (field.Type.IsValueType)
+                    sb.AppendLine($"            if (!{field.Name}.Equals(value)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+                else
+                    sb.AppendLine($"            if (!({field.Name}?.Equals(value) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+            else
+            {
+                sb.AppendLine($"            if ({field.Name} != value) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
+            }
+
+            sb.AppendLine("        }\n");
+        }
+
+        sb.AppendLine("""
+                              public void Serialize(NetDataWriter writer)
+                              {
+                      """);
 
         for (var i = 0; i < info.Members.Length; i++)
         {
@@ -217,7 +295,7 @@ namespace {info.Namespace}
         }
 
         sb.AppendLine("        }\n");
-        
+
         sb.AppendLine("        public void Deserialize(NetDataReader reader)");
         sb.AppendLine("        {");
 
@@ -238,7 +316,7 @@ namespace {info.Namespace}
             }
             else
             {
-                sb.AppendLine($"            {{ {field.Name}.Deserialize(reader); _dirtyMask |= ({maskType})1 << {i}; }}");
+                sb.AppendLine($"            {{ {field.Name}.Deserialize(reader); SetDirty(Fields.{propertyName}, false); }}");
             }
         }
 
@@ -293,7 +371,7 @@ namespace {info.Namespace}
             }
             else
             {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ {field.Name}.Deserialize(reader); _dirtyMask |= ({maskType})1 << {i}; }}");
+                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ {field.Name}.Deserialize(reader); SetDirty(Fields.{propertyName}, false); }}");
             }
         }
 
@@ -323,6 +401,13 @@ namespace {info.Namespace}
         }
 
         sb.AppendLine("        }\n");
+        sb.AppendLine("        private void SetDirty(Fields field, bool fromApi)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            var bit = ({maskType})(1 << (int)field);");
+        sb.AppendLine("            _dirtyMask |= bit;");
+        sb.AppendLine("            if (fromApi)");
+        sb.AppendLine("                _apiMask |= bit;");
+        sb.AppendLine("        }");
         sb.AppendLine("        public void ClearDirty() => _dirtyMask = 0;");
         sb.AppendLine("        public bool IsDirty => _dirtyMask != 0;");
         sb.AppendLine("    }");
