@@ -157,7 +157,7 @@ namespace {info.Namespace}
             var type = info.Members[i].Type;
 
             // find the 
-            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (c, v) => c.{propertyNames[i]}_SetFromGame(v));");
+            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v));");
         }
 
         sb.AppendLine("        }\n");

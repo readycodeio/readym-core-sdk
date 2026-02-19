@@ -8,9 +8,9 @@ public readonly struct BoundField<TComponent, TValue>
 {
     public readonly int Id;
     public readonly Func<TComponent, TValue> Get;
-    public readonly Action<TComponent, TValue> Set;
+    public readonly FieldSetterDelegate<TComponent, TValue> Set;
 
-    internal BoundField(int id, Func<TComponent, TValue> get, Action<TComponent, TValue> set)
+    internal BoundField(int id, Func<TComponent, TValue> get, FieldSetterDelegate<TComponent, TValue> set)
     {
         Id = id;
         Get = get;
@@ -23,9 +23,9 @@ public readonly struct BoundField<TComponent, TValue, TContext>
 {
     public readonly int Id;
     public readonly Func<TComponent, TValue> Get;
-    public readonly Action<TComponent, TValue> Set;
+    public readonly FieldSetterDelegate<TComponent, TValue> Set;
 
-    internal BoundField(int id, Func<TComponent, TValue> get, Action<TComponent, TValue> set)
+    internal BoundField(int id, Func<TComponent, TValue> get, FieldSetterDelegate<TComponent, TValue> set)
     {
         Id = id;
         Get = get;

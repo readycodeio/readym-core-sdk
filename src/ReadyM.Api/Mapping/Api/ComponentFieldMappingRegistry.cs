@@ -11,29 +11,36 @@ public sealed class ComponentFieldMappingRegistry : IComponentFieldMappingRegist
     public BoundField<TComponent, TValue> Register<TComponent, TValue>(
         Field<TComponent, TValue> field,
         Action<TValue> setter,
-        Func<TComponent, TValue> getter)
+        Func<TValue> getter)
         where TComponent : IComponent
     {
-        var mapping = new FieldMapping<TComponent, TValue>(setter, getter);
+        var mapping = new FieldMapping<TComponent, TValue>(setter, Loader);
         _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
         return new BoundField<TComponent, TValue>(field.Id, field.Get, field.Set);
-    }
 
-    public BoundField<TComponent, TValue, TContext> Register<TComponent, TValue, TContext>(
-        Field<TComponent, TValue, TContext> field,
-        Action<TContext, TValue> setter,
-        Action<TComponent, TContext> loader)
+        TValue Loader(ref TComponent cmp)
+        {
+            var value = getter();
+            field.Set(ref cmp, value);
+            return value;
+        }
+    }
+    
+    public BoundField<TComponent, TValue> Register<TComponent, TValue>(
+        Field<TComponent, TValue> field,
+        Action<TValue> setter,
+        DataLoader<TComponent, TValue> loader)
         where TComponent : IComponent
     {
-        TValue Getter(TComponent cmp, TContext ctx)
+        var mapping = new FieldMapping<TComponent, TValue>(setter, Loader);
+        _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
+        return new BoundField<TComponent, TValue>(field.Id, field.Get, field.Set);
+        
+        TValue Loader(ref TComponent cmp)
         {
-            loader(cmp, ctx);
+            loader(ref cmp);
             return field.Get(cmp);
         }
-        
-        var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Getter);
-        _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
-        return new BoundField<TComponent, TValue, TContext>(field.Id, field.Get, field.Set);
     }
 
     public BoundField<TComponent, TValue, TContext> Register<TComponent, TValue, TContext>(
@@ -42,16 +49,33 @@ public sealed class ComponentFieldMappingRegistry : IComponentFieldMappingRegist
         Func<TContext, TValue> getter)
         where TComponent : IComponent
     {
-        TValue Loader(TComponent cmp, TContext ctx)
-        {
-            var value = getter(ctx);
-            field.Set(cmp, value);
-            return value;
-        }
-
         var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Loader);
         _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
         return new BoundField<TComponent, TValue, TContext>(field.Id, field.Get, field.Set);
+
+        TValue Loader(ref TComponent cmp, TContext ctx)
+        {
+            var value = getter(ctx);
+            field.Set(ref cmp, value);
+            return value;
+        }
+    }
+
+    public BoundField<TComponent, TValue, TContext> Register<TComponent, TValue, TContext>(
+        Field<TComponent, TValue, TContext> field,
+        Action<TContext, TValue> setter,
+        DataLoader<TComponent, TContext, TValue> loader)
+        where TComponent : IComponent
+    {
+        var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Loader);
+        _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
+        return new BoundField<TComponent, TValue, TContext>(field.Id, field.Get, field.Set);
+
+        TValue Loader(ref TComponent cmp, TContext ctx)
+        {
+            loader(ref cmp, ctx);
+            return field.Get(cmp);
+        }
     }
 
     public FieldMapping<TComponent, TValue> Get<TComponent, TValue>(

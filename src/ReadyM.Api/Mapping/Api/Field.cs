@@ -6,13 +6,13 @@ namespace ReadyM.Api.Mapping.Api;
 public readonly struct Field<TComponent, TValue>(
     int id,
     Func<TComponent, TValue> get,
-    Action<TComponent, TValue> set
+    FieldSetterDelegate<TComponent, TValue> set
 )
     where TComponent : IComponent
 {
     public readonly int Id = id;
     public readonly Func<TComponent, TValue> Get = get;
-    public readonly Action<TComponent, TValue> Set = set;
+    public readonly FieldSetterDelegate<TComponent, TValue> Set = set;
 
     public Field<TComponent, TValue, TContext> In<TContext>() => new(Id, Get, Set);
 
@@ -22,11 +22,11 @@ public readonly struct Field<TComponent, TValue>(
 public readonly struct Field<TComponent, TValue, TContext>(
     int id,
     Func<TComponent, TValue> get,
-    Action<TComponent, TValue> set
+    FieldSetterDelegate<TComponent, TValue> set
 )
     where TComponent : IComponent
 {
     public readonly int Id = id;
     public readonly Func<TComponent, TValue> Get = get;
-    public readonly Action<TComponent, TValue> Set = set;
+    public readonly FieldSetterDelegate<TComponent, TValue> Set = set;
 }
