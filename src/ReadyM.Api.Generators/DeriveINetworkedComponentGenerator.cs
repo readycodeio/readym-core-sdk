@@ -99,6 +99,7 @@ using System;
 using System.Numerics;
 using LiteNetLib.Utils;
 using ReadyM.Api.Generators;
+using ReadyM.Api.Mapping.Api;
 using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -150,10 +151,13 @@ namespace {info.Namespace}
         //     Field2,
         //     ...
         // }
-        sb.Append("        public enum Fields : int\n        {\n");
-        foreach (var name in propertyNames)
+        sb.AppendLine("        public static class Fields\n        {");
+        for (var i = 0; i < info.Members.Length; i++)
         {
-            sb.AppendLine($"            {name},");
+            var type = info.Members[i].Type;
+
+            // find the 
+            sb.AppendLine($"public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i});");
         }
 
         sb.AppendLine("        }\n");
@@ -401,9 +405,9 @@ namespace {info.Namespace}
         }
 
         sb.AppendLine("        }\n");
-        sb.AppendLine("        private void SetDirty(Fields field, bool fromApi)");
+        sb.AppendLine("        private void SetDirty(int field, bool fromApi)");
         sb.AppendLine("        {");
-        sb.AppendLine($"            var bit = ({maskType})(1 << (int)field);");
+        sb.AppendLine($"            var bit = ({maskType})(1 << field);");
         sb.AppendLine("            _dirtyMask |= bit;");
         sb.AppendLine("            if (fromApi)");
         sb.AppendLine("                _apiMask |= bit;");
