@@ -18,10 +18,10 @@ public class ConsoleCommandRegistry
     {
         foreach (var registration in registrations)
         {
-            registration.RegisterCommands(this);
+            AddCommand(registration);
         }
     }
-    
+
     public void AddCommand(IConsoleCommandRegistration registration)
     {
         registration.RegisterCommands(this);
@@ -31,7 +31,7 @@ public class ConsoleCommandRegistry
     {
         if (_commands.ContainsKey(commandName))
             throw new InvalidOperationException();
-        
+
         _commands.Add(commandName, command);
         if (availableFirstParams != null)
         {
@@ -41,9 +41,12 @@ public class ConsoleCommandRegistry
 
     public bool HasCommand(string commandName)
         => _commands.ContainsKey(commandName);
-    
+
     public ConsoleCommand GetCommand(string commandName)
         => _commands[commandName];
+    
+    public List<string> GetCommandAvailableFirstParams(string commandName)
+        => _commandsParams.TryGetValue(commandName, out var paramsList) ? paramsList.ToList() : [];
 
     public IEnumerable<string> GetCommandNames(bool includeDebug)
         => _commands.Where(x => includeDebug || !x.Value.IsDebugOnly).Select(x => x.Key);
