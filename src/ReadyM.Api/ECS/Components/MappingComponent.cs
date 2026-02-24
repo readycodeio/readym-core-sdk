@@ -2,16 +2,16 @@
 
 namespace ReadyM.Api.ECS.Components;
 
-public readonly struct MappingComponent<TGameObject>(TGameObject gameObject) 
-    : IIndexedComponent<TGameObject>
+public readonly struct MappingComponent<TGameObject>(TGameObject? gameObject) 
+    : IIndexedComponent<TGameObject?>
     where TGameObject : class
 {
-    private readonly TGameObject _gameObject = gameObject;
+    private readonly TGameObject? _gameObject = gameObject;
     
-    public TGameObject GameObject
+    public TGameObject? GameObject
         => _gameObject;
 
-    public TGameObject GetIndexedValue()
+    public TGameObject? GetIndexedValue()
         => _gameObject;
 
     public bool Equals(MappingComponent<TGameObject> other)
