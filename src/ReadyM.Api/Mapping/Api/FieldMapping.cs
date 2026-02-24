@@ -7,7 +7,7 @@ public sealed class FieldMapping<TComponent, TValue>(
     DataLoaderDelegate<TComponent, TValue> loadFromGame
 )
 {
-    public void SyncToGame(TValue value) => setToGame(value);
+    public void SyncToGame(in TValue value) => setToGame(value);
     public TValue LoadFromGame(ref TComponent component) => loadFromGame(ref component);
 }
 
@@ -16,6 +16,6 @@ public sealed class FieldMapping<TComponent, TContext, TValue>(
     DataLoaderDelegate<TComponent, TContext, TValue> loadFromGame
 )
 {
-    public void SyncToGame(TContext context, TValue value) => setToGame(context, value);
+    public void SyncToGame(TContext context, in TValue value) => setToGame(context, value);
     public TValue LoadFromGame(ref TComponent component, TContext context) => loadFromGame(ref component, context);
 }
