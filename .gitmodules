@@ -4,3 +4,6 @@
 [submodule "src/LiteNetLib"]
 	path = src/LiteNetLib
 	url = https://github.com/RevenantX/LiteNetLib.git
+[submodule "src/readym-admin-panel"]
+	path = src/readym-admin-panel
+	url = git@github.com:readycodeio/readym-admin-panel.git
