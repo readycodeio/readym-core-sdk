@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace ReadyM.Api.Command;
 
@@ -202,7 +203,7 @@ public class ConsoleCommandMatcher(
             return false;
         }
         
-        commandCall = new ParsedCommandCall(commandCall.Value.CommandName, actualArgs!);
+        commandCall = new ParsedCommandCall(commandCall.Value.CommandName, actualArgs);
         return true;
     }
 }

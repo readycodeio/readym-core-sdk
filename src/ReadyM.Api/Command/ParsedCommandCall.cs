@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ReadyM.Api.Command;
 
-public readonly struct ParsedCommandCall(string commandName, IReadOnlyList<object> args)
+public readonly struct ParsedCommandCall(string commandName, IEnumerable<object?> args)
 {
     public readonly string CommandName = commandName;
-    public readonly IReadOnlyList<object> Args = args;
+    public readonly object?[] Args = args.ToArray();
 }
