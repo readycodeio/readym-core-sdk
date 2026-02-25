@@ -1,12 +1,13 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 
 namespace ReadyM.Api.Mapping.Events;
 
-public class MappedEventManager(DataSideChannel sideChannel) : IMappedEventManager
+public class MappedEventManager(DataSideChannel sideChannel, ILogger logger) : IMappedEventManager
 {
-    private readonly EventQueue _incomingEcsEventQueue = new();
-    private readonly EventQueue _incomingGameEventQueue = new();
+    private readonly EventQueue _incomingEcsEventQueue = new(logger);
+    private readonly EventQueue _incomingGameEventQueue = new(logger);
 
     public void RegisterEcsEventHandler<TEvent>(Action<TEvent> handler)
         where TEvent : struct

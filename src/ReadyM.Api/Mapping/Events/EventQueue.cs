@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Mapping.Events;
 
-internal class EventQueue()
+internal class EventQueue(ILogger logger)
 {
     private abstract class EntryBase
     {
@@ -15,7 +16,7 @@ internal class EventQueue()
         public abstract void Invoke(in TEvent ev);
     }
 
-    private class Entry<TEvent, TArg> : EntryBase<TEvent>
+    private class Entry<TEvent, TArg>(ILogger logger) : EntryBase<TEvent>
     {
         private readonly List<(Action<TEvent, TArg>, TArg)> _handlers = new();
         
@@ -26,6 +27,11 @@ internal class EventQueue()
 
         public override void Invoke(in TEvent ev)
         {
+            if (_handlers.Count == 0)
+            {
+                logger.LogWarning("Invoking event of type {EventType} with no handlers registered", typeof(TEvent).FullName);
+            }
+            
             foreach (var (handler, arg) in _handlers)
             {
                 handler(ev, arg);
@@ -33,7 +39,7 @@ internal class EventQueue()
         }
     }
     
-    private class Entry<TEvent, TArg0, TArg1> : EntryBase<TEvent>
+    private class Entry<TEvent, TArg0, TArg1>(ILogger logger) : EntryBase<TEvent>
     {
         private readonly List<(Action<TEvent, TArg0, TArg1>, TArg0, TArg1)> _handlers = new();
         
@@ -44,6 +50,11 @@ internal class EventQueue()
 
         public override void Invoke(in TEvent ev)
         {
+            if (_handlers.Count == 0)
+            {
+                logger.LogWarning("Invoking event of type {EventType} with no handlers registered", typeof(TEvent).FullName);
+            }
+            
             foreach (var (handler, arg0, arg1) in _handlers)
             {
                 handler(ev, arg0, arg1);
@@ -51,7 +62,7 @@ internal class EventQueue()
         }
     }
     
-    private class Entry<TEvent, TArg0, TArg1, TArg2> : EntryBase<TEvent>
+    private class Entry<TEvent, TArg0, TArg1, TArg2>(ILogger logger) : EntryBase<TEvent>
     {
         private readonly List<(Action<TEvent, TArg0, TArg1, TArg2>, TArg0, TArg1, TArg2)> _handlers = new();
         
@@ -62,6 +73,11 @@ internal class EventQueue()
 
         public override void Invoke(in TEvent ev)
         {
+            if (_handlers.Count == 0)
+            {
+                logger.LogWarning("Invoking event of type {EventType} with no handlers registered", typeof(TEvent).FullName);
+            }
+            
             foreach (var (handler, arg0, arg1, arg2) in _handlers)
             {
                 handler(ev, arg0, arg1, arg2);
@@ -94,7 +110,7 @@ internal class EventQueue()
         var key = (typeof(TEvent), typeof(TArg));
         if (!_handlersArg1.TryGetValue(key, out var entry))
         {
-            entry = new Entry<TEvent, TArg>();
+            entry = new Entry<TEvent, TArg>(logger);
             _handlersArg1[key] = entry;
         }
         
@@ -114,7 +130,7 @@ internal class EventQueue()
         var key = (typeof(TEvent), typeof(TArg0), typeof(TArg1));
         if (!_handlersArg2.TryGetValue(key, out var entry))
         {
-            entry = new Entry<TArg0, TArg1>();
+            entry = new Entry<TArg0, TArg1>(logger);
             _handlersArg2[key] = entry;
         }
         
@@ -134,7 +150,7 @@ internal class EventQueue()
         var key = (typeof(TEvent), typeof(TArg0), typeof(TArg1), typeof(TArg2));
         if (!_handlersArg3.TryGetValue(key, out var entry))
         {
-            entry = new Entry<TArg0, TArg1, TArg2>();
+            entry = new Entry<TArg0, TArg1, TArg2>(logger);
             _handlersArg3[key] = entry;
         }
         
