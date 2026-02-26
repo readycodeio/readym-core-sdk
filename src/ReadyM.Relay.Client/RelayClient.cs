@@ -13,6 +13,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Client.Utilities;
 using ReadyM.Relay.Common.Extensions;
 
 namespace ReadyM.Relay.Client;
@@ -39,6 +40,7 @@ public class RelayClient : IRelayClient
 
     // Proper implementations guaranteed to be thread-safe
     private readonly ILogger _logger;
+    private readonly NetworkSessionStats _netStats;
 
     // Looking at the implementation it seems to be thread-safe for reading properties. Since it is accessed from
     // multiple threads, all properties should be assumed to be volatile, e.g. a list of peers may change between
@@ -259,9 +261,10 @@ public class RelayClient : IRelayClient
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
         => _scheduler;
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, ILogger logger, bool noDisconnect)
+    public RelayClient(string host, int port, RelayConnectionOptions options, NetworkSessionStats netStats, ILogger logger, bool noDisconnect)
     {
         _logger = logger;
+        _netStats = netStats;
 
         _options = options;
         _host = host;
@@ -680,6 +683,7 @@ public class RelayClient : IRelayClient
                         break;
                     }
 
+                    _netStats.DumpToLog(_logger);
                     OnLeftArea?.Invoke(_netThreadContext);
 
                     _logger.LogInformation("NETWORK LEAVING {AreaId} by player {PlayerId}", _netThreadContext.CurrentAreaId, playerId);
@@ -826,6 +830,7 @@ public class RelayClient : IRelayClient
     private readonly object _statLock = new();
     private long _lastBytesReceived;
     private long _lastBytesSent;
+    private DateTimeOffset _processStart = DateTimeOffset.Now;
     private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
     private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
@@ -856,14 +861,16 @@ public class RelayClient : IRelayClient
             delta = now - _lastStatCheck;
 
             _lastStatCheck = now;
+            
+            _netStats.UpdateTransfer(_client.Statistics, (now - _processStart).TotalSeconds);
         }
 
         // print avg recv and sent over the delta time
         var avgRecv = (long)(dRecv / delta.TotalSeconds);
         var avgSent = (long)(dSent / delta.TotalSeconds);
         var packetLoss = _client.Statistics.PacketLoss;
-
         var sent = _client.Statistics.PacketsSent;
+        
         _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}", avgRecv, avgSent, packetLoss, sent);
     }
 
