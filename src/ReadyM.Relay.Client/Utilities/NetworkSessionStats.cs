@@ -19,6 +19,9 @@ namespace ReadyM.Relay.Client.Utilities
 
         private readonly int _maxValidPingMs;
         private readonly int[] _pingHistogram;
+        
+        private readonly string _playerId;
+        private readonly int _region;
 
         private long _pingCount;
         private long _pingSum;
@@ -37,9 +40,14 @@ namespace ReadyM.Relay.Client.Utilities
         private readonly RateSeries _uploadBps = new();
         private readonly RateSeries _downloadBps = new();
 
-        public NetworkSessionStats(int maxValidPingMs = DefaultMaxValidPingMs)
+        public NetworkSessionStats(string playerId, int region, int maxValidPingMs = DefaultMaxValidPingMs)
         {
-            if (maxValidPingMs < 1) throw new ArgumentOutOfRangeException(nameof(maxValidPingMs));
+            if (maxValidPingMs < 1) 
+                throw new ArgumentOutOfRangeException(nameof(maxValidPingMs));
+            
+            _playerId = playerId;
+            _region = region;
+            
             _maxValidPingMs = maxValidPingMs;
             _pingHistogram = new int[_maxValidPingMs + 1];
         }
@@ -390,8 +398,8 @@ namespace ReadyM.Relay.Client.Utilities
         public void DumpToLog(ILogger logger)
         {
             logger.LogInformation(
-                "Network session stats: PingLossRate={PingLossRate}, PingMeanMs={PingMeanMs}, PingMedianMs={PingP50Ms}ms, PingP90Ms={PingP90Ms}ms, PingP95Ms={PingP95Ms}ms, PingP98Ms={PingP98Ms}ms, UploadMeanBps={UpMeanBps}, UploadMedianBps={UpP50Bps}, UploadP90Bps={UpP90Bps}, UploadP95Bps={UpP95Bps}, UploadP98Bps={UpP98Bps}, DownloadMeanBps={DownMeanBps}, DownloadMedianBps={DownP50Bps}, DownloadP90Bps={DownP90Bps}, DownloadP95Bps={DownP95Bps}, DownloadP98Bps={DownP98Bps}",
-                PingLossRate, PingMeanMs, PingMedianMs, PingP90Ms, PingP95Ms, PingP98Ms,
+                "Network session stats: PlayerId={PlayerId}, Region={Region}, PingLossRate={PingLossRate}, PingMeanMs={PingMeanMs}, PingMedianMs={PingP50Ms}ms, PingP90Ms={PingP90Ms}ms, PingP95Ms={PingP95Ms}ms, PingP98Ms={PingP98Ms}ms, UploadMeanBps={UpMeanBps}, UploadMedianBps={UpP50Bps}, UploadP90Bps={UpP90Bps}, UploadP95Bps={UpP95Bps}, UploadP98Bps={UpP98Bps}, DownloadMeanBps={DownMeanBps}, DownloadMedianBps={DownP50Bps}, DownloadP90Bps={DownP90Bps}, DownloadP95Bps={DownP95Bps}, DownloadP98Bps={DownP98Bps}",
+                _playerId, _region, PingLossRate, PingMeanMs, PingMedianMs, PingP90Ms, PingP95Ms, PingP98Ms,
                 UploadMeanBps, UploadMedianBps, UploadP90Bps, UploadP95Bps, UploadP98Bps,
                 DownloadMeanBps, DownloadMedianBps, DownloadP90Bps, DownloadP95Bps, DownloadP98Bps);
         }
