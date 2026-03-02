@@ -828,6 +828,8 @@ public class RelayClient : IRelayClient
     private long _lastBytesSent;
     private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
+    private int _pingCount;
+    
     private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
     {
         // Round trip time. LiteNetLib reports one way latency, so we double it.
@@ -858,13 +860,18 @@ public class RelayClient : IRelayClient
             _lastStatCheck = now;
         }
 
-        // print avg recv and sent over the delta time
-        var avgRecv = (long)(dRecv / delta.TotalSeconds);
-        var avgSent = (long)(dSent / delta.TotalSeconds);
-        var packetLoss = _client.Statistics.PacketLoss;
+        if (_pingCount % 10 == 0)
+        {
+            // print avg recv and sent over the delta time
+            var avgRecv = (long)(dRecv / delta.TotalSeconds);
+            var avgSent = (long)(dSent / delta.TotalSeconds);
+            var packetLoss = _client.Statistics.PacketLoss;
 
-        var sent = _client.Statistics.PacketsSent;
-        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, Latency: {} ms", avgRecv, avgSent, packetLoss, sent, latency);
+            var sent = _client.Statistics.PacketsSent;
+            _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, Latency: {} ms", avgRecv, avgSent, packetLoss, sent, latency);
+        }
+
+        _pingCount++;
     }
 
     // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected
