@@ -9,7 +9,7 @@ namespace ReadyM.Api.Mapping;
 public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManager<TGameObject>
     where TGameObject : class
 {
-    private readonly ComponentIndex<MappingComponent<TGameObject>, TGameObject> _ix = world.ComponentIndex<MappingComponent<TGameObject>, TGameObject>();
+    private readonly ComponentIndex<MappingComponent<TGameObject>, TGameObject?> _ix = world.ComponentIndex<MappingComponent<TGameObject>, TGameObject?>();
 
     public bool IsMapped(Entity entity)
         => entity.HasComponent<MappingComponent<TGameObject>>();
@@ -23,7 +23,7 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
         }
         
         gameObj = mappingComp.GameObject;
-        return true;
+        return gameObj != null;
     }
     
     public bool IsMapped(TGameObject? gameObj, [NotNullWhen(true)] out Entity? entity) 

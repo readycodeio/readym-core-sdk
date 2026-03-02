@@ -13,7 +13,7 @@ public class FuncEntityEventPolicyFactory<TContext>(
 
     public IMappingEventPolicyBase CreatePolicy(Type eventType, Type contextType)
     {
-        var policyType = typeof(FuncEventPolicy<>).MakeGenericType(contextType);
+        var policyType = typeof(FuncEventPolicy<,>).MakeGenericType(eventType, contextType);
         return (IMappingEventPolicyBase)Activator.CreateInstance(policyType, shouldPropagateToEcs, shouldPropagateToGame, shouldRunLocally)!;
     }
 

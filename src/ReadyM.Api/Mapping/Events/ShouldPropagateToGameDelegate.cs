@@ -1,3 +1,3 @@
 ﻿namespace ReadyM.Api.Mapping.Events;
 
-public delegate bool ShouldPropagateToGameDelegate<TEvent>(in TEvent ev);
+public delegate bool ShouldPropagateToGameDelegate<TContext>(in TContext ev);

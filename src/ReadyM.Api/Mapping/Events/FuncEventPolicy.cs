@@ -1,23 +1,25 @@
-﻿using System;
+﻿using ReadyM.Api.Helpers;
 
 namespace ReadyM.Api.Mapping.Events;
 
-public class FuncEventPolicy<TContext>(
+public class FuncEventPolicy<TEvent, TContext>(
     ShouldPropagateToEcsDelegate<TContext> shouldPropagateToEcs,
     ShouldPropagateToGameDelegate<TContext> shouldPropagateToGame,
-    ShouldRunLocallyDelegate<TContext> shouldRunLocally)
-    : IMappingEventPolicy<TContext>
+    ShouldRunLocallyDelegate<TContext> shouldRunLocally,
+    DataSideChannel sideChannel)
+    : MappingEventPolicyBase<TEvent, TContext>(sideChannel)
     where TContext : struct
 {
-    public Type ContextType
-        => typeof(TContext);
-    
-    public bool ShouldEventPropagateToEcs(in TContext context)
-        => shouldPropagateToEcs(in context);
-
-    public bool ShouldEventPropagateToGame(in TContext context)
-        => shouldPropagateToGame(in context);
-
-    public bool ShouldGameEventRunLocally(in TContext context, out EventSource eventSource)
-        => shouldRunLocally(in context, out eventSource);
+    protected override bool ShouldEventPropagateToEcsImpl(in TContext context)
+    {
+        return shouldPropagateToEcs(in context);
+    }
+    protected override bool ShouldEventPropagateToGameImpl(in TContext context)
+    {
+        return shouldPropagateToGame(in context);
+    }
+    protected override bool ShouldGameEventRunLocallyImpl(in TContext context)
+    {
+        return shouldRunLocally(in context);
+    }
 }

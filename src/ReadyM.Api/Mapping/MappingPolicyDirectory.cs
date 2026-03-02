@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Friflo.Engine.ECS;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Mapping.CreateDestroy;
 using ReadyM.Api.Mapping.Data;
@@ -8,7 +9,7 @@ using ReadyM.Api.Mapping.Events;
 
 namespace ReadyM.Api.Mapping;
 
-public class MappingPolicyDirectory : IMappingPolicyDirectory
+public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory
 {
     private readonly Dictionary<(ArchetypeId, Type), IMappingCreateDeletePolicyBase> _createDeletePolicies = new();
     private readonly Dictionary<ArchetypeId, List<IMappingCreateDeletePolicyFactory>> _archetypeCreateDeletePolicyFactories = new();
@@ -269,10 +270,7 @@ public class MappingPolicyDirectory : IMappingPolicyDirectory
         where TEvent : struct, IEquatable<TEvent>
         where TContext : struct
     {
-        var policy = new FuncEventPolicy<TContext>(
-            shouldPropagateToEcs,
-            shouldPropagateToGame,
-            shouldRunLocally);
+        var policy = new FuncEventPolicy<TEvent, TContext>(shouldPropagateToEcs, shouldPropagateToGame, shouldRunLocally, sideChannel);
         RegisterEvent<TEvent, TContext>(policy);
     }
     
