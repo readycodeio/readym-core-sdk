@@ -864,7 +864,7 @@ public class RelayClient : IRelayClient
         var packetLoss = _client.Statistics.PacketLoss;
 
         var sent = _client.Statistics.PacketsSent;
-        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}", avgRecv, avgSent, packetLoss, sent);
+        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, Latency: {} ms", avgRecv, avgSent, packetLoss, sent, latency);
     }
 
     // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected
