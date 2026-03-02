@@ -10,15 +10,15 @@ public class FuncEventPolicy<TEvent, TContext>(
     : MappingEventPolicyBase<TEvent, TContext>(sideChannel)
     where TContext : struct
 {
-    protected override bool ShouldEventPropagateToEcsImpl(in TContext context)
+    protected override bool CanGameEventNotifyEcsImpl(in TContext context)
     {
         return shouldPropagateToEcs(in context);
     }
-    protected override bool ShouldEventPropagateToGameImpl(in TContext context)
+    protected override bool CanEcsInvokeGameEventImpl(in TContext context)
     {
         return shouldPropagateToGame(in context);
     }
-    protected override bool ShouldGameEventRunLocallyImpl(in TContext context)
+    protected override bool CanGameEventRunLocallyImpl(in TContext context)
     {
         return shouldRunLocally(in context);
     }

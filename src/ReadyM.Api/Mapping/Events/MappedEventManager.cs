@@ -34,8 +34,8 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
         where TEvent : struct
         => _incomingGameEventQueue.RegisterHandler(handler, arg0, arg1);
 
-    [Obsolete("Use PropagateToEcsIfApplicable instead to respect the event policy.")]
-    public void PropagateToEcs<TEvent>(in TEvent ev)
+    [Obsolete("Use NotifyEcsIfApplicable instead to respect the event policy.")]
+    public void NotifyEcs<TEvent>(in TEvent ev)
         where TEvent : struct
     {
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
@@ -44,7 +44,8 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
         }
     }
 
-    public void PropagateToGame<TEvent>(in TEvent ev)
+    [Obsolete("Use InvokeInGameIfApplicable instead to respect the event policy.")]
+    public void InvokeInGame<TEvent>(in TEvent ev)
         where TEvent : struct
     {
         using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
@@ -53,7 +54,7 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
         }
     }
 
-    public void TriggerEvent<TEvent>(in TEvent ev) where TEvent : struct
+    public void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev) where TEvent : struct
     {
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
         using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
@@ -64,28 +65,37 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
     }
 
     /// <inheritdoc/>
-    public void PropagateToEcsIfApplicable<TEvent>(in TEvent ev, Entity context) where TEvent : struct, IMappingContext<Entity>
+    public void NotifyEcsIfApplicable<TEvent>(in TEvent ev, Entity context) where TEvent : struct, IMappingContext<Entity>
     {
-        // do not propagate if we're already propagating this event to game
-        if (sideChannel.HasData<PropagatingToGameScope<TEvent>>())
-            return;
-
-        var policy = policyDir.ForEvent<TEvent>().ShouldEventPropagateToEcs(context);
+        var policy = policyDir.ForEvent<TEvent>().CanGameEventNotifyEcs(context);
         if (policy)
         {
-            PropagateToEcs(ev);
+            using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
+            {
+                _incomingEcsEventQueue.Invoke(ev);
+            }
+        }
+    }
+
+    public void InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
+        where TEvent : struct, IMappingContext<TContext> 
+        where TContext : struct
+    {
+        var policy = policyDir.ForEvent<TEvent, TContext>().CanEcsInvokeGameEvent(context);
+        if (policy)
+        {
+            using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
+            {
+                _incomingGameEventQueue.Invoke(ev);
+            }
         }
     }
 
     /// <inheritdoc/>
-    public bool ShouldGameRunLocally<TEvent>(Entity context)
+    // TODO: Do we need to re-export this here?
+    public bool CanGameEventRunLocally<TEvent>(Entity context)
         where TEvent : struct, IMappingContext<Entity>
     {
-        // if the caller was ran from API, allow
-        if (sideChannel.HasData<PropagatingToGameScope<TEvent>>())
-            return true;
-
-        // if the caller was ran from game, check policy
-        return policyDir.ForEvent<TEvent>().ShouldGameEventRunLocally(context, out _);
+        return policyDir.ForEvent<TEvent>().CanGameEventRunLocally(context, out _);
     }
 }
