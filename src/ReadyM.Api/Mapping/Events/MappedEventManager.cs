@@ -44,16 +44,6 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
         }
     }
 
-    [Obsolete("Use InvokeInGameIfApplicable instead to respect the event policy.")]
-    public void InvokeInGame<TEvent>(in TEvent ev)
-        where TEvent : struct
-    {
-        using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
-        {
-            _incomingGameEventQueue.Invoke(ev);
-        }
-    }
-
     public void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev) where TEvent : struct
     {
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())

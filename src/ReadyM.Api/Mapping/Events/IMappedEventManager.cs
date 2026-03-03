@@ -27,10 +27,6 @@ public interface IMappedEventManager
     void NotifyEcs<TEvent>(in TEvent ev)
         where TEvent : struct;
 
-    /// Invoke the registered handlers for the event on the game side.
-    void InvokeInGame<TEvent>(in TEvent ev)
-        where TEvent : struct;
-
     /// Propagate the event to both the ECS and the game, regardless of the policy.
     void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev)
         where TEvent : struct;
