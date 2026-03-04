@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Components;
@@ -44,7 +45,7 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
                 entity = matching[0];
                 return true;
             default:
-                throw new System.InvalidOperationException(
+                throw new InvalidOperationException(
                     $"Multiple entities mapped to the same game object {gameObj}.");
         }
     }
@@ -70,13 +71,13 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
         switch (matching.Count)
         {
             case 0:
-                throw new System.InvalidOperationException($"No entity mapped to the game object {gameObj}.");
+                throw new InvalidOperationException($"No entity mapped to the game object {gameObj}.");
             case 1:
                 var entity = matching[0];
                 entity.RemoveComponent<MappingComponent<TGameObject>>();
                 break;
             default:
-                throw new System.InvalidOperationException($"Multiple entities mapped to the same game object {gameObj}.");
+                throw new InvalidOperationException($"Multiple entities mapped to the same game object {gameObj}.");
         }
     }
     
@@ -94,13 +95,13 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
         switch (matching.Count)
         {
             case 0:
-                throw new System.InvalidOperationException($"No entity mapped to the game object {gameObj}.");
+                throw new InvalidOperationException($"No entity mapped to the game object {gameObj}.");
             case 1:
                 var entity = matching[0];
                 buffer.RemoveComponent<MappingComponent<TGameObject>>(entity.Id);
                 break;
             default:
-                throw new System.InvalidOperationException($"Multiple entities mapped to the same game object {gameObj}.");
+                throw new InvalidOperationException($"Multiple entities mapped to the same game object {gameObj}.");
         }
     }
 }

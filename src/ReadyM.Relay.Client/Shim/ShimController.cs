@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using ReadyM.Relay.Common.Serialization;
-using ReadyM.Relay.Common.Shim;
+using ReadyM.Api.Multiplayer.Serialization;
+using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 

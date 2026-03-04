@@ -103,7 +103,6 @@ using ReadyM.Api.Mapping.Api;
 using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Relay.Common;
 
 namespace {info.Namespace}
 {{

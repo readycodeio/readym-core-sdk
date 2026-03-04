@@ -1,5 +1,5 @@
-﻿using ReadyM.Relay.Client.Shim.ECS;
-using ReadyM.Relay.Common.Serialization;
+﻿using ReadyM.Api.Multiplayer.Serialization;
+using ReadyM.Relay.Client.Shim.ECS;
 
 namespace ReadyM.Relay.Client.Serialization;
 

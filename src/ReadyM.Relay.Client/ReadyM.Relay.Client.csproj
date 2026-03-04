@@ -21,9 +21,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
+        <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
-        <ProjectReference Include="..\ReadyM.Relay.Common\ReadyM.Relay.Common.csproj" />
     </ItemGroup>
 
 </Project>

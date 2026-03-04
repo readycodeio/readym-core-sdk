@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ReadyM.Api.Command;
+﻿namespace ReadyM.Api.Command;
 
 public class StandardArgumentParserRegistration : IConsoleArgumentParserRegistration
 {

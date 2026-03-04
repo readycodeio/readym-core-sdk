@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Text;
 using Superpower;
 using Superpower.Parsers;
 
@@ -35,7 +36,7 @@ public static class StandardArgument
 
         // Minimal C-style unescape. Extend as needed (e.g. \uXXXX).
         var inner = tokenText.Substring(1, tokenText.Length - 2);
-        var result = new System.Text.StringBuilder(inner.Length);
+        var result = new StringBuilder(inner.Length);
 
         for (var i = 0; i < inner.Length; i++)
         {

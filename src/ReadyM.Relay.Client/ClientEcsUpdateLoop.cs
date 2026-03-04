@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
@@ -88,7 +89,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     public void Wait(Task task)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         while (true)
         {
             if (task.IsCompleted || task.IsFaulted || task.IsCanceled)

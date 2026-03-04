@@ -3,11 +3,11 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Jobs;
+using ReadyM.Api.Multiplayer.ECS.Systems;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.State;
-using ReadyM.Relay.Common.ECS.Jobs;
-using ReadyM.Relay.Common.ECS.Systems;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
 
