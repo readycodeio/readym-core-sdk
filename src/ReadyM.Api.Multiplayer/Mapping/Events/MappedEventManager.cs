@@ -46,6 +46,8 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
 
     public void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev) where TEvent : struct
     {
+        // TODO: Check policy both ways?
+        
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
         using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
         {
@@ -55,31 +57,35 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
     }
 
     /// <inheritdoc/>
-    public void NotifyEcsIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
+    public bool NotifyEcsIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
         where TEvent : struct, IMappingContext<TContext>
         where TContext : struct
     {
         if (!policyDir.ForEvent<TEvent, TContext>().CanGameEventNotifyEcs(context))
-            return;
+            return false;
 
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
         {
             _incomingEcsEventQueue.Invoke(ev);
         }
+
+        return true;
     }
 
     /// <inheritdoc/>
-    public void InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
+    public bool InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
         where TEvent : struct, IMappingContext<TContext>
         where TContext : struct
     {
         if (!policyDir.ForEvent<TEvent, TContext>().CanEcsInvokeGameEvent(context))
-            return;
+            return false;
 
         using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
         {
             _incomingGameEventQueue.Invoke(ev);
         }
+
+        return true;
     }
 
     /// <inheritdoc/>
