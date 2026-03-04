@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.State;
+using ReadyM.Relay.Client.Compat;
 
 namespace ReadyM.Relay.Client.State;
 

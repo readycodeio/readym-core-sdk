@@ -99,8 +99,8 @@ using System;
 using System.Numerics;
 using LiteNetLib.Utils;
 using ReadyM.Api.Generators;
-using ReadyM.Api.Mapping.Api;
 using ReadyM.Api.Multiplayer;
+using ReadyM.Api.Multiplayer.Mapping.Api;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Components;
 

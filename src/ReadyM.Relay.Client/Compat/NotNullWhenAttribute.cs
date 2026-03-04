@@ -1,4 +1,6 @@
-namespace System.Diagnostics.CodeAnalysis;
+using System;
+
+namespace ReadyM.Relay.Client.Compat;
 
 [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
 internal sealed class NotNullWhenAttribute : Attribute
