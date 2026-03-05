@@ -29,7 +29,7 @@ public sealed class ComponentFieldMappingRegistry : IComponentFieldMappingRegist
     public BoundField<TComponent, TValue> Register<TComponent, TValue>(
         Field<TComponent, TValue> field,
         Action<TValue> setter,
-        DataLoader<TComponent, TValue> loader)
+        DataLoader<TComponent> loader)
         where TComponent : IComponent
     {
         var mapping = new FieldMapping<TComponent, TValue>(setter, Loader);
@@ -64,7 +64,7 @@ public sealed class ComponentFieldMappingRegistry : IComponentFieldMappingRegist
     public BoundField<TComponent, TValue, TContext> Register<TComponent, TValue, TContext>(
         Field<TComponent, TValue, TContext> field,
         Action<TContext, TValue> setter,
-        DataLoader<TComponent, TContext, TValue> loader)
+        DataLoader<TComponent, TContext> loader)
         where TComponent : IComponent
     {
         var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Loader);

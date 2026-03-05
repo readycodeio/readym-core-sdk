@@ -23,14 +23,13 @@ public readonly struct MappedEntityEventPolicy(IMappingEventPolicy<Entity> dataP
         return dataPolicy.CanEcsInvokeGameEvent(tamerEntity.Value);
     }
 
-    public bool CanGameEventRunLocally(Entity? tamerEntity, out EventSource source)
+    public bool CanGameEventRunLocally(Entity? tamerEntity)
     {
         if (!tamerEntity.HasValue)
         {
-            source = default;
             return false;
         }
 
-        return dataPolicy.CanGameEventRunLocally(tamerEntity.Value, out source);
+        return dataPolicy.CanGameEventRunLocally(tamerEntity.Value);
     }
 }

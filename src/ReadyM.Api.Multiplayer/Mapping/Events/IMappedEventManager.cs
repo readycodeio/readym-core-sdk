@@ -1,5 +1,4 @@
 using System;
-using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Events;
 
@@ -23,10 +22,6 @@ public interface IMappedEventManager
     void RegisterGameEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct;
 
-    /// Invoke the registered handlers for the event on the ECS side.
-    void NotifyEcs<TEvent>(in TEvent ev)
-        where TEvent : struct;
-
     /// Propagate the event to both the ECS and the game, regardless of the policy.
     void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev)
         where TEvent : struct;
@@ -42,9 +37,4 @@ public interface IMappedEventManager
     bool InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
         where TEvent : struct, IMappingContext<TContext>
         where TContext : struct;
-
-    /// Is the game allowed to run the event logic locally right now?
-    /// Returns <c>true</c> if invoked in ECS scope, otherswise consults the policy.
-    bool CanGameEventRunLocally<TEvent>(Entity context)
-        where TEvent : struct, IMappingContext<Entity>;
 }

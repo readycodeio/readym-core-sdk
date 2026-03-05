@@ -11,21 +11,21 @@ using ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
-public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory
+public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory, IMappingPolicyDirectoryRegistration
 {
     private readonly object _createDeleteLock = new();
     private readonly Dictionary<(ArchetypeId, Type), IMappingCreateDeletePolicyBase> _createDeletePolicies = new();
     private readonly Dictionary<ArchetypeId, List<IMappingCreateDeletePolicyFactory>> _archetypeCreateDeletePolicyFactories = new();
-    private readonly List<IMappingCreateDeletePolicyFactory> _createDeletePolicyFactories = new();
+    private readonly List<IMappingCreateDeletePolicyFactory> _createDeletePolicyFactories = [];
 
     private readonly object _dataLock = new();
     private readonly Dictionary<(ArchetypeId, Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
     private readonly Dictionary<ArchetypeId, List<IMappingDataPolicyFactory>> _archetypeDataPolicyFactories = new();
-    private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = new();
+    private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = [];
 
     private readonly object _eventLock = new();
     private readonly Dictionary<(Type, Type), IMappingEventPolicyBase> _eventPolicies = new();
-    private readonly List<IMappingEventPolicyFactory> _eventPolicyFactories = new();
+    private readonly List<IMappingEventPolicyFactory> _eventPolicyFactories = [];
 
     public IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
         where TGameObject : class

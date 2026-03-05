@@ -21,6 +21,7 @@ public interface IMappingPolicyDirectory
     IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>
         where TContext : struct;
+
     IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>;
 }

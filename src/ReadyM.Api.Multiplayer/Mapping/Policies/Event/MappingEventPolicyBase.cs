@@ -40,13 +40,9 @@ public abstract class MappingEventPolicyBase<TEvent, TContext>(DataSideChannel s
     /// Returns whether the game is allowed to run the game code related to the event locally, or not.
     /// This is used exclusively in game code patches, to avoid running events for entities we are not responsible for.
     /// Always returns <c>true</c> if the event is propagating from the ECS to the game, to allow the game code to run for the event.
-    public bool CanGameEventRunLocally(in TContext context, out EventSource eventSource)
+    public bool CanGameEventRunLocally(in TContext context)
     {
-        eventSource = sideChannel.HasData<PropagatingToGameScope<TEvent>>()
-            ? EventSource.Trigger
-            : EventSource.Game;
-
-        if (eventSource == EventSource.Trigger)
+        if (sideChannel.HasData<PropagatingToGameScope<TEvent>>())
             return true;
 
         return CanGameEventRunLocallyImpl(context);

@@ -9,5 +9,5 @@ public interface IMappingEventPolicy<TContext> : IMappingEventPolicyBase
 
     bool CanEcsInvokeGameEvent(in TContext context);
 
-    bool CanGameEventRunLocally(in TContext context, out EventSource eventSource);
+    bool CanGameEventRunLocally(in TContext context);
 }

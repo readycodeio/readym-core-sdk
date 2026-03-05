@@ -1,5 +1,4 @@
 ﻿using System;
-using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 
@@ -33,16 +32,6 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
     public void RegisterGameEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct
         => _incomingGameEventQueue.RegisterHandler(handler, arg0, arg1);
-
-    [Obsolete("Use NotifyEcsIfApplicable instead to respect the event policy.")]
-    public void NotifyEcs<TEvent>(in TEvent ev)
-        where TEvent : struct
-    {
-        using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
-        {
-            _incomingEcsEventQueue.Invoke(ev);
-        }
-    }
 
     public void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev) where TEvent : struct
     {
@@ -86,13 +75,5 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
         }
 
         return true;
-    }
-
-    /// <inheritdoc/>
-    // TODO: Do we need to re-export this here?
-    public bool CanGameEventRunLocally<TEvent>(Entity context)
-        where TEvent : struct, IMappingContext<Entity>
-    {
-        return policyDir.ForEvent<TEvent>().CanGameEventRunLocally(context, out _);
     }
 }
