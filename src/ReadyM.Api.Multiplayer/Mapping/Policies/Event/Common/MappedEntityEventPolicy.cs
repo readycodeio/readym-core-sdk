@@ -1,6 +1,5 @@
 using System;
 using Friflo.Engine.ECS;
-using ReadyM.Api.Multiplayer.Mapping.Events;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event.Common;
 

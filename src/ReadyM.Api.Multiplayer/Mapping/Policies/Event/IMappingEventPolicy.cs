@@ -1,6 +1,4 @@
-﻿using ReadyM.Api.Multiplayer.Mapping.Events;
-
-namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
+﻿namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
 public interface IMappingEventPolicy<TContext> : IMappingEventPolicyBase
     where TContext : struct
