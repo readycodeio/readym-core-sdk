@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ReadyM.Api.Multiplayer.Mapping.Api;
+namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
 internal readonly record struct FieldKey(Type ComponentType, int FieldId)
 {

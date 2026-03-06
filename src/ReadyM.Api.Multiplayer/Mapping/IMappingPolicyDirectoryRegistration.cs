@@ -34,25 +34,16 @@ public interface IMappingPolicyDirectoryRegistration
         Func<TContext, bool> shouldEcsCopyToGame,
         Func<TContext, bool> shouldGameCopyToEcs,
         Func<TContext, bool> shouldSetLocally);
-
-    void RegisterDefaultData(ArchetypeId archetypeId, IMappingDataPolicyFactory factory);
-
-    void RegisterDefaultData<TContext>(
-        ArchetypeId archetypeId,
-        Func<TContext, bool> shouldEcsCopyToGame,
-        Func<TContext, bool> shouldGameCopyToEcs,
-        Func<TContext, bool> shouldSetLocally);
-
-    void RegisterData<TData, TContext>(ArchetypeId archetypeId, IMappingDataPolicy<TContext> policy)
-        where TData : struct
+    
+    void RegisterData<TComponent, TContext>(IMappingDataPolicy<TContext> policy)
+        where TComponent : IMappingContext<TContext>
         where TContext : struct;
 
-    void RegisterData<TData>(
-        ArchetypeId archetypeId,
+    void RegisterData<TComponent>(
         Func<Entity, bool> shouldEcsCopyToGame,
         Func<Entity, bool> shouldGameCopyToEcs,
         Func<Entity, bool> shouldRunLocally)
-        where TData : struct;
+        where TComponent : IMappingContext<Entity>;
 
     void RegisterDefaultEvent(IMappingEventPolicyFactory factory);
 

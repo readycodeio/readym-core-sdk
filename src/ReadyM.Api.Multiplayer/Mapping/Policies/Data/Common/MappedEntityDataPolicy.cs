@@ -25,6 +25,6 @@ public readonly struct MappedEntityDataPolicy(IMappingDataPolicy<Entity> dataPol
         if (!tamerEntity.HasValue)
             return false;
 
-        return dataPolicy.ShouldGameSetLocally(tamerEntity.Value);
+        return dataPolicy.CanGameSetLocally(tamerEntity.Value);
     }
 }

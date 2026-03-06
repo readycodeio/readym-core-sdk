@@ -1,5 +1,4 @@
-﻿using System;
-using ReadyM.Api.Helpers;
+﻿using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Mapping.Events;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
@@ -7,8 +6,6 @@ namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 public abstract class MappingEventPolicyBase<TEvent, TContext>(DataSideChannel sideChannel) : IMappingEventPolicy<TContext>
     where TContext : struct
 {
-    public Type ContextType => typeof(TContext);
-
     /// <inheritdoc cref="CanGameEventNotifyEcsImpl"/>
     /// Always returns <c>false</c> if the event is already propagating to the game, to avoid recursion.
     public bool CanGameEventNotifyEcs(in TContext context)

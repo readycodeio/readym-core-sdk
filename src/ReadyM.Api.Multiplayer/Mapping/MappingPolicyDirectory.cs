@@ -19,8 +19,7 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
     private readonly List<IMappingCreateDeletePolicyFactory> _createDeletePolicyFactories = [];
 
     private readonly object _dataLock = new();
-    private readonly Dictionary<(ArchetypeId, Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
-    private readonly Dictionary<ArchetypeId, List<IMappingDataPolicyFactory>> _archetypeDataPolicyFactories = new();
+    private readonly Dictionary<(Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
     private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = [];
 
     private readonly object _eventLock = new();
@@ -69,42 +68,26 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
         }
     }
 
-    public IMappingDataPolicy<TContext> ForData<TData, TContext>(ArchetypeId archetypeId)
-        where TData : struct, IMappingContext<TContext>
-        where TContext : struct
+    public IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
+        where TComponent : struct, IMappingContext<TContext>
     {
         lock (_dataLock)
         {
-            var key = (archetypeId, typeof(TData), typeof(TContext));
+            var key = (typeof(TComponent), typeof(TContext));
 
             if (!_dataPolicies.TryGetValue(key, out var untypedPolicy))
             {
-                if (_archetypeDataPolicyFactories.TryGetValue(archetypeId, out var factories))
+                foreach (var factory in _dataPolicyFactories)
                 {
-                    foreach (var factory in factories)
-                    {
-                        if (!factory.Supports(typeof(TData), typeof(TContext)))
-                            continue;
+                    if (!factory.Supports(typeof(TComponent), typeof(TContext)))
+                        continue;
 
-                        untypedPolicy = factory.CreatePolicy<TContext>(archetypeId, typeof(TData));
-                        break;
-                    }
+                    untypedPolicy = factory.CreatePolicy<TContext>(typeof(TComponent));
+                    break;
                 }
 
                 if (untypedPolicy == null)
-                {
-                    foreach (var factory in _dataPolicyFactories)
-                    {
-                        if (!factory.Supports(typeof(TData), typeof(TContext)))
-                            continue;
-
-                        untypedPolicy = factory.CreatePolicy<TContext>(archetypeId, typeof(TData));
-                        break;
-                    }
-                }
-
-                if (untypedPolicy == null)
-                    throw new ArgumentException($"No data policy registered for archetype {archetypeId} and data type {typeof(TData)}");
+                    throw new ArgumentException($"No data policy registered for data type {typeof(TComponent)}");
 
                 _dataPolicies.Add(key, untypedPolicy);
             }
@@ -113,13 +96,12 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
         }
     }
 
-    public IMappingDataPolicy<Entity> ForData<TData>(ArchetypeId archetypeId)
-        where TData : struct, IMappingContext<Entity>
-        => ForData<TData, Entity>(archetypeId);
+    public IMappingDataPolicy<Entity> ForData<TComponent>()
+        where TComponent : struct, IMappingContext<Entity>
+        => ForData<TComponent, Entity>();
 
     public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>
-        where TContext : struct
     {
         lock (_eventLock)
         {
@@ -210,46 +192,24 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
         RegisterDefaultData(factory);
     }
 
-    public void RegisterDefaultData(ArchetypeId archetypeId, IMappingDataPolicyFactory factory)
-    {
-        if (!_archetypeDataPolicyFactories.TryGetValue(archetypeId, out var factories))
-        {
-            factories = new List<IMappingDataPolicyFactory>();
-            _archetypeDataPolicyFactories.Add(archetypeId, factories);
-        }
-
-        factories.Add(factory);
-    }
-
-    public void RegisterDefaultData<TContext>(
-        ArchetypeId archetypeId,
-        Func<TContext, bool> shouldEcsCopyToGame,
-        Func<TContext, bool> shouldGameCopyToEcs,
-        Func<TContext, bool> shouldSetLocally)
-    {
-        var factory = new FuncDataPolicyFactory<TContext>(shouldEcsCopyToGame, shouldGameCopyToEcs, shouldSetLocally);
-        RegisterDefaultData(archetypeId, factory);
-    }
-
-    public void RegisterData<TData, TContext>(ArchetypeId archetypeId, IMappingDataPolicy<TContext> policy)
-        where TData : struct
+    public void RegisterData<TComponent, TContext>(IMappingDataPolicy<TContext> policy)
+        where TComponent : IMappingContext<TContext>
         where TContext : struct
     {
-        _dataPolicies.Add((archetypeId, typeof(TData), typeof(TContext)), policy);
+        _dataPolicies.Add((typeof(TComponent), typeof(TContext)), policy);
     }
 
-    public void RegisterData<TData>(
-        ArchetypeId archetypeId,
+    public void RegisterData<TComponent>(
         Func<Entity, bool> shouldEcsCopyToGame,
         Func<Entity, bool> shouldGameCopyToEcs,
         Func<Entity, bool> shouldRunLocally)
-        where TData : struct
+        where TComponent : IMappingContext<Entity>
     {
         var policy = new FuncDataPolicy<Entity>(
             shouldEcsCopyToGame,
             shouldGameCopyToEcs,
             shouldRunLocally);
-        RegisterData<TData, Entity>(archetypeId, policy);
+        RegisterData<TComponent, Entity>(policy);
     }
 
     // ---

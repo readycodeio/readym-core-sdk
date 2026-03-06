@@ -1,8 +1,3 @@
-﻿using System;
+﻿namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
-
-public interface IMappingCreateDeletePolicyBase
-{
-    Type GameObjectType { get; }
-}
+public interface IMappingCreateDeletePolicyBase;

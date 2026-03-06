@@ -19,6 +19,5 @@ public class FuncEntityEventPolicyFactory<TContext>(
     }
 
     public IMappingEventPolicy<TCtx> CreatePolicy<TCtx>(Type eventType)
-        where TCtx : struct
         => (IMappingEventPolicy<TCtx>)CreatePolicy(eventType, typeof(TCtx));
 }

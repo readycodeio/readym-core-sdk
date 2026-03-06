@@ -1,4 +1,4 @@
-﻿namespace ReadyM.Api.Multiplayer.Mapping.Api;
+﻿namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
 public delegate TValue DataLoaderDelegate<TComponent, out TValue>(ref TComponent component);
 

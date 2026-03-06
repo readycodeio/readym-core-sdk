@@ -1,24 +1,25 @@
 ﻿using System;
 using System.Diagnostics;
 using Friflo.Engine.ECS;
-using ReadyM.Api.Idents;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Data;
 using ReadyM.Api.Multiplayer.Mapping.Tags;
 using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-public class OwnershipDataPolicyFactory(ClientOwnershipManager ownership) : IMappingDataPolicyFactory
+public class OwnershipDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel) : IMappingDataPolicyFactory
 {
     public bool Supports(Type dataType, Type contextType)
         => contextType == typeof(Entity) && typeof(IOwnershipManaged).IsAssignableFrom(dataType);
 
-    public IMappingDataPolicyBase CreatePolicy(ArchetypeId archetypeId, Type dataType, Type contextType)
+    public IMappingDataPolicyBase CreatePolicy(Type componentType, Type contextType)
     {
         Debug.Assert(contextType == typeof(Entity));
-        return new OwnershipDataPolicy(ownership);
+        var genericType = typeof(OwnershipDataPolicy<>).MakeGenericType(componentType);
+        return (IMappingDataPolicyBase)Activator.CreateInstance(genericType, ownership, sideChannel);
     }
 
-    public IMappingDataPolicy<TContext> CreatePolicy<TContext>(ArchetypeId archetypeId, Type dataType) where TContext : struct
-        => (IMappingDataPolicy<TContext>)CreatePolicy(archetypeId, dataType, typeof(TContext));
+    public IMappingDataPolicy<TContext> CreatePolicy<TContext>(Type componentType)
+        => (IMappingDataPolicy<TContext>)CreatePolicy(componentType, typeof(TContext));
 }

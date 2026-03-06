@@ -11,16 +11,14 @@ public interface IMappingPolicyDirectory
     IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
         where TGameObject : class;
 
-    IMappingDataPolicy<TContext> ForData<TData, TContext>(ArchetypeId archetypeId)
-        where TData : struct, IMappingContext<TContext>
-        where TContext : struct;
+    IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
+        where TComponent : struct, IMappingContext<TContext>;
 
-    IMappingDataPolicy<Entity> ForData<TData>(ArchetypeId archetypeId)
-        where TData : struct, IMappingContext<Entity>;
+    IMappingDataPolicy<Entity> ForData<TComponent>()
+        where TComponent : struct, IMappingContext<Entity>;
 
     IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
-        where TEvent : struct, IMappingContext<TContext>
-        where TContext : struct;
+        where TEvent : struct, IMappingContext<TContext>;
 
     IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>;

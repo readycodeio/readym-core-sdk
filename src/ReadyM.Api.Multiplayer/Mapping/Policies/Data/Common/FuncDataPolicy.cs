@@ -18,6 +18,6 @@ public class FuncDataPolicy<TContext>(
     public bool ShouldGameCopyToEcs(in TContext context)
         => shouldGameCopyToEcs(context);
 
-    public bool ShouldGameSetLocally(in TContext context)
+    public bool CanGameSetLocally(in TContext context)
         => shouldSetLocally(context);
 }

@@ -1,8 +1,3 @@
-﻿using System;
+﻿namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
-namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
-
-public interface IMappingEventPolicyBase
-{
-    Type ContextType { get; }
-}
+public interface IMappingEventPolicyBase;

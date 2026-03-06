@@ -100,7 +100,7 @@ using System.Numerics;
 using LiteNetLib.Utils;
 using ReadyM.Api.Generators;
 using ReadyM.Api.Multiplayer;
-using ReadyM.Api.Multiplayer.Mapping.Api;
+using ReadyM.Api.Multiplayer.Mapping.Data;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Components;
 
@@ -156,7 +156,7 @@ namespace {info.Namespace}
             var type = info.Members[i].Type;
 
             // find the 
-            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v));");
+            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v), static c => c.WasSetFromApi({i}));");
         }
 
         sb.AppendLine("        }\n");
@@ -413,6 +413,7 @@ namespace {info.Namespace}
         sb.AppendLine("        }");
         sb.AppendLine("        public void ClearDirty() => _dirtyMask = 0;");
         sb.AppendLine("        public bool IsDirty => _dirtyMask != 0;");
+        sb.AppendLine($"        public bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
