@@ -32,6 +32,7 @@ public interface IMappingPolicyDirectoryRegistration
 
     void RegisterDefaultData<TContext>(
         Func<TContext, bool> shouldEcsCopyToGame,
+        Func<TContext, bool> canSetFromApi,
         Func<TContext, bool> shouldGameCopyToEcs,
         Func<TContext, bool> shouldSetLocally);
     
@@ -41,6 +42,7 @@ public interface IMappingPolicyDirectoryRegistration
 
     void RegisterData<TComponent>(
         Func<Entity, bool> shouldEcsCopyToGame,
+        Func<Entity, bool> canSetFromApi,
         Func<Entity, bool> shouldGameCopyToEcs,
         Func<Entity, bool> shouldRunLocally)
         where TComponent : IMappingContext<Entity>;

@@ -10,6 +10,9 @@ public class OwnershipDataPolicy<TField>(ClientOwnershipManager ownership, DataS
     protected override bool ShouldGameCopyToEcsImpl(in Entity context)
         => ownership.OwnsEntity(context);
 
+    public override bool CanSetFromApi(in Entity context)
+        => ownership.OwnsEntity(context);
+
     protected override bool ShouldEcsCopyToGameImpl(in Entity context)
         => !ownership.OwnsEntity(context);
 

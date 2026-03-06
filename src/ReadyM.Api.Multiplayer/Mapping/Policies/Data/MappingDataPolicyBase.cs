@@ -23,6 +23,8 @@ public abstract class MappingDataPolicyBase<TField, TContext>(DataSideChannel si
         return ShouldEcsCopyToGameImpl(context);
     }
 
+    public abstract bool CanSetFromApi(in TContext context);
+
     protected abstract bool ShouldEcsCopyToGameImpl(in TContext context);
 
     public bool CanGameSetLocally(in TContext context)

@@ -5,6 +5,7 @@ namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data.Common;
 
 public class FuncDataPolicyFactory<TContext>(
     Func<TContext, bool> shouldEcsCopyToGame,
+    Func<TContext, bool> canSetFromApi,
     Func<TContext, bool> shouldGameCopyToEcs,
     Func<TContext, bool> shouldSetLocally
 )
@@ -18,7 +19,7 @@ public class FuncDataPolicyFactory<TContext>(
         Debug.Assert(contextType == typeof(TContext));
 
         var policyType = typeof(FuncDataPolicy<>).MakeGenericType(contextType);
-        var policy = Activator.CreateInstance(policyType, shouldEcsCopyToGame, shouldGameCopyToEcs, shouldSetLocally);
+        var policy = Activator.CreateInstance(policyType, shouldEcsCopyToGame, canSetFromApi, shouldGameCopyToEcs, shouldSetLocally);
         return (IMappingDataPolicyBase)policy!;
     }
 

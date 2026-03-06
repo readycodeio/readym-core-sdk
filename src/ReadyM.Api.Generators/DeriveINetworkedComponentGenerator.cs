@@ -156,7 +156,7 @@ namespace {info.Namespace}
             var type = info.Members[i].Type;
 
             // find the 
-            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v), static c => c.WasSetFromApi({i}));");
+            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v), static (ref c, v) => c.{propertyNames[i]}_SetFromApi(v), static c => c.WasSetFromApi({i}));");
         }
 
         sb.AppendLine("        }\n");
@@ -412,8 +412,10 @@ namespace {info.Namespace}
         sb.AppendLine("                _apiMask |= bit;");
         sb.AppendLine("        }");
         sb.AppendLine("        public void ClearDirty() => _dirtyMask = 0;");
+        sb.AppendLine($"        public void ClearApiFlag(int field) => _apiMask = ({maskType})(_apiMask & ~(({maskType})1 << field));");
         sb.AppendLine("        public bool IsDirty => _dirtyMask != 0;");
-        sb.AppendLine($"        public bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
+        sb.AppendLine("        public bool ChangedFromApi => _apiMask != 0;");
+        sb.AppendLine($"        private bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

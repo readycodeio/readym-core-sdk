@@ -185,10 +185,11 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
 
     public void RegisterDefaultData<TContext>(
         Func<TContext, bool> shouldEcsCopyToGame,
+        Func<TContext, bool> canSetFromApi,
         Func<TContext, bool> shouldGameCopyToEcs,
         Func<TContext, bool> shouldSetLocally)
     {
-        var factory = new FuncDataPolicyFactory<TContext>(shouldEcsCopyToGame, shouldGameCopyToEcs, shouldSetLocally);
+        var factory = new FuncDataPolicyFactory<TContext>(shouldEcsCopyToGame, canSetFromApi, shouldGameCopyToEcs, shouldSetLocally);
         RegisterDefaultData(factory);
     }
 
@@ -201,12 +202,14 @@ public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolic
 
     public void RegisterData<TComponent>(
         Func<Entity, bool> shouldEcsCopyToGame,
+        Func<Entity, bool> canSetFromApi,
         Func<Entity, bool> shouldGameCopyToEcs,
         Func<Entity, bool> shouldRunLocally)
         where TComponent : IMappingContext<Entity>
     {
         var policy = new FuncDataPolicy<Entity>(
             shouldEcsCopyToGame,
+            canSetFromApi,
             shouldGameCopyToEcs,
             shouldRunLocally);
         RegisterData<TComponent, Entity>(policy);

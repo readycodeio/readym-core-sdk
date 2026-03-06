@@ -4,6 +4,7 @@ namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data.Common;
 
 public class FuncDataPolicy<TContext>(
     Func<TContext, bool> shouldEcsCopyToGame,
+    Func<TContext, bool> canSetFromApi,
     Func<TContext, bool> shouldGameCopyToEcs,
     Func<TContext, bool> shouldSetLocally)
     : IMappingDataPolicy<TContext>
@@ -14,6 +15,9 @@ public class FuncDataPolicy<TContext>(
     
     public bool ShouldEcsCopyToGame(in TContext context)
         => shouldEcsCopyToGame(context);
+
+    public bool CanSetFromApi(in TContext context)
+        => canSetFromApi(context);
 
     public bool ShouldGameCopyToEcs(in TContext context)
         => shouldGameCopyToEcs(context);

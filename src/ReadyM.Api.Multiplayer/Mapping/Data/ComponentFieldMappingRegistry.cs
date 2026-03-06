@@ -18,13 +18,13 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         where TComponent : struct, IComponent
     {
         var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Loader);
-        _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
+        _mappings.Add(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), mapping);
         return;
 
         TValue Loader(ref TComponent cmp, TContext ctx)
         {
             var value = getter(ctx);
-            field.Set(ref cmp, value);
+            field.SetFromGame(ref cmp, value);
             return value;
         }
     }
@@ -36,7 +36,7 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         where TComponent : struct, IComponent
     {
         var mapping = new FieldMapping<TComponent, TContext, TValue>(setter, Loader);
-        _mappings.Add(new FieldKey(typeof(TComponent), field.Id), mapping);
+        _mappings.Add(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), mapping);
         return;
 
         TValue Loader(ref TComponent cmp, TContext ctx)
@@ -50,38 +50,54 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         Field<TComponent, TValue, TContext> field)
         where TComponent : struct, IComponent
     {
-        return (FieldMapping<TComponent, TContext, TValue>)_mappings[new FieldKey(typeof(TComponent), field.Id)];
+        return (FieldMapping<TComponent, TContext, TValue>)_mappings[new FieldKey(typeof(TComponent), typeof(TContext), field.Id)];
     }
 
     public readonly ref struct SyncToGameHelper<TComponent>
-        where TComponent : struct, IComponent
+        where TComponent : struct, IReadyComponent, IMappingContext<Entity>
     {
         private readonly ComponentFieldMappingRegistry registry;
-        private readonly TComponent component;
+        private readonly Entity entity;
+        private readonly bool fromApi;
 
-        internal SyncToGameHelper(ComponentFieldMappingRegistry registry, TComponent component)
+        internal SyncToGameHelper(ComponentFieldMappingRegistry registry, Entity entity, bool fromApi)
         {
             this.registry = registry;
-            this.component = component;
+            this.entity = entity;
+            this.fromApi = fromApi;
         }
 
         public void SyncToGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
             var mapping = registry.Get(field);
-            using (registry.SideChannel.PushScope<PropagatingToGameScope<TComponent>>())
+            ref var component = ref entity.GetComponent<TComponent>();
+
+            if (!fromApi || field.WasSetFromApi(component))
             {
-                mapping.SyncToGame(field.Get(component), context);
+                using (registry.SideChannel.PushScope<PropagatingToGameScope<TComponent>>())
+                {
+                    var value = field.Get(component);
+                    mapping.SyncToGame(value, context);
+                    component.ClearApiFlag(field.Id);
+                }
             }
         }
     }
 
     public bool CanSyncToGame<TComponent>(Entity entity, out SyncToGameHelper<TComponent> toGameHelper)
-        where TComponent : struct, IComponent, IMappingContext<Entity>
+        where TComponent : struct, IReadyComponent, IMappingContext<Entity>
     {
+        var component = entity.GetComponent<TComponent>();
+
         if (policyDir.ForData<TComponent, Entity>().ShouldEcsCopyToGame(entity))
         {
-            var component = entity.GetComponent<TComponent>();
-            toGameHelper = new SyncToGameHelper<TComponent>(this, component);
+            toGameHelper = new SyncToGameHelper<TComponent>(this, entity, false);
+            return true;
+        }
+
+        if (policyDir.ForData<TComponent, Entity>().CanSetFromApi(entity) && component.ChangedFromApi)
+        {
+            toGameHelper = new SyncToGameHelper<TComponent>(this, entity, true);
             return true;
         }
 
@@ -114,13 +130,42 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
 
     public bool CanLoadFromGame<TComponent>(Entity entity, out LoadFromGameHelper<TComponent> fromGameHelper) where TComponent : struct, IComponent, IMappingContext<Entity>
     {
-        if (policyDir.ForData<TComponent, Entity>().ShouldEcsCopyToGame(entity))
+        if (policyDir.ForData<TComponent, Entity>().ShouldGameCopyToEcs(entity))
         {
             fromGameHelper = new LoadFromGameHelper<TComponent>(this, entity);
             return true;
         }
 
         fromGameHelper = default;
+        return false;
+    }
+
+    public readonly ref struct SetFromApiHelper<TComponent>
+        where TComponent : struct, IComponent
+    {
+        private readonly Entity entity;
+
+        internal SetFromApiHelper(Entity entity)
+        {
+            this.entity = entity;
+        }
+
+        public void SetFromApi<TValue>(Field<TComponent, TValue> field, TValue value)
+        {
+            ref var component = ref entity.GetComponent<TComponent>();
+            field.SetFromApi(ref component, value);
+        }
+    }
+
+    public bool CanSetFromApi<TComponent>(Entity entity, out SetFromApiHelper<TComponent> fromApiHelper) where TComponent : struct, IComponent, IMappingContext<Entity>
+    {
+        if (policyDir.ForData<TComponent, Entity>().CanSetFromApi(entity))
+        {
+            fromApiHelper = new SetFromApiHelper<TComponent>(entity);
+            return true;
+        }
+
+        fromApiHelper = default;
         return false;
     }
 }
