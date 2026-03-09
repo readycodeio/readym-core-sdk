@@ -156,7 +156,7 @@ public sealed class NetworkedEntityManager : IDisposable
         // InScopeComponent links.
         _world.Query<MetadataComponent>()
             .HasValue<InScopeComponent, Entity>(scopeEntity)
-            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+            .ForEachEntity((ref meta, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();
 
         if (deleteScopeEntity)

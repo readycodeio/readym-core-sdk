@@ -59,6 +59,7 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
             return true;
         }
 
+        mapping = default;
         return false;
     }
 
