@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
 using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Mapping.Events;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
-public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel) : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
+public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel, ILogger logger) : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
 {
     private DataSideChannel SideChannel => sideChannel;
+    private ILogger Logger => logger;
     private readonly Dictionary<FieldKey, object> _mappings = [];
 
     public void Register<TComponent, TValue, TContext>(
@@ -46,11 +48,18 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         }
     }
 
-    private FieldMapping<TComponent, TContext, TValue> Get<TComponent, TValue, TContext>(
-        Field<TComponent, TValue, TContext> field)
+    private bool TryGet<TComponent, TValue, TContext>(
+        Field<TComponent, TValue, TContext> field,
+        out FieldMapping<TComponent, TContext, TValue> mapping)
         where TComponent : struct, IComponent
     {
-        return (FieldMapping<TComponent, TContext, TValue>)_mappings[new FieldKey(typeof(TComponent), typeof(TContext), field.Id)];
+        if (_mappings.TryGetValue(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), out var map))
+        {
+            mapping = (FieldMapping<TComponent, TContext, TValue>)map;
+            return true;
+        }
+
+        return false;
     }
 
     public readonly ref struct SyncToGameHelper<TComponent>
@@ -69,7 +78,9 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
 
         public void SyncToGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
-            var mapping = registry.Get(field);
+            if (!registry.TryGet(field, out var mapping))
+                registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
+
             ref var component = ref entity.GetComponent<TComponent>();
 
             if (!fromApi || field.WasSetFromApi(component))
@@ -119,7 +130,9 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
 
         public void LoadFromGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
-            var mapping = registry.Get(field);
+            if (!registry.TryGet(field, out var mapping))
+                registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
+
             using (registry.SideChannel.PushScope<PropagatingToEcsScope<TComponent>>()) // TODO: Is this even necessary?
             {
                 ref var component = ref entity.GetComponent<TComponent>();
