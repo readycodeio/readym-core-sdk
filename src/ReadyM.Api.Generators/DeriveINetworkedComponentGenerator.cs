@@ -179,7 +179,7 @@ namespace {info.Namespace}
                 sb.AppendLine($"        public {type} {propertyName}");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            get => {field.Name};");
-                sb.AppendLine($"            [Obsolete] set => {propertyName}_SetFromGame(value);");
+                sb.AppendLine($"            set => {propertyName}_SetFromGame(value);");
                 sb.AppendLine("        }\n");
             }
         }
@@ -198,7 +198,7 @@ namespace {info.Namespace}
 
             // Set from Game setter
 
-            sb.AppendLine($"        public void {propertyName}_SetFromGame({type} value)");
+            sb.AppendLine($"        private void {propertyName}_SetFromGame({type} value)");
             sb.AppendLine("        {");
 
             if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
@@ -236,7 +236,7 @@ namespace {info.Namespace}
 
             // Set from API setter
 
-            sb.AppendLine($"        public void {propertyName}_SetFromApi({type} value)");
+            sb.AppendLine($"        private void {propertyName}_SetFromApi({type} value)");
             sb.AppendLine("        {");
 
             if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
