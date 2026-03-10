@@ -140,6 +140,12 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
                 mapping.LoadFromGame(ref component, context);
             }
         }
+
+        public void SetFromGame<TValue>(Field<TComponent, TValue> field, TValue value)
+        {
+            ref var component = ref entity.GetComponent<TComponent>();
+            field.SetFromGame(ref component, value);
+        }
     }
 
     public bool CanLoadFromGame<TComponent>(Entity entity, out LoadFromGameHelper<TComponent> fromGameHelper) where TComponent : struct, IComponent, IMappingContext<Entity>
