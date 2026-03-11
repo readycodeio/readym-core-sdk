@@ -17,7 +17,7 @@ public class AlwaysPropagatesEventPolicyFactory(
 
     public IMappingEventPolicyBase CreatePolicy(Type eventType, Type contextType)
     {
-        Debug.Assert(contextType == typeof(EmptyContext));
+        Debug.Assert(contextType == typeof(EmptyContext), "contextType == typeof(EmptyContext)");
         var policyType = typeof(IAlwaysPropagates).IsAssignableFrom(eventType)
             ? typeof(AlwaysPropagatesEventPolicy<>).MakeGenericType(eventType)
             : typeof(IAlwaysPropagatesToEcsOnly).IsAssignableFrom(eventType) 
@@ -28,7 +28,7 @@ public class AlwaysPropagatesEventPolicyFactory(
 
     public IMappingEventPolicy<TContext> CreatePolicy<TContext>(Type eventType)
     {
-        Debug.Assert(typeof(TContext) == typeof(EmptyContext));
+        Debug.Assert(typeof(TContext) == typeof(EmptyContext), "typeof(TContext) == typeof(EmptyContext)");
         return (IMappingEventPolicy<TContext>)CreatePolicy(eventType, typeof(TContext));
     }
 }

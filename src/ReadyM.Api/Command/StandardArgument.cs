@@ -8,13 +8,9 @@ namespace ReadyM.Api.Command;
 
 public static class StandardArgument
 {
-    public static TokenListParser<CommandToken, long> Integer { get; } =
-        Token.EqualTo(CommandToken.Integer)
-            .Select(t => long.Parse(t.ToStringValue(), NumberStyles.Float, CultureInfo.InvariantCulture));
-
-    public static TokenListParser<CommandToken, double> Float { get; } =
-        Token.EqualTo(CommandToken.Float)
-            .Select(t => double.Parse(t.ToStringValue(), NumberStyles.Float, CultureInfo.InvariantCulture));
+    public static TokenListParser<CommandToken, decimal> Decimal { get; } =
+        Token.EqualTo(CommandToken.Decimal)
+            .Select(t => decimal.Parse(t.ToStringValue(), NumberStyles.Float, CultureInfo.InvariantCulture));
 
     public static TokenListParser<CommandToken, bool> Bool { get; } =
         Token.EqualTo(CommandToken.True).Value(true)

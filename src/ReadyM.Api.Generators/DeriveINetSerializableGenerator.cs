@@ -97,8 +97,7 @@ public partial struct {info.Name}
         }
 
         sb.AppendLine("""
-                          [Pure]
-                          public void Serialize(NetDataWriter writer)
+                          public readonly void Serialize(NetDataWriter writer)
                           {
                       """);
 

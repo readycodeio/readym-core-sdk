@@ -11,14 +11,10 @@ namespace ReadyM.Api.Command;
 
 public class ConsoleCommandParser
 {
-    private static readonly TextParser<TextSpan> FloatRegex = Span.Regex(
-        @"[+-]?(?:(?:\d*\.\d+|\d+\.\d*)(?:[eE][+-]?\d+)?|\d+(?:[eE][+-]?\d+))" );
-    
     private static readonly Tokenizer<CommandToken> Tokenizer =
         new TokenizerBuilder<CommandToken>()
             .Ignore(Span.WhiteSpace)
 
-            .Match(Character.EqualTo('/'), CommandToken.Slash)
             .Match(Character.EqualTo('('), CommandToken.LeftParen)
             .Match(Character.EqualTo(')'), CommandToken.RightParen)
             .Match(Character.EqualTo('['), CommandToken.LeftBracket)
@@ -33,8 +29,7 @@ public class ConsoleCommandParser
             .Match(QuotedString.CStyle, CommandToken.String)
 
             // numbers incl exponent
-            .Match(FloatRegex, CommandToken.Float)
-            .Match(Numerics.Integer, CommandToken.Integer)
+            .Match(Numerics.Decimal, CommandToken.Decimal)
             
             // boolean literals
             .Match(Span.EqualToIgnoreCase("true"), CommandToken.True)
@@ -45,7 +40,6 @@ public class ConsoleCommandParser
             .Build();
     
     private static TokenListParser<CommandToken, string> CommandName { get; } =
-        from slash in Token.EqualTo(CommandToken.Slash)
         from name in Token.EqualTo(CommandToken.Identifier).Select(t => t.ToStringValue())
         select name;
     

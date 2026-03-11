@@ -15,7 +15,7 @@ public class OwnershipDataPolicyFactory(ClientOwnershipManager ownership, DataSi
 
     public IMappingDataPolicyBase CreatePolicy(Type componentType, Type contextType)
     {
-        Debug.Assert(contextType == typeof(Entity));
+        Debug.Assert(contextType == typeof(Entity), "contextType == typeof(Entity).");
         var genericType = typeof(OwnershipDataPolicy<>).MakeGenericType(componentType);
         return (IMappingDataPolicyBase)Activator.CreateInstance(genericType, ownership, sideChannel);
     }

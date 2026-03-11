@@ -36,7 +36,7 @@ public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirec
     public void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev) where TEvent : struct
     {
         // TODO: Check policy both ways?
-        
+
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
         using (sideChannel.PushScope<PropagatingToGameScope<TEvent>>())
         {

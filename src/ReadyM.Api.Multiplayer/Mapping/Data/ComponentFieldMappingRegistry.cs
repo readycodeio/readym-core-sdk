@@ -26,7 +26,25 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         TValue Loader(ref TComponent cmp, TContext ctx)
         {
             var value = getter(ctx);
-            field.SetFromGame(ref cmp, value);
+            field.Set(ref cmp, value);
+            return value;
+        }
+    }
+
+    public void Register<TComponent, TValue, TContext>(
+        Field<TComponent, TValue, TContext> field,
+        Action<TContext, TComponent> setter,
+        Func<TContext, TValue> getter)
+        where TComponent : struct, IComponent
+    {
+        var mapping = new ComponentFieldMapping<TComponent, TContext, TValue>(setter, Loader);
+        _mappings.Add(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), mapping);
+        return;
+
+        TValue Loader(ref TComponent cmp, TContext ctx)
+        {
+            var value = getter(ctx);
+            field.Set(ref cmp, value);
             return value;
         }
     }
@@ -94,6 +112,42 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
                 }
             }
         }
+
+        public void SyncToGame<TValue, TContext>(Field<TComponent, TValue> field, Action<TValue, TContext> setter, TContext context)
+        {
+            ref var component = ref entity.GetComponent<TComponent>();
+
+            if (!fromApi || field.WasSetFromApi(component))
+            {
+                var value = field.Get(component);
+                setter(value, context);
+                component.ClearApiFlag(field.Id);
+            }
+        }
+
+        public void SyncToGame<TValue>(Field<TComponent, TValue> field, ref TValue valueRef)
+        {
+            ref var component = ref entity.GetComponent<TComponent>();
+
+            if (!fromApi || field.WasSetFromApi(component))
+            {
+                var value = field.Get(component);
+                valueRef = value;
+                component.ClearApiFlag(field.Id);
+            }
+        }
+
+        public void SyncToGame<TContext>(Action<TComponent, TContext> setter, TContext context)
+        {
+            ref var component = ref entity.GetComponent<TComponent>();
+
+            setter(component, context);
+
+            if (fromApi)
+            {
+                component.ClearApiFlag();
+            }
+        }
     }
 
     public bool CanSyncToGame<TComponent>(Entity entity, out SyncToGameHelper<TComponent> toGameHelper)
@@ -144,7 +198,7 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         public void SetFromGame<TValue>(Field<TComponent, TValue> field, TValue value)
         {
             ref var component = ref entity.GetComponent<TComponent>();
-            field.SetFromGame(ref component, value);
+            field.Set(ref component, value);
         }
     }
 

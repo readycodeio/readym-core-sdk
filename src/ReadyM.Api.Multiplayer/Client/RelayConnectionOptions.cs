@@ -18,7 +18,6 @@ public struct RelayConnectionOptions : INetSerializable
         PlayerId = options.PlayerId;
     }
 
-    [Pure]
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(UserGuid.ToString());

@@ -16,7 +16,7 @@ public class FuncDataPolicyFactory<TContext>(
 
     public IMappingDataPolicyBase CreatePolicy(Type componentType, Type contextType)
     {
-        Debug.Assert(contextType == typeof(TContext));
+        Debug.Assert(contextType == typeof(TContext), "contextType == typeof(TContext)");
 
         var policyType = typeof(FuncDataPolicy<>).MakeGenericType(contextType);
         var policy = Activator.CreateInstance(policyType, shouldEcsCopyToGame, canSetFromApi, shouldGameCopyToEcs, shouldSetLocally);

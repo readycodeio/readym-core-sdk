@@ -179,7 +179,7 @@ namespace {info.Namespace}
                 sb.AppendLine($"        public {type} {propertyName}");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            get => {field.Name};");
-                sb.AppendLine($"            set => {propertyName}_SetFromGame(value);");
+                sb.AppendLine($"            [Obsolete] set => {propertyName}_SetFromGame(value);");
                 sb.AppendLine("        }\n");
             }
         }
@@ -274,7 +274,7 @@ namespace {info.Namespace}
         }
 
         sb.AppendLine("""
-                              public void Serialize(NetDataWriter writer)
+                              public readonly void Serialize(NetDataWriter writer)
                               {
                       """);
 
@@ -326,7 +326,7 @@ namespace {info.Namespace}
         sb.AppendLine("        }\n");
 
         sb.AppendLine("""
-                              public void WriteDelta(NetDataWriter writer)
+                              public readonly void WriteDelta(NetDataWriter writer)
                               {
                                   var mask = _dirtyMask;
                                   writer.Put(mask);
@@ -379,7 +379,7 @@ namespace {info.Namespace}
         }
 
         sb.AppendLine("        }\n");
-        sb.AppendLine("        public void SkipDelta(NetDataReader reader)");
+        sb.AppendLine("        public readonly void SkipDelta(NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine($"            var mask = reader.{maskTypeRead}();");
 
@@ -412,10 +412,11 @@ namespace {info.Namespace}
         sb.AppendLine("                _apiMask |= bit;");
         sb.AppendLine("        }");
         sb.AppendLine("        public void ClearDirty() => _dirtyMask = 0;");
+        sb.AppendLine("        public void ClearApiFlag() => _apiMask = 0;");
         sb.AppendLine($"        public void ClearApiFlag(int field) => _apiMask = ({maskType})(_apiMask & ~(({maskType})1 << field));");
-        sb.AppendLine("        public bool IsDirty => _dirtyMask != 0;");
-        sb.AppendLine("        public bool ChangedFromApi => _apiMask != 0;");
-        sb.AppendLine($"        private bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
+        sb.AppendLine("        public readonly bool IsDirty => _dirtyMask != 0;");
+        sb.AppendLine("        public readonly bool ChangedFromApi => _apiMask != 0;");
+        sb.AppendLine($"        private readonly bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

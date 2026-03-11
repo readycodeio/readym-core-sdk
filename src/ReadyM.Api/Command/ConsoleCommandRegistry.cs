@@ -30,7 +30,9 @@ public class ConsoleCommandRegistry
     public void AddCommand(string commandName, ConsoleCommand command, IEnumerable<string>? availableFirstParams = null)
     {
         if (_commands.ContainsKey(commandName))
-            throw new InvalidOperationException();
+        {
+            throw new InvalidOperationException($"Command {commandName} is already registered");
+        }
 
         _commands.Add(commandName, command);
         if (availableFirstParams != null)
@@ -44,7 +46,7 @@ public class ConsoleCommandRegistry
 
     public ConsoleCommand GetCommand(string commandName)
         => _commands[commandName];
-    
+
     public List<string> GetCommandAvailableFirstParams(string commandName)
         => _commandsParams.TryGetValue(commandName, out var paramsList) ? paramsList.ToList() : [];
 

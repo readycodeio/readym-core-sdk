@@ -40,7 +40,7 @@ public readonly struct ConsoleCommand(
         {
             if (Attribute.IsDefined(param, typeof(ParamArrayAttribute)))
             {
-                Debug.Assert(i == inputParameters.Length - 1);
+                Debug.Assert(i == inputParameters.Length - 1, "i == inputParameters.Length - 1");
                 repeatingParam = param.ParameterType.GetElementType();
                 maxArgCount = null;
                 break;
