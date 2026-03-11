@@ -23,18 +23,16 @@ public interface IMappedEventManager
         where TEvent : struct;
 
     /// Propagate the event to both the ECS and the game, regardless of the policy.
-    void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev)
-        where TEvent : struct;
+    void InvokeInGameAndNotifyEcs<TEvent, TContext>(in TEvent ev, TContext context)
+        where TEvent : struct, IMappingContext<TContext>;
 
     /// Propagate the event to the ECS if the event policy allows it.
     /// <returns>Whether the event was propagated.</returns>
     bool NotifyEcsIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
-        where TEvent : struct, IMappingContext<TContext>
-        where TContext : struct;
+        where TEvent : struct, IMappingContext<TContext>;
 
     /// Propagate the event to the game if the event policy allows it.
     /// <returns>Whether the event was propagated.</returns>
     bool InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
-        where TEvent : struct, IMappingContext<TContext>
-        where TContext : struct;
+        where TEvent : struct, IMappingContext<TContext>;
 }
