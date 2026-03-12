@@ -9,7 +9,7 @@ using Superpower.Tokenizers;
 
 namespace ReadyM.Api.Command;
 
-public class ConsoleCommandParser
+internal class ConsoleCommandParser
 {
     private static readonly Tokenizer<CommandToken> Tokenizer =
         new TokenizerBuilder<CommandToken>()

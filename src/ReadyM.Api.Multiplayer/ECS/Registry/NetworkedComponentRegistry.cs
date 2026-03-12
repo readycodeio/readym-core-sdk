@@ -6,7 +6,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
+internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
     : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
     private byte _nextComponentId;
@@ -15,7 +15,7 @@ public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistrat
 
     public new INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, INetworkedComponent
-        => RegisterComponent<T>(DeliveryMethod.Unreliable, defaultValue);
+        => RegisterComponent(DeliveryMethod.Unreliable, defaultValue);
     
     public INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable, T defaultValue = default)
         where T : struct, INetworkedComponent

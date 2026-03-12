@@ -5,7 +5,7 @@ using LiteNetLib.Utils;
 namespace ReadyM.Api.Idents;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct ArchetypeId(byte id) : IEquatable<ArchetypeId>, INetSerializable
+internal struct ArchetypeId(byte id) : IEquatable<ArchetypeId>, INetSerializable
 {
     public static ArchetypeId None => new(0);
     

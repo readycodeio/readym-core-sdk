@@ -82,6 +82,7 @@ public class WrapperGenerator : IIncrementalGenerator
 
             var namespaceName = "ReadyM.Api.ECS.Worlds"; // TODO
             var className = classDecl.Identifier.Text;
+            var modifiers = string.Join(" ", classDecl.Modifiers.Select(m => m.Text));
             var wrappedTypeName = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             const string wrappedFieldName = "_wrapped";
 
@@ -100,7 +101,7 @@ public class WrapperGenerator : IIncrementalGenerator
                 sb.AppendLine($"namespace {namespaceName};");
             }
 
-            sb.AppendLine($"public partial class {className} {{");
+            sb.AppendLine($"{modifiers} class {className} {{");
             sb.AppendLine($"    private readonly {wrappedTypeName} {wrappedFieldName};");
             sb.AppendLine();
             

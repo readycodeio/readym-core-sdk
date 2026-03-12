@@ -4,9 +4,9 @@ using System.Threading;
 
 namespace ReadyM.Api.Helpers;
 
-public class DataSideChannel
+internal class DataSideChannel
 {
-    internal class EntryBase
+    private class EntryBase
     {
         public bool IsSet;
     }
@@ -36,7 +36,7 @@ public class DataSideChannel
     {
         private readonly Dictionary<Type, EntryBase> _typeEntries = new();
         
-        public readonly void PushData<T>(T data)
+        public void PushData<T>(T data)
         {
             if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry))
             {
@@ -52,7 +52,7 @@ public class DataSideChannel
             typedEntry.Data = data;
         }
     
-        public readonly void PopData<T>()
+        public void PopData<T>()
         {
             if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
                 throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
@@ -60,7 +60,7 @@ public class DataSideChannel
             typeEntry.IsSet = false;
         }
     
-        public readonly T? GetData<T>()
+        public T? GetData<T>()
         {
             if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
                 throw new InvalidOperationException($"Data of type {typeof(T)} is not set in the side channel.");
@@ -69,7 +69,7 @@ public class DataSideChannel
             return typedEntry.Data;
         }
     
-        public readonly bool TryGetData<T>(out T? data)
+        public bool TryGetData<T>(out T? data)
         {
             if (!_typeEntries.TryGetValue(typeof(T), out var typeEntry) || !typeEntry.IsSet)
             {
@@ -82,7 +82,7 @@ public class DataSideChannel
             return true;
         }
     
-        public readonly bool HasData<T>()
+        public bool HasData<T>()
             => _typeEntries.TryGetValue(typeof(T), out var typeEntry) && typeEntry.IsSet;
     }
     

@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public struct ShimResponseItem
+internal struct ShimResponseItem
 {
     [JsonPropertyName("elapsed")]
     public long Elapsed { get; set; } 

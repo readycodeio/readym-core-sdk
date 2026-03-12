@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Command.Converters;
 
-public sealed class DecimalToFloatTypeConversion : IConsoleArgumentTypeConversion
+internal sealed class DecimalToFloatTypeConversion : IConsoleArgumentTypeConversion
 {
     public bool TryConvert(Type destType, object? source, out object? dest)
     {

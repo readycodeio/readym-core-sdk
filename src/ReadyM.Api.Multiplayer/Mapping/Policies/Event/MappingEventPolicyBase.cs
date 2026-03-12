@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Mapping.Events;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
-public abstract class MappingEventPolicyBase<TEvent, TContext>(DataSideChannel sideChannel) : IMappingEventPolicy<TContext>
+internal abstract class MappingEventPolicyBase<TEvent, TContext>(DataSideChannel sideChannel) : IMappingEventPolicy<TContext>
     where TContext : struct
 {
     /// <inheritdoc cref="CanGameEventNotifyEcsImpl"/>

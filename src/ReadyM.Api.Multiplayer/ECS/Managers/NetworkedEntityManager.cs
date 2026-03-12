@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.Compat;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-// TODO: Make this internal
-public sealed class NetworkedEntityManager : IDisposable
+internal sealed class NetworkedEntityManager : IDisposable
 {
     private readonly Store _world;
     private readonly CommandBuffer _commandBuffer;
@@ -172,7 +171,7 @@ public sealed class NetworkedEntityManager : IDisposable
             _skipNetSync++;
         // When we disconnect all networked entities get deleted
         _world.Query<MetadataComponent>()
-            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+            .ForEachEntity((ref _, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();
 
         if (skipSync)

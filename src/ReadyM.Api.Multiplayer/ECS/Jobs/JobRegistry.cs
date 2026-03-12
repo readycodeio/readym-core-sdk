@@ -11,7 +11,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-public class JobRegistry
+internal class JobRegistry
 {
     private class RegisterJobsCallback(JobRegistry owner) : INetworkedComponentRegistryCallback
     {

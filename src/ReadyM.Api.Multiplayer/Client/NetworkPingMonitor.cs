@@ -2,7 +2,7 @@ using System;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public class NetworkPingMonitor : IDisposable
+internal class NetworkPingMonitor : IDisposable
 {
     private readonly IRelayClient _relayClient;
     public event Action<int>? OnPingUpdated;

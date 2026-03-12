@@ -6,7 +6,7 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public static class ReflectionHelpers
+internal static class ReflectionHelpers
 {
     public static IEnumerable<Type> GetTypesWithAttribute<T>()
     {

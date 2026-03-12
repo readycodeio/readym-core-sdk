@@ -2,4 +2,4 @@
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public delegate void SerializeMethod(NetDataWriter writer, object customObject);
+internal delegate void SerializeMethod(NetDataWriter writer, object customObject);

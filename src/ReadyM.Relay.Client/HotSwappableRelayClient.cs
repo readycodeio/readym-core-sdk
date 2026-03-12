@@ -11,7 +11,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Relay.Client;
 
-public class HotSwappableRelayClient : IRelayClient
+internal class HotSwappableRelayClient : IRelayClient
 {
     private IRelayClient? _client;
 

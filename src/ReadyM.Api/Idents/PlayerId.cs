@@ -7,7 +7,7 @@ namespace ReadyM.Api.Idents;
 
 [DeriveJsonSerializable]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerId>
+public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerId> // TODO: Make internal?
 {
     private ushort _id = id;
 

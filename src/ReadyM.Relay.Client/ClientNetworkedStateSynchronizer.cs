@@ -19,7 +19,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client;
 
-public class ClientNetworkedStateSynchronizer : IDisposable
+internal class ClientNetworkedStateSynchronizer : IDisposable
 {
     protected IClientEcsUpdateLoop EcsLoop => _ecsLoop;
 

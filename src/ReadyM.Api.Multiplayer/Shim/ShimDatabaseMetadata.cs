@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public class ShimDatabaseMetadata
+internal class ShimDatabaseMetadata
 {
     public PlayerId MaxPlayerId { get; set; }
 }

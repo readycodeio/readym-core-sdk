@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public struct ShimRequestItem
+internal struct ShimRequestItem
 {
     public ShimRequestKind Kind;
     public AreaId AreaId;

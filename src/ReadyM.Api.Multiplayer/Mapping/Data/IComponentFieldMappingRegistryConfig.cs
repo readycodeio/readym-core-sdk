@@ -5,7 +5,7 @@ namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
 public delegate void DataLoader<TComponent, in TContext>(ref TComponent component, TContext ctx);
 
-public interface IComponentFieldMappingRegistryConfig
+internal interface IComponentFieldMappingRegistryConfig
 {
     void Register<TComponent, TValue, TContext>(
         Field<TComponent, TValue, TContext> field,

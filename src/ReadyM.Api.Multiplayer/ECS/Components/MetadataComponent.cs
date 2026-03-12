@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>
+internal struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>
 {
     public readonly NetworkId NetId = netId;
     public readonly ArchetypeId Archetype = archetype;

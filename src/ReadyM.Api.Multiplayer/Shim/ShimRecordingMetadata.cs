@@ -3,7 +3,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public class ShimRecordingMetadata
+internal class ShimRecordingMetadata
 {
     public PlayerId PlayerId { get; set; }
     public List<PlayerId> Dependencies { get; set; } = new();

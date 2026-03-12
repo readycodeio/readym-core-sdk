@@ -1,10 +1,11 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Events;
 
-public class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirectory policyDir, ILogger logger) : IMappedEventManager
+internal class MappedEventManager(DataSideChannel sideChannel, IMappingPolicyDirectory policyDir, ILogger logger) : IMappedEventManager
 {
     private readonly EventQueue _incomingEcsEventQueue = new(logger);
     private readonly EventQueue _incomingGameEventQueue = new(logger);

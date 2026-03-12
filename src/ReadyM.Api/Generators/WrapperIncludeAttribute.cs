@@ -3,8 +3,7 @@ using System;
 namespace ReadyM.Api.Generators;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
-public sealed class WrapperIncludeAttribute : Attribute
+internal sealed class WrapperIncludeAttribute(string regex) : Attribute
 {
-    public string Regex { get; }
-    public WrapperIncludeAttribute(string regex) => Regex = regex;
+    public string Regex { get; } = regex;
 }

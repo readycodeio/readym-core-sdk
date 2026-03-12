@@ -5,7 +5,7 @@ using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event.Common;
 
-public class AlwaysPropagatesEventPolicyFactory(
+internal class AlwaysPropagatesEventPolicyFactory(
     DataSideChannel sideChannel) : IMappingEventPolicyFactory
 {
     public bool Supports(Type eventType, Type contextType)

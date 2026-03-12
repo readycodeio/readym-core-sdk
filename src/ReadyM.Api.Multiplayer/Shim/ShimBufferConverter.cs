@@ -5,7 +5,7 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public class ShimBufferConverter : JsonConverter<ShimBuffer>
+internal class ShimBufferConverter : JsonConverter<ShimBuffer>
 {
     public override ShimBuffer Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

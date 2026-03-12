@@ -2,7 +2,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Protocol;
 
-public static class Constants
+internal static class Constants
 {
     public static PlayerId UnsetPeerId = PlayerId.Invalid;
     public const string RoomPropertyAnnotationPrefix = "roomProperty/";

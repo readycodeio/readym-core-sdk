@@ -5,7 +5,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
+internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
 {
     INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, INetworkedComponent;

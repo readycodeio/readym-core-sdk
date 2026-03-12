@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Command;
 
-public enum CommandToken
+internal enum CommandToken
 {
     None,
     Slash,

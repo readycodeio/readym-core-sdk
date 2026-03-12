@@ -1,3 +1,3 @@
 ﻿namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-public interface IMappingCreateDeletePolicyBase;
+internal interface IMappingCreateDeletePolicyBase;

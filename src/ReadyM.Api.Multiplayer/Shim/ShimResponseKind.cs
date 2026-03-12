@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Shim;
 
-public enum ShimResponseKind
+internal enum ShimResponseKind
 {
     None = 0,
     Connected = 2,

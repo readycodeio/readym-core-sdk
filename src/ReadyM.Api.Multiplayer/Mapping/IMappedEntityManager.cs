@@ -1,9 +1,9 @@
-﻿using Friflo.Engine.ECS;
-using ReadyM.Api.Multiplayer.Compat;
+﻿using System.Diagnostics.CodeAnalysis;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
-public interface IMappedEntityManager<TGameObject>
+internal interface IMappedEntityManager<TGameObject>
     where TGameObject : class
 {
     // Is the mapping system aware of the entity / game object. If not, the game object should not be managed

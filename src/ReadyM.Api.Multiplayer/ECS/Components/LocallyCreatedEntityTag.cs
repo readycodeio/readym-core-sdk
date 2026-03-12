@@ -2,4 +2,4 @@
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
-public readonly struct LocallyCreatedEntityTag : ITag;
+internal readonly struct LocallyCreatedEntityTag : ITag;

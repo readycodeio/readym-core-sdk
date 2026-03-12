@@ -4,7 +4,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class DefaultRelaySerializerRegistration : IRelaySerializerRegistration
+internal class DefaultRelaySerializerRegistration : IRelaySerializerRegistration
 {
     public void Register(RelaySerializer serializer)
     {

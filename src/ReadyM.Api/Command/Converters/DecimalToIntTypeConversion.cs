@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Command.Converters;
 
-public sealed class DecimalToIntTypeConversion : IConsoleArgumentTypeConversion
+internal sealed class DecimalToIntTypeConversion : IConsoleArgumentTypeConversion
 {
     public bool TryConvert(Type destType, object? source, out object? dest)
     {

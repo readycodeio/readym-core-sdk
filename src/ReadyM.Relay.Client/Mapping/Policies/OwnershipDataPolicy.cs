@@ -5,7 +5,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-public class OwnershipDataPolicy<TField>(ClientOwnershipManager ownership, DataSideChannel sideChannel) : MappingDataPolicyBase<TField, Entity>(sideChannel)
+internal class OwnershipDataPolicy<TField>(ClientOwnershipManager ownership, DataSideChannel sideChannel) : MappingDataPolicyBase<TField, Entity>(sideChannel)
 {
     protected override bool ShouldGameCopyToEcsImpl(in Entity context)
         => ownership.OwnsEntity(context);

@@ -4,7 +4,7 @@ using ReadyM.Api.Serialization;
 namespace ReadyM.Relay.Client.Shim.ECS;
 
 [DeriveJsonSerializable]
-public partial struct ShimEcsDependencyData(AreaId areaId, PlayerId playerId)
+internal partial struct ShimEcsDependencyData(AreaId areaId, PlayerId playerId)
 {
     private AreaId _areaId = areaId;
     private PlayerId _playerId = playerId;

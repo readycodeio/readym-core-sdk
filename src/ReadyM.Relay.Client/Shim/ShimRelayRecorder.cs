@@ -12,7 +12,7 @@ using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimRelayRecorder : IDisposable
+internal class ShimRelayRecorder : IDisposable
 {
     private readonly object _lock = new();
     

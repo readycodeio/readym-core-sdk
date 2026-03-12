@@ -3,7 +3,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-public class FuncCreateDeletePolicyFactory<TGameObject>(
+internal class FuncCreateDeletePolicyFactory<TGameObject>(
     Func<Type, IMappingCreateDeletePolicy<TGameObject>> createPolicy) : IMappingCreateDeletePolicyFactory
     where TGameObject : class
 {

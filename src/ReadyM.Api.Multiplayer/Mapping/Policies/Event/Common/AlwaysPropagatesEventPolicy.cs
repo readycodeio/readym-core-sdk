@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event.Common;
 
-public class AlwaysPropagatesEventPolicy<TEvent>(DataSideChannel sideChannel) : MappingEventPolicyBase<TEvent, EmptyContext>(sideChannel)
+internal class AlwaysPropagatesEventPolicy<TEvent>(DataSideChannel sideChannel) : MappingEventPolicyBase<TEvent, EmptyContext>(sideChannel)
 {
     protected override bool CanGameEventNotifyEcsImpl(in EmptyContext context)
     {

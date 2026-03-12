@@ -5,7 +5,7 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class PolymorphicNullableObjectJsonConverter(TextRelaySerializer serializer) : JsonConverter<object?>
+internal class PolymorphicNullableObjectJsonConverter(TextRelaySerializer serializer) : JsonConverter<object?>
 {
     private TextRelaySerializer _serializer { get; } = serializer;
         

@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Events;
 
-public class FuncEntityEventPolicyFactory<TContext>(
+internal class FuncEntityEventPolicyFactory<TContext>(
     Func<TContext, bool> shouldPropagateToEcs,
     Func<TContext, bool> shouldPropagateToGame,
     ShouldRunLocallyDelegate<TContext> shouldRunLocally)

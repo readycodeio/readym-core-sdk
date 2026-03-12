@@ -4,7 +4,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.State;
 
-public interface IClientState
+internal interface IClientState
 {
     PlayerId? LocalPlayerId { get; }
     Entity? LocalPlayerEntity { get; }

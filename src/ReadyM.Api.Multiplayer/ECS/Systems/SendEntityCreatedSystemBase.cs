@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Jobs;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataComponent>
+internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataComponent>
 {
     private readonly JobRegistry _jobRegistry;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent>> _queryCache;

@@ -5,7 +5,7 @@ using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim.ECS;
 
-public class ClientSynchronizerShimTrackerImpl : ShimDependencyTrackerImplBase<ShimEcsDependencyData>
+internal class ClientSynchronizerShimTrackerImpl : ShimDependencyTrackerImplBase<ShimEcsDependencyData>
 {
     public override bool Supports(ShimRequestItem requestItem, ShimEcsDependencyData dependencyData)
         => requestItem is {

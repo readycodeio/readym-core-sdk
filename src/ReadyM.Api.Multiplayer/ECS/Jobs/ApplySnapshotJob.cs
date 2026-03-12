@@ -6,7 +6,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-public class ApplySnapshotJob<T>(NetworkedEntityManager netEntity) : IJob<NetDataReader>
+internal class ApplySnapshotJob<T>(NetworkedEntityManager netEntity) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     public void Execute(NetDataReader reader)

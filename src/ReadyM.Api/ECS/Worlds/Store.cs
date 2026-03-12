@@ -16,7 +16,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
 [WrapperInclude("^GetEntity.*")]
-public sealed partial class Store
+internal sealed partial class Store
 {
     private struct ArchetypeEntry
     {

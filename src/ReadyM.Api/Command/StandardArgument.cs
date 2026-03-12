@@ -6,7 +6,7 @@ using Superpower.Parsers;
 
 namespace ReadyM.Api.Command;
 
-public static class StandardArgument
+internal static class StandardArgument
 {
     public static TokenListParser<CommandToken, decimal> Decimal { get; } =
         Token.EqualTo(CommandToken.Decimal)

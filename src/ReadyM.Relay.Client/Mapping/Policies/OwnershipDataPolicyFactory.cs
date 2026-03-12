@@ -8,7 +8,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-public class OwnershipDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel) : IMappingDataPolicyFactory
+internal class OwnershipDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel) : IMappingDataPolicyFactory
 {
     public bool Supports(Type dataType, Type contextType)
         => contextType == typeof(Entity) && typeof(IOwnershipManaged).IsAssignableFrom(dataType);

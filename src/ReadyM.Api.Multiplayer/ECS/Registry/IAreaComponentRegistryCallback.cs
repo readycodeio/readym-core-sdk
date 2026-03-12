@@ -3,7 +3,7 @@ using ReadyM.Api.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public interface IAreaComponentRegistryCallback : IComponentRegistryCallbackBase<IAreaComponentRegistry, IComponent>
+internal interface IAreaComponentRegistryCallback : IComponentRegistryCallbackBase<IAreaComponentRegistry, IComponent>
 {
     // empty
 }

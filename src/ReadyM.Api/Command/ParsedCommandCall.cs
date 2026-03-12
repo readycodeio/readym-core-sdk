@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Command;
 
-public readonly struct ParsedCommandCall(string commandName, IEnumerable<object?> args)
+internal readonly struct ParsedCommandCall(string commandName, IEnumerable<object?> args)
 {
     public readonly string CommandName = commandName;
     public readonly object?[] Args = args.ToArray();

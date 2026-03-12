@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Mapping.Events;
 
-public struct PropagatingToGameScope<TEvent>
+internal struct PropagatingToGameScope<TEvent>
 {
     // empty
 }

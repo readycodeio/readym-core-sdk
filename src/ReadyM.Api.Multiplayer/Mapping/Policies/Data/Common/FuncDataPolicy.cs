@@ -2,7 +2,7 @@ using System;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data.Common;
 
-public class FuncDataPolicy<TContext>(
+internal class FuncDataPolicy<TContext>(
     Func<TContext, bool> shouldEcsCopyToGame,
     Func<TContext, bool> canSetFromApi,
     Func<TContext, bool> shouldGameCopyToEcs,

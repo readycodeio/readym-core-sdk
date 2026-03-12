@@ -8,7 +8,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-public class OwnershipEventPolicyFactory(
+internal class OwnershipEventPolicyFactory(
     ClientOwnershipManager ownership,
     DataSideChannel sideChannel) : IMappingEventPolicyFactory
 {

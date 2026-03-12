@@ -17,7 +17,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Relay.Client.State;
 
-public class ClientState : IDisposable
+internal class ClientState : IDisposable
 {
     private enum PendingEventKind
     {

@@ -3,7 +3,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-public interface IMappingCreateDeletePolicyFactory
+internal interface IMappingCreateDeletePolicyFactory
 {
     bool Supports(Type gameObjType);
     

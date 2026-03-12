@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimRelayMessageParser(IEnumerable<IShimRelayMessageParserImpl> impls)
+internal class ShimRelayMessageParser(IEnumerable<IShimRelayMessageParserImpl> impls)
 {
     private readonly List<IShimRelayMessageParserImpl> _impls = [..impls];
 

@@ -3,8 +3,7 @@ using System;
 namespace ReadyM.Api.Generators;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class WrapperForAttribute : Attribute
+internal sealed class WrapperForAttribute(Type targetType) : Attribute
 {
-    public Type TargetType { get; }
-    public WrapperForAttribute(Type targetType) => TargetType = targetType;
+    public Type TargetType { get; } = targetType;
 }

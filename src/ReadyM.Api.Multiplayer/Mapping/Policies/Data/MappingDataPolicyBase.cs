@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Mapping.Events;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data;
 
-public abstract class MappingDataPolicyBase<TField, TContext>(DataSideChannel sideChannel) : IMappingDataPolicy<TContext>
+internal abstract class MappingDataPolicyBase<TField, TContext>(DataSideChannel sideChannel) : IMappingDataPolicy<TContext>
 {
     public bool ShouldGameCopyToEcs(in TContext context)
     {

@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Command;
 
-public readonly struct Ident(string name)
+internal readonly struct Ident(string name)
 {
     public readonly string Name = name;
     

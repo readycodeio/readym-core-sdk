@@ -65,6 +65,8 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
             mapPrivate: mapPrivate,
             mapPublic: mapPublic,
             mapInternal: mapInternal);
+        
+        var access = symbol.DeclaredAccessibility.ToString().ToLower(); // public, internal, etc.
 
         string maskType;
         string maskTypeRead;
@@ -106,7 +108,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace {info.Namespace}
 {{
-    public partial struct {info.Name} : INetworkedComponent
+    {access} partial struct {info.Name} : INetworkedComponent
     {{
         private {maskType} _dirtyMask;
         private {maskType} _apiMask;

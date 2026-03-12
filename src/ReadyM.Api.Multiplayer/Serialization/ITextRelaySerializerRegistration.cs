@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public interface ITextRelaySerializerRegistration
+internal interface ITextRelaySerializerRegistration
 {
     void Register(TextRelaySerializer serializer);
 }

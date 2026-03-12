@@ -17,7 +17,7 @@ using ReadyM.Relay.Client.Utilities;
 
 namespace ReadyM.Relay.Client;
 
-public class RelayClient : IRelayClient
+internal class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {

@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Command;
 
-public class StandardArgumentParserRegistration : IConsoleArgumentParserRegistration
+internal class StandardArgumentParserRegistration : IConsoleArgumentParserRegistration
 {
     public void Register(ConsoleCommandParser parser)
     {

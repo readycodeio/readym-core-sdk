@@ -16,7 +16,7 @@ using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimPlaybackRelayClient : IRelayClient
+internal class ShimPlaybackRelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {

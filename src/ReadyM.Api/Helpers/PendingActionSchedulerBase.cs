@@ -5,7 +5,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Helpers;
 
-public abstract class PendingActionSchedulerBase
+internal abstract class PendingActionSchedulerBase
 {
     protected const int MaxGroupCount = 256;
     protected const int MaxPendingItemCount = 2048;

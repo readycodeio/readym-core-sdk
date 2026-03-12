@@ -5,7 +5,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Relay.Client.State;
 
-public class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager ownership)
+internal class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager ownership)
 {
     public bool TryGetOwner(NetworkId netId, out PlayerId ownerId)
         => ownership.TryGetOwner(netId, out ownerId);

@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-public static class EntityExtensions
+internal static class EntityExtensions
 {
     extension(Entity self)
     {

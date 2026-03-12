@@ -7,7 +7,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [DeriveINetworkedComponent]
 [StructLayout(LayoutKind.Auto)]
-public partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>
+internal partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>
 {
     private PlayerId _playerId;
     

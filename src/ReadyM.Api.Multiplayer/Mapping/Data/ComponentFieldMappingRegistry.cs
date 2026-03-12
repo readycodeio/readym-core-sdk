@@ -4,10 +4,11 @@ using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Mapping.Events;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
-public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel, ILogger logger) : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
+internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel, ILogger logger) : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
 {
     private DataSideChannel SideChannel => sideChannel;
     private ILogger Logger => logger;

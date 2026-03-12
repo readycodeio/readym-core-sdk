@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ReadyM.Api.Command;
 
-public class ConsoleCommandMatcher(
+internal class ConsoleCommandMatcher(
     ConsoleCommandParser parser,
     ConsoleCommandRegistry registry,
     ConsoleArgumentTypeConverter converter)

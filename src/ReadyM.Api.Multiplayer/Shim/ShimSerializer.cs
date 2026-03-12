@@ -8,7 +8,7 @@ using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public class ShimSerializer
+internal class ShimSerializer
 {
     private readonly JsonSerializerOptions _options;
     

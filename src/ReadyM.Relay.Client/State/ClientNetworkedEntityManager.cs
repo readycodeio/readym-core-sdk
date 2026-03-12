@@ -9,7 +9,7 @@ using ReadyM.Api.State;
 
 namespace ReadyM.Relay.Client.State;
 
-public class ClientNetworkedEntityManager(
+internal class ClientNetworkedEntityManager(
     ClientState state,
     NetworkedEntityManager netEntity) : IEntityManager
 {

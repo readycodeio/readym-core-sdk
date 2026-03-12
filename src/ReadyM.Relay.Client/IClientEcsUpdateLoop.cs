@@ -6,7 +6,7 @@ using ReadyM.Api.Helpers;
 
 namespace ReadyM.Relay.Client;
 
-public interface IClientEcsUpdateLoop
+internal interface IClientEcsUpdateLoop
 {
     PendingActionScheduler<CommandBufferSynced> Scheduler { get; }
     CommandBufferSynced CommandBuffer { get; }

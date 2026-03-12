@@ -1,8 +1,9 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
-public interface IComponentFieldMappingRegistry
+internal interface IComponentFieldMappingRegistry
 {
     bool CanSyncToGame<TComponent>(Entity entity, out ComponentFieldMappingRegistry.SyncToGameHelper<TComponent> toGameHelper)
         where TComponent : struct, IReadyComponent, IMappingContext<Entity>;

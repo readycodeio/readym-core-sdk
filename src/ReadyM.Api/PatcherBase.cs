@@ -2,7 +2,7 @@ using System;
 
 namespace ReadyM.Api;
 
-public abstract class PatcherBase : IDisposable
+internal abstract class PatcherBase : IDisposable
 {
     private bool isDisposed;
     public bool IsPatched { get; private set; }

@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-public class NetworkedOwnershipManager(Store store, ILogger logger)
+internal class NetworkedOwnershipManager(Store store, ILogger logger)
 {
     private readonly ComponentIndex<MetadataComponent, NetworkId> _ix = store.ComponentIndex<MetadataComponent, NetworkId>();
     

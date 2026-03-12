@@ -1,6 +1,7 @@
-﻿namespace System.Diagnostics.CodeAnalysis;
+﻿// ReSharper disable once CheckNamespace
+namespace System.Diagnostics.CodeAnalysis;
 
-internal class DoesNotReturnIfAttribute : Attribute
+public class DoesNotReturnIfAttribute : Attribute
 {
     public DoesNotReturnIfAttribute(bool parameterValue)
         => ParameterValue = parameterValue;

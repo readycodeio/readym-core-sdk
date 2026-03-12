@@ -3,7 +3,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event.Common;
 
-public readonly struct MappedEntityEventPolicy(IMappingEventPolicy<Entity> dataPolicy)
+internal readonly struct MappedEntityEventPolicy(IMappingEventPolicy<Entity> dataPolicy)
 {
     public bool CanGameEventNotifyEcs(Entity? tamerEntity)
     {

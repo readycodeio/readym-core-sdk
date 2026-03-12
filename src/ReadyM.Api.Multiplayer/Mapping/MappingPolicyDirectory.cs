@@ -8,10 +8,11 @@ using ReadyM.Api.Multiplayer.Mapping.Events;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Data;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Data.Common;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Event;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
-public class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory, IMappingPolicyDirectoryRegistration
+internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory, IMappingPolicyDirectoryRegistration
 {
     private readonly object _createDeleteLock = new();
     private readonly Dictionary<(ArchetypeId, Type), IMappingCreateDeletePolicyBase> _createDeletePolicies = new();

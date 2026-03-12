@@ -3,7 +3,7 @@ using ReadyM.Relay.Client.Shim.ECS;
 
 namespace ReadyM.Relay.Client.Serialization;
 
-public class ClientShimTextSerializerRegistration : ITextRelaySerializerRegistration
+internal class ClientShimTextSerializerRegistration : ITextRelaySerializerRegistration
 {
     public void Register(TextRelaySerializer serializer)
     {

@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Common;
 
-public enum OtherPlayerCreatedReason
+internal enum OtherPlayerCreatedReason
 {
     OtherConnected,
     NotifyAfterSelfConnected,

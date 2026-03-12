@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Helpers;
 
-public readonly struct ReadOnlyDictionary<TKey, TValue>(Dictionary<TKey, TValue> dictionary) : IReadOnlyDictionary<TKey, TValue>
+internal readonly struct ReadOnlyDictionary<TKey, TValue>(Dictionary<TKey, TValue> dictionary) : IReadOnlyDictionary<TKey, TValue>
+    where TKey : notnull
 {
     public int Count
         => dictionary.Count;
@@ -16,7 +17,7 @@ public readonly struct ReadOnlyDictionary<TKey, TValue>(Dictionary<TKey, TValue>
 
     public Dictionary<TKey, TValue>.ValueCollection Values
         => dictionary.Values;
-    
+
     public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
         => dictionary.GetEnumerator();
 
@@ -28,7 +29,7 @@ public readonly struct ReadOnlyDictionary<TKey, TValue>(Dictionary<TKey, TValue>
 
     IEnumerator IEnumerable.GetEnumerator()
         => ((IEnumerable)dictionary).GetEnumerator();
-    
+
     IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         => dictionary.GetEnumerator();
 

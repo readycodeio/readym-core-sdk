@@ -11,7 +11,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Relay.Client.Shim.ECS;
 
-public class ClientSynchronizerShimParserImpl(NetworkedEntityManager netEntity, ILogger logger) : ShimBuiltInMessageParserImplBase<ShimEcsDependencyData>
+internal class ClientSynchronizerShimParserImpl(NetworkedEntityManager netEntity, ILogger logger) : ShimBuiltInMessageParserImplBase<ShimEcsDependencyData>
 {
     public override bool SupportsRequest(ServerEventHeader header)
         => false;

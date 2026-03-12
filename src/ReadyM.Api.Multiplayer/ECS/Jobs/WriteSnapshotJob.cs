@@ -9,7 +9,7 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-public class WriteSnapshotJob<T>(NetworkedComponentId componentId)
+internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
     : IJob<EntityStore, QueryFilter, Entity?, NetDataWriter>, IJob<Entity, NetDataWriter>
     where T : struct, INetworkedComponent
 {
@@ -40,7 +40,7 @@ public class WriteSnapshotJob<T>(NetworkedComponentId componentId)
 
         _counter = counter;
         _writer = writer;
-        query.ForEachEntity((ref MetadataComponent meta, ref T comp, Entity _) =>
+        query.ForEachEntity((ref meta, ref comp, _) =>
         {
             _counter++;
             _writer.Put(meta.NetId);

@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-public interface IMappingCreateDeletePolicy<in TGameObject> : IMappingCreateDeletePolicyBase
+internal interface IMappingCreateDeletePolicy<in TGameObject> : IMappingCreateDeletePolicyBase
     where TGameObject : class
 {
     // Should newly-created game objects be mapped to newly created entities 

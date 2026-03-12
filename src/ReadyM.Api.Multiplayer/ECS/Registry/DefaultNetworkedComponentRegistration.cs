@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public class DefaultNetworkedComponentRegistration : INetworkedComponentRegistration
+internal class DefaultNetworkedComponentRegistration : INetworkedComponentRegistration
 {
     public void Register(INetworkedComponentRegistry registry)
     {

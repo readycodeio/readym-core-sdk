@@ -5,7 +5,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-public class OwnershipEventPolicy<TEvent>(
+internal class OwnershipEventPolicy<TEvent>(
     ClientOwnershipManager ownership,
     DataSideChannel sideChannel
 ) : MappingEventPolicyBase<TEvent, Entity>(sideChannel)

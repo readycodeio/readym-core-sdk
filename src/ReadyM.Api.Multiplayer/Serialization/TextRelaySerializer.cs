@@ -5,7 +5,7 @@ using ReadyM.Api.Helpers;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class TextRelaySerializer
+internal class TextRelaySerializer
 {
     private readonly Dictionary<Type, string> _polymorphicByType = new();
     private readonly Dictionary<string, Type> _polymorphicByDiscriminator = new();

@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
-public class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistry playerComponentRegistry) : IArchetypeRegistration
+internal class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistry playerComponentRegistry) : IArchetypeRegistration
 {
     private class RegisterPlayerComponentsCallback(EntityBuilder builder) : IPlayerComponentRegistryCallback
     {

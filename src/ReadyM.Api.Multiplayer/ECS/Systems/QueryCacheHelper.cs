@@ -4,7 +4,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public class QueryCacheHelper<TContext, TKey, TQuery>(Func<TContext, TKey> keyFunc, Func<TContext, TQuery> queryFactory)
+internal class QueryCacheHelper<TContext, TKey, TQuery>(Func<TContext, TKey> keyFunc, Func<TContext, TQuery> queryFactory)
     where TQuery : ArchetypeQuery
 {
     private TQuery? _nullQuery;

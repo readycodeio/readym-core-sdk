@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
-public interface IMappingEventPolicy<TContext> : IMappingEventPolicyBase
+internal interface IMappingEventPolicy<TContext> : IMappingEventPolicyBase
 {
     bool CanGameEventNotifyEcs(in TContext context);
 

@@ -5,10 +5,11 @@ using ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 using ReadyM.Api.Multiplayer.Mapping.Events;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Data;
 using ReadyM.Api.Multiplayer.Mapping.Policies.Event;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
-public interface IMappingPolicyDirectoryRegistration
+internal interface IMappingPolicyDirectoryRegistration
 {
     void RegisterDefaultCreateDelete(IMappingCreateDeletePolicyFactory factory);
 

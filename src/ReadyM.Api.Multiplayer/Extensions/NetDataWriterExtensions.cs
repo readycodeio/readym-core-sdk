@@ -6,7 +6,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
-public static class NetDataWriterExtensions
+internal static class NetDataWriterExtensions
 {
     public static void PutCustomRelayEventHeader(this NetDataWriter writer, RelayMessageCode eventCode, PlayerId playerId, RelayMode relayMode)
     {

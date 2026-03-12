@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Client;
 
-public enum PlayerIdMode
+internal enum PlayerIdMode
 {
     Auto,
     MinId,

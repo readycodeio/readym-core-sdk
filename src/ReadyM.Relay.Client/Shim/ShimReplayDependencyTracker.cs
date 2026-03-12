@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimReplayDependencyTracker(IEnumerable<IShimDependencyTrackerImpl> impls)
+internal class ShimReplayDependencyTracker(IEnumerable<IShimDependencyTrackerImpl> impls)
 {
     private readonly List<IShimDependencyTrackerImpl> _impls = [..impls];
 

@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Shim;
 
-public enum ShimRequestKind
+internal enum ShimRequestKind
 {
     None = 0,
     RequestedConnect = 1,

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class FuncJsonConverter<T>(TextSerializeMethod<T> serializeFunc, TextDeserializeMethod<T> deserializeFunc) : JsonConverter<T>
+internal class FuncJsonConverter<T>(TextSerializeMethod<T> serializeFunc, TextDeserializeMethod<T> deserializeFunc) : JsonConverter<T>
 {
     public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => deserializeFunc.Invoke(ref reader, options);

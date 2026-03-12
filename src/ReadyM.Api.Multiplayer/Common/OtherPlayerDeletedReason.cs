@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.Common;
 
-public enum OtherPlayerDeletedReason
+internal enum OtherPlayerDeletedReason
 {
     OtherDisconnected,
     NotifyBeforeSelfDisconnected,

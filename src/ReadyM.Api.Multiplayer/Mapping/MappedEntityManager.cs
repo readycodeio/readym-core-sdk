@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Worlds;
-using ReadyM.Api.Multiplayer.Compat;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
-public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManager<TGameObject>
+internal class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManager<TGameObject>
     where TGameObject : class
 {
     private readonly ComponentIndex<MappingComponent<TGameObject>, TGameObject?> _ix = world.ComponentIndex<MappingComponent<TGameObject>, TGameObject?>();

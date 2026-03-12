@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data.Common;
 
-public readonly struct MappedEntityDataPolicy(IMappingDataPolicy<Entity> dataPolicy)
+internal readonly struct MappedEntityDataPolicy(IMappingDataPolicy<Entity> dataPolicy)
 {
     public bool ShouldGameCopyToEcs(Entity? tamerEntity)
     {

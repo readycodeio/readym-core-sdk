@@ -3,7 +3,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public readonly struct SendContext(AreaId? areaId, PlayerId? playerId, Entity? scopeEntity)
+internal readonly struct SendContext(AreaId? areaId, PlayerId? playerId, Entity? scopeEntity)
 {
     public readonly AreaId? AreaId = areaId;
     public readonly PlayerId? PlayerId = playerId;

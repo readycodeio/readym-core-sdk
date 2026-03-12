@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Command;
 
-public class ConsoleCommandRegistry
+public sealed class ConsoleCommandRegistry
 {
     private readonly Dictionary<string, ConsoleCommand> _commands = new();
     private readonly Dictionary<string, IEnumerable<string>> _commandsParams = new();

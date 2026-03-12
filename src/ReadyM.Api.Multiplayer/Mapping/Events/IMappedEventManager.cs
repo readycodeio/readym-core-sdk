@@ -1,8 +1,9 @@
 using System;
+using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Events;
 
-public interface IMappedEventManager
+internal interface IMappedEventManager
 {
     void RegisterEcsEventHandler<TEvent>(Action<TEvent> handler)
         where TEvent : struct;

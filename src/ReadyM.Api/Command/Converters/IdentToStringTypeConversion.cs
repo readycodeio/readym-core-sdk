@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Command.Converters;
 
-public sealed class IdentToStringTypeConversion : IConsoleArgumentTypeConversion
+internal sealed class IdentToStringTypeConversion : IConsoleArgumentTypeConversion
 {
     public bool TryConvert(Type destType, object? source, out object? dest)
     {

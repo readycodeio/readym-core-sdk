@@ -9,7 +9,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T> where T : struct, INetworkedComponent
+internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T> where T : struct, INetworkedComponent
 {
     private readonly NetworkedComponentId _componentId;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;

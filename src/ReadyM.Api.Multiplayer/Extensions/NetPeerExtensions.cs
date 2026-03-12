@@ -3,7 +3,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
-public static class NetPeerExtensions
+internal static class NetPeerExtensions
 {
     public static void SendImmediately(this NetPeer peer, byte[] data, int start, int length, DeliveryMethod options)
     {

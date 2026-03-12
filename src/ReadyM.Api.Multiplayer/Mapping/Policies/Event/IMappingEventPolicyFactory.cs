@@ -2,7 +2,7 @@ using System;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event;
 
-public interface IMappingEventPolicyFactory
+internal interface IMappingEventPolicyFactory
 {
     bool Supports(Type eventType, Type contextType);
     IMappingEventPolicyBase CreatePolicy(Type eventType, Type contextType);

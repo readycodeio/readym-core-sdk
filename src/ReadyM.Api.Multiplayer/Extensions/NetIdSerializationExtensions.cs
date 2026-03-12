@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
-public static class NetIdSerializationExtensions
+internal static class NetIdSerializationExtensions
 {
     public static bool TryGetNetworkId(this NetDataReader reader, out NetworkId result)
     {

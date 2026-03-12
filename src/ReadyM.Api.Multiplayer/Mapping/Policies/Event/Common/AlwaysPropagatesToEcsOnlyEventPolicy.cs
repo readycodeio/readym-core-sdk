@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Mapping.Tags;
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Event.Common;
 
 /// Used with events that are only happening on the game-side and it makes no sense to trigger them manually.
-public class AlwaysPropagatesToEcsOnlyEventPolicy<TEvent>(DataSideChannel sideChannel) : MappingEventPolicyBase<TEvent, EmptyContext>(sideChannel)
+internal class AlwaysPropagatesToEcsOnlyEventPolicy<TEvent>(DataSideChannel sideChannel) : MappingEventPolicyBase<TEvent, EmptyContext>(sideChannel)
 {
     protected override bool CanGameEventNotifyEcsImpl(in EmptyContext context)
     {

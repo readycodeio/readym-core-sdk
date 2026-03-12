@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Helpers;
 
-public class PendingActionUpdater<TContext>(TContext context, ILogger logger) : PendingActionScheduler<TContext>(context, logger)
+internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) : PendingActionScheduler<TContext>(context, logger)
 {
     public Thread? Thread
         => thread;

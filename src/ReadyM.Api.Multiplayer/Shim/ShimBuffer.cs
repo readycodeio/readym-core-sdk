@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public struct ShimBuffer
+internal struct ShimBuffer
 {
     public byte[]? Data { get; }
 

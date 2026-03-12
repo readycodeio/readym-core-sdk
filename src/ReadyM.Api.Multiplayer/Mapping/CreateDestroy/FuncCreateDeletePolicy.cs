@@ -3,7 +3,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.Mapping.CreateDestroy;
 
-public class FuncCreateDeletePolicy<TGameObject>(
+internal class FuncCreateDeletePolicy<TGameObject>(
     Func<TGameObject, bool> shouldCreatePropagate,
     Func<Entity, bool> shouldDeletePropagate) : IMappingCreateDeletePolicy<TGameObject>
     where TGameObject : class

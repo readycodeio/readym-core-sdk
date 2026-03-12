@@ -1,15 +1,11 @@
 // ReSharper disable once CheckNamespace
 namespace System.Diagnostics.CodeAnalysis;
 
-[AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-internal sealed class NotNullWhenAttribute : Attribute
+[AttributeUsage(AttributeTargets.Parameter)]
+internal sealed class NotNullWhenAttribute(bool returnValue) : Attribute
 {
-    public NotNullWhenAttribute(bool returnValue) => ReturnValue = returnValue;
-    public bool ReturnValue { get; }
+    public bool ReturnValue { get; } = returnValue;
 }
 
-[AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-internal sealed class NotNullAttribute : Attribute
-{
-    // empty
-}
+[AttributeUsage(AttributeTargets.Parameter)]
+internal sealed class NotNullAttribute : Attribute;

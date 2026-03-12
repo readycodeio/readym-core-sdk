@@ -8,14 +8,14 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegistration
+internal class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegistration
 {
     public void Register(TextRelaySerializer serializer)
     {
         serializer.RegisterPolymorphicType<byte>(
             "byte", 
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for byte");
                 return reader.GetByte();
@@ -25,7 +25,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<short>(
             "short",
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for short");
                 return reader.GetInt16();
@@ -35,7 +35,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<int>(
             "int",
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for int");
                 return reader.GetInt32();
@@ -45,7 +45,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<long>(
             "long",
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for long");
                 return reader.GetInt64();
@@ -55,7 +55,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<float>(
             "float",
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for float");
                 return reader.GetSingle();
@@ -65,7 +65,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<double>(
             "double",
             (writer, value, options) => { writer.WriteNumberValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.Number, "Expected number value for double");
                 return reader.GetDouble();
@@ -75,7 +75,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<string>(
             "string",
             (writer, value, options) => { writer.WriteStringValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) => 
+            (ref reader, options) => 
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.String, "Expected string value");
                 return reader.GetString();
@@ -85,7 +85,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
         serializer.RegisterPolymorphicType<bool>(
             "bool",
             (writer, value, options) => { writer.WriteBooleanValue(value); },
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False, "Expected boolean value");
                 return reader.GetBoolean();
@@ -103,7 +103,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
                 }
                 writer.WriteEndArray();
             }, 
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 var byteList = new List<byte>();
                 DebugJson.Assert(reader.TokenType == JsonTokenType.StartArray);
@@ -132,7 +132,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
                 }
                 writer.WriteEndArray();
             }, 
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 var intList = new List<int>();
                 
@@ -162,7 +162,7 @@ public class DefaultTextRelaySerializerRegistration : ITextRelaySerializerRegist
                 writer.WriteNumberValue(value.Z);
                 writer.WriteEndArray();
             }, 
-            (ref Utf8JsonReader reader, JsonSerializerOptions options) =>
+            (ref reader, options) =>
             {
                 DebugJson.Assert(reader.TokenType == JsonTokenType.StartArray);
                 

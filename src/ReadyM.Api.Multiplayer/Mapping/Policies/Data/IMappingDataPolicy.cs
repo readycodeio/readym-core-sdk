@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.Mapping.Policies.Data;
 
-public interface IMappingDataPolicy<TContext> : IMappingDataPolicyBase
+internal interface IMappingDataPolicy<TContext> : IMappingDataPolicyBase
 {
     /// Should data be copied from the game object to the ECS entity
     bool ShouldGameCopyToEcs(in TContext context);

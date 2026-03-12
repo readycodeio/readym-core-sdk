@@ -6,7 +6,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class RelaySerializer
+internal class RelaySerializer
 {
     private byte _nextTypeCode = 255;
 

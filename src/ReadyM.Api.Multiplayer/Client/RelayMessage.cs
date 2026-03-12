@@ -6,7 +6,7 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public struct RelayMessage
+internal struct RelayMessage
 {
     public readonly RelayMessageCode EventCode;
     public readonly NetDataWriter Writer;

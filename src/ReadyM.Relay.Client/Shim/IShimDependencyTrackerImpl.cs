@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public interface IShimDependencyTrackerImpl
+internal interface IShimDependencyTrackerImpl
 {
     bool Supports(ShimRequestItem requestItem);
     bool Supports(ShimResponseItem responseItem);

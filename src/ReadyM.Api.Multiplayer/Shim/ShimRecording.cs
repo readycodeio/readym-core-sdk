@@ -4,7 +4,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
-public class ShimRecording
+internal class ShimRecording
 {
     private PlayerId? _playerId;
     private readonly List<ShimResponseItem> _responseItems;

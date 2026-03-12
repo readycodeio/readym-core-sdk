@@ -32,7 +32,7 @@ namespace ReadyM.Api.Multiplayer.Client;
 /// ownership could be transferred to another player. Retaining the owner addressing mode allows the old owner to
 /// re-relay the message to the new owner in that specific rare case.
 /// </summary>
-public interface IRelayClient : IPlayerIdProvider, IDisposable
+internal interface IRelayClient : IPlayerIdProvider, IDisposable
 {
     bool RequestedConnect { get; }
 
