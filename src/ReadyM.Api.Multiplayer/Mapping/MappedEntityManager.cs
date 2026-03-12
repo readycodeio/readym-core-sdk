@@ -4,6 +4,7 @@ using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Multiplayer.Compat;
+using ReadyM.Api.Multiplayer.ECS.Managers;
 
 namespace ReadyM.Api.Multiplayer.Mapping;
 
@@ -62,7 +63,7 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
     public void RemoveMappedEntity(Entity entity)
     {
         if (!entity.RemoveComponent<MappingComponent<TGameObject>>())
-            throw new KeyNotFoundException($"Entity {entity} not found in mapped entities.");
+            throw new KeyNotFoundException($"Entity {entity.GetNetId()} not found in mapped entities.");
     }
 
     public void RemoveMappedEntity(TGameObject gameObj)
@@ -84,7 +85,7 @@ public class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManage
     public void RemoveMappedEntity(CommandBuffer buffer, Entity entity)
     {
         if (!entity.HasComponent<MappingComponent<TGameObject>>())
-            throw new KeyNotFoundException($"Entity {entity} not found in mapped entities.");
+            throw new KeyNotFoundException($"Entity {entity.GetNetId()} not found in mapped entities.");
 
         buffer.RemoveComponent<MappingComponent<TGameObject>>(entity.Id);
     }
