@@ -98,7 +98,10 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         public void SyncToGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
             if (!registry.TryGet(field, out var mapping))
+            {
                 registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
+                return;
+            }
 
             ref var component = ref entity.GetComponent<TComponent>();
 
@@ -186,7 +189,10 @@ public sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policy
         public void LoadFromGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
             if (!registry.TryGet(field, out var mapping))
+            {
                 registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
+                return;
+            }
 
             using (registry.SideChannel.PushScope<PropagatingToEcsScope<TComponent>>()) // TODO: Is this even necessary?
             {
