@@ -122,8 +122,6 @@ internal class ClientState : IDisposable
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
         JobRegistry jobRegistry,
-        DefaultAreaArchetypeRegistration areaArchetype,
-        DefaultPlayerArchetypeRegistration playerArchetype,
         ILogger logger)
     {
         _world = world;

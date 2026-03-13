@@ -21,7 +21,7 @@ namespace ReadyM.Relay.Client;
 
 internal class ClientNetworkedStateSynchronizer : IDisposable
 {
-    protected IClientEcsUpdateLoop EcsLoop => _ecsLoop;
+    protected IClientEcsUpdateLoop EcsLoop { get; }
 
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
@@ -42,7 +42,6 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
     protected readonly ILogger Logger;
 
     protected readonly JobRegistry JobRegistry;
-    private readonly IClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
 
     private readonly SystemGroup _systemGroup;
@@ -57,7 +56,7 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
         ILogger logger)
     {
         State = state;
-        _ecsLoop = ecsLoop;
+        EcsLoop = ecsLoop;
         _ownershipManager = ownershipManager;
         NetEntity = netEntity;
         RelayClient = relayClient;
@@ -87,14 +86,16 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
         // server.
 
-        _systemGroup = new SystemGroup("Network");
+        _systemGroup = new SystemGroup("Networking")
+        {
+            new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient)
+        };
 
-        _systemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
         // NOTE: iterates over all network components with generics without reflection
         netComponentRegistry.Accept(new RegisterSystemCallback(this));
 
         _systemGroup.SetMonitorPerf(true);
-        _ecsLoop.AddSystem(_systemGroup);
+        EcsLoop.AddSystem(_systemGroup);
     }
 
     public void Dispose()
@@ -104,7 +105,7 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
 
     protected virtual void OnDispose()
     {
-        _ecsLoop.RemoveSystem(_systemGroup);
+        EcsLoop.RemoveSystem(_systemGroup);
 
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);
@@ -127,7 +128,7 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
 
     protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -135,7 +136,7 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
 
                 var scopeNetId = readerCopy.Get<NetworkId>();
                 Entity? scopeEntity = null;
-                
+
                 var entityCount = readerCopy.GetUInt();
                 for (var i = 0; i < entityCount; i++)
                 {
@@ -149,11 +150,11 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
                     {
                         self.Logger.LogError("Received snapshot create event for already existing entity: {Id} scope: {Scope}", meta.NetId, scopeNetId);
                     }
-                    
+
                     if (i == 0 && scopeNetId != default)
                     {
                         // NOTE: The scope entity is always the first being created
-                        
+
                         self.Logger.LogInformation("Looking up scope entity with NetId {ScopeNetId}", scopeNetId);
                         if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
                             throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");
@@ -166,12 +167,12 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
             {
                 _skipEcsEventMessages--;
             }
-        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+        }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
     protected void OnEcsChangeOwnershipMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
         {
             try
             {
@@ -195,12 +196,12 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
             {
                 _skipEcsEventMessages--;
             }
-        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+        }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
     protected void OnEcsDeltaMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -211,13 +212,13 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
             {
                 _skipEcsEventMessages--;
             }
-        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+        }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
     // NOTE: Someone else created an entity, and we are notified about it
     protected void OnEcsCreateEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
-        _ecsLoop.Scheduler.Schedule(static (cb, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (cb, self, readerCopy) =>
         {
             try
             {
@@ -251,14 +252,14 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
             {
                 _skipEcsEventMessages--;
             }
-        }, this, _ecsLoop.Scheduler.MakeSafe(reader));
+        }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
     // NOTE: Someone else deleted an entity, and we are notified about it
     protected void OnEcsDeleteEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkId>();
-        _ecsLoop.Scheduler.Schedule(static (cb, self, netId0) =>
+        EcsLoop.Scheduler.Schedule(static (cb, self, netId0) =>
         {
             try
             {
@@ -286,7 +287,7 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
         if (_skipEcsEventMessages > 0)
             return;
 
-        _ecsLoop.Scheduler.EnsureThread();
+        EcsLoop.Scheduler.EnsureThread();
 
         if (!_ownershipManager.OwnsEntity(netId))
             return;

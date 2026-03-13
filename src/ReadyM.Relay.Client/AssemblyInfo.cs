@@ -2,3 +2,4 @@
 
 [assembly: InternalsVisibleTo("WukongMp.Api")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
+[assembly: InternalsVisibleTo("WukongMp.Tests")]
