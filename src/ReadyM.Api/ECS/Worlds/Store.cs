@@ -46,7 +46,7 @@ internal sealed partial class Store
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
+    internal ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
@@ -58,7 +58,7 @@ internal sealed partial class Store
         return archetypeId;
     }
 
-    public Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
+    internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
