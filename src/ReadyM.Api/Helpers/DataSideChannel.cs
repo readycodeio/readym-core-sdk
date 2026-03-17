@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace ReadyM.Api.Helpers;
 
-internal class DataSideChannel
+internal sealed class DataSideChannel
 {
     private class EntryBase
     {
