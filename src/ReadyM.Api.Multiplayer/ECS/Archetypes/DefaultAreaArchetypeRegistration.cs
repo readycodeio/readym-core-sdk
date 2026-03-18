@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
-internal class DefaultAreaArchetypeRegistration(IAreaComponentRegistry areaComponentRegistry) : IArchetypeRegistration
+internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry areaComponentRegistry) : IArchetypeRegistration
 {
     private class RegisterAreaComponentsCallback(EntityBuilder builder) : IAreaComponentRegistryCallback
     {

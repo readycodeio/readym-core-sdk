@@ -27,7 +27,7 @@ internal class JobRegistry
         }
     }
 
-    protected readonly NetworkedEntityManager NetEntity;
+    protected readonly INetworkedEntityManager NetEntity;
     protected readonly IPlayerIdProvider PlayerIdProvider;
     protected readonly ILogger Logger;
 
@@ -40,7 +40,7 @@ internal class JobRegistry
 
     public JobRegistry(
         INetworkedComponentRegistry registry,
-        NetworkedEntityManager netEntity,
+        INetworkedEntityManager netEntity,
         IPlayerIdProvider playerIdProvider,
         ILogger logger)
     {

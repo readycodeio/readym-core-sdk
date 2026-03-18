@@ -19,9 +19,9 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client;
 
-internal class ClientNetworkedStateSynchronizer : IDisposable
+internal class ClientNetworkedStateSynchronizer : IScopedLifetime, IDisposable
 {
-    protected IClientEcsUpdateLoop EcsLoop { get; }
+    private IClientEcsUpdateLoop EcsLoop { get; }
 
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
@@ -37,16 +37,17 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
     }
 
     protected readonly ClientState State;
-    protected readonly NetworkedEntityManager NetEntity;
+    protected readonly INetworkedEntityManager NetEntity;
     protected readonly IRelayClient RelayClient;
     protected readonly ILogger Logger;
 
     protected readonly JobRegistry JobRegistry;
     private readonly ClientOwnershipManager _ownershipManager;
+    private readonly INetworkedComponentRegistry _netComponentRegistry;
 
     private readonly SystemGroup _systemGroup;
 
-    public ClientNetworkedStateSynchronizer(NetworkedEntityManager netEntity,
+    public ClientNetworkedStateSynchronizer(INetworkedEntityManager netEntity,
         ClientState state,
         JobRegistry jobRegistry,
         INetworkedComponentRegistry netComponentRegistry,
@@ -58,11 +59,23 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
         State = state;
         EcsLoop = ecsLoop;
         _ownershipManager = ownershipManager;
+        _netComponentRegistry = netComponentRegistry;
         NetEntity = netEntity;
         RelayClient = relayClient;
         Logger = logger;
         JobRegistry = jobRegistry;
 
+        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
+        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
+        // server.
+        _systemGroup = new SystemGroup("Networking")
+        {
+            new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient)
+        };
+    }
+
+    public void OnScopeStart()
+    {
         // When an ECS snapshot message is received, the client applies it to its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotMessageHandler);
 
@@ -82,19 +95,11 @@ internal class ClientNetworkedStateSynchronizer : IDisposable
         // sent to the server. 
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
 
-        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
-        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
-        // server.
-
-        _systemGroup = new SystemGroup("Networking")
-        {
-            new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient)
-        };
-
         // NOTE: iterates over all network components with generics without reflection
-        netComponentRegistry.Accept(new RegisterSystemCallback(this));
-
+        _netComponentRegistry.Accept(new RegisterSystemCallback(this));
+#if DEBUG
         _systemGroup.SetMonitorPerf(true);
+#endif
         EcsLoop.AddSystem(_systemGroup);
     }
 

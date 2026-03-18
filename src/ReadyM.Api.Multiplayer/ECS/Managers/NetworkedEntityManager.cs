@@ -10,7 +10,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-internal sealed class NetworkedEntityManager : IDisposable
+internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposable
 {
     private readonly Store _world;
     private readonly CommandBuffer _commandBuffer;
@@ -38,6 +38,7 @@ internal sealed class NetworkedEntityManager : IDisposable
 
         _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
 
+        // it's fine to subscribe here, since this is the only class that can create entities with MetadataComponent, so we won't miss any events
         _world.OnEntityDelete += OnEntityDeleteHandler;
     }
 

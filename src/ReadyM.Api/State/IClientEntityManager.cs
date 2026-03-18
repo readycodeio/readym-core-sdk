@@ -5,7 +5,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.State;
 
-internal interface IEntityManager
+internal interface IClientEntityManager
 {
     Entity CreateEntity(
         ArchetypeId archetypeId,

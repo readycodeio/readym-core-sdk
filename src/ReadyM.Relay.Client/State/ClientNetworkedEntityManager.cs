@@ -1,17 +1,15 @@
 ﻿using System;
-using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
-using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.State;
 
 namespace ReadyM.Relay.Client.State;
 
 internal class ClientNetworkedEntityManager(
     ClientState state,
-    NetworkedEntityManager netEntity) : IEntityManager
+    INetworkedEntityManager netEntity) : IClientEntityManager
 {
     public Entity CreateEntity(
         ArchetypeId archetypeId,
@@ -53,7 +51,4 @@ internal class ClientNetworkedEntityManager(
         var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents);
         return entity;
     }
-
-    public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)
-        => netEntity.TryGetEntityByNetworkId(netId, out entity);
 }

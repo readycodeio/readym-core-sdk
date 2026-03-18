@@ -8,7 +8,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal class ApplyDeltaJob<T>(NetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider) : IJob<NetDataReader>
+internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent = typeof(IForceSetComponent).IsAssignableFrom(typeof(T));

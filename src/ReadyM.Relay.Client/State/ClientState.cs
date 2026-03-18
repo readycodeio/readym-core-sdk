@@ -9,7 +9,6 @@ using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
-using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
@@ -59,7 +58,7 @@ internal class ClientState : IDisposable
     }
 
     private readonly Store _world;
-    private readonly NetworkedEntityManager _netEntity;
+    private readonly INetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
     private readonly IClientEcsUpdateLoop _ecsLoop;
     private readonly JobRegistry _jobRegistry;
@@ -118,7 +117,7 @@ internal class ClientState : IDisposable
 
     public ClientState(
         Store world,
-        NetworkedEntityManager netEntity,
+        INetworkedEntityManager netEntity,
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
         JobRegistry jobRegistry,
