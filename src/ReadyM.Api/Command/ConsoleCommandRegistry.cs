@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Command;
 
-public sealed class ConsoleCommandRegistry
+internal sealed class ConsoleCommandRegistry : IConsoleCommandRegistry
 {
     private readonly Dictionary<string, ConsoleCommand> _commands = new();
     private readonly Dictionary<string, IEnumerable<string>> _commandsParams = new();
@@ -29,12 +29,11 @@ public sealed class ConsoleCommandRegistry
 
     public void AddCommand(string commandName, ConsoleCommand command, IEnumerable<string>? availableFirstParams = null)
     {
-        if (_commands.ContainsKey(commandName))
+        if (!_commands.TryAdd(commandName, command))
         {
             throw new InvalidOperationException($"Command {commandName} is already registered");
         }
 
-        _commands.Add(commandName, command);
         if (availableFirstParams != null)
         {
             _commandsParams[commandName] = availableFirstParams;

@@ -27,7 +27,7 @@ public readonly struct ConsoleCommand(
     public readonly Type? RepeatingParam = repeatingParam;
     public readonly bool IsDebugOnly = isDebugOnly;
 
-    public static ConsoleCommand Create(Delegate handler, bool isDebugOnly)
+    public static ConsoleCommand Create(Delegate handler, bool isDebugOnly = false)
     {
         var minArgCount = 0;
         int? maxArgCount = 0;

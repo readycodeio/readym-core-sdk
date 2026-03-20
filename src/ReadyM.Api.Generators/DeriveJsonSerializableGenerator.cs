@@ -141,7 +141,7 @@ namespace {info.Namespace};
         
         sb.AppendLine($$"""
                             [RegisterJsonConverter]
-                            public class Converter : System.Text.Json.Serialization.JsonConverter<{{info.Name}}>
+                            internal class Converter : System.Text.Json.Serialization.JsonConverter<{{info.Name}}>
                             {
                                 public override {{info.Name}} Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
                                     => TextDeserialize(ref reader, options);

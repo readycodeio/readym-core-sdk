@@ -7,9 +7,6 @@ internal class FuncCreateDeletePolicyFactory<TGameObject>(
     Func<Type, IMappingCreateDeletePolicy<TGameObject>> createPolicy) : IMappingCreateDeletePolicyFactory
     where TGameObject : class
 {
-    public Type GameObjectType
-        => typeof(TGameObject);
-
     public bool Supports(Type gameObjType)
         => gameObjType == typeof(TGameObject);
 
