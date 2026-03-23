@@ -4,6 +4,12 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Idents;
 
+/// <summary>
+/// Identifies an area within the game world.
+/// Areas can be main Chapter maps, sub-areas such as the Zodiac Village, or hidden boss arenas.
+/// If going somewhere requires a loading screen, it's probably a different area.
+/// </summary>
+/// <param name="id">The underlying ID value. This is not guaranteed to be stable across game versions, and should not be used for anything other than debugging or logging purposes.</param>
 [DeriveJsonSerializable]
 public partial struct AreaId(ushort id) : INetSerializable, IEquatable<AreaId>
 {
