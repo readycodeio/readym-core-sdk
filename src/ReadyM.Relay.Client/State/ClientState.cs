@@ -109,7 +109,7 @@ public class ClientState : IDisposable
         => _currentAreaEntry?.AreaEntity;
 
     public event Action<PlayerId, Entity>? OnConnected;
-    public event Action<PlayerId, Entity?, DisconnectReason>? OnDisconnected;
+    public event Action<PlayerId, Entity, DisconnectReason>? OnDisconnected;
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -530,7 +530,7 @@ public class ClientState : IDisposable
                         break;
                     }
 
-                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerJoinedIndex))
+                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out _))
                     {
                         // NOTE: If the player already joined, remove the current duplicate event.
                         pendingEvent.Invalidated = true;
@@ -697,7 +697,7 @@ public class ClientState : IDisposable
                     _playerEntries.Remove(otherPlayerId);
                 }
 
-                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry?.PlayerEntity, pendingEvent.DisconnectReason);
+                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry!.Value.PlayerEntity, pendingEvent.DisconnectReason);
 
                 _allPlayers.Clear();
                 _playerEntries.Clear();

@@ -1,33 +1,89 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
 public static class AttributeUtils
 {
-    public static T GetAttribute<T>(INamedTypeSymbol? symbol, string attrName, string keyName, T defaultValue)
+    public static T GetAttribute<T>(
+        INamedTypeSymbol? symbol,
+        string attrName,
+        string keyName,
+        T defaultValue)
     {
-        var deriveData = symbol?.GetAttributes()
-            .FirstOrDefault(ad => ad.AttributeClass?.Name == attrName || ad.AttributeClass?.ToDisplayString().EndsWith($".{attrName}") == true);
+        if (symbol is null)
+            return defaultValue;
 
-        object? objValue = null;
-        if (deriveData is not null)
+        var attr = symbol.GetAttributes()
+            .FirstOrDefault(ad =>
+                ad.AttributeClass is not null &&
+                (ad.AttributeClass.Name == attrName ||
+                 ad.AttributeClass.Name == attrName + "Attribute" ||
+                 ad.AttributeClass.ToDisplayString().EndsWith("." + attrName, StringComparison.Ordinal) ||
+                 ad.AttributeClass.ToDisplayString().EndsWith("." + attrName + "Attribute", StringComparison.Ordinal)));
+
+        if (attr is null)
+            return defaultValue;
+
+        foreach (var named in attr.NamedArguments)
         {
-            var modeAttr = deriveData.NamedArguments.FirstOrDefault(x => x.Key == keyName);
-            if (modeAttr.Value.Value != null)
+            if (string.Equals(named.Key, keyName, StringComparison.OrdinalIgnoreCase))
+                return ConvertValue<T>(named.Value.Value, defaultValue);
+        }
+
+        var ctor = attr.AttributeConstructor;
+        if (ctor is not null)
+        {
+            for (int i = 0; i < ctor.Parameters.Length; i++)
             {
-                objValue = modeAttr.Value.Value;
-            }
-            else if (deriveData.ConstructorArguments.Length > 0)
-            {
-                var posConst = deriveData.ConstructorArguments[0];
-                objValue  = posConst.Value;
+                var param = ctor.Parameters[i];
+
+                if (!string.Equals(param.Name, keyName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (i < attr.ConstructorArguments.Length)
+                    return ConvertValue<T>(attr.ConstructorArguments[i].Value, defaultValue);
+
+                if (param.HasExplicitDefaultValue)
+                    return ConvertValue<T>(param.ExplicitDefaultValue, defaultValue);
+
+                return defaultValue;
             }
         }
 
-        if (objValue is T value)
-            return value;
-        else
+        return defaultValue;
+    }
+
+    private static T ConvertValue<T>(object? value, T defaultValue)
+    {
+        if (value is null)
             return defaultValue;
+
+        if (value is T typed)
+            return typed;
+
+        var targetType = typeof(T);
+
+        if (targetType.IsEnum)
+        {
+            try
+            {
+                return (T)Enum.ToObject(targetType, value);
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        try
+        {
+            return (T)Convert.ChangeType(value, targetType);
+        }
+        catch
+        {
+            return defaultValue;
+        }
     }
 }

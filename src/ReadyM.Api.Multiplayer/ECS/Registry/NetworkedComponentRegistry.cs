@@ -27,6 +27,9 @@ public class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistrat
         return base.RegisterComponent(defaultValue);
     }
 
+    public NetworkedComponentId GetNetworkedComponentId(Type type)
+        => _ids[type].Id;
+
     public NetworkedComponentId GetNetworkedComponentId<T>()
         => _ids[typeof(T)].Id;
 

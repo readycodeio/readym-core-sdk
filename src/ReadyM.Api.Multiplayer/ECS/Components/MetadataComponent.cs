@@ -1,13 +1,15 @@
 ﻿using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
+using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
+[NativeComponent<MetadataComponent>]
+[StructLayout(LayoutKind.Sequential)]
 public struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>, INetSerializable
 {
     public NetworkId NetId { get; private set; } = netId;

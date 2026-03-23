@@ -10,8 +10,8 @@ namespace ReadyM.Api.Multiplayer.ECS.Values;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
 {
-    public PlayerId Creator { get; private set; } = creator; // 2 bytes
     public uint Id { get; private set; } = id; // 4 bytes
+    public PlayerId Creator { get; private set; } = creator; // 2 bytes
 
     public bool Equals(NetworkId other)
         => Creator == other.Creator && Id == other.Id;
