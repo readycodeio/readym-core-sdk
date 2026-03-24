@@ -30,4 +30,7 @@
         <DebugType>none</DebugType>
         <DebugSymbols>false</DebugSymbols>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(SelfHosted)' == 'true'">
+        <DefineConstants>$(DefineConstants);SELF_HOSTED</DefineConstants>
+    </PropertyGroup>
 </Project>
