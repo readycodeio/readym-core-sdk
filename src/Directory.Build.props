@@ -33,4 +33,11 @@
     <PropertyGroup Condition="'$(SelfHosted)' == 'true'">
         <DefineConstants>$(DefineConstants);SELF_HOSTED</DefineConstants>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)' == 'DebugSelfHosted'">
+        <DefineConstants>$(DefineConstants);DEBUG;SELF_HOSTED</DefineConstants>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <OutputPath>bin\DebugSelfHosted\</OutputPath>
+        <DebugSymbols>true</DebugSymbols>
+        <IntermediateOutputPath>obj\DebugSelfHosted\</IntermediateOutputPath>
+    </PropertyGroup>
 </Project>
