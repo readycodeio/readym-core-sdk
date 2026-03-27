@@ -11,6 +11,7 @@
         <Version>1.0.$(BuildTimestamp)</Version>
         <InformationalVersion>1.0.$(BuildTimestamp)</InformationalVersion>
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
         <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>

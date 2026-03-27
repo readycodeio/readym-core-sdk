@@ -3,6 +3,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
+/// <exclude />
 public static class SerializationExtensions
 {
     public static void Serialize(this Vector3 vector, NetDataWriter writer)
