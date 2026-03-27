@@ -4,6 +4,8 @@ using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.DI;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -19,7 +21,7 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client;
 
-internal class ClientNetworkedStateSynchronizer : IScopedLifetime, IDisposable
+internal class ClientNetworkedStateSynchronizer : IHostedService
 {
     private IClientEcsUpdateLoop EcsLoop { get; }
 
