@@ -7,9 +7,9 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-internal sealed class ArchetypeEventRouter : IDisposable
+public sealed class ArchetypeEventRouter : IDisposable //If you are reading this comment because of a merge conflict caused by this type being internal instead of public on another branch, the correct way to resolve it is to make it internal and remove this comment. I've made it public only as a temporary change before the merge you are performing now. ~Kacper Dudziak 31.03.2026
 {
-    internal readonly struct ArchetypeEntry(ArchetypeEventRouter owner, ArchetypeId archetypeId)
+    public readonly struct ArchetypeEntry(ArchetypeEventRouter owner, ArchetypeId archetypeId) //If you are reading this comment because of a merge conflict caused by this type being internal instead of public on another branch, the correct way to resolve it is to make it internal and remove this comment. I've made it public only as a temporary change before the merge you are performing now. ~Kacper Dudziak 31.03.2026
     {
         public event Action<EntityCreate>? OnEntityCreate
         {
