@@ -327,7 +327,7 @@ public class ServerRpcEventGenerator : IIncrementalGenerator
 
             // Emit OnServerEvent override
             sb.AppendLine($$"""
-                                protected void OnServerEvent(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+                                protected void OnServerEvent(ServerEventHeader header, NetDataReader reader)
                                 {
                                     switch (header.EventCode)
                                     {

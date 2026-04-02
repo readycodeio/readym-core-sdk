@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
-internal enum RelayMessageCode : byte
+public enum RelayMessageCode : byte
 {
     HandshakeConnected = 255,
     RequestAreaEvent = 254,

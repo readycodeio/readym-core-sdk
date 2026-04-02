@@ -11,9 +11,7 @@ namespace ReadyM.Api.Generators;
 [Generator]
 public class ClientRpcEventGenerator : IIncrementalGenerator
 {
-    private const string ContextTypeName = "IRelayClientNetworkThreadContext";
     private const string PlayerIdTypeName = "PlayerId";
-    private const string ContextParameterName = "__context";
     private const string SenderParameterName = "__sender";
     private const string EventCodeTypeName = "RelayMessageCode";
     private const string EventCodeParameterName = "__eventCode";
@@ -68,11 +66,10 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
         var groupsByClass = methods.GroupBy(m => m.Symbol.ContainingType, SymbolEqualityComparer.Default);
 
-        var eventCodeByte = 0;
 
         foreach (var group in groupsByClass)
         {
-            var minEventCode = eventCodeByte;
+            var eventCodeByte = 0;
             var maxEventCode = eventCodeByte;
             
             var classSymbol = group.Key;
@@ -96,6 +93,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
                                          {{access}} partial class {{className}}
                                          {
+                                         
                                          """);
 
             var dispatchCases = new StringBuilder();
@@ -114,7 +112,6 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 var parameters = methodSymbol.Parameters;
 
                 var valid = true;
-                int? contextIndex = null;
                 int? senderIndex = null;
                 int? eventCodeIndex = null;
                 List<(ITypeSymbol? Type, bool IsSerializablePrimitive, bool IsNetSerializable)> paramTypes = [];
@@ -122,18 +119,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 for (var i = 0; i < parameters.Length; i++)
                 {
                     var param = parameters[i];
-                    if (param.Name == ContextParameterName)
-                    {
-                        if (param.Type.Name != ContextTypeName)
-                        {
-                            valid = false;
-                            break;
-                        }
-                        // IRelayClientNetworkThreadContext __context
-                        contextIndex = i;
-                        paramTypes.Add((null, false, false));
-                    }
-                    else if (param.Name == SenderParameterName)
+                    if (param.Name == SenderParameterName)
                     {
                         if (param.Type.Name != PlayerIdTypeName)
                         {
@@ -179,7 +165,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
                 if (!valid)
                 {
-                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([IRelayClientNetworkThreadContext __context], [PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
+                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
                     continue;
                 }
 
@@ -195,9 +181,6 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                         continue;
 
                     if (i == eventCodeIndex)
-                        continue;
-
-                    if (i == contextIndex)
                         continue;
 
                     if (payloadCount > 0)
@@ -228,7 +211,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                                         if (!RelayClient.PlayerId.HasValue)
                                             return;
                                         
-                                        var message = RelayMessage.ByRelayMode((RelayMessageCode){{eventCodeByte}}, RelayClient.PlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                        var message = RelayMessage.ByRelayMode((RelayMessageCode)({{eventCodeByte}} + Offset), RelayClient.PlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                         var writer = message.Writer;
                                 """);
 
@@ -241,9 +224,6 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                         continue;
 
                     if (i == eventCodeIndex)
-                        continue;
-
-                    if (i == contextIndex)
                         continue;
 
                     if (isSerializablePrimitive)
@@ -276,7 +256,7 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                 {
                     var (payloadType, isSerializablePrimitive, isNetSerializable) = paramTypes[i];
 
-                    if (i == contextIndex || i == senderIndex || i == eventCodeIndex)
+                    if (i == senderIndex || i == eventCodeIndex)
                         continue;
                     
                     if (isSerializablePrimitive)
@@ -318,12 +298,6 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                         dispatchCases.Append("header.EventCode");
                         continue;
                     }
-
-                    if (i == contextIndex)
-                    {
-                        dispatchCases.Append("context");
-                        continue;
-                    }
                     
                     dispatchCases.Append($"payload{payloadCount}");
                     payloadCount++;
@@ -339,9 +313,9 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
 
             // Emit OnCustomEvent override
             sb.AppendLine($$"""
-                                protected void OnCustomRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
+                                protected void OnCustomRpcMessageHandler(CustomRelayEventHeader header, NetDataReader reader)
                                 {
-                                    switch ((byte)header.EventCode)
+                                    switch ((byte)header.EventCode - Offset)
                                     {
                             {{dispatchCases}}
                                         default:
@@ -349,15 +323,17 @@ public class ClientRpcEventGenerator : IIncrementalGenerator
                                     }
                                 }
                                     
-                                protected void InitRpc()
+                                protected override void InitRpc()
                                 {
-                                    RelayClient.AddClientRpcMessageHandler((RelayMessageCode){{minEventCode}}, (RelayMessageCode){{maxEventCode}}, OnCustomRpcMessageHandler);
+                                    RelayClient.AddClientRpcMessageHandler((RelayMessageCode)Offset, (RelayMessageCode)({{maxEventCode}} + Offset), OnCustomRpcMessageHandler);
                                 }
                                     
-                                protected void DeInitRpc()
+                                protected override void DeInitRpc()
                                 {
-                                    RelayClient.RemoveClientRpcMessageHandler((RelayMessageCode){{minEventCode}}, (RelayMessageCode){{maxEventCode}}, OnCustomRpcMessageHandler);
+                                    RelayClient.RemoveClientRpcMessageHandler((RelayMessageCode)Offset, (RelayMessageCode)({{maxEventCode}} + Offset), OnCustomRpcMessageHandler);
                                 }
+                                
+                                protected override byte EventsCount => {{maxEventCode + 1}};
                             """);
 
             sb.AppendLine("}");

@@ -19,7 +19,7 @@ internal class NetworkPingMonitor(IRelayClient relayClient) : IHostedService
         relayClient.OnPingUpdated -= HandlePingUpdated;
     }
 
-    private void HandlePingUpdated(IRelayClientNetworkThreadContext relayClientNetworkThreadContext, int ping)
+    private void HandlePingUpdated(int ping)
     {
         CurrentPing = ping;
         OnPingUpdated?.Invoke(ping);

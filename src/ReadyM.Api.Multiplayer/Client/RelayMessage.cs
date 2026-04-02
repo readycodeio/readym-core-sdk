@@ -6,13 +6,13 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-internal struct RelayMessage
+public struct RelayMessage
 {
-    public readonly RelayMessageCode EventCode;
+    internal readonly RelayMessageCode EventCode;
     public readonly NetDataWriter Writer;
-    public readonly PlayerId[]? Peers;
-    public readonly RelayMode Mode;
-    public readonly DeliveryMethod DeliveryMethod;
+    internal readonly PlayerId[]? Peers;
+    internal readonly RelayMode Mode;
+    internal readonly DeliveryMethod DeliveryMethod;
 
     private RelayMessage(
         RelayMessageCode eventCode,
@@ -28,7 +28,7 @@ internal struct RelayMessage
         DeliveryMethod = deliveryMethod;
     }
 
-    public static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
+    internal static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.Put((byte)eventCode);
@@ -45,7 +45,7 @@ internal struct RelayMessage
     /// Send an event to a specific player or group of players.
     /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
     /// </summary>
-    public static RelayMessage ToPeers(RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers, DeliveryMethod deliveryMethod)
+    internal static RelayMessage ToPeers(RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.PutCustomRelayEventHeader(eventCode, playerId, peers);

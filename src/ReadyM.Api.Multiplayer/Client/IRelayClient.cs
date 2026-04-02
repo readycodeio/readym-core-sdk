@@ -32,7 +32,7 @@ namespace ReadyM.Api.Multiplayer.Client;
 /// ownership could be transferred to another player. Retaining the owner addressing mode allows the old owner to
 /// re-relay the message to the new owner in that specific rare case.
 /// </summary>
-internal interface IRelayClient : IPlayerIdProvider, IDisposable
+internal interface IRelayClient : IRpcClient, IDisposable
 {
     bool RequestedConnect { get; }
 
@@ -145,7 +145,7 @@ internal interface IRelayClient : IPlayerIdProvider, IDisposable
     /// Used to measure ping. Currently only measures round-trip ping to the server.
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, int>? OnPingUpdated;
+    event Action<int>? OnPingUpdated;
 
     /// <summary>
     /// Fired for each message successfully received by us. The following messages will be received:
@@ -154,25 +154,20 @@ internal interface IRelayClient : IPlayerIdProvider, IDisposable
     /// 3) Global messages send to everyone on the server regardless of area of interest. TODO: Rate limiting?
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage;
+    event Action<ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage;
 
-    event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage;
-    event Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage;
+    event Action<ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage;
+    event Action<CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage;
 
-    void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
+    void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
 
-    void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-    void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler);
-
-    void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
-    void AddClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
-    void RemoveClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
-    void RemoveClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler);
+    void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
 
     /// <summary>
     /// Fired on each server update tick.
@@ -199,7 +194,6 @@ internal interface IRelayClient : IPlayerIdProvider, IDisposable
     void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);
-    void SendMessage(RelayMessage message);
 
     void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
