@@ -15,7 +15,8 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
-public sealed partial class Store
+[WrapperInclude("^GetEntity.*")]
+internal sealed partial class Store
 {
     private struct ArchetypeEntry
     {
@@ -45,7 +46,7 @@ public sealed partial class Store
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
+    internal ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
@@ -57,7 +58,7 @@ public sealed partial class Store
         return archetypeId;
     }
 
-    public Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
+    internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {

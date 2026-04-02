@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Relay.Common.Shim;
+using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimReplayDependencyTracker(IEnumerable<IShimDependencyTrackerImpl> impls)
+internal class ShimReplayDependencyTracker(IEnumerable<IShimDependencyTrackerImpl> impls)
 {
     private readonly List<IShimDependencyTrackerImpl> _impls = [..impls];
 

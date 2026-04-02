@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
@@ -32,7 +32,7 @@ namespace ReadyM.Api.Multiplayer.Client;
 /// ownership could be transferred to another player. Retaining the owner addressing mode allows the old owner to
 /// re-relay the message to the new owner in that specific rare case.
 /// </summary>
-public interface IRelayClient : IPlayerIdProvider, IDisposable
+internal interface IRelayClient : IPlayerIdProvider, IDisposable
 {
     bool RequestedConnect { get; }
 

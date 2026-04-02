@@ -1,23 +1,23 @@
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Serialization;
 
-namespace ReadyM.Relay.Client.Shim;
+namespace ReadyM.Relay.Client.Shim.ECS;
 
 [DeriveJsonSerializable]
-public partial struct ShimEcsDependencyData(AreaId areaId, PlayerId playerId)
+internal partial struct ShimEcsDependencyData(AreaId areaId, PlayerId playerId)
 {
     private AreaId _areaId = areaId;
     private PlayerId _playerId = playerId;
     
     public AreaId? AreaId
     {
-        get => _areaId == Api.Multiplayer.Idents.AreaId.Invalid ? null : _areaId;
-        set => _areaId = value ?? Api.Multiplayer.Idents.AreaId.Invalid;
+        get => _areaId == Api.Idents.AreaId.Invalid ? null : _areaId;
+        set => _areaId = value ?? Api.Idents.AreaId.Invalid;
     }
 
     public PlayerId? PlayerId
     {
-        get => _playerId == Api.Multiplayer.Idents.PlayerId.Invalid ? null : _playerId;
-        set => _playerId = value ?? Api.Multiplayer.Idents.PlayerId.Invalid;
+        get => _playerId == Api.Idents.PlayerId.Invalid ? null : _playerId;
+        set => _playerId = value ?? Api.Idents.PlayerId.Invalid;
     }
 }

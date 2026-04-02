@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Relay.Common.Shim;
+using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public abstract class ShimDependencyTrackerImplBase<TCustomData> : IShimDependencyTrackerImpl
+internal abstract class ShimDependencyTrackerImplBase<TCustomData> : IShimDependencyTrackerImpl
 {
     public bool Supports(ShimRequestItem requestItem)
         => requestItem.CustomData is TCustomData customData && Supports(requestItem, customData);

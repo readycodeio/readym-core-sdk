@@ -8,17 +8,16 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Utilities;
-using ReadyM.Relay.Common.Extensions;
 
 namespace ReadyM.Relay.Client;
 
-public class RelayClient : IRelayClient
+internal class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
@@ -772,7 +771,7 @@ public class RelayClient : IRelayClient
             {
                 if (eventCode >= RelayMessageCode.MinBuiltInEvent)
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
                     if (serverHandler != null)
@@ -791,7 +790,7 @@ public class RelayClient : IRelayClient
 
                 if (eventCode >= RelayMessageCode.MinServerRpcEvent)
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
                     if (serverHandler != null)

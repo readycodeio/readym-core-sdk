@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
@@ -7,7 +6,7 @@ using ReadyM.Api.Helpers;
 
 namespace ReadyM.Relay.Client;
 
-public interface IClientEcsUpdateLoop
+internal interface IClientEcsUpdateLoop
 {
     PendingActionScheduler<CommandBufferSynced> Scheduler { get; }
     CommandBufferSynced CommandBuffer { get; }

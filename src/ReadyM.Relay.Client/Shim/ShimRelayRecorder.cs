@@ -5,14 +5,14 @@ using System.Linq;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
-using ReadyM.Relay.Common.Shim;
+using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimRelayRecorder : IDisposable
+internal class ShimRelayRecorder : IDisposable
 {
     private readonly object _lock = new();
     

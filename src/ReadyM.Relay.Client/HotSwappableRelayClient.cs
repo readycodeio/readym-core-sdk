@@ -4,15 +4,14 @@ using System.Threading.Tasks;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Client.Shim;
 
 namespace ReadyM.Relay.Client;
 
-public class HotSwappableRelayClient : IRelayClient
+internal class HotSwappableRelayClient : IRelayClient
 {
     private IRelayClient? _client;
 

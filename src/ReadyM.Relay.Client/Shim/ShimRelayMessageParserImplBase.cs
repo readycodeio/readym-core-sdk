@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public abstract class ShimRelayMessageParserImplBase<TCustomData> : IShimRelayMessageParserImpl<TCustomData>
+internal abstract class ShimRelayMessageParserImplBase<TCustomData> : IShimRelayMessageParserImpl<TCustomData>
 {
     public abstract bool SupportsRequest(ServerEventHeader header);
     public abstract bool SupportsRequest(CustomRelayEventHeader header);

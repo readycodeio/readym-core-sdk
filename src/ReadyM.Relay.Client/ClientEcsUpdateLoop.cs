@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Friflo.Engine.ECS;
@@ -14,9 +15,9 @@ namespace ReadyM.Relay.Client;
 /// This class is responsible for scheduling ECS operations on the client side. The current implementation assumes
 /// that the update loop tick will be called externally from the game code, on the appropriate thread.
 /// </summary>
-public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
+internal class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 {
-    public readonly Store World;
+    private readonly Store _world;
     public CommandBufferSynced CommandBuffer { get; }
 
     private readonly ILogger _logger;
@@ -34,8 +35,8 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     public ClientEcsUpdateLoop(Store world, ILogger logger)
     {
-        World = world;
-        var cb = World.GetCommandBuffer();
+        _world = world;
+        var cb = _world.GetCommandBuffer();
         cb.ReuseBuffer = true;
         CommandBuffer = cb.Synced;
 
@@ -66,7 +67,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     {
         if (!IsRunning)
         {
-            _logger.LogError("ECS update loop is not running. Call `StartAsync()` first.");
+            _logger.LogError("ECS update loop is not running. Call `Start()` first.");
             return;
         }
 
@@ -80,7 +81,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         }
 
         _applicationTime += deltaTime;
-        World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
+        _world.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
         _scheduler.Update();
 
         OnUpdateLoop?.Invoke(CommandBuffer);
@@ -88,7 +89,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     public void Wait(Task task)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         while (true)
         {
             if (task.IsCompleted || task.IsFaulted || task.IsCanceled)
@@ -120,17 +121,17 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
     public void AddSystem(BaseSystem system)
     {
-        World.SystemRoot.Add(system);
+        _world.SystemRoot.Add(system);
     }
 
     public void AddSystem<T>()
         where T : BaseSystem, new()
     {
-        World.SystemRoot.Add(new T());
+        _world.SystemRoot.Add(new T());
     }
 
     public void RemoveSystem(BaseSystem system)
     {
-        World.SystemRoot.Remove(system);
+        _world.SystemRoot.Remove(system);
     }
 }

@@ -5,4 +5,4 @@ namespace ReadyM.Api.Serialization;
 
 [AttributeUsage(AttributeTargets.Class)]
 [MeansImplicitUse]
-public sealed class RegisterJsonConverterAttribute : Attribute;
+internal sealed class RegisterJsonConverterAttribute : Attribute;

@@ -2,14 +2,14 @@ using System;
 
 namespace ReadyM.Api;
 
-public abstract class PatcherBase : IDisposable
+internal abstract class PatcherBase : IDisposable
 {
-    public bool IsDisposed { get; private set; }
+    private bool isDisposed;
     public bool IsPatched { get; private set; }
     
     public void Patch()
     {
-        if (IsDisposed)
+        if (isDisposed)
             throw new ObjectDisposedException("Mod is already disposed.");
         if (IsPatched)
             throw new InvalidOperationException("Mod is already patched.");
@@ -27,7 +27,7 @@ public abstract class PatcherBase : IDisposable
     
     public void Unpatch()
     {
-        if (IsDisposed)
+        if (isDisposed)
             throw new ObjectDisposedException("Mod is already disposed.");
         if (!IsPatched)
             throw new InvalidOperationException("Mod is not patched.");
@@ -45,6 +45,6 @@ public abstract class PatcherBase : IDisposable
     {
         if (IsPatched)
             Unpatch();
-        IsDisposed = true;
+        isDisposed = true;
     }
 }

@@ -1,10 +1,10 @@
 ﻿using LiteNetLib;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Multiplayer.Idents;
+using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public interface IRelayClientNetworkThreadContext
+internal interface IRelayClientNetworkThreadContext
 {
     /// <summary>
     /// Whether the client is currently connected to the server - including having a valid `PlayerId` assigned. If

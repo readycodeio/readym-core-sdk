@@ -7,14 +7,11 @@ using ReadyM.Api.Multiplayer.Client;
 
 namespace ReadyM.Relay.Client.Host;
 
-public class RelayClientService(IRelayClient relayClient, ILogger logger) : IDisposable
+internal sealed class RelayClientService(IRelayClient relayClient, ILogger logger) : IDisposable
 {
     private AsyncContextThread? _isolatedNoParallelismAsyncContextThread;
     private Task? _task;
     private CancellationTokenSource? _source;
-
-    public IRelayClient RelayClient
-        => relayClient;
 
     public bool IsRunning { get; private set; }
 

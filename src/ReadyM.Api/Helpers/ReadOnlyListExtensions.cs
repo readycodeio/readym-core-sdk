@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Helpers;
 
-public static class ReadOnlyListExtensions
+internal static class ReadOnlyListExtensions
 {
     public static ReadOnlyList<T> WrapReadOnly<T>(this List<T> list)
         => new ReadOnlyList<T>(list);

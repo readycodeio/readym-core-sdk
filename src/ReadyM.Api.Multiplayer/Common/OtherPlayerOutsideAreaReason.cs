@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.Common;
 
-public enum OtherPlayerOutsideAreaReason
+internal enum OtherPlayerOutsideAreaReason
 {
     OtherLeft,
     OtherDisconnected,

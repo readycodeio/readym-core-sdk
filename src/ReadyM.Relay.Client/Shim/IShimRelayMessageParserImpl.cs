@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public interface IShimRelayMessageParserImpl
+internal interface IShimRelayMessageParserImpl
 {
     bool SupportsRequest(ServerEventHeader header);
     bool SupportsRequest(CustomRelayEventHeader header);
@@ -18,7 +18,7 @@ public interface IShimRelayMessageParserImpl
     object? GetClientRpcResponseCustomDataUntyped(CustomRelayEventHeader header, NetDataReader reader);
 }
 
-public interface IShimRelayMessageParserImpl<out TCustomData> : IShimRelayMessageParserImpl
+internal interface IShimRelayMessageParserImpl<out TCustomData> : IShimRelayMessageParserImpl
 {
     TCustomData GetBuiltInRequestCustomData(ServerEventHeader header, NetDataReader reader);
     TCustomData GetServerRpcRequestCustomData(ServerEventHeader header, NetDataReader reader);

@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public abstract class ShimBuiltInMessageParserImplBase<TCustomData> : ShimRelayMessageParserImplBase<TCustomData>
+internal abstract class ShimBuiltInMessageParserImplBase<TCustomData> : ShimRelayMessageParserImplBase<TCustomData>
 {
     public override bool SupportsRequest(CustomRelayEventHeader header)
         => false;

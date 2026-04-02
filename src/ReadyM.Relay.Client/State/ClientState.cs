@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
@@ -10,16 +11,13 @@ using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
-using ReadyM.Api.Multiplayer.Idents;
-using ReadyM.Relay.Common.ECS.Archetypes;
-using ReadyM.Relay.Common.ECS.Components;
-using ReadyM.Relay.Common.ECS.Jobs;
 
 namespace ReadyM.Relay.Client.State;
 
-public class ClientState : IDisposable
+internal class ClientState : IDisposable
 {
     private enum PendingEventKind
     {
@@ -61,7 +59,7 @@ public class ClientState : IDisposable
     }
 
     private readonly Store _world;
-    private readonly NetworkedEntityManager _netEntity;
+    private readonly INetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
     private readonly IClientEcsUpdateLoop _ecsLoop;
     private readonly JobRegistry _jobRegistry;
@@ -118,17 +116,12 @@ public class ClientState : IDisposable
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
-    public ArchetypeId AreaArchetype { get; }
-    public ArchetypeId PlayerArchetype { get; }
-
     public ClientState(
         Store world,
-        NetworkedEntityManager netEntity,
+        INetworkedEntityManager netEntity,
         IRelayClient relayClient,
         IClientEcsUpdateLoop ecsLoop,
         JobRegistry jobRegistry,
-        DefaultAreaArchetypeRegistration areaArchetype,
-        DefaultPlayerArchetypeRegistration playerArchetype,
         ILogger logger)
     {
         _world = world;
@@ -137,9 +130,6 @@ public class ClientState : IDisposable
         _ecsLoop = ecsLoop;
         _jobRegistry = jobRegistry;
         _logger = logger;
-
-        AreaArchetype = areaArchetype.AreaArchetype;
-        PlayerArchetype = playerArchetype.PlayerArchetype;
 
         _ecsLoop.OnUpdateLoop += ProcessPendingEvents;
 

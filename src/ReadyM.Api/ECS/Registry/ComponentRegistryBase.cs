@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.ECS.Registry;
 
-public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentRegistryBase<TRegistry, TComponent>
+internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentRegistryBase<TRegistry, TComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = new();
-    private readonly List<Type> _componentTypes = new();
+    private readonly List<Type> _componentTypes = [];
     
     public IReadOnlyList<Type> ComponentTypes
         => _componentTypes;
@@ -21,7 +21,7 @@ public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentR
         }
     }
     
-    public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
+    protected TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
         _componentTypes.Add(typeof(T));

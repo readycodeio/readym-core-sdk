@@ -1,9 +1,9 @@
-﻿using ReadyM.Relay.Client.Shim;
-using ReadyM.Relay.Common.Serialization;
+﻿using ReadyM.Api.Multiplayer.Serialization;
+using ReadyM.Relay.Client.Shim.ECS;
 
 namespace ReadyM.Relay.Client.Serialization;
 
-public class ClientShimTextSerializerRegistration : ITextRelaySerializerRegistration
+internal class ClientShimTextSerializerRegistration : ITextRelaySerializerRegistration
 {
     public void Register(TextRelaySerializer serializer)
     {
