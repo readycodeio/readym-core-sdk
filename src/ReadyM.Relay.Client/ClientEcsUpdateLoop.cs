@@ -66,7 +66,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     {
         if (!IsRunning)
         {
-            _logger.LogError("ECS update loop is not running. Call `StartAsync()` first.");
+            _logger.LogError("ECS update loop is not running. Call `Start()` first.");
             return;
         }
 

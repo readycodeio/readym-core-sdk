@@ -41,4 +41,10 @@ public class NetworkedOwnershipManager(Store store, ILogger logger)
         ownerId = meta.Owner;
         return true;
     }
+    
+    public bool TryGetOwner(MetadataComponent meta, out PlayerId ownerId)
+    {
+        ownerId = meta.Owner;
+        return true;
+    }
 }
