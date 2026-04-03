@@ -2,7 +2,9 @@ using System;
 
 namespace ReadyM.Api.Serialization;
 
-/// <exclude />
+/// <summary>
+/// Defines how a struct should be serialized when using <see cref="DeriveINetSerializableAttribute"/>.
+/// </summary>
 [Flags]
 public enum SerializableMode : byte
 {
