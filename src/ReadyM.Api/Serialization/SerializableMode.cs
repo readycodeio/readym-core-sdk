@@ -2,6 +2,7 @@ using System;
 
 namespace ReadyM.Api.Serialization;
 
+/// <exclude />
 [Flags]
 public enum SerializableMode : byte
 {

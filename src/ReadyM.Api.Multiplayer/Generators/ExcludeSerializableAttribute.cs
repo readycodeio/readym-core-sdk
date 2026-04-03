@@ -2,5 +2,6 @@
 
 namespace ReadyM.Api.Multiplayer.Generators;
 
+/// <exclude />
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 public sealed class ExcludeSerializableAttribute : Attribute;

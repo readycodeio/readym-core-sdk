@@ -2,6 +2,7 @@
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
+/// <exclude />
 public readonly struct Field<TComponent, TValue>(
     int id,
     Func<TComponent, TValue> get,
@@ -22,6 +23,7 @@ public readonly struct Field<TComponent, TValue>(
     public static implicit operator int(Field<TComponent, TValue> field) => field.Id;
 }
 
+/// <exclude />
 public readonly struct Field<TComponent, TValue, TContext>(
     int id,
     Func<TComponent, TValue> get,

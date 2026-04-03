@@ -5,22 +5,35 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Idents;
 
+/// <summary>
+/// A unique identifier for a player in the current session.
+/// This is not a persistent identifier and can change over time, especially if players disconnect and reconnect.
+/// It should be used for identifying players during the current session, but not for long-term storage or cross-session identification.
+/// </summary>
 [DeriveJsonSerializable]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerId> // TODO: Make internal?
+public partial struct PlayerId : INetSerializable, IEquatable<PlayerId>
 {
-    private ushort _id = id;
+    private ushort _id;
+
+    internal PlayerId(ushort id)
+    {
+        _id = id;
+    }
+
+    internal ushort RawValue => _id;
 
     /// <summary>
-    /// Numeric identifier for a player. This can change over time, so it should not be used as a persistent identifier.
-    /// Rely on the <see cref="PlayerId"/> as a unique identifier for the current session.
+    /// The PlayerId representing the server itself.
+    /// This can be used to identify actions or messages that originate from the server rather than any specific player.
     /// </summary>
-    public ushort RawValue => _id;
-
     public static PlayerId Server => default;
-    public static PlayerId Invalid => default;
-    public static PlayerId Max => new(ushort.MaxValue);
 
+    /// <summary>
+    /// An invalid PlayerId, which can be used to represent the absence of a player or an uninitialized state.
+    /// </summary>
+    public static PlayerId Invalid => default;
+    
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(_id);
