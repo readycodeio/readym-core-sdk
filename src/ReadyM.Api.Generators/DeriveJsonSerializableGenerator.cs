@@ -150,6 +150,7 @@ namespace {info.Namespace};
                                     => TextSerialize(writer, value, options);
                             }
                             
+                            /// <exclude />
                             public static {{symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}}{{(info.IsNullable ? "?" : "")}} TextDeserialize(ref Utf8JsonReader reader, JsonSerializerOptions options)
                             {
                                 DebugJson.Assert(reader.TokenType == JsonTokenType.StartObject);
@@ -240,6 +241,7 @@ namespace {info.Namespace};
 
         sb.AppendLine($$"""
                             
+                            /// <exclude />
                             public static void TextSerialize(Utf8JsonWriter writer, {{symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}} obj, JsonSerializerOptions options)
                             {
                                 writer.WriteStartObject();

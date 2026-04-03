@@ -2,7 +2,8 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-internal interface IPlayerIdProvider
+/// <exclude />
+public interface IPlayerIdProvider
 {
     PlayerId? PlayerId { get; }
 }

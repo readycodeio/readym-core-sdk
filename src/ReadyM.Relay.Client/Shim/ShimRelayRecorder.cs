@@ -197,7 +197,7 @@ internal class ShimRelayRecorder : IDisposable
         AddResponseItem(responseItem);
     }
 
-    private void OnPingUpdatedHandler(IRelayClientNetworkThreadContext context, int ping)
+    private void OnPingUpdatedHandler(int ping)
     {
         var responseItem = new ShimResponseItem()
         {
@@ -207,7 +207,7 @@ internal class ShimRelayRecorder : IDisposable
         AddResponseItem(responseItem);
     }
 
-    private void OnAnyBuiltInMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    private void OnAnyBuiltInMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         var customData = _parser.GetBuiltInResponseCustomData(header, reader);
         var responseItem = new ShimResponseItem()
@@ -220,7 +220,7 @@ internal class ShimRelayRecorder : IDisposable
         AddResponseItem(responseItem);
     }
 
-    private void OnAnyServerRpcMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    private void OnAnyServerRpcMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         var customData = _parser.GetServerRpcResponseCustomData(header, reader);
         var responseItem = new ShimResponseItem()
@@ -233,7 +233,7 @@ internal class ShimRelayRecorder : IDisposable
         AddResponseItem(responseItem);
     }
 
-    private void OnAnyClientRpcMessageHandler(IRelayClientNetworkThreadContext context, CustomRelayEventHeader header, NetDataReader reader)
+    private void OnAnyClientRpcMessageHandler(CustomRelayEventHeader header, NetDataReader reader)
     {
         var customData = _parser.GetClientRpcResponseCustomData(header, reader);
         var responseItem = new ShimResponseItem()

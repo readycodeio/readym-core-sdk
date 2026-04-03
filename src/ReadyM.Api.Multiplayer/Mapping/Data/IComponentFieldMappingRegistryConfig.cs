@@ -3,8 +3,6 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
-public delegate void DataLoader<TComponent, in TContext>(ref TComponent component, TContext ctx);
-
 internal interface IComponentFieldMappingRegistryConfig
 {
     void Register<TComponent, TValue, TContext>(

@@ -133,7 +133,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     [ThreadStatic]
     private static int _skipEcsEventMessages;
 
-    protected void OnEcsSnapshotMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    protected void OnEcsSnapshotMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
@@ -177,9 +177,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
-    protected void OnEcsChangeOwnershipMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    protected void OnEcsChangeOwnershipMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (context0, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -206,7 +206,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         }, this, EcsLoop.Scheduler.MakeSafe(reader));
     }
 
-    protected void OnEcsDeltaMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    protected void OnEcsDeltaMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
@@ -223,9 +223,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     }
 
     // NOTE: Someone else created an entity, and we are notified about it
-    protected void OnEcsCreateEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    protected void OnEcsCreateEntityMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (cb, self, readerCopy) =>
+        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -263,7 +263,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     }
 
     // NOTE: Someone else deleted an entity, and we are notified about it
-    protected void OnEcsDeleteEntityMessageHandler(IRelayClientNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
+    protected void OnEcsDeleteEntityMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkId>();
         EcsLoop.Scheduler.Schedule(static (cb, self, netId0) =>

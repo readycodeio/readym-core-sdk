@@ -2,6 +2,7 @@
 
 namespace ReadyM.Api.Multiplayer.Mapping.Tags;
 
+/// <exclude />
 public interface IReadyComponent : IComponent
 {
     bool ChangedFromApi { get; }
