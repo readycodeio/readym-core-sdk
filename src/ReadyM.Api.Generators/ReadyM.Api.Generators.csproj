@@ -6,7 +6,7 @@
         <IsRoslynComponent>true</IsRoslynComponent>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <Configurations>Debug;Release;NoDisconnect;Testing;DebugSelfHosted</Configurations>
-        <Platforms>AnyCPU;x64</Platforms>
+        <Platforms>AnyCPU</Platforms>
         <RootNamespace>ReadyM.Api.Generators</RootNamespace>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     </PropertyGroup>
