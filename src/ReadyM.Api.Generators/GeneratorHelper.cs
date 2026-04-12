@@ -32,6 +32,9 @@ internal static class GeneratorHelper
             var useMember = true;
             var canUseMember = true;
 
+            if (member.Name == "_dirtyMask")
+                continue;
+            
             if (member.DeclaredAccessibility == Accessibility.Private)
             {
                 if (!mapPrivate)

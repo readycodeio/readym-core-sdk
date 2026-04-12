@@ -63,7 +63,7 @@ public class DeriveJsonSerializableGenerator : IIncrementalGenerator
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
         var symbol = model.GetDeclaredSymbol(node) as INamedTypeSymbol;
 
-        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveJsonSerializableAttribute", "Mode", (1 << 0) | (1 << 2));
+        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveJsonSerializableAttribute", "mode", (1 << 0) | (1 << 2));
         
         var mapFields = (mode & (1 << 0)) != 0;
         var mapProperties = (mode & (1 << 1)) != 0;

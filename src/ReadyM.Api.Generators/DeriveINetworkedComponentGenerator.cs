@@ -36,8 +36,8 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
         var symbol = model.GetDeclaredSymbol(node) as INamedTypeSymbol;
         
-        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetworkedComponentAttribute", "Mode", (1 << 0) | (1 << 2));
-        var emitDirtyMask = AttributeUtils.GetAttribute<bool>(symbol, "DeriveINetworkedComponentAttribute", "EmitDirtyMask", true);
+        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetworkedComponentAttribute", "mode", (1 << 0) | (1 << 2));
+        var emitDirtyMask = AttributeUtils.GetAttribute<bool>(symbol, "DeriveINetworkedComponentAttribute", "emitDirtyMask", true);
 
         var mapFields = (mode & (1 << 0)) != 0;
         var mapProperties = (mode & (1 << 1)) != 0;
@@ -58,6 +58,41 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         return (name, source);
     }
 
+    private static string GetGeneratedPropertyName(string memberName)
+    {
+        if (memberName.StartsWith("_", StringComparison.Ordinal))
+        {
+            if (memberName.Length == 1)
+                return "EmptyNameField";
+            else
+                return char.ToUpper(memberName[1]) + memberName.Substring(2);
+        }
+        else if (char.IsUpper(memberName[0]))
+        {
+            return memberName + "DirtyAware";
+        }
+        else
+            return char.ToUpper(memberName[0]) + memberName.Substring(1);
+    }
+
+    private static bool HasSerializeMethod(ITypeSymbol type)
+        => type.GetMembers("Serialize")
+            .OfType<IMethodSymbol>()
+            .Any(m =>
+                m.Parameters.Length == 1 &&
+                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataWriter");
+
+    private static bool HasDeserializeMethod(ITypeSymbol type)
+        => type.GetMembers("Deserialize")
+            .OfType<IMethodSymbol>()
+            .Any(m =>
+                m.Parameters.Length == 1 &&
+                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataReader");
+
+    private static bool IsVectorLike(ITypeSymbol type)
+        => type.Name is "Vector2" or "Vector3" or "Vector4" &&
+           type.ContainingNamespace.ToDisplayString() == "System.Numerics";
+
     private string GenerateNetworkedComponent(INamedTypeSymbol symbol, bool mapFields, bool mapProperties, bool mapPrivate, bool mapPublic, bool mapInternal, bool emitDirtyMask)
     {
         var info = GeneratorHelper.GetSymbolInfo(
@@ -73,19 +108,19 @@ public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 
         switch (info.Members.Length)
         {
-            case < sizeof(byte) * 8:
+            case <= sizeof(byte) * 8:
                 maskType = "byte";
                 maskTypeRead = "GetByte";
                 break;
-            case < sizeof(ushort) * 8:
+            case <= sizeof(ushort) * 8:
                 maskType = "ushort";
                 maskTypeRead = "GetUShort";
                 break;
-            case < sizeof(uint) * 8:
+            case <= sizeof(uint) * 8:
                 maskType = "uint";
                 maskTypeRead = "GetUInt";
                 break;
-            case < sizeof(ulong) * 8:
+            case <= sizeof(ulong) * 8:
                 maskType = "ulong";
                 maskTypeRead = "GetULong";
                 break;
@@ -125,6 +160,9 @@ namespace {info.Namespace}
         var enumBaseType = new SpecialType[info.Members.Length];
         var isEquatable = new bool[info.Members.Length];
         var isDeltaEquatable = new bool[info.Members.Length];
+        var isCustomSerializable = new bool[info.Members.Length];
+        var isVectorLike = new bool[info.Members.Length];
+        var isSupported = new bool[info.Members.Length];
         
         for (var i = 0; i < info.Members.Length; i++)
         {
@@ -132,10 +170,19 @@ namespace {info.Namespace}
             isEnum[i] = info.Members[i].Type.TypeKind == TypeKind.Enum;
             isEquatable[i] = SerializationHelper.IsEquatable(info.Members[i].Type);
             isDeltaEquatable[i] = SerializationHelper.IsDeltaEquatable(info.Members[i].Type);
+            isCustomSerializable[i] = HasSerializeMethod(info.Members[i].Type) && HasDeserializeMethod(info.Members[i].Type);
+            isVectorLike[i] = IsVectorLike(info.Members[i].Type);
+            isSupported[i] = usePutGet[i] || isEnum[i] || isEquatable[i] || isDeltaEquatable[i] || isCustomSerializable[i] || isVectorLike[i];
             
             if (isEnum[i])
             {
                 enumBaseType[i] = SerializationHelper.GetEnumBaseType(info.Members[i].Type);
+            }
+
+            if (!isSupported[i])
+            {
+                sb.AppendLine($"        #error Unsupported type '{info.Members[i].Type.ToDisplayString()}' for networked member '{info.Members[i].Name}'.");
+                sb.AppendLine();
             }
         }
 
@@ -144,24 +191,24 @@ namespace {info.Namespace}
             var field = info.Members[i];
             var type = field.Type.ToDisplayString();
             var fieldName = field.Name;
-            string propertyName;
-            if (fieldName.StartsWith("_"))
-                propertyName = char.ToUpper(fieldName[1]) + fieldName.Substring(2);
-            else
-                propertyName = char.ToUpper(fieldName[0]) + fieldName.Substring(2);
+            var genPropertyName = GetGeneratedPropertyName(fieldName);
 
             if (field.ReadOnly)
             {
-                sb.AppendLine($"        public readonly {type} {propertyName}");
+                sb.AppendLine($"        public readonly {type} {genPropertyName}");
                 sb.AppendLine($"            => {field.Name};");
             }
             else
             {
-                sb.AppendLine($"        public {type} {propertyName}");
+                sb.AppendLine($"        public {type} {genPropertyName}");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            get => {field.Name};");
 
-                if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
+                if (!isSupported[i])
+                {
+                    sb.AppendLine($"            set {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }}");
+                }
+                else if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
                 {
                     sb.AppendLine($"            set {{ if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; _dirtyMask |= ({maskType})1 << {i}; }} }}");
                 }
@@ -205,7 +252,11 @@ namespace {info.Namespace}
         {
             var field = info.Members[i];
 
-            if (usePutGet[i])
+            if (!isSupported[i])
+            {
+                continue;
+            }
+            else if (usePutGet[i])
             {
                 sb.AppendLine($"            writer.Put({field.Name});");
             }
@@ -228,17 +279,21 @@ namespace {info.Namespace}
         for (var i = 0; i < info.Members.Length; i++)
         {
             var field = info.Members[i];
-            var propertyName = char.ToUpper(field.Name[1]) + field.Name.Substring(2);
+            var genPropertyName = GetGeneratedPropertyName(field.Name);
 
-            if (usePutGet[i])
+            if (!isSupported[i])
+            {
+                continue;
+            }
+            else if (usePutGet[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"            {propertyName} = reader.{getMethod}();");
+                sb.AppendLine($"            {genPropertyName} = reader.{getMethod}();");
             }
             else if (isEnum[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"            {field.Name} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
+                sb.AppendLine($"            {genPropertyName} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
             }
             else
             {
@@ -259,7 +314,11 @@ namespace {info.Namespace}
         {
             var field = info.Members[i];
 
-            if (usePutGet[i])
+            if (!isSupported[i])
+            {
+                continue;
+            }
+            else if (usePutGet[i])
             {
                 sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) writer.Put({field.Name});");
             }
@@ -283,9 +342,13 @@ namespace {info.Namespace}
         for (var i = 0; i < info.Members.Length; i++)
         {
             var field = info.Members[i];
-            var propertyName = char.ToUpper(field.Name[1]) + field.Name.Substring(2);
+            var propertyName = GetGeneratedPropertyName(field.Name);
 
-            if (usePutGet[i])
+            if (!isSupported[i])
+            {
+                continue;
+            }
+            else if (usePutGet[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
                 sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {propertyName} = reader.{getMethod}();");
@@ -310,7 +373,11 @@ namespace {info.Namespace}
         {
             var field = info.Members[i];
 
-            if (usePutGet[i])
+            if (!isSupported[i])
+            {
+                continue;
+            }
+            else if (usePutGet[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
                 sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) reader.{getMethod}();");

@@ -33,7 +33,7 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
         var symbol = model.GetDeclaredSymbol(node) as INamedTypeSymbol;
 
-        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetSerializableAttribute", "Mode", (1 << 0) | (1 << 2));
+        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetSerializableAttribute", "mode", (1 << 0) | (1 << 2));
         
         var mapFields = (mode & (1 << 0)) != 0;
         var mapProperties = (mode & (1 << 1)) != 0;

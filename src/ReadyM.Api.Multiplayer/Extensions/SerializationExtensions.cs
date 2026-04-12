@@ -5,6 +5,18 @@ namespace ReadyM.Api.Multiplayer.Extensions;
 
 public static class SerializationExtensions
 {
+    public static void Serialize(this Vector2 vector, NetDataWriter writer)
+    {
+        writer.Put(vector.X);
+        writer.Put(vector.Y);
+    }
+
+    public static void Deserialize(this ref Vector2 vector, NetDataReader reader)
+    {
+        vector.X = reader.GetFloat();
+        vector.Y = reader.GetFloat();
+    }
+    
     public static void Serialize(this Vector3 vector, NetDataWriter writer)
     {
         writer.Put(vector.X);

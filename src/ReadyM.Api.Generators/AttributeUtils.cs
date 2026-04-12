@@ -28,7 +28,7 @@ public static class AttributeUtils
 
         foreach (var named in attr.NamedArguments)
         {
-            if (string.Equals(named.Key, keyName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(named.Key, keyName))
                 return ConvertValue<T>(named.Value.Value, defaultValue);
         }
 
