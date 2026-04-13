@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators;
 
-internal class GeneratorField(
+internal class DeriveMemberInfo(
     string name,
     ITypeSymbol type,
     int order,

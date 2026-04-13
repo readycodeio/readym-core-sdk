@@ -55,7 +55,7 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
 
     private string GenerateINetSerializableImpl(INamedTypeSymbol symbol, bool mapFields, bool mapProperties, bool mapPrivate, bool mapPublic, bool mapInternal)
     {
-        var info = GeneratorHelper.GetSymbolInfo(
+        var info = DeriveComponentUtils.GetTargetInfo(
             symbol,
             mapFields: mapFields,
             mapProperties: mapProperties, 
@@ -76,7 +76,7 @@ public partial struct {info.Name}
 {{
 ");
 
-        foreach (var error in info.ErrorMessage)
+        foreach (var error in info.ErrorMessages)
         {
             sb.AppendLine($"    #error {error}");
         }
