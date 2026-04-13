@@ -19,7 +19,7 @@ internal abstract class CSharpFieldTypeSupportBase : ICSharpFieldTypeSupport
 
     public abstract void EmitSkipDelta(StringBuilder sb, string maskType, DeriveMemberModel model);
 
-    protected static string DirtySet(string maskType, DeriveMemberModel model)
+    protected static string SetDirtyMask(string maskType, DeriveMemberModel model)
         => $"{model.SourceMember.Name} = value; _dirtyMask |= ({maskType})1 << {model.Index};";
 
     protected static string FullyQualifiedType(ITypeSymbol type)

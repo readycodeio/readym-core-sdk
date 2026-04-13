@@ -8,7 +8,7 @@ using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
-[NativeComponent<MetadataComponent>]
+[NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
 public struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>, INetSerializable
 {

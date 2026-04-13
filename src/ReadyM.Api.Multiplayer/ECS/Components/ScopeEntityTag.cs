@@ -4,6 +4,6 @@ using ReadyM.Api.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
-[NativeComponent<ScopeEntityTag>]
+[NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct ScopeEntityTag : ITag;

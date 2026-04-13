@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -26,16 +27,8 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         if (syntaxNode is not StructDeclarationSyntax { AttributeLists.Count: > 0 } structDecl)
             return false;
 
-        foreach (var attributeList in structDecl.AttributeLists)
-        {
-            foreach (var attribute in attributeList.Attributes)
-            {
-                if (attribute.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" })
-                    return true;
-            }
-        }
-
-        return false;
+        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" });
     }
 
     private static (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)

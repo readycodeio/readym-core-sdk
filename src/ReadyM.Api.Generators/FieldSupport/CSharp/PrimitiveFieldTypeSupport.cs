@@ -17,7 +17,7 @@ internal sealed class PrimitiveFieldTypeSupport : CSharpFieldTypeSupportBase
         if (type == null)
             throw new InvalidOperationException("Member type unexpectedly null.");
 
-        var dirtySet = DirtySet(maskType, model);
+        var dirtySet = SetDirtyMask(maskType, model);
 
         if (type.SpecialType == SpecialType.System_Single)
             return $"if (Math.Abs({fieldName} - value) > {DeriveComponentUtils.FloatComparisonEpsilon}f) {{ {dirtySet} }}";
@@ -29,26 +29,26 @@ internal sealed class PrimitiveFieldTypeSupport : CSharpFieldTypeSupportBase
     }
 
     public override void EmitSerialize(StringBuilder sb, DeriveMemberModel model)
-        => sb.AppendLine($"            writer.Put({model.SourceMember.Name});");
+        => sb.AppendLine($"writer.Put({model.SourceMember.Name});");
 
     public override void EmitDeserialize(StringBuilder sb, string maskType, DeriveMemberModel model)
     {
         var getMethod = SerializationHelper.GetDeserializationMethod(model.SourceMember.Type.SpecialType);
-        sb.AppendLine($"            {model.GeneratedPropertyName} = reader.{getMethod}();");
+        sb.AppendLine($"{model.GeneratedPropertyName} = reader.{getMethod}();");
     }
 
     public override void EmitWriteDelta(StringBuilder sb, string maskType, DeriveMemberModel model)
-        => sb.AppendLine($"            if ((mask & (({maskType})1 << {model.Index})) != 0) writer.Put({model.SourceMember.Name});");
+        => sb.AppendLine($"if ((mask & (({maskType})1 << {model.Index})) != 0) writer.Put({model.SourceMember.Name});");
 
     public override void EmitReadDelta(StringBuilder sb, string maskType, DeriveMemberModel model)
     {
         var getMethod = SerializationHelper.GetDeserializationMethod(model.SourceMember.Type.SpecialType);
-        sb.AppendLine($"            if ((mask & (({maskType})1 << {model.Index})) != 0) {model.GeneratedPropertyName} = reader.{getMethod}();");
+        sb.AppendLine($"if ((mask & (({maskType})1 << {model.Index})) != 0) {model.GeneratedPropertyName} = reader.{getMethod}();");
     }
 
     public override void EmitSkipDelta(StringBuilder sb, string maskType, DeriveMemberModel model)
     {
         var getMethod = SerializationHelper.GetDeserializationMethod(model.SourceMember.Type.SpecialType);
-        sb.AppendLine($"            if ((mask & (({maskType})1 << {model.Index})) != 0) reader.{getMethod}();");
+        sb.AppendLine($"if ((mask & (({maskType})1 << {model.Index})) != 0) reader.{getMethod}();");
     }
 }

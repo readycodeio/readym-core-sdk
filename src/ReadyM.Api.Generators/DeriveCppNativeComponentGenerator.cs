@@ -27,16 +27,9 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         if (structDecl == null || structDecl.AttributeLists.Count == 0)
             return false;
 
-        foreach (var attribute in structDecl.AttributeLists.SelectMany(static x => x.Attributes))
-        {
-            if (attribute.Name is IdentifierNameSyntax identifierName &&
-                identifierName.Identifier.Text == "DeriveINetworkedComponent")
-            {
-                return true;
-            }
-        }
-
-        return false;
+        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" }) &&
+               attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" });
     }
 
     private static (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)

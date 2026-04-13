@@ -3,21 +3,17 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.FieldSupport.CSharp;
 
-internal sealed class EquatableFieldTypeSupport : CSharpFieldTypeSupportBase
+internal class NativeContainerFieldTypeSupport : CSharpFieldTypeSupportBase
 {
     public override bool CanHandle(ITypeSymbol type)
-        => SerializationHelper.IsEquatable(type);
+        => SerializationHelper.IsNativeContainer(type);
 
     public override string BuildSetterBody(string maskType, DeriveMemberModel model)
     {
         var setDirtyMask = SetDirtyMask(maskType, model);
-        var type = model.SourceMember.Type;
         var fieldName = model.SourceMember.Name;
 
-        if (type.IsValueType)
-            return $"if (!{fieldName}.Equals(value)) {{ {setDirtyMask} }}";
-
-        return $"if (!({fieldName}?.Equals(value) ?? value is null)) {{ {setDirtyMask} }}";
+        return $"if (!{fieldName}.Equals(value)) {{ {setDirtyMask} }}";
     }
 
     public override void EmitSerialize(StringBuilder sb, DeriveMemberModel model)

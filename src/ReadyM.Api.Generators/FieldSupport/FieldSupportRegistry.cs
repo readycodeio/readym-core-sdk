@@ -15,6 +15,7 @@ internal class FieldSupportRegistry
         new CSharp.DeltaEquatableFieldTypeSupport(),
         new CSharp.EquatableFieldTypeSupport(),
         new CSharp.CustomSerializableFieldTypeSupport(),
+        new CSharp.NativeContainerFieldTypeSupport(),
     ];
 
     private static readonly ICppFieldTypeSupport[] CppFieldSupports =
@@ -25,6 +26,7 @@ internal class FieldSupportRegistry
         new Cpp.DeltaEquatableFieldTypeSupport(),
         new Cpp.EquatableFieldTypeSupport(),
         new Cpp.CustomSerializableFieldTypeSupport(),
+        new Cpp.NativeContainerFieldTypeSupport(),
     ];
     
     internal static ICSharpFieldTypeSupport? ResolveCSharpSupport(ITypeSymbol type)

@@ -25,12 +25,9 @@ internal abstract class CppFieldTypeSupportBase : ICppFieldTypeSupport
         
         foreach (var d in NamespaceReplacements)
         {
-            var dottedPrefix = d.Key + ".";
-            if (fullName.StartsWith(dottedPrefix))
-            {
-                fullName = d.Value + "::" + fullName.Substring(dottedPrefix.Length);
-                break;
-            }
+            // Regex that matches prefixes with no preceding dot, but one succeeding dot. The dots inside d.Key are escaped
+            var lookupRegex = $"(?<!\\.){d.Key.Replace(".", "\\.")}\\.";
+            fullName = System.Text.RegularExpressions.Regex.Replace(fullName, lookupRegex, d.Value + "::");
         }
 
         var parts = fullName.Split('.') ?? [];
