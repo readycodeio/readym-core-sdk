@@ -7,7 +7,7 @@ namespace ReadyM.Api.Generators;
 
 public static class SerializationHelper
 {
-    private static readonly Dictionary<SpecialType, string> _specialTypeMap = new()
+    private static readonly Dictionary<SpecialType, string> SpecialTypeMap = new()
     {
         { SpecialType.System_Boolean,   "Bool"      },
         { SpecialType.System_Byte,      "Byte"      },
@@ -25,11 +25,9 @@ public static class SerializationHelper
     };
 
     public static string GetDeserializationMethod(SpecialType specialType)
-    {
-        return _specialTypeMap.TryGetValue(specialType, out var methodName)
+        => SpecialTypeMap.TryGetValue(specialType, out var methodName)
             ? $"Get{methodName}"
             : throw new ArgumentException($"Unsupported special type: {specialType}");
-    }
 
     public static SpecialType GetEnumBaseType(ITypeSymbol typeSymbol)
     {
@@ -44,16 +42,12 @@ public static class SerializationHelper
     }
 
     public static string GetSpecialTypeCSharpName(SpecialType specialType)
-    {
-        return _specialTypeMap.TryGetValue(specialType, out var name)
+        => SpecialTypeMap.TryGetValue(specialType, out var name)
             ? name.ToLowerInvariant()
             : throw new ArgumentException($"Unsupported special type: {specialType}");
-    }
 
     public static bool IsSerializablePrimitive(SpecialType specialType)
-    {
-        return _specialTypeMap.ContainsKey(specialType);
-    }
+        => SpecialTypeMap.ContainsKey(specialType);
 
     public static bool IsINetSerializable(ITypeSymbol type)
     {
@@ -62,14 +56,28 @@ public static class SerializationHelper
     }
 
     public static bool IsEquatable(ITypeSymbol type)
-    {
-        return type.AllInterfaces.Any(i =>
+        => type.AllInterfaces.Any(i =>
             i.ContainingNamespace.ToDisplayString() == "System" && i is { Name: "IEquatable", TypeArguments.Length: 1 } && SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], type));
-    }
 
     public static bool IsDeltaEquatable(ITypeSymbol type)
-    {
-        return type.AllInterfaces.Any(i =>
+        => type.AllInterfaces.Any(i =>
             i.ContainingNamespace.ToDisplayString() == "ReadyM.Api.Serialization" && i is { Name: "IDeltaEquatable", TypeArguments.Length: 1 } && SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], type));
-    }
+    
+    internal static bool IsVectorLike(ITypeSymbol type)
+        => (type.Name is "Vector2" or "Vector3" or "Vector4") &&
+           type.ContainingNamespace.ToDisplayString() == "System.Numerics";
+    
+    internal static bool HasSerializeMethod(ITypeSymbol type)
+        => type.GetMembers("Serialize")
+            .OfType<IMethodSymbol>()
+            .Any(m =>
+                m.Parameters.Length == 1 &&
+                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataWriter");
+
+    internal static bool HasDeserializeMethod(ITypeSymbol type)
+        => type.GetMembers("Deserialize")
+            .OfType<IMethodSymbol>()
+            .Any(m =>
+                m.Parameters.Length == 1 &&
+                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataReader");
 }

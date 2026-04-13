@@ -1,251 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Microsoft.CodeAnalysis;
+using ReadyM.Api.Generators.FieldSupport;
 
 namespace ReadyM.Api.Generators;
 
-internal static class DeriveComponentUtils
+public class DeriveComponentUtils
 {
-    internal const string FloatComparisonEpsilon = "0.1f";
-    internal const string DoubleComparisonEpsilon = "0.1";
-    internal const string VectorComparisonEpsilon = "0.01f";
-
-    internal static DeriveMemberInfo GetMemberInfo(ISymbol symbol)
+    internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol)
     {
-        if (symbol is IFieldSymbol f)
-            return new DeriveMemberInfo(
-                name: f.Name,
-                type: f.Type,
-                order: f.DeclaringSyntaxReferences[0].Span.Start,
-                readOnly: f.IsReadOnly,
-                isInvalid: false);
-        else if (symbol is IPropertySymbol p)
-            return new DeriveMemberInfo(
-                name: p.Name,
-                type: p.Type,
-                order: p.DeclaringSyntaxReferences[0].Span.Start,
-                readOnly: p.SetMethod == null,
-                isInvalid: p.GetMethod == null || p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true);
-        else
-            throw new InvalidOperationException($"Unsupported symbol type: {symbol.GetType().Name}");
-    }
-
-    internal static DeriveTargetInfo GetTargetInfo(
-        INamedTypeSymbol symbol,
-        bool mapFields,
-        bool mapProperties,
-        bool mapPrivate,
-        bool mapPublic,
-        bool mapInternal)
-    {
-        var ns = symbol.ContainingNamespace.ToDisplayString();
-        var name = symbol.Name;
-
-        string? dirtyMaskType = null;
-        var errorMessages = new List<string>();
-        var allMembers = new List<DeriveMemberInfo>();
-        
-        foreach (var member in symbol.GetMembers())
-        {
-            bool isField;
-            var useMember = true;
-            var canUseMember = true;
-
-            if (member.Name == "_dirtyMask")
-            {
-                dirtyMaskType = member switch
-                {
-                    IFieldSymbol maskField => maskField.Type.ToDisplayString(),
-                    IPropertySymbol propField => propField.Type.ToDisplayString(),
-                    _ => throw new InvalidOperationException($"Unsupported symbol type for dirty mask: {member.GetType().Name}")
-                };
-                continue;
-            }
-            
-            if (member.DeclaredAccessibility == Accessibility.Private)
-            {
-                if (!mapPrivate)
-                    useMember = false;
-            }
-            else if (member.DeclaredAccessibility == Accessibility.Public)
-            {
-                if (!mapPublic)
-                    useMember = false;
-            }
-            else if (member.DeclaredAccessibility == Accessibility.Internal)
-            {
-                if (!mapInternal)
-                    useMember = false;
-            }
-            else
-            {
-                useMember = false;
-                canUseMember = false;
-            }
-
-            if (member.DeclaringSyntaxReferences.Length <= 0)
-            {
-                useMember = false;
-                canUseMember = false;
-            }
-            
-            if (member is IFieldSymbol f)
-            {
-                if (!mapFields)
-                    useMember = false;
-
-                if (f is { IsStatic: true })
-                {
-                    // Static readonly fields are not serialized
-                    useMember = false;
-                    canUseMember = false;
-                }
-                
-                if (f is { IsReadOnly: true })
-                {
-                    canUseMember = false;
-                }
-
-                isField = true;
-            }
-            else if (member is IPropertySymbol p)
-            {
-                if (!mapProperties)
-                    useMember = false;
-                
-                if (p is { IsStatic: true })
-                {
-                    useMember = false;
-                    canUseMember = false;
-                }
-                
-                if (p is not { GetMethod: not null, SetMethod: not null })
-                {
-                    canUseMember = false;
-                }
-
-                isField = false;
-            }
-            else
-            {
-                useMember = false;
-                canUseMember = false;
-                isField = false;
-            }
-
-            var hasExclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "ExcludeSerializable");
-            var hasInclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "IncludeSerializable");
-
-            if (hasInclude && hasExclude)
-            {
-                errorMessages.Add($"Cannot have `IncludeSerializable` and `ExcludeSerializable` on the same {(isField ? "field" : "property")}: {member.Name}");
-                continue;
-            }
-
-            if (hasInclude)
-                useMember = true;
-            if (hasExclude)
-                useMember = false;
-
-            if (!canUseMember && useMember)
-            {
-                errorMessages.Add($"Cannot use {(isField ? "field" : "property")}: {member.Name}");
-                continue;
-            }
-
-            if (useMember)
-            {
-                var fieldInfo = GetMemberInfo(member);
-                allMembers.Add(fieldInfo);
-            }
-        }
-
-        var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
-
-        return new DeriveTargetInfo(
-            name: name,
-            @namespace: ns,
-            members: allMembers.ToArray(),
-            isNullable: thisNullable,
-            errorMessages: errorMessages.ToArray(),
-            dirtyMaskType: dirtyMaskType
-        );
-    }
-
-    internal static DeriveTargetGenerationModel CreateGenerationModel(
-        INamedTypeSymbol symbol,
-        bool mapFields,
-        bool mapProperties,
-        bool mapPrivate,
-        bool mapPublic,
-        bool mapInternal,
-        bool emitDirtyMask)
-    {
-        if (symbol == null)
-            throw new ArgumentNullException(nameof(symbol));
-
-        var targetInfo = GetTargetInfo(
+        var mode = AttributeUtils.GetAttribute<byte>(
             symbol,
-            mapFields: mapFields,
-            mapProperties: mapProperties,
-            mapPrivate: mapPrivate,
-            mapPublic: mapPublic,
-            mapInternal: mapInternal);
+            "DeriveINetworkedComponentAttribute",
+            "mode",
+            (1 << 0) | (1 << 2));
+        var mapSettings = DeriveUtils.GetMapSettings(mode);
 
-        if (targetInfo == null)
-            throw new InvalidOperationException("GeneratorHelper.GetSymbolInfo returned null.");
+        var emitDirtyMask = AttributeUtils.GetAttribute(
+            symbol,
+            "DeriveINetworkedComponentAttribute",
+            "emitDirtyMask",
+            true);
+        
+        var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, mapSettings);
+        var mask = GetMaskInfo(targetInfo);
+        var members = GetMemberModelList(targetInfo);
 
-        var mask = ResolveMaskInfo(targetInfo.Members.Length, targetInfo.DirtyMaskType, emitDirtyMask);
-
-        var members = new DeriveMemberGenerationModel[targetInfo.Members.Length];
-        for (var i = 0; i < targetInfo.Members.Length; i++)
-        {
-            var member = targetInfo.Members[i];
-            var type = member.Type;
-            if (type == null)
-                throw new InvalidOperationException("Member type unexpectedly null.");
-
-            var usePutGet = SerializationHelper.IsSerializablePrimitive(type.SpecialType);
-            var isEnum = type.TypeKind == TypeKind.Enum;
-            var isEquatable = SerializationHelper.IsEquatable(type);
-            var isDeltaEquatable = SerializationHelper.IsDeltaEquatable(type);
-            var isCustomSerializable = HasSerializeMethod(type) && HasDeserializeMethod(type);
-            var isVectorLike = IsVectorLike(type);
-
-            var isSupported =
-                usePutGet ||
-                isEnum ||
-                isEquatable ||
-                isDeltaEquatable ||
-                isCustomSerializable ||
-                isVectorLike;
-
-            if (member.IsInvalid)
-                isSupported = false;
-
-            var enumBaseType = isEnum
-                ? SerializationHelper.GetEnumBaseType(type)
-                : SpecialType.None;
-
-            members[i] = new DeriveMemberGenerationModel(
-                member,
-                i,
-                GetGeneratedPropertyName(member.Name),
-                isSupported,
-                usePutGet,
-                isEnum,
-                enumBaseType,
-                isEquatable,
-                isDeltaEquatable,
-                isCustomSerializable,
-                isVectorLike);
-        }
-
-        return new DeriveTargetGenerationModel(targetInfo, mask, members, emitDirtyMask);
+        return new DeriveTargetModel(targetInfo, mask, members);
     }
 
+    internal static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo)
+    {
+        if (targetInfo == null)
+            throw new ArgumentNullException(nameof(targetInfo));
+
+        return ResolveMaskInfo(
+            targetInfo.Members.Length,
+            targetInfo.DirtyMaskType,
+            targetInfo.EmitDirtyMask);
+    }
+    
     internal static DeriveMaskInfo ResolveMaskInfo(int memberCount, string? requestedMaskType, bool emitDirtyMask)
     {
         string maskType;
@@ -320,36 +115,66 @@ internal static class DeriveComponentUtils
         return new DeriveMaskInfo(maskType, cppType, readMethod, bits, invalid);
     }
 
-    internal static IEnumerable<string> GetUserInputErrors(DeriveTargetGenerationModel model)
+    
+    internal static DeriveMemberModelWithSupport[] GetMemberModelList(DeriveTargetInfo targetInfo)
     {
-        if (model == null)
-            throw new ArgumentNullException(nameof(model));
+        var members = new DeriveMemberModelWithSupport[targetInfo.Members.Length];
 
-        foreach (var error in model.TargetInfo.ErrorMessages)
+        for (var i = 0; i < targetInfo.Members.Length; i++)
+        {
+            var memberModel = GetMemberModel(targetInfo.Members[i], i);
+            members[i] = memberModel;
+        }
+
+        return members;
+    }
+    
+    internal static DeriveMemberModelWithSupport GetMemberModel(DeriveMemberInfo memberInfo, int index)
+    {
+        var type = memberInfo.Type ?? throw new InvalidOperationException("Member type unexpectedly null.");
+
+        var csharpSupport = memberInfo.IsInvalid ? null : FieldSupportRegistry.ResolveCSharpSupport(type);
+        var cppSupport = memberInfo.IsInvalid ? null : FieldSupportRegistry.ResolveCppSupport(type);
+
+        return new DeriveMemberModelWithSupport(
+            new DeriveMemberModel(memberInfo, GetGeneratedPropertyName(memberInfo.Name), index),
+            csharpSupport,
+            cppSupport);
+    }
+    
+    internal static IEnumerable<string> GetUserInputErrors(
+        DeriveTargetInfo targetInfo,
+        DeriveMaskInfo mask,
+        DeriveMemberModelWithSupport[] members,
+        bool emitDirtyMask,
+        bool forCpp)
+    {
+        foreach (var error in targetInfo.ErrorMessages)
             yield return error;
 
-        if (model.Mask.Invalid)
+        if (mask.Invalid)
         {
-            if (model.EmitDirtyMask)
+            if (emitDirtyMask)
             {
-                yield return "Too many networked members in '" + model.TargetInfo.Name +
-                             "' to fit in a dirty mask. Maximum supported is " + model.Mask.Bits.ToString(CultureInfo.InvariantCulture) +
-                             ", but " + model.Members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
+                yield return "Too many networked members in '" + targetInfo.Name +
+                             "' to fit in a dirty mask. Maximum supported is " + mask.Bits.ToString(CultureInfo.InvariantCulture) +
+                             ", but " + members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
             }
             else
             {
-                yield return "Too many networked members in '" + model.TargetInfo.Name +
-                             "' to fit in the specified _dirtyMask. Maximum supported is " + model.Mask.Bits.ToString(CultureInfo.InvariantCulture) +
-                             ", but " + model.Members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
+                yield return "Too many networked members in '" + targetInfo.Name +
+                             "' to fit in the specified _dirtyMask. Maximum supported is " + mask.Bits.ToString(CultureInfo.InvariantCulture) +
+                             ", but " + members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
             }
         }
 
-        foreach (var member in model.Members)
+        foreach (var member in members)
         {
-            if (!member.IsSupported)
+            var supported = forCpp ? member.IsCppSupported : member.IsCSharpSupported;
+            if (!supported)
             {
-                yield return "Unsupported type '" + member.Member.Type.ToDisplayString() +
-                             "' for networked member '" + member.Member.Name + "'.";
+                yield return "Unsupported type '" + member.Model.SourceMember.Type.ToDisplayString() +
+                             "' for networked member '" + member.Model.SourceMember.Name + "'.";
             }
         }
     }
@@ -372,127 +197,4 @@ internal static class DeriveComponentUtils
 
         return char.ToUpperInvariant(memberName[0]) + memberName.Substring(1);
     }
-
-    internal static string GetCppTypeName(ITypeSymbol type)
-    {
-        if (type == null)
-            throw new ArgumentNullException(nameof(type));
-
-        if (type.TypeKind == TypeKind.Enum)
-            return type.Name;
-
-        switch (type.SpecialType)
-        {
-            case SpecialType.System_Boolean: return "bool";
-            case SpecialType.System_Byte: return "uint8_t";
-            case SpecialType.System_SByte: return "int8_t";
-            case SpecialType.System_Int16: return "int16_t";
-            case SpecialType.System_UInt16: return "uint16_t";
-            case SpecialType.System_Int32: return "int32_t";
-            case SpecialType.System_UInt32: return "uint32_t";
-            case SpecialType.System_Int64: return "int64_t";
-            case SpecialType.System_UInt64: return "uint64_t";
-            case SpecialType.System_Single: return "float";
-            case SpecialType.System_Double: return "double";
-            case SpecialType.System_Char: return "char16_t";
-        }
-
-        if (IsVectorLike(type))
-            return type.Name;
-
-        return type.Name;
-    }
-
-    internal static string GetCppDefaultValue(ITypeSymbol type)
-    {
-        if (type == null)
-            throw new ArgumentNullException(nameof(type));
-
-        if (type.TypeKind == TypeKind.Enum)
-            return "{}";
-
-        switch (type.SpecialType)
-        {
-            case SpecialType.System_Boolean: return "false";
-            case SpecialType.System_Byte:
-            case SpecialType.System_SByte:
-            case SpecialType.System_Int16:
-            case SpecialType.System_UInt16:
-            case SpecialType.System_Int32:
-            case SpecialType.System_UInt32:
-            case SpecialType.System_Int64:
-            case SpecialType.System_UInt64:
-                return "0";
-            case SpecialType.System_Single:
-                return "0.0f";
-            case SpecialType.System_Double:
-                return "0.0";
-            case SpecialType.System_Char:
-                return "0";
-        }
-
-        if (type.IsReferenceType)
-            return "nullptr";
-
-        return "{}";
-    }
-
-    internal static string BuildCppSetterCondition(DeriveMemberGenerationModel member)
-    {
-        if (member == null)
-            throw new ArgumentNullException(nameof(member));
-
-        var fieldName = member.Member.Name;
-        var type = member.Member.Type;
-
-        if (type == null)
-            throw new InvalidOperationException("Member type unexpectedly null.");
-
-        if (!member.IsSupported)
-            return "true";
-
-        if (type.SpecialType == SpecialType.System_Single)
-            return "std::abs(" + fieldName + " - value) > " + FloatComparisonEpsilon;
-
-        if (type.SpecialType == SpecialType.System_Double)
-            return "std::abs(" + fieldName + " - value) > " + DoubleComparisonEpsilon;
-
-        if (type.Name == "Vector2")
-            return "Vector2::DistanceSquared(" + fieldName + ", value) > " + VectorComparisonEpsilon;
-
-        if (type.Name == "Vector3")
-            return "Vector3::DistanceSquared(" + fieldName + ", value) > " + VectorComparisonEpsilon;
-
-        if (type.Name == "Vector4")
-            return "Vector4::DistanceSquared(" + fieldName + ", value) > " + VectorComparisonEpsilon;
-
-        if (member.IsDeltaEquatable)
-            return "!(" + fieldName + ".DeltaEquals(value, " + VectorComparisonEpsilon + "))";
-
-        if (member.IsEquatable || member.IsEnum || member.UsePutGet)
-            return fieldName + " != value";
-
-        return fieldName + " != value";
-    }
-
-    private static bool HasSerializeMethod(ITypeSymbol type)
-        => type.GetMembers("Serialize")
-            .OfType<IMethodSymbol>()
-            .Any(m =>
-                m.Parameters.Length == 1 &&
-                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataWriter");
-
-    private static bool HasDeserializeMethod(ITypeSymbol type)
-        => type.GetMembers("Deserialize")
-            .OfType<IMethodSymbol>()
-            .Any(m =>
-                m.Parameters.Length == 1 &&
-                m.Parameters[0].Type.ToDisplayString() == "LiteNetLib.Utils.NetDataReader");
-
-    private static bool IsVectorLike(ITypeSymbol type)
-        => (type.Name is "Vector2" or "Vector3" or "Vector4") &&
-           type.ContainingNamespace.ToDisplayString() == "System.Numerics";
-
-    public static string GetGeneratedFileName(INamedTypeSymbol symbol)
-        => symbol.ContainingNamespace != null ? $"{symbol.ContainingNamespace.ToDisplayString()}.{symbol.Name}" : symbol.Name;
 }
