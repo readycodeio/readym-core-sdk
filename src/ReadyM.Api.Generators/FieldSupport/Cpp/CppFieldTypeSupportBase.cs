@@ -12,7 +12,11 @@ internal abstract class CppFieldTypeSupportBase : ICppFieldTypeSupport
         ["ReadyM.Relay.Common.Oblivion"] = "RM",
         ["ReadyM.Relay.Common"] = "RM",
         ["ReadyM.Relay"] = "RM",
-        ["ReadyM"] = "RM"
+        ["ReadyM.Api.Multiplayer"] = "RM",
+        ["ReadyM.Api"] = "RM",
+        ["ReadyM"] = "RM",
+        ["System.Numerics"] = "Interop",
+        ["System"] = "Interop",
     };
     
     private static string GetCppFullTypeName(string fullName)

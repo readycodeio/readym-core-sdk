@@ -11,9 +11,7 @@ public class DeriveComponentUtils
     internal const float FloatComparisonEpsilon = 0.1f;
     internal const double DoubleComparisonEpsilon = 0.1;
 
-    internal static float Vector2ComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon;
-    internal static float Vector3ComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon * FloatComparisonEpsilon;
-    internal static float Vector4ComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon * FloatComparisonEpsilon * FloatComparisonEpsilon;
+    internal static float VectorComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon;
 
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol)
     {

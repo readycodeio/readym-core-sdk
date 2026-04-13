@@ -11,9 +11,9 @@ internal sealed class VectorLikeFieldTypeSupport : CppFieldTypeSupportBase
     public override string BuildSetterCondition(DeriveMemberModel model)
         => model.SourceMember.Type.Name switch
         {
-            "Vector2" => $"Vector2::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector2ComparisonEpsilon}f",
-            "Vector3" => $"Vector3::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector3ComparisonEpsilon}f",
-            "Vector4" => $"Vector4::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector4ComparisonEpsilon}f",
+            "Vector2" => $"{GetCppTypeName(model.SourceMember.Type)}::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f",
+            "Vector3" => $"{GetCppTypeName(model.SourceMember.Type)}::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f",
+            "Vector4" => $"{GetCppTypeName(model.SourceMember.Type)}::DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f",
             _ => throw new InvalidOperationException($"Unsupported vector type: {model.SourceMember.Type.ToDisplayString()}")
         };
 }

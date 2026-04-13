@@ -16,9 +16,9 @@ internal sealed class VectorLikeFieldTypeSupport : CSharpFieldTypeSupportBase
 
         return type.Name switch
         {
-            "Vector2" => $"if (Vector2.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector2ComparisonEpsilon}f) {{ {dirtySet} }}",
-            "Vector3" => $"if (Vector3.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector3ComparisonEpsilon}f) {{ {dirtySet} }}",
-            "Vector4" => $"if (Vector4.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.Vector4ComparisonEpsilon}f) {{ {dirtySet} }}",
+            "Vector2" => $"if ({FullyQualifiedType(type)}.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f) {{ {dirtySet} }}",
+            "Vector3" => $"if ({FullyQualifiedType(type)}.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f) {{ {dirtySet} }}",
+            "Vector4" => $"if ({FullyQualifiedType(type)}.DistanceSquared({model.SourceMember.Name}, value) > {DeriveComponentUtils.VectorComparisonEpsilon}f) {{ {dirtySet} }}",
             _ => throw new InvalidOperationException($"Unsupported vector type: {type.ToDisplayString()}")
         };
     }
