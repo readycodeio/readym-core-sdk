@@ -15,7 +15,7 @@ namespace ReadyM.Api.Generators
             var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
             context.RegisterSourceOutput(
                 codeProvider,
-                static (spc, result) => spc.AddSource(result.Name + ".NativeComponentFragment.g.cs", result.Code));
+                static (spc, result) => spc.AddSource(result.Name + ".g.cpp", result.Code));
         }
 
         private static bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
@@ -78,7 +78,9 @@ namespace ReadyM.Api.Generators
                 emitDirtyMask);
 
             var code = GenerateCppFragment(generationModel);
-            return (symbol.Name, code);
+
+            var genName = DeriveComponentUtils.GetGeneratedFileName(symbol);
+            return (genName, code);
         }
 
         private static string GenerateCppFragment(DeriveTargetGenerationModel model)

@@ -77,7 +77,9 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
             emitDirtyMask: emitDirtyMask);
 
         var source = GenerateNetworkedComponent(generationModel);
-        return (symbol.Name, source);
+        var genName = DeriveComponentUtils.GetGeneratedFileName(symbol);
+        
+        return (genName, source);
     }
 
     private static string GenerateNetworkedComponent(DeriveTargetGenerationModel model)

@@ -492,4 +492,7 @@ internal static class DeriveComponentUtils
     private static bool IsVectorLike(ITypeSymbol type)
         => (type.Name is "Vector2" or "Vector3" or "Vector4") &&
            type.ContainingNamespace.ToDisplayString() == "System.Numerics";
+
+    public static string GetGeneratedFileName(INamedTypeSymbol symbol)
+        => symbol.ContainingNamespace != null ? $"{symbol.ContainingNamespace.ToDisplayString()}.{symbol.Name}" : symbol.Name;
 }
