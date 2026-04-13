@@ -104,11 +104,8 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             if (type == null)
                 throw new InvalidOperationException("Member type unexpectedly null.");
 
-            var cppType = member.IsCppSupported && member.CppSupport != null
-                ? GetCppTypeName(member)
-                : type.Name;
-
-            var defaultValue = member.IsCppSupported && member.CppSupport != null
+            var cppType = GetCppTypeName(member);
+            var defaultValue = member is { IsCppSupported: true, CppSupport: not null }
                 ? GetCppDefaultValue(member)
                 : type.IsReferenceType ? "nullptr" : "{}";
 
@@ -137,10 +134,7 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         if (type == null)
             throw new InvalidOperationException("Member type unexpectedly null.");
 
-        var cppType = member.IsCppSupported && member.CppSupport != null
-            ? GetCppTypeName(member)
-            : type.Name;
-
+        var cppType = GetCppTypeName(member);
         var propertyName = member.Model.GeneratedPropertyName;
         var fieldName = member.Model.SourceMember.Name;
 

@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.FieldSupport.Cpp;
 
@@ -6,11 +7,38 @@ internal abstract class CppFieldTypeSupportBase : ICppFieldTypeSupport
 {
     public abstract bool CanHandle(ITypeSymbol type);
 
+    private static readonly Dictionary<string, string> NamespaceReplacements = new()
+    {
+        ["ReadyM.Relay.Common.Oblivion"] = "RM",
+        ["ReadyM.Relay.Common"] = "RM",
+        ["ReadyM.Relay"] = "RM",
+        ["ReadyM"] = "RM"
+    };
+    
+    private static string GetCppFullTypeName(string fullName)
+    {
+        fullName = fullName.Replace("global::", "");
+        
+        foreach (var d in NamespaceReplacements)
+        {
+            var dottedPrefix = d.Key + ".";
+            if (fullName.StartsWith(dottedPrefix))
+            {
+                fullName = d.Value + "::" + fullName.Substring(dottedPrefix.Length);
+                break;
+            }
+        }
+
+        var parts = fullName.Split('.') ?? [];
+        if (parts.Length > 0 && parts[0] == "ReadyM")
+        {
+            parts[0] = "RM";
+        }
+        return string.Join("::", parts);
+    }
+
     public virtual string GetCppTypeName(ITypeSymbol type)
     {
-        if (type.TypeKind == TypeKind.Enum)
-            return type.Name;
-
         return type.SpecialType switch
         {
             SpecialType.System_Boolean => "bool",
@@ -25,7 +53,7 @@ internal abstract class CppFieldTypeSupportBase : ICppFieldTypeSupport
             SpecialType.System_Single => "float",
             SpecialType.System_Double => "double",
             SpecialType.System_Char => "char16_t",
-            _ => type.Name
+            _ => GetCppFullTypeName(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
         };
     }
 
