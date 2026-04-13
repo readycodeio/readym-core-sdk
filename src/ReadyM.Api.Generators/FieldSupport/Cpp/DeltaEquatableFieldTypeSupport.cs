@@ -8,5 +8,5 @@ internal sealed class DeltaEquatableFieldTypeSupport : CppFieldTypeSupportBase
         => SerializationHelper.IsDeltaEquatable(type);
 
     public override string BuildSetterCondition(DeriveMemberModel model)
-        => $"!({model.SourceMember.Name}.DeltaEquals(value, {DeriveUtils.VectorComparisonEpsilon}))";
+        => $"!({model.SourceMember.Name}.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f))";
 }

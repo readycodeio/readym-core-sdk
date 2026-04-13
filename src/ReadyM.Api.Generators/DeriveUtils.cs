@@ -8,10 +8,6 @@ namespace ReadyM.Api.Generators;
 
 internal static class DeriveUtils
 {
-    internal const string FloatComparisonEpsilon = "0.1f";
-    internal const string DoubleComparisonEpsilon = "0.1";
-    internal const string VectorComparisonEpsilon = "0.01f";
-
     internal static INamedTypeSymbol GetAttributedSymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         var node = context.Node;

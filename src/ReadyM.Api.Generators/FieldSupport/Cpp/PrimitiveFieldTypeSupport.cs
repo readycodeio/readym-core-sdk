@@ -13,10 +13,10 @@ internal sealed class PrimitiveFieldTypeSupport : CppFieldTypeSupportBase
         var type = model.SourceMember.Type;
 
         if (type.SpecialType == SpecialType.System_Single)
-            return $"std::abs({fieldName} - value) > {DeriveUtils.FloatComparisonEpsilon}";
+            return $"std::abs({fieldName} - value) > {DeriveComponentUtils.FloatComparisonEpsilon}f";
 
         if (type.SpecialType == SpecialType.System_Double)
-            return $"std::abs({fieldName} - value) > {DeriveUtils.DoubleComparisonEpsilon}";
+            return $"std::abs({fieldName} - value) > {DeriveComponentUtils.DoubleComparisonEpsilon}";
 
         return $"{fieldName} != value";
     }

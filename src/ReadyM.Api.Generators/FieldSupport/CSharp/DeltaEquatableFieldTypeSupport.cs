@@ -15,9 +15,9 @@ internal sealed class DeltaEquatableFieldTypeSupport : CSharpFieldTypeSupportBas
         var fieldName = model.SourceMember.Name;
 
         if (type.IsValueType)
-            return $"if (!{fieldName}.DeltaEquals(value, {DeriveUtils.VectorComparisonEpsilon})) {{ {dirtySet} }}";
+            return $"if (!{fieldName}.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f)) {{ {dirtySet} }}";
 
-        return $"if (!({fieldName}?.DeltaEquals(value, {DeriveUtils.VectorComparisonEpsilon}) ?? value is null)) {{ {dirtySet} }}";
+        return $"if (!({fieldName}?.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f) ?? value is null)) {{ {dirtySet} }}";
     }
 
     public override void EmitSerialize(StringBuilder sb, DeriveMemberModel model)

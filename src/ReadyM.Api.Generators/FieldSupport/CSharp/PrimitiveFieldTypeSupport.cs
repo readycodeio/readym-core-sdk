@@ -20,10 +20,10 @@ internal sealed class PrimitiveFieldTypeSupport : CSharpFieldTypeSupportBase
         var dirtySet = DirtySet(maskType, model);
 
         if (type.SpecialType == SpecialType.System_Single)
-            return $"if (Math.Abs({fieldName} - value) > {DeriveUtils.FloatComparisonEpsilon}) {{ {dirtySet} }}";
+            return $"if (Math.Abs({fieldName} - value) > {DeriveComponentUtils.FloatComparisonEpsilon}f) {{ {dirtySet} }}";
 
         if (type.SpecialType == SpecialType.System_Double)
-            return $"if (Math.Abs({fieldName} - value) > {DeriveUtils.DoubleComparisonEpsilon}) {{ {dirtySet} }}";
+            return $"if (Math.Abs({fieldName} - value) > {DeriveComponentUtils.DoubleComparisonEpsilon}) {{ {dirtySet} }}";
 
         return $"if ({fieldName} != value) {{ {dirtySet} }}";
     }
