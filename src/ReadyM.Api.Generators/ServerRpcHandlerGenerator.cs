@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using ReadyM.Api.Generators;
 
-namespace ReadyM.Relay.Common.Generators;
+namespace ReadyM.Api.Generators;
 
 [Generator]
 public class ServerRpcHandlerGenerator : IIncrementalGenerator
@@ -39,7 +39,7 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
         if (context.Node is not MethodDeclarationSyntax methodSyntax)
             return null;
 
-        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax) as IMethodSymbol;
+        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax);
 
         var rpcAttr = methodSymbol?.GetAttributes()
             .FirstOrDefault(attr => attr.AttributeClass?.Name is
@@ -52,14 +52,14 @@ public class ServerRpcHandlerGenerator : IIncrementalGenerator
 
         var attributeSyntax = rpcAttr
             .ApplicationSyntaxReference?.GetSyntax() as AttributeSyntax;
-        var args = attributeSyntax.ArgumentList!.Arguments;
+        var args = attributeSyntax!.ArgumentList!.Arguments;
 
         var constants = args.Select(arg => context.SemanticModel.GetOperation(arg.Expression)?.ConstantValue.Value)
             .Where(val => val is not null)
             .Select(x => x!.ToString())
             .ToArray();
 
-        return new ServerRpcMethodInfo(methodSymbol, constants);
+        return new ServerRpcMethodInfo(methodSymbol!, constants);
     }
 
     private static void GenerateSources(SourceProductionContext context, ImmutableArray<ServerRpcMethodInfo?> rawMethods)

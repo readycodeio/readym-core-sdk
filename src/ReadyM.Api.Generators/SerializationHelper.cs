@@ -33,11 +33,14 @@ public static class SerializationHelper
 
     public static SpecialType GetEnumBaseType(ITypeSymbol typeSymbol)
     {
-        // if (typeSymbol.BaseType!.SpecialType != SpecialType.System_Enum)
-        //     throw new InvalidOperationException($"Type {typeSymbol.Name} is not an enum.");
-        //
-        // return typeSymbol.BaseType!.BaseType?.SpecialType ?? SpecialType.System_Int32;
-        return SpecialType.System_Int32; // TODO
+        if (typeSymbol is not INamedTypeSymbol { TypeKind: TypeKind.Enum } enumSymbol)
+            throw new ArgumentException("Type symbol must be an enum.", nameof(typeSymbol));
+
+        var underlyingType = enumSymbol.EnumUnderlyingType;
+        if (underlyingType is null)
+            throw new InvalidOperationException($"Enum '{typeSymbol.ToDisplayString()}' does not have an underlying type.");
+
+        return underlyingType.SpecialType;
     }
 
     public static string GetSpecialTypeCSharpName(SpecialType specialType)

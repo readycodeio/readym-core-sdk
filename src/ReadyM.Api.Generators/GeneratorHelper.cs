@@ -7,31 +7,58 @@ namespace ReadyM.Api.Generators;
 
 internal static class GeneratorHelper
 {
-    private static (string Name, ITypeSymbol Type, int Order, bool ReadOnly) GetMemberEntry(ISymbol symbol)
+    private static GeneratorField GetMemberEntry(ISymbol symbol)
     {
         if (symbol is IFieldSymbol f)
-            return (Name: f.Name, Type: f.Type, Order: f.DeclaringSyntaxReferences[0].Span.Start, ReadOnly: f.IsReadOnly);
+            return new GeneratorField(
+                name: f.Name,
+                type: f.Type,
+                order: f.DeclaringSyntaxReferences[0].Span.Start,
+                readOnly: f.IsReadOnly,
+                isInvalid: false);
         else if (symbol is IPropertySymbol p)
-            return (Name: p.Name, Type: p.Type, Order: p.DeclaringSyntaxReferences[0].Span.Start, ReadOnly: p.SetMethod == null);
+            return new GeneratorField(
+                name: p.Name,
+                type: p.Type,
+                order: p.DeclaringSyntaxReferences[0].Span.Start,
+                readOnly: p.SetMethod == null,
+                isInvalid: p.GetMethod == null || p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true);
         else
             throw new InvalidOperationException($"Unsupported symbol type: {symbol.GetType().Name}");
     }
 
-    public static GeneratorTypeInfo GetSymbolInfo(INamedTypeSymbol symbol, bool mapFields, bool mapProperties, bool mapPrivate, bool mapPublic, bool mapInternal)
+    public static GeneratorTypeInfo GetSymbolInfo(
+        INamedTypeSymbol symbol,
+        bool mapFields,
+        bool mapProperties,
+        bool mapPrivate,
+        bool mapPublic,
+        bool mapInternal)
     {
         var ns = symbol.ContainingNamespace.ToDisplayString();
         var name = symbol.Name;
 
+        string? dirtyMaskType = null;
         var errorMessages = new List<string>();
-        var allMembers = new List<(string Name, ITypeSymbol Type, int Order, bool ReadOnly)>();
+        var allMembers = new List<GeneratorField>();
+        
         foreach (var member in symbol.GetMembers())
         {
-            (string Name, ITypeSymbol Type, int Order, bool ReadOnly) entry;
-
             bool isField;
             var useMember = true;
             var canUseMember = true;
 
+            if (member.Name == "_dirtyMask")
+            {
+                dirtyMaskType = member switch
+                {
+                    IFieldSymbol maskField => maskField.Type.ToDisplayString(),
+                    IPropertySymbol propField => propField.Type.ToDisplayString(),
+                    _ => null
+                };
+                continue;
+            }
+            
             if (member.DeclaredAccessibility == Accessibility.Private)
             {
                 if (!mapPrivate)
@@ -101,7 +128,6 @@ internal static class GeneratorHelper
                 useMember = false;
                 canUseMember = false;
                 isField = false;
-                entry = default;
             }
 
             var hasExclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "ExcludeSerializable");
@@ -126,8 +152,8 @@ internal static class GeneratorHelper
 
             if (useMember)
             {
-                entry = GetMemberEntry(member);
-                allMembers.Add(entry);
+                var fieldInfo = GetMemberEntry(member);
+                allMembers.Add(fieldInfo);
             }
         }
 
@@ -138,7 +164,8 @@ internal static class GeneratorHelper
             @namespace: ns,
             members: allMembers.ToArray(),
             isNullable: thisNullable,
-            errorMessages: errorMessages.ToArray()
+            errorMessages: errorMessages.ToArray(),
+            dirtyMaskType: dirtyMaskType
         );
     }
 }
