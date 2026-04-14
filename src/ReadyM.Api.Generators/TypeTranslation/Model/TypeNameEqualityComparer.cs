@@ -24,8 +24,8 @@ public sealed class TypeNameEqualityComparer : IEqualityComparer<ITypeName>
             (Numeric left, Numeric right)
                 => left.Value == right.Value,
             (QualifiedName left, QualifiedName right) =>
-                Equals(left.Prefix, right.Prefix)
-                && Equals(left.InnerType, right.InnerType),
+                Equals(left.Prefix, right.Prefix) && 
+                Equals(left.InnerType, right.InnerType),
             (GenericInstanceName left, GenericInstanceName right) =>
                 Equals(left.GenericDefinition, right.GenericDefinition) &&
                 EqualsLists(left.TypeArguments, right.TypeArguments),
