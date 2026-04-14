@@ -21,6 +21,11 @@ public abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentR
         }
     }
     
+    protected int GetNextComponentId()
+    {
+        return _componentTypes.Count;
+    }
+
     public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
