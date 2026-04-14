@@ -70,16 +70,13 @@ public static class SerializationHelper
 
     internal static bool IsNativeContainer(ITypeSymbol type)
     {
-        
         if (type is not INamedTypeSymbol namedType)
             return false;
         else if (IsNativeList(namedType, out _))
             return true;
-        else if (IsNativeStorage(namedType, out _, out _))
-            return true;
         else if (IsNativeFixed(namedType, out _, out _))
             return true;
-        else if (IsNativeDictionary(namedType, out _, out _))
+        else if (IsNativeDictionary(namedType, out _, out _, out _))
             return true;
         else if (IsNativeRingBuffer(namedType, out _, out _))
             return true;
@@ -91,60 +88,60 @@ public static class SerializationHelper
     
     internal static bool IsNativeList(
         ITypeSymbol type,
-        [NotNullWhen(true)] out ITypeSymbol? keyType)
+        [NotNullWhen(true)] out ITypeSymbol? itemType)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeList" } namedType &&
             namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
             namedType.TypeArguments.Length == 1)
         {
-            keyType = namedType.TypeArguments[0];
+            itemType = namedType.TypeArguments[0];
             return true;
         }
         
-        keyType = null;
+        itemType = null;
         return false;
     }
     
     internal static bool IsNativeStorage(
         ITypeSymbol type,
-        [NotNullWhen(true)] out ITypeSymbol? keyType, 
+        [NotNullWhen(true)] out ITypeSymbol? itemType, 
         [NotNullWhen(true)] out int? size)
     {
         for (var candidateSize = 1; candidateSize <= 256; candidateSize *= 2)
         {
             if (type is INamedTypeSymbol { IsGenericType: true } namedType &&
                 namedType.Name == $"Storage{candidateSize}" &&
-                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.LowLevel" &&
                 namedType.TypeArguments.Length == 1)
             {
-                keyType = namedType.TypeArguments[0];
+                itemType = namedType.TypeArguments[0];
                 size = candidateSize;
                 return true;
             }
         }
         
-        keyType = null;
+        itemType = null;
         size = null;
         return false;
     }
     
     internal static bool IsNativeFixed(
         ITypeSymbol type,
-        [NotNullWhen(true)] out ITypeSymbol? keyType, 
+        [NotNullWhen(true)] out ITypeSymbol? itemType, 
         [NotNullWhen(true)] out int? size)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeFixed" } namedType &&
             namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
-            namedType.TypeArguments.Length == 1)
+            namedType.TypeArguments.Length == 2)
         {
-            keyType = namedType.TypeArguments[0];
-            var sizeType = namedType.TypeArguments[1];
-            if (IsNativeStorage(sizeType, out var keyType0, out size) && 
-                SymbolEqualityComparer.Default.Equals(keyType0, sizeType))
+            itemType = namedType.TypeArguments[0];
+            var storageType = namedType.TypeArguments[1];
+            if (IsNativeStorage(storageType, out var itemType0, out size) && 
+                SymbolEqualityComparer.Default.Equals(itemType0, itemType))
                 return true;
         }
         
-        keyType = null;
+        itemType = null;
         size = null;
         return false;
     }
@@ -152,19 +149,22 @@ public static class SerializationHelper
     internal static bool IsNativeDictionary(
         ITypeSymbol type,
         [NotNullWhen(true)] out ITypeSymbol? keyType, 
-        [NotNullWhen(true)] out ITypeSymbol? valueType)
+        [NotNullWhen(true)] out ITypeSymbol? valueType,
+        [NotNullWhen(true)] out ITypeSymbol? hashType)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeDictionary" } namedType &&
             namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
-            namedType.TypeArguments.Length == 2)
+            namedType.TypeArguments.Length == 3)
         {
             keyType = namedType.TypeArguments[0];
             valueType = namedType.TypeArguments[1];
+            hashType = namedType.TypeArguments[2];
             return true;
         }
         
         keyType = null;
         valueType = null;
+        hashType = null;
         return false;
     }
     
@@ -189,21 +189,21 @@ public static class SerializationHelper
     
     internal static bool IsNativeRingBuffer(
         ITypeSymbol type,
-        [NotNullWhen(true)] out ITypeSymbol? keyType,
+        [NotNullWhen(true)] out ITypeSymbol? itemType,
         [NotNullWhen(true)] out int? size)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeRingBuffer" } namedType &&
             namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
-            namedType.TypeArguments.Length == 1)
+            namedType.TypeArguments.Length == 2)
         {
-            keyType = namedType.TypeArguments[0];
-            var sizeType = namedType.TypeArguments[1];
-            if (IsNativeStorage(sizeType, out var keyType0, out size) && 
-                SymbolEqualityComparer.Default.Equals(keyType0, sizeType))
+            itemType = namedType.TypeArguments[0];
+            var storageType = namedType.TypeArguments[1];
+            if (IsNativeStorage(storageType, out var itemType0, out size) && 
+                SymbolEqualityComparer.Default.Equals(itemType0, itemType))
                 return true;
         }
         
-        keyType = null;
+        itemType = null;
         size = null;
         return false;
     }
@@ -214,15 +214,12 @@ public static class SerializationHelper
     {
         for (var candidateSize = 1; candidateSize <= 256; candidateSize *= 2)
         {
-            if (type is INamedTypeSymbol { IsGenericType: true } namedType &&
+            if (type is INamedTypeSymbol { IsGenericType: false } namedType &&
                 namedType.Name == $"NativeString{candidateSize}" &&
-                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
-                namedType.TypeArguments.Length == 1)
+                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container")
             {
-                var sizeType = namedType.TypeArguments[0];
-                if (IsNativeStorage(sizeType, out var keyType0, out size) && 
-                    SymbolEqualityComparer.Default.Equals(keyType0, sizeType))
-                    return true;
+                size = candidateSize;
+                return true;
             }
         }
         

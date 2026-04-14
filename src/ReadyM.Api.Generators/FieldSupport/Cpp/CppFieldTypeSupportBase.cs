@@ -7,56 +7,8 @@ internal abstract class CppFieldTypeSupportBase : ICppFieldTypeSupport
 {
     public abstract bool CanHandle(ITypeSymbol type);
 
-    private static readonly Dictionary<string, string> NamespaceReplacements = new()
-    {
-        ["ReadyM.Relay.Common.Oblivion"] = "RM",
-        ["ReadyM.Relay.Common"] = "RM",
-        ["ReadyM.Relay"] = "RM",
-        ["ReadyM.Api.Multiplayer"] = "RM",
-        ["ReadyM.Api"] = "RM",
-        ["ReadyM"] = "RM",
-        ["System.Numerics"] = "Interop",
-        ["System"] = "Interop",
-    };
-    
-    private static string GetCppFullTypeName(string fullName)
-    {
-        fullName = fullName.Replace("global::", "");
-        
-        foreach (var d in NamespaceReplacements)
-        {
-            // Regex that matches prefixes with no preceding dot, but one succeeding dot. The dots inside d.Key are escaped
-            var lookupRegex = $"(?<!\\.){d.Key.Replace(".", "\\.")}\\.";
-            fullName = System.Text.RegularExpressions.Regex.Replace(fullName, lookupRegex, d.Value + "::");
-        }
-
-        var parts = fullName.Split('.') ?? [];
-        if (parts.Length > 0 && parts[0] == "ReadyM")
-        {
-            parts[0] = "RM";
-        }
-        return string.Join("::", parts);
-    }
-
     public virtual string GetCppTypeName(ITypeSymbol type)
-    {
-        return type.SpecialType switch
-        {
-            SpecialType.System_Boolean => "bool",
-            SpecialType.System_Byte => "uint8_t",
-            SpecialType.System_SByte => "int8_t",
-            SpecialType.System_Int16 => "int16_t",
-            SpecialType.System_UInt16 => "uint16_t",
-            SpecialType.System_Int32 => "int32_t",
-            SpecialType.System_UInt32 => "uint32_t",
-            SpecialType.System_Int64 => "int64_t",
-            SpecialType.System_UInt64 => "uint64_t",
-            SpecialType.System_Single => "float",
-            SpecialType.System_Double => "double",
-            SpecialType.System_Char => "char16_t",
-            _ => GetCppFullTypeName(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
-        };
-    }
+        => CppTypeTranslationPipeline.Instance.Translate(type);
 
     public virtual string GetCppDefaultValue(ITypeSymbol type)
     {
