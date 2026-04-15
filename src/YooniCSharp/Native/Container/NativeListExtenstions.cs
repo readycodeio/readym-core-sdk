@@ -31,24 +31,6 @@ public static class NativeListExtensions
         return true;
     }
 
-    public static bool Contains<T>(ref this NativeList<T> list, T value)
-        where T : unmanaged
-        => list.Contains(value, EqualityComparer<T>.Default);
-
-    public static bool Contains<T, TComparer>(ref this NativeList<T> list, T value, TComparer comparer)
-        where T : unmanaged
-        where TComparer : IEqualityComparer<T>
-    {
-        for (var i = 0; i < list.Count; ++i)
-        {
-            var x = list[i];
-            if (comparer.Equals(value, x))
-                return true;
-        }
-
-        return false;
-    }
-
     public static void Trim<T>(ref this NativeList<T> values, int count, int startIndex = 0)
         where T : unmanaged
     {

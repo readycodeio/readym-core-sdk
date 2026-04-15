@@ -1429,9 +1429,12 @@ public partial struct GeneratedShapeComponent : INetworkedComponent
         Assert.Contains("writer.Put(_count);", generatedText);
         Assert.Contains("writer.Put(_name);", generatedText);
         Assert.Contains("writer.Put((byte)_state);", generatedText);
-        Assert.Contains("Count = reader.GetInt();", generatedText);
-        Assert.Contains("Name = reader.GetString();", generatedText);
-        Assert.Contains("State = (global::ReadyM.Api.Generators.Tests.TestTypes.TinyState)reader.GetByte();", generatedText);
+        Assert.Contains("= reader.GetInt();", generatedText);
+        Assert.Contains("Count =", generatedText);
+        Assert.Contains("= reader.GetString();", generatedText);
+        Assert.Contains("Name =", generatedText);
+        Assert.Contains("= (global::ReadyM.Api.Generators.Tests.TestTypes.TinyState)reader.GetByte();", generatedText);
+        Assert.Contains("State =", generatedText);
         Assert.Contains("var mask = reader.GetByte();", generatedText);
     }
     

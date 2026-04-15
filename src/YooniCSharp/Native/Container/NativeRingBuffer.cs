@@ -47,13 +47,83 @@ public struct NativeRingBuffer<T, TStorage>() : IEnumerable<T>
     public int Capacity
         => _arr.Length;
 
+    public ref T Newest
+        => ref _arr[(_head + _count - 1) % _arr.Length];
+
+    public ref T Oldest
+        => ref _arr[_head];
+
+    public ref T this[int index]
+    {
+        get
+        {
+            if (index < 0 || index >= _count)
+                throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
+            return ref _arr[(_head + index) % _arr.Length];
+        }
+    }
+
+    public bool Contains(in T value)
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (EqualityComparer<T>.Default.Equals(_arr[(_head + i) % _arr.Length], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Contains<TComparer>(in T value, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (comparer.Equals(_arr[(_head + i) % _arr.Length], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Equals(in NativeRingBuffer<T, TStorage> other)
+    {
+        if (_arr.GetPointer() == other._arr.GetPointer())
+            return true; // Reference equality short circuit
+        
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!EqualityComparer<T>.Default.Equals(_arr[(_head + i) % _arr.Length], other._arr[(other._head + i) % other._arr.Length]))
+                return false;
+        }
+        return true;
+    }
+    
+    public bool Equals<TComparer>(in NativeRingBuffer<T, TStorage> other, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        if (_arr.GetPointer() == other._arr.GetPointer())
+            return true; // Reference equality short circuit
+
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!comparer.Equals(_arr[(_head + i) % _arr.Length], other._arr[(other._head + i) % other._arr.Length]))
+                return false;
+        }
+        return true;
+    }
+
     public void Clear()
     {
         _head = 0;
         _count = 0;
     }
 
-    public bool Push(in T value)
+    public bool Push(T value)
     {
         if (_count < _arr.Length)
         {
@@ -77,22 +147,6 @@ public struct NativeRingBuffer<T, TStorage>() : IEnumerable<T>
             --_count;
         }
     }
-
-    public ref T this[int index]
-    {
-        get
-        {
-            if (index < 0 || index >= _count)
-                throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
-            return ref _arr[(_head + index) % _arr.Length];
-        }
-    }
-
-    public ref T Newest
-        => ref _arr[(_head + _count - 1) % _arr.Length];
-
-    public ref T Oldest
-        => ref _arr[_head];
 
     public Enumerator GetEnumerator()
         => new Enumerator(this);

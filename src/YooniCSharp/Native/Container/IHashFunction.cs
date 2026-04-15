@@ -1,6 +1,6 @@
 namespace Yooni.Native.Container;
 
-public interface IHashFunction<in T>
+public interface IHashFunction<T>
 {
-    uint ComputeHash(T value);
+    uint ComputeHash(in T value);
 }

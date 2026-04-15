@@ -36,6 +36,16 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     public int Length
         => _length;
     
+    public byte this[int index]
+    {
+        get
+        {
+            if (index < 0 || index >= _length)
+                throw new IndexOutOfRangeException();
+            return _bytes[index];
+        }
+    }
+    
     [Pure]
     int INativeString.Capacity
         => Capacity;
@@ -54,8 +64,40 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
             {
                 *(p + i) = *(bytes + i);
             }
+        }
+    }
+    
+    public NativeString256(byte[] bytes, int length)
+    {
+        if (length < 0)
+            throw new InvalidOperationException();
+        if (length > ByteBufferLength - 1) // leave space for null terminator
+            throw new InvalidOperationException();
 
-            *(p + length) = (byte) '\0';
+        _length = (byte) length;
+        fixed (byte* p = _bytes)
+        {
+            for (var i = 0; i < length; i++)
+            {
+                *(p + i) = bytes[i];
+            }
+        }
+    }
+    
+    public NativeString256(byte[] bytes, int offset, int length)
+    {
+        if (length < 0)
+            throw new InvalidOperationException();
+        if (length > ByteBufferLength - 1) // leave space for null terminator
+            throw new InvalidOperationException();
+
+        _length = (byte) length;
+        fixed (byte* p = _bytes)
+        {
+            for (var i = 0; i < length; i++)
+            {
+                *(p + i) = bytes[offset + i];
+            }
         }
     }
 
@@ -87,10 +129,12 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
             {
                 *(p + i) = buffer[i];
             }
-
-            *(p + _length) = (byte) '\0';
         }
     }
+
+    [Pure]
+    public bool Equals(in NativeString256 other)
+        => this == other;
 
     [Pure]
     public bool Equals(NativeString256 other)
@@ -150,56 +194,62 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     public bool Equals(string? str)
         => this == str;
 
-    public static bool operator ==(NativeString256 x, string? y)
+    public static bool operator ==(in NativeString256 x, string? y)
     {
-        if (x._bytes == null && y == null)
+        fixed (byte* xPtr = x._bytes)
+        {
+            if (xPtr == null && y == null)
+                return true;
+            if (xPtr == null || y == null)
+                return false;
+
+            var yBytes = stackalloc byte[ByteBufferLength];
+            fixed (char* yPtr = y)
+            {
+                var yByteLength = Encoding.UTF8.GetBytes(yPtr, y.Length, yBytes, ByteBufferLength);
+                if (x._length != yByteLength)
+                    return false;
+            }
+
+            for (var i = 0; i < x._length; i++)
+            {
+                if (*(xPtr + i) != yBytes[i])
+                    return false;
+            }
+
             return true;
-        if (x._bytes == null || y == null)
-            return false;
-
-        var yBytes = stackalloc byte[ByteBufferLength];
-        fixed (char* yPtr = y)
-        {
-            var yByteLength = Encoding.UTF8.GetBytes(yPtr, y.Length, yBytes, ByteBufferLength);
-            if (x._length != yByteLength)
-                return false;
         }
-
-        for (var i = 0; i < x._length; i++)
-        {
-            if (*(x._bytes + i) != yBytes[i])
-                return false;
-        }
-
-        return true;
     }
 
-    public static bool operator !=(NativeString256 x, string? y)
+    public static bool operator !=(in NativeString256 x, string? y)
         => !(x == y);
 
-    public static bool operator ==(string x, NativeString256 y)
+    public static bool operator ==(string x, in NativeString256 y)
         => y == x;
 
-    public static bool operator !=(string x, NativeString256 y)
+    public static bool operator !=(string x, in NativeString256 y)
         => y != x;
 
-    public static bool operator ==(NativeString256 x, NativeString256 y)
+    public static bool operator ==(in NativeString256 x, in NativeString256 y)
     {
-        if (x._bytes == y._bytes)
-            return true;
-        if (x._bytes == null || y._bytes == null)
-            return false;
-
-        if (x._length != y._length)
-            return false;
-
-        for (var i = 0; i < x._length; i++)
+        fixed (byte* xPtr = x._bytes, yPtr = y._bytes)
         {
-            if (*(x._bytes + i) != *(y._bytes + i))
+            if (xPtr == yPtr)
+                return true;
+            if (xPtr == null || yPtr == null)
                 return false;
-        }
 
-        return true;
+            if (x._length != y._length)
+                return false;
+
+            for (var i = 0; i < x._length; i++)
+            {
+                if (*(xPtr + i) != *(yPtr + i))
+                    return false;
+            }
+
+            return true;
+        }
     }
 
     public static bool operator !=(NativeString256 x, NativeString256 y) => !(x == y);

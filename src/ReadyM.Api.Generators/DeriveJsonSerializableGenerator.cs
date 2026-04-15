@@ -92,9 +92,9 @@ using ReadyM.Api.Serialization;
 namespace {info.Namespace};
 
 public partial struct {info.Name}
-{{
-");
-        foreach (var error in info.ErrorMessages)
+{{");
+        
+        foreach (var error in info.Errors)
         {
             sb.AppendLine($"    #error {error}");
         }

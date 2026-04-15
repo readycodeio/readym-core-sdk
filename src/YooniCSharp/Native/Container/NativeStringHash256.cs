@@ -2,6 +2,6 @@
 
 public unsafe struct NativeStringHash256 : IHashFunction<NativeString256>
 {
-    public uint ComputeHash(NativeString256 value)
+    public uint ComputeHash(in NativeString256 value)
         => ByteHashUtils.GetByteHash((byte*)value.GetChars(), value.Length);
 }

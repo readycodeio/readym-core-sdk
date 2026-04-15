@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
 using Microsoft.CodeAnalysis;
-using ReadyM.Api.Generators.FieldSupport;
 
 namespace ReadyM.Api.Generators;
 
@@ -11,9 +8,9 @@ public class DeriveComponentUtils
     internal const float FloatComparisonEpsilon = 0.1f;
     internal const double DoubleComparisonEpsilon = 0.1;
 
-    internal static float VectorComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon;
+    internal static readonly float VectorComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon;
 
-    internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol)
+    internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {
         var mode = AttributeUtils.GetAttribute<byte>(
             symbol,
@@ -29,33 +26,26 @@ public class DeriveComponentUtils
             true);
         
         var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, mapSettings);
-        var mask = GetMaskInfo(targetInfo);
+        var mask = GetMaskInfo(targetInfo, context);
         var members = GetMemberModelList(targetInfo);
 
         return new DeriveTargetModel(targetInfo, mask, members);
     }
-
-    internal static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo)
-    {
-        if (targetInfo == null)
-            throw new ArgumentNullException(nameof(targetInfo));
-
-        return ResolveMaskInfo(
-            targetInfo.Members.Length,
-            targetInfo.DirtyMaskType,
-            targetInfo.EmitDirtyMask);
-    }
     
-    internal static DeriveMaskInfo ResolveMaskInfo(int memberCount, string? requestedMaskType, bool emitDirtyMask)
+    internal static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, GeneratorSyntaxContext context)
     {
-        string maskType;
+        var memberCount = targetInfo.Members.Length;
+        var requestedMaskType = targetInfo.RequestedDirtyMaskType;
+        var emitDirtyMask = targetInfo.EmitDirtyMask;
+        
+        ITypeSymbol maskType;
         var invalid = false;
 
         if (!emitDirtyMask)
         {
-            if (string.IsNullOrWhiteSpace(requestedMaskType))
+            if (requestedMaskType == null)
             {
-                maskType = "ulong";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
                 invalid = true;
             }
             else
@@ -66,50 +56,38 @@ public class DeriveComponentUtils
         else
         {
             if (memberCount <= sizeof(byte) * 8)
-                maskType = "byte";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_Byte);
             else if (memberCount <= sizeof(ushort) * 8)
-                maskType = "ushort";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt16);
             else if (memberCount <= sizeof(uint) * 8)
-                maskType = "uint";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt32);
             else if (memberCount <= sizeof(ulong) * 8)
-                maskType = "ulong";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
             else
             {
-                maskType = "ulong";
+                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
                 invalid = true;
             }
         }
 
         int bits;
-        string readMethod;
-        string cppType;
 
-        switch (maskType)
+        switch (maskType.SpecialType)
         {
-            case "byte":
+            case SpecialType.System_Byte:
                 bits = sizeof(byte) * 8;
-                readMethod = "GetByte";
-                cppType = "uint8_t";
                 break;
-            case "ushort":
+            case SpecialType.System_UInt16:
                 bits = sizeof(ushort) * 8;
-                readMethod = "GetUShort";
-                cppType = "uint16_t";
                 break;
-            case "uint":
+            case SpecialType.System_UInt32:
                 bits = sizeof(uint) * 8;
-                readMethod = "GetUInt";
-                cppType = "uint32_t";
                 break;
-            case "ulong":
+            case SpecialType.System_UInt64:
                 bits = sizeof(ulong) * 8;
-                readMethod = "GetULong";
-                cppType = "uint64_t";
                 break;
             default:
                 bits = sizeof(ulong) * 8;
-                readMethod = "GetULong";
-                cppType = "uint64_t";
                 invalid = true;
                 break;
         }
@@ -117,13 +95,13 @@ public class DeriveComponentUtils
         if (bits < memberCount)
             invalid = true;
 
-        return new DeriveMaskInfo(maskType, cppType, readMethod, bits, invalid);
+        return new DeriveMaskInfo(maskType, bits, invalid);
     }
 
     
-    internal static DeriveMemberModelWithSupport[] GetMemberModelList(DeriveTargetInfo targetInfo)
+    internal static DeriveMemberModel[] GetMemberModelList(DeriveTargetInfo targetInfo)
     {
-        var members = new DeriveMemberModelWithSupport[targetInfo.Members.Length];
+        var members = new DeriveMemberModel[targetInfo.Members.Length];
 
         for (var i = 0; i < targetInfo.Members.Length; i++)
         {
@@ -134,56 +112,9 @@ public class DeriveComponentUtils
         return members;
     }
     
-    internal static DeriveMemberModelWithSupport GetMemberModel(DeriveMemberInfo memberInfo, int index)
-    {
-        var type = memberInfo.Type ?? throw new InvalidOperationException("Member type unexpectedly null.");
-
-        var csharpSupport = memberInfo.IsInvalid ? null : FieldSupportRegistry.ResolveCSharpSupport(type);
-        var cppSupport = memberInfo.IsInvalid ? null : FieldSupportRegistry.ResolveCppSupport(type);
-
-        return new DeriveMemberModelWithSupport(
-            new DeriveMemberModel(memberInfo, GetGeneratedPropertyName(memberInfo.Name), index),
-            csharpSupport,
-            cppSupport);
-    }
+    internal static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
+        => new(memberInfo, GetGeneratedPropertyName(memberInfo.Name), index);
     
-    internal static IEnumerable<string> GetUserInputErrors(
-        DeriveTargetInfo targetInfo,
-        DeriveMaskInfo mask,
-        DeriveMemberModelWithSupport[] members,
-        bool emitDirtyMask,
-        bool forCpp)
-    {
-        foreach (var error in targetInfo.ErrorMessages)
-            yield return error;
-
-        if (mask.Invalid)
-        {
-            if (emitDirtyMask)
-            {
-                yield return "Too many networked members in '" + targetInfo.Name +
-                             "' to fit in a dirty mask. Maximum supported is " + mask.Bits.ToString(CultureInfo.InvariantCulture) +
-                             ", but " + members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
-            }
-            else
-            {
-                yield return "Too many networked members in '" + targetInfo.Name +
-                             "' to fit in the specified _dirtyMask. Maximum supported is " + mask.Bits.ToString(CultureInfo.InvariantCulture) +
-                             ", but " + members.Length.ToString(CultureInfo.InvariantCulture) + " were found.";
-            }
-        }
-
-        foreach (var member in members)
-        {
-            var supported = forCpp ? member.IsCppSupported : member.IsCSharpSupported;
-            if (!supported)
-            {
-                yield return "Unsupported type '" + member.Model.SourceMember.Type.ToDisplayString() +
-                             "' for networked member '" + member.Model.SourceMember.Name + "'.";
-            }
-        }
-    }
-
     internal static string GetGeneratedPropertyName(string memberName)
     {
         if (string.IsNullOrEmpty(memberName))

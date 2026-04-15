@@ -1,11 +1,13 @@
-﻿namespace ReadyM.Api.Generators;
+﻿using System.Collections.Generic;
+
+namespace ReadyM.Api.Generators;
 
 internal class DeriveTargetModel(
     DeriveTargetInfo sourceTarget,
     DeriveMaskInfo maskInfo,
-    DeriveMemberModelWithSupport[] members)
+    IReadOnlyList<DeriveMemberModel> members)
 {
-    internal DeriveTargetInfo SourceTarget { get; } = sourceTarget;
-    internal DeriveMaskInfo MaskInfo { get; } = maskInfo;
-    internal DeriveMemberModelWithSupport[] Members { get; } = members;
+    public DeriveTargetInfo SourceTarget { get; } = sourceTarget;
+    public DeriveMaskInfo MaskInfo { get; } = maskInfo;
+    public IReadOnlyList<DeriveMemberModel> Members { get; } = members;
 }

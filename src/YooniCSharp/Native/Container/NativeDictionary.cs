@@ -64,12 +64,12 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     public int Capacity
         => _impl.Capacity;
 
-    public TValue this[TKey key]
+    public TValue this[in TKey key]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            var hash = default(THash).ComputeHash(key);
+            var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (entryPtr.IsNull)
             {
@@ -80,7 +80,7 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            var hash = default(THash).ComputeHash(key);
+            var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (!entryPtr.IsNull)
             {
@@ -110,9 +110,9 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     IEnumerator IEnumerable.GetEnumerator()
         => GetEnumerator();
 
-    public ref TValue GetItemRef(TKey key)
+    public ref TValue GetItemRef(in TKey key)
     {
-        var hash = default(THash).ComputeHash(key);
+        var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (entryPtr.IsNull)
         {
@@ -123,9 +123,9 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Add(TKey key, TValue value)
+    public bool Add(in TKey key, TValue value)
     {
-        var hash = default(THash).ComputeHash(key);
+        var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (!entryPtr.IsNull)
         {
@@ -139,14 +139,14 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Add(KeyValuePair<TKey, TValue> item)
+    public bool Add(in KeyValuePair<TKey, TValue> item)
         => Add(item.Key, item.Value);
 
     public void Clear()
         => _impl.Clear();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains(KeyValuePair<TKey, TValue> item)
+    public bool Contains(in KeyValuePair<TKey, TValue> item)
     {
         if (TryGetValue(item.Key, out TValue value))
         {
@@ -156,7 +156,7 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains(TKey key, TValue value)
+    public bool Contains(in TKey key, TValue value)
     {
         if (TryGetValue(key, out TValue innerValue))
         {
@@ -164,19 +164,78 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
         }
         return false;
     }
-
+    
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool ContainsKey(TKey key)
-        => !_impl.Find(key, default(THash).ComputeHash(key)).IsNull;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Remove(TKey key)
-        => _impl.Remove(key, default(THash).ComputeHash(key));
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetValue(TKey key, out TValue value)
+    public bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
+        where TComparer : IEqualityComparer<TValue>
     {
-        var entry = _impl.Find(key, default(THash).ComputeHash(key));
+        if (TryGetValue(item.Key, out TValue value))
+        {
+            return comparer.Equals(item.Value, value);
+        }
+        return false;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
+        where TComparer : IEqualityComparer<TValue>
+    {
+        if (TryGetValue(key, out TValue innerValue))
+        {
+            return comparer.Equals(value, innerValue);
+        }
+        return false;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals(in NativeDictionary<TKey, TValue, THash> other)
+    {
+        if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
+            return true; // Reference equality short circuit
+        
+        if (Count != other.Count)
+            return false;
+
+        foreach (var item in other)
+        {
+            if (!Contains(item.Key, item.Value))
+                return false;
+        }
+        
+        return true;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
+        where TComparer : IEqualityComparer<TValue>
+    {
+        if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
+            return true; // Reference equality short circuit
+        
+        if (Count != other.Count)
+            return false;
+
+        foreach (var item in other)
+        {
+            if (!Contains(item.Key, item.Value, comparer))
+                return false;
+        }
+        
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ContainsKey(in TKey key)
+        => !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Remove(in TKey key)
+        => _impl.Remove(key, default(THash).ComputeHash(in key));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetValue(in TKey key, out TValue value)
+    {
+        var entry = _impl.Find(key, default(THash).ComputeHash(in key));
         if (!entry.IsNull)
         {
             value = entry.Get().Value;

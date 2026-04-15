@@ -13,16 +13,18 @@ namespace ReadyM.Api.Generators.Tests;
 internal static class SourceGeneratorTestHelper
 {
     internal sealed class GeneratorRunResult(
+        ImmutableArray<Diagnostic> compilationDiagnostics,
         Compilation inputCompilation,
         Compilation outputCompilation,
         GeneratorDriverRunResult driverRunResult)
     {
+        public ImmutableArray<Diagnostic> CompilationDiagnostics { get; } = compilationDiagnostics;
         public Compilation InputCompilation { get; } = inputCompilation ?? throw new ArgumentNullException(nameof(inputCompilation));
 
         public Compilation OutputCompilation { get; } = outputCompilation ?? throw new ArgumentNullException(nameof(outputCompilation));
 
         public GeneratorDriverRunResult DriverRunResult { get; } = driverRunResult;
-
+        
         public ImmutableArray<Diagnostic> InputDiagnostics => InputCompilation.GetDiagnostics();
 
         public ImmutableArray<Diagnostic> OutputDiagnostics => OutputCompilation.GetDiagnostics();
@@ -43,10 +45,10 @@ internal static class SourceGeneratorTestHelper
         driver = driver.RunGeneratorsAndUpdateCompilation(
             inputCompilation,
             out var outputCompilation,
-            out _);
+            out var compilationDiagnostics);
 
         var runResult = driver.GetRunResult();
-        var result = new GeneratorRunResult(inputCompilation, outputCompilation, runResult);
+        var result = new GeneratorRunResult(compilationDiagnostics, inputCompilation, outputCompilation, runResult);
 
         WriteGeneratedFiles(output, result);
 
@@ -103,6 +105,11 @@ internal static class SourceGeneratorTestHelper
 
     private static void WriteGeneratedFiles(ITestOutputHelper output, GeneratorRunResult result)
     {
+        foreach (var diagnostic in result.CompilationDiagnostics)
+        {
+            output.WriteLine("DIAGNOSTIC: " + diagnostic.ToString());
+        }
+        
         output.WriteLine("===== GENERATED FILES =====");
         output.WriteLine(string.Empty);
 

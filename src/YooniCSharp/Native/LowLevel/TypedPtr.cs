@@ -79,4 +79,7 @@ public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
 
     public void* GetPointer()
         => _ptr;
+    
+    public IntPtr GetIntPtr()
+        => new(_ptr);
 }

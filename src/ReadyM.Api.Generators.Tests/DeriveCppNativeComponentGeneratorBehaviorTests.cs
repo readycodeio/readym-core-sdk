@@ -130,30 +130,33 @@ public partial struct AppearanceComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeList<int32_t> IntList() const",
-            setterSignature: "void SetIntList(Yooni::Native::Container::NativeList<int32_t> value)",
+            getterSignature: "const Yooni::Native::Container::NativeList<int32_t>& IntList() const",
+            setterSignature: "void SetIntList(const Yooni::Native::Container::NativeList<int32_t>& value)",
             inequalityGuard: "if (_intList != value)",
             assignment: "_intList = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeList<int32_t> _intList = {};");
+            backingField: "Yooni::Native::Container::NativeList<int32_t> _intList = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> SexList() const",
-            setterSignature: "void SetSexList(Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> value)",
+            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& SexList() const",
+            setterSignature: "void SetSexList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& value)",
             inequalityGuard: "if (_sexList != value)",
             assignment: "_sexList = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};");
+            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> PairList() const",
-            setterSignature: "void SetPairList(Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> value)",
+            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& PairList() const",
+            setterSignature: "void SetPairList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& value)",
             inequalityGuard: "if (_pairList != value)",
             assignment: "_pairList = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};");
+            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
+            maskType: "uint32_t");
 
         Assert.Contains("private:", generatedText);
         Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
@@ -212,30 +215,33 @@ public partial struct FixedComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeFixed<int32_t, 8> IntFixed() const",
-            setterSignature: "void SetIntFixed(Yooni::Native::Container::NativeFixed<int32_t, 8> value)",
+            getterSignature: "const Yooni::Native::Container::NativeFixed<int32_t, 8>& IntFixed() const",
+            setterSignature: "void SetIntFixed(const Yooni::Native::Container::NativeFixed<int32_t, 8>& value)",
             inequalityGuard: "if (_intFixed != value)",
             assignment: "_intFixed = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};");
+            backingField: "Yooni::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> SexFixed() const",
-            setterSignature: "void SetSexFixed(Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> value)",
+            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexFixed() const",
+            setterSignature: "void SetSexFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexFixed != value)",
             assignment: "_sexFixed = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};");
+            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> PairFixed() const",
-            setterSignature: "void SetPairFixed(Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> value)",
+            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& PairFixed() const",
+            setterSignature: "void SetPairFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairFixed != value)",
             assignment: "_pairFixed = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};");
+            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};",
+            maskType: "uint32_t");
     }
 
     [Fact]
@@ -265,7 +271,7 @@ public struct Pair
 
 public struct CharacterSexHash : IHashFunction<CharacterSex>
 {
-    public uint ComputeHash(CharacterSex value)
+    public uint ComputeHash(in CharacterSex value)
     {
         return (uint)value;
     }
@@ -273,7 +279,7 @@ public struct CharacterSexHash : IHashFunction<CharacterSex>
 
 public struct PairHash : IHashFunction<Pair>
 {
-    public uint ComputeHash(Pair value)
+    public uint ComputeHash(in Pair value)
     {
         return (uint)(value.X * 397 ^ value.Y);
     }
@@ -305,30 +311,33 @@ public partial struct DictionaryComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> IntToSex() const",
-            setterSignature: "void SetIntToSex(Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> value)",
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& IntToSex() const",
+            setterSignature: "void SetIntToSex(const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& value)",
             inequalityGuard: "if (_intToSex != value)",
             assignment: "_intToSex = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> _intToSex = {};");
+            backingField: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> _intToSex = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> SexToPair() const",
-            setterSignature: "void SetSexToPair(Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> value)",
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& SexToPair() const",
+            setterSignature: "void SetSexToPair(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& value)",
             inequalityGuard: "if (_sexToPair != value)",
             assignment: "_sexToPair = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};");
+            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> PairToInt() const",
-            setterSignature: "void SetPairToInt(Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> value)",
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& PairToInt() const",
+            setterSignature: "void SetPairToInt(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& value)",
             inequalityGuard: "if (_pairToInt != value)",
             assignment: "_pairToInt = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};");
+            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};",
+            maskType: "uint32_t");
     }
 
     [Fact]
@@ -383,30 +392,33 @@ public partial struct RingBufferComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> IntHistory() const",
-            setterSignature: "void SetIntHistory(Yooni::Native::Container::NativeRingBuffer<int32_t, 8> value)",
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& IntHistory() const",
+            setterSignature: "void SetIntHistory(const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& value)",
             inequalityGuard: "if (_intHistory != value)",
             assignment: "_intHistory = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};");
+            backingField: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> SexHistory() const",
-            setterSignature: "void SetSexHistory(Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> value)",
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexHistory() const",
+            setterSignature: "void SetSexHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexHistory != value)",
             assignment: "_sexHistory = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};");
+            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> PairHistory() const",
-            setterSignature: "void SetPairHistory(Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> value)",
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& PairHistory() const",
+            setterSignature: "void SetPairHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairHistory != value)",
             assignment: "_pairHistory = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};");
+            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};",
+            maskType: "uint32_t");
     }
 
     [Fact]
@@ -447,30 +459,33 @@ public partial struct StringComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeString64 DisplayName() const",
-            setterSignature: "void SetDisplayName(Yooni::Native::Container::NativeString64 value)",
+            getterSignature: "const Yooni::Native::Container::NativeString64& DisplayName() const",
+            setterSignature: "void SetDisplayName(const Yooni::Native::Container::NativeString64& value)",
             inequalityGuard: "if (_displayName != value)",
             assignment: "_displayName = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeString64 _displayName = {};");
+            backingField: "Yooni::Native::Container::NativeString64 _displayName = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeString64 Title() const",
-            setterSignature: "void SetTitle(Yooni::Native::Container::NativeString64 value)",
+            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
             inequalityGuard: "if (_title != value)",
             assignment: "_title = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeString64 _title = {};");
+            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "Yooni::Native::Container::NativeString256 Biography() const",
-            setterSignature: "void SetBiography(Yooni::Native::Container::NativeString256 value)",
+            getterSignature: "const Yooni::Native::Container::NativeString256& Biography() const",
+            setterSignature: "void SetBiography(const Yooni::Native::Container::NativeString256& value)",
             inequalityGuard: "if (_biography != value)",
             assignment: "_biography = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeString256 _biography = {};");
+            backingField: "Yooni::Native::Container::NativeString256 _biography = {};",
+            maskType: "uint32_t");
     }
 
     private static void AssertContainerMember(
@@ -480,13 +495,14 @@ public partial struct StringComponent : IComponent
         string inequalityGuard,
         string assignment,
         int dirtyMaskBit,
-        string backingField)
+        string backingField,
+        string maskType)
     {
         Assert.Contains(getterSignature, generatedText);
         Assert.Contains(setterSignature, generatedText);
         Assert.Contains(inequalityGuard, generatedText);
         Assert.Contains(assignment, generatedText);
-        Assert.Contains($"_dirtyMask |= static_cast<uint32_t>(1) << {dirtyMaskBit};", generatedText);
+        Assert.Contains($"_dirtyMask |= static_cast<{maskType}>(1) << {dirtyMaskBit};", generatedText);
         Assert.Contains(backingField, generatedText);
     }
 }

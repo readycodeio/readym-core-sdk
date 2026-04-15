@@ -61,6 +61,60 @@ public struct NativeFixed<T, TStorage>() : IEnumerable<T>
         }
     }
 
+    public bool Contains(in T value)
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (EqualityComparer<T>.Default.Equals(_arr[i], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Contains<TComparer>(in T value, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (comparer.Equals(_arr[i], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Equals(in NativeFixed<T, TStorage> other)
+    {
+        if (_arr.GetPointer() == other._arr.GetPointer())
+            return true; // Reference equality short circuit
+        
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!EqualityComparer<T>.Default.Equals(_arr[i], other._arr[i]))
+                return false;
+        }
+        return true;
+    }
+    
+    public bool Equals<TComparer>(in NativeFixed<T, TStorage> other, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        if (_arr.GetPointer() == other._arr.GetPointer())
+            return true; // Reference equality short circuit
+
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!comparer.Equals(_arr[i], other._arr[i]))
+                return false;
+        }
+        return true;
+    }
+    
     public int Add(T value)
     {
         if (_count >= Capacity)
@@ -109,7 +163,7 @@ public struct NativeFixed<T, TStorage>() : IEnumerable<T>
         _count += count;
     }
 
-    public void InsertRange(int index, NativeFixed<T, TStorage> source)
+    public void InsertRange(int index, in NativeFixed<T, TStorage> source)
     {
         var sourceCount = source._count;
 

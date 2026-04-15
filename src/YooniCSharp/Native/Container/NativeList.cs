@@ -11,11 +11,6 @@ namespace Yooni.Native.Container;
 public struct NativeList<T> : IEnumerable<T>, IDisposable
     where T : unmanaged
 {
-    private TypedArrayPtr<T> _ptr;
-    private int _count;
-    private int _capacity;
-    private AllocatorKind _allocator;
-
     public class Enumerator(NativeList<T> impl) : IEnumerator<T>
     {
         private NativeList<T> _impl = impl;
@@ -41,6 +36,11 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             _index = -1;
         }
     }
+
+    private TypedArrayPtr<T> _ptr;
+    private int _count;
+    private int _capacity;
+    private AllocatorKind _allocator;
 
     [Pure]
     public bool IsCreated()
@@ -83,6 +83,60 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             }
             return ref _ptr[index];
         }
+    }
+
+    public bool Contains(in T value)
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (EqualityComparer<T>.Default.Equals(_ptr[i], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Contains<TComparer>(in T value, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        for (var i = 0; i < _count; ++i)
+        {
+            if (comparer.Equals(_ptr[i], value))
+                return true;
+        }
+        return false;
+    }
+    
+    public bool Equals(in NativeList<T> other)
+    {
+        if (_ptr == other._ptr)
+            return true; // Reference equality short circuit
+        
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!EqualityComparer<T>.Default.Equals(_ptr[i], other._ptr[i]))
+                return false;
+        }
+        return true;
+    }
+    
+    public bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
+        where TComparer : IEqualityComparer<T>
+    {
+        if (_ptr == other._ptr)
+            return true; // Reference equality short circuit
+
+        if (_count != other._count)
+            return false;
+        
+        for (var i = 0; i < _count; ++i)
+        {
+            if (!comparer.Equals(_ptr[i], other._ptr[i]))
+                return false;
+        }
+        return true;
     }
 
     public int Add(T value)

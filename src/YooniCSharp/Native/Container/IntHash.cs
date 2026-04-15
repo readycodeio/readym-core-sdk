@@ -2,7 +2,7 @@ namespace Yooni.Native.Container;
 
 public struct IntHash : IHashFunction<int>
 {
-    public uint ComputeHash(int value)
+    public uint ComputeHash(in int value)
     {
         unchecked
         {

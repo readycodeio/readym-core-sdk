@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Yooni.Native.LowLevel;
@@ -22,12 +23,14 @@ public unsafe struct TypedArray<T, TStorage>
     public int Length
         => sizeof(TStorage) / sizeof(T);
     
+    [Pure]
     public TypedArrayPtr<T> GetPointer()
     {
         var ptr = Unsafe.AsPointer(ref _storage);
         return new TypedArrayPtr<T>(ptr);
     }
     
+    [Pure]
     public TypedPtr<T> GetPointer(int index)
     {
         var ptr = (byte*)Unsafe.AsPointer(ref _storage);

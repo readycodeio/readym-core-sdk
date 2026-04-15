@@ -2,11 +2,6 @@
 
 public struct ByteHash : IHashFunction<byte>
 {
-    public uint ComputeHash(byte value)
-    {
-        unchecked
-        {
-            return (uint)value;
-        }
-    }
+    public uint ComputeHash(in byte value)
+        => value;
 }

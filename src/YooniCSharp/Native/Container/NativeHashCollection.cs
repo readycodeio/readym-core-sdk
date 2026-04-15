@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using Yooni.Native.LowLevel;
 
@@ -146,7 +147,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
             }
         }
 
-        throw new InvalidOperationException($"HashCollection can't get larger than {_primes[^1]}");
+        throw new InvalidOperationException($"HashCollection can't get larger than {_primes[_primes.Length - 1]}");
     }
 
     public NativeHashCollection(int initialCapacity, AllocatorKind kind)
@@ -326,4 +327,8 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         _entries = newEntries;
         _count = capacity;
     }
+
+    [Pure]
+    internal IntPtr GetRawBucketsPointer()
+        => _buckets.GetPointer(0).GetIntPtr();
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
@@ -7,11 +8,23 @@ internal class DeriveMemberInfo(
     ITypeSymbol type,
     int order,
     bool readOnly,
-    bool isInvalid)
+    IReadOnlyList<string> errors)
 {
     public string Name { get; } = name;
     public ITypeSymbol Type { get; } = type;
     public int Order { get; } = order;
     public bool ReadOnly { get; } = readOnly;
-    public bool IsInvalid { get; } = isInvalid;
+    
+    private readonly List<string> _errors = [..errors];
+
+    public bool HasErrors
+        => _errors.Count > 0;
+    
+    public IReadOnlyList<string> Errors
+        => _errors;
+    
+    public void AddError(string error)
+    {
+        _errors.Add(error);
+    }
 }

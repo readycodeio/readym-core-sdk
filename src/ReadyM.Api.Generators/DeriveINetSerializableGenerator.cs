@@ -32,7 +32,7 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
             return (string.Empty, string.Empty);
 
         var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol);
+        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
         var code = GenerateINetSerializableImpl(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol);
 
@@ -56,9 +56,11 @@ public partial struct {info.Name}
 {{
 ");
 
-        foreach (var error in info.ErrorMessages)
+        foreach (var error in info.Errors)
         {
-            sb.AppendLine($"    #error {error}");
+            sb.AppendLine($"""
+    #error {error}
+""");
         }
         
         var usePutGet = new bool[info.Members.Length];
@@ -77,10 +79,10 @@ public partial struct {info.Name}
         }
 
         sb.AppendLine("""
-                          [Pure]
-                          public void Serialize(NetDataWriter writer)
-                          {
-                      """);
+    [Pure]
+    public void Serialize(NetDataWriter writer)
+    {
+""");
 
         for (var i = 0; i < info.Members.Length; i++)
         {
@@ -89,24 +91,33 @@ public partial struct {info.Name}
             if (isEnum[i])
             {
                 var baseType = SerializationHelper.GetSpecialTypeCSharpName(enumBaseType[i]);
-                sb.AppendLine($"        writer.Put(({baseType}){field.Name});");
+                sb.AppendLine($"""
+        writer.Put(({baseType}){field.Name});
+""");
             }
             else if (usePutGet[i])
             {
-                sb.AppendLine($"        writer.Put({field.Name});");
+                sb.AppendLine($"""
+        writer.Put({field.Name});
+""");
             }
             else
             {
-                sb.AppendLine($"        {field.Name}.Serialize(writer);");
+                sb.AppendLine($"""
+        {field.Name}.Serialize(writer);
+""");
             }
         }
 
-        sb.AppendLine("    }\n");
+        sb.AppendLine("""
+    }
+    
+""");
 
         sb.AppendLine("""
-                          public void Deserialize(NetDataReader reader)
-                          {
-                      """);
+    public void Deserialize(NetDataReader reader)
+    {
+""");
 
         for (var i = 0; i < info.Members.Length; i++)
         {
@@ -115,20 +126,29 @@ public partial struct {info.Name}
             if (isEnum[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"        {field.Name} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
+                sb.AppendLine($"""
+        {field.Name} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();
+""");
             }
             else if (usePutGet[i])
             {
                 var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"        {field.Name} = reader.{getMethod}();");
+                sb.AppendLine($"""
+        {field.Name} = reader.{getMethod}();
+""");
             }
             else
             {
-                sb.AppendLine($"        {field.Name}.Deserialize(reader);");
+                sb.AppendLine($"""
+        {field.Name}.Deserialize(reader);
+""");
             }
         }
         
-        sb.AppendLine("    }");
+        sb.AppendLine("""
+    }
+    
+""");
         
         sb.AppendLine(@"
 }

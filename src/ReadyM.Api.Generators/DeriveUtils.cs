@@ -35,22 +35,22 @@ internal static class DeriveUtils
         var ns = symbol.ContainingNamespace.ToDisplayString();
         var name = symbol.Name;
 
-        string? dirtyMaskType = null;
-        var errorMessages = new List<string>();
+        ITypeSymbol? requestedDirtyMaskType = null;
         var allMembers = new List<DeriveMemberInfo>();
 
         foreach (var member in symbol.GetMembers())
         {
+            var errors = new List<string>();
             bool isField;
             var useMember = true;
             var canUseMember = true;
 
             if (member.Name == "_dirtyMask")
             {
-                dirtyMaskType = member switch
+                requestedDirtyMaskType = member switch
                 {
-                    IFieldSymbol maskField => maskField.Type.ToDisplayString(),
-                    IPropertySymbol propField => propField.Type.ToDisplayString(),
+                    IFieldSymbol maskField => maskField.Type,
+                    IPropertySymbol propField => propField.Type,
                     _ => throw new InvalidOperationException($"Unsupported symbol type for dirty mask: {member.GetType().Name}")
                 };
                 continue;
@@ -132,8 +132,7 @@ internal static class DeriveUtils
 
             if (hasInclude && hasExclude)
             {
-                errorMessages.Add($"Cannot have `IncludeSerializable` and `ExcludeSerializable` on the same {(isField ? "field" : "property")}: {member.Name}");
-                continue;
+                errors.Add($"Cannot have `IncludeSerializable` and `ExcludeSerializable` on the same {(isField ? "field" : "property")}: {member.Name}");
             }
 
             if (hasInclude)
@@ -143,13 +142,12 @@ internal static class DeriveUtils
 
             if (!canUseMember && useMember)
             {
-                errorMessages.Add($"Cannot use {(isField ? "field" : "property")}: {member.Name}");
-                continue;
+                errors.Add($"Cannot use {(isField ? "field" : "property")}: {member.Name}");
             }
 
             if (useMember)
             {
-                var fieldInfo = GetMemberInfo(member);
+                var fieldInfo = GetMemberInfo(member, errors);
                 allMembers.Add(fieldInfo);
             }
         }
@@ -157,18 +155,19 @@ internal static class DeriveUtils
         var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
 
         return new DeriveTargetInfo(
+            target: symbol,
             name: name,
             @namespace: ns,
             members: allMembers.ToArray(),
             isNullable: thisNullable,
-            errorMessages: errorMessages.ToArray(),
-            dirtyMaskType: dirtyMaskType,
+            errors: [],
+            requestedDirtyMaskType: requestedDirtyMaskType,
             emitDirtyMask: emitDirtyMask,
             mapSettings: mapSettings
         );
     }
 
-    internal static DeriveMemberInfo GetMemberInfo(ISymbol symbol)
+    internal static DeriveMemberInfo GetMemberInfo(ISymbol symbol, List<string> errors)
     {
         if (symbol is IFieldSymbol f)
             return new DeriveMemberInfo(
@@ -176,14 +175,22 @@ internal static class DeriveUtils
                 type: f.Type,
                 order: f.DeclaringSyntaxReferences[0].Span.Start,
                 readOnly: f.IsReadOnly,
-                isInvalid: false);
+                errors: errors);
         else if (symbol is IPropertySymbol p)
+        {
+            if (p.GetMethod == null || p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true)
+                errors.Add($"Properties that are setter-only are not supported: {p.Name}");
+            else if (p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true)
+                errors.Add($"Properties that are init-only are not supported: {p.Name}");
+            
             return new DeriveMemberInfo(
                 name: p.Name,
                 type: p.Type,
                 order: p.DeclaringSyntaxReferences[0].Span.Start,
                 readOnly: p.SetMethod == null,
-                isInvalid: p.GetMethod == null || p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true);
+                errors: errors);
+            
+        }
         else
             throw new InvalidOperationException($"Unsupported symbol type: {symbol.GetType().Name}");
     }

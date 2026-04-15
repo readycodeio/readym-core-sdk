@@ -7,7 +7,7 @@ using ReadyM.Api.Serialization;
 namespace ReadyM.Api.Multiplayer.ECS.Values;
 
 [DeriveJsonSerializable]
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
+[StructLayout(LayoutKind.Sequential)]
 public partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
 {
     public uint Id { get; private set; } = id; // 4 bytes
