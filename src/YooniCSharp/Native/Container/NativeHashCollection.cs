@@ -124,6 +124,9 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
 
     public bool IsCreated
         => !_buckets.IsNull;
+    
+    public AllocatorKind Allocator
+        => _allocator;
 
     public Enumerator GetEnumerator()
         => new(this);
@@ -178,7 +181,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     public int Capacity
         => _count;
 
-    public TypedPtr<Entry> Find(TKey key, uint valueHash)
+    public readonly TypedPtr<Entry> Find(TKey key, uint valueHash)
     {
         var bucketHeadPtr = _buckets[(int)(valueHash % _count)];
 

@@ -185,11 +185,19 @@ public static class DeriveTestAssert
         Assert.True(reader.EndOfData);
     }
 
-    public static void Invoke(object instance, string methodName, params object[] args)
+    public static object? Invoke(object instance, int arity, string methodName, params object[] args)
+    {
+        var method = instance.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            .Single(m => m.Name == methodName && m.GetParameters().Length == arity);
+        Assert.NotNull(method);
+        return method.Invoke(instance, args);
+    }
+
+    public static object? Invoke(object instance, string methodName, params object[] args)
     {
         var method = instance.GetType().GetMethod(methodName);
         Assert.NotNull(method);
-        method.Invoke(instance, args);
+        return method.Invoke(instance, args);
     }
 
     public static void SetProperty(object instance, string propertyName, object? value)

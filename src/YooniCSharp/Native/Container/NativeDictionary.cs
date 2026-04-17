@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Yooni.Native.LowLevel;
@@ -47,6 +48,106 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             => _implEnumerator.Dispose();
     }
 
+    public readonly ref struct ReadOnly(NativeDictionary<TKey, TValue, THash> owner) : IEnumerable<KeyValuePair<TKey, TValue>>
+    {
+        internal readonly NativeDictionary<TKey, TValue, THash> _impl = owner;
+        
+        public AllocatorKind Allocator
+            => _impl.Allocator;
+        
+        [Pure]
+        public bool IsCreated
+            => _impl.IsCreated;
+
+        [Pure]
+        public int Count
+            => _impl.Count;
+
+        [Pure]
+        public int Capacity
+            => _impl.Capacity;
+        
+        [Pure]
+        public TValue this[in TKey key]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _impl[key];
+        }
+
+        // -- read access
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool ContainsKey(in TKey key)
+            => _impl.ContainsKey(key);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(in KeyValuePair<TKey, TValue> item)
+            => _impl.Contains(item);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(in TKey key, TValue value)
+            => _impl.Contains(key, value);
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
+            where TComparer : IEqualityComparer<TValue>
+            => _impl.Contains(item, comparer);
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
+            where TComparer : IEqualityComparer<TValue>
+        {
+            if (TryGetValue(key, out TValue innerValue))
+            {
+                return comparer.Equals(value, innerValue);
+            }
+            return false;
+        }
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetValue(in TKey key, out TValue value)
+            => _impl.TryGetValue(key, out value);
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(in NativeDictionary<TKey, TValue, THash> other)
+            => _impl.Equals(other);
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(in ReadOnly other)
+            => _impl.Equals(other);
+        
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
+            where TComparer : IEqualityComparer<TValue>
+            => _impl.Equals(other, comparer);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals<TComparer>(in ReadOnly other, TComparer comparer)
+            where TComparer : IEqualityComparer<TValue>
+            => _impl.Equals(other, comparer);
+
+        // -- access object
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Enumerator GetEnumerator()
+            => _impl.GetEnumerator();
+
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+            => GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator()
+            => GetEnumerator();
+    }
+    
     private NativeHashCollection<TKey, TValue> _impl;
 
     // ReSharper disable once ConvertToPrimaryConstructor
@@ -67,13 +168,20 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         _impl = new NativeHashCollection<TKey, TValue>(0, kind);
     }
     
-    public bool IsCreated
+    [Pure]
+    public readonly AllocatorKind Allocator
+        => _impl.Allocator;
+    
+    [Pure]
+    public readonly bool IsCreated
         => _impl.IsCreated;
 
-    public int Count
+    [Pure]
+    public readonly int Count
         => _impl.Count;
 
-    public int Capacity
+    [Pure]
+    public readonly int Capacity
         => _impl.Capacity;
 
     public TValue this[in TKey key]
@@ -107,12 +215,14 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     
     // -- read access
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool ContainsKey(in TKey key)
+    public readonly bool ContainsKey(in TKey key)
         => !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
 
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains(in KeyValuePair<TKey, TValue> item)
+    public readonly bool Contains(in KeyValuePair<TKey, TValue> item)
     {
         if (TryGetValue(item.Key, out TValue value))
         {
@@ -121,8 +231,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return false;
     }
 
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains(in TKey key, TValue value)
+    public readonly bool Contains(in TKey key, TValue value)
     {
         if (TryGetValue(key, out TValue innerValue))
         {
@@ -131,8 +242,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return false;
     }
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
+    public readonly bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
         if (TryGetValue(item.Key, out TValue value))
@@ -142,8 +254,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return false;
     }
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
+    public readonly bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
         if (TryGetValue(key, out TValue innerValue))
@@ -153,8 +266,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return false;
     }
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetValue(in TKey key, out TValue value)
+    public readonly bool TryGetValue(in TKey key, out TValue value)
     {
         var entry = _impl.Find(key, default(THash).ComputeHash(in key));
         if (!entry.IsNull)
@@ -166,8 +280,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return false;
     }
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(in NativeDictionary<TKey, TValue, THash> other)
+    public readonly bool Equals(in NativeDictionary<TKey, TValue, THash> other)
     {
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
@@ -187,8 +302,14 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         return true;
     }
     
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
+    private readonly bool Equals(in ReadOnly other)
+        => Equals(other._impl);
+    
+    [Pure]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
@@ -208,6 +329,11 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         
         return true;
     }
+
+    [Pure]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool Equals(in ReadOnly other, IEqualityComparer<TValue> comparer)
+        => Equals(other._impl, comparer);
 
     // -- write access
 
@@ -240,6 +366,26 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TrySet(in TKey key, TValue value)
+    {
+        var hash = default(THash).ComputeHash(in key);
+        var entryPtr = _impl.Find(key, hash);
+        if (!entryPtr.IsNull)
+        {
+            if (EqualityComparer<TValue>.Default.Equals(entryPtr.Get().Value, value))
+                return false;
+            
+            entryPtr.Get().Value = value;
+            return true;
+        }
+        else
+        {
+            _impl.Insert(key, hash, value);
+            return true;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Add(in KeyValuePair<TKey, TValue> item)
         => Add(item.Key, item.Value);
 
@@ -260,22 +406,29 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         }
     }
     
-    // -- accessor
-    
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Enumerator GetEnumerator()
+    public void Assign(ReadOnly other)
+        => Assign(other._impl);
+    
+    // -- access object
+    
+    [Pure]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly Enumerator GetEnumerator()
     {
         if (!IsCreated)
-        {
             throw new InvalidOperationException("NativeDictionary is not created");
-        }
 
         return new Enumerator(_impl);
     }
 
-    IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+    readonly IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         => GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator()
+    readonly IEnumerator IEnumerable.GetEnumerator()
         => GetEnumerator();
+    
+    [Pure]
+    public readonly ReadOnly AsReadOnly()
+        => new(this);
 }

@@ -8,8 +8,8 @@ public static class NetSerializationExtensions
 {
     public static unsafe void Serialize(this in NativeString64 str, NetDataWriter writer)
     {
-        writer.ResizeIfNeed(writer.Length + str.Length + sizeof(int));
-        writer.Put(str.Length);
+        writer.ResizeIfNeed(writer.Length + str.Length + sizeof(byte));
+        writer.Put((byte)str.Length);
         fixed (byte* ptr = writer.Data)
         {
             str.CopyTo(ptr + writer.Length);
@@ -19,7 +19,7 @@ public static class NetSerializationExtensions
     
     public static void Deserialize(this ref NativeString64 str, NetDataReader reader)
     {
-        var length = reader.GetInt();
+        var length = reader.GetByte();
         
         if (reader.AvailableBytes < length)
             throw new InvalidOperationException($"Not enough bytes to read NativeString64: required={length}, available={reader.AvailableBytes}");
@@ -30,8 +30,8 @@ public static class NetSerializationExtensions
     
     public static unsafe void Serialize(this in NativeString256 str, NetDataWriter writer)
     {
-        writer.ResizeIfNeed(writer.Length + str.Length + sizeof(int));
-        writer.Put(str.Length);
+        writer.ResizeIfNeed(writer.Length + str.Length + sizeof(byte));
+        writer.Put((byte)str.Length);
         fixed (byte* ptr = writer.Data)
         {
             str.CopyTo(ptr + writer.Length);
@@ -41,7 +41,7 @@ public static class NetSerializationExtensions
     
     public static void Deserialize(this ref NativeString256 str, NetDataReader reader)
     {
-        var length = reader.GetInt();
+        var length = reader.GetByte();
         
         if (reader.AvailableBytes < length)
             throw new InvalidOperationException($"Not enough bytes to read NativeString256: required={length}, available={reader.AvailableBytes}");

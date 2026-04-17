@@ -11,7 +11,7 @@ namespace Yooni.Native.Container;
 public struct NativeList<T> : IEnumerable<T>, IDisposable
     where T : unmanaged
 {
-    public class Enumerator(NativeList<T> impl) : IEnumerator<T>
+    public struct Enumerator(NativeList<T> impl) : IEnumerator<T>
     {
         private NativeList<T> _impl = impl;
         private int _index = -1;
@@ -37,26 +37,81 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         }
     }
 
+    public readonly ref struct ReadOnly(NativeList<T> owner) : IEnumerable<T>
+    {
+        private readonly NativeList<T> _impl = owner;
+
+        public AllocatorKind Allocator
+            => _impl.Allocator;
+
+        public bool IsCreated
+            => _impl.IsCreated;
+
+        public int Count
+            => _impl.Count;
+
+        public int Capacity
+            => _impl.Capacity;
+
+        public ref readonly T this[int index]
+            => ref _impl[index];
+
+        // -- read access
+        
+        public bool Contains(in T value)
+            => _impl.Contains(value);
+    
+        public bool Contains<TComparer>(in T value, TComparer comparer)
+            where TComparer : IEqualityComparer<T>
+            => _impl.Contains(value, comparer);
+    
+        public bool Equals(in NativeList<T> other)
+            => _impl.Equals(other);
+        
+        public bool Equals(in ReadOnly other)
+            => _impl.Equals(other._impl); 
+    
+        public bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
+            where TComparer : IEqualityComparer<T>
+            => _impl.Equals(other, comparer);
+    
+        public bool Equals<TComparer>(in ReadOnly other, TComparer comparer)
+            where TComparer : IEqualityComparer<T>
+            => _impl.Equals(other._impl, comparer);
+        
+        // -- access object
+
+        public Enumerator GetEnumerator()
+            => new Enumerator(_impl);
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
+            => new Enumerator(_impl);
+
+        IEnumerator IEnumerable.GetEnumerator()
+            => GetEnumerator();
+    }
+    
     private TypedArrayPtr<T> _ptr;
     private int _count;
     private int _capacity;
     private AllocatorKind _allocator;
 
+    public AllocatorKind Allocator
+        => _allocator;
+
     [Pure]
-    public bool IsCreated()
+    public readonly bool IsCreated
         => !_ptr.IsNull;
 
     [Pure]
-    public int Count
+    public readonly int Count
         => _count;
 
     [Pure]
-    public int Capacity
+    public readonly int Capacity
         => _capacity;
 
-    public AllocatorKind GetAllocatorKind()
-        => _allocator;
-
+    // ReSharper disable once ConvertToPrimaryConstructor
     public NativeList(int initialCapacity, AllocatorKind kind)
     {
         _ptr = TypedArrayPtr<T>.Alloc(initialCapacity, kind);
@@ -84,8 +139,10 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             return ref _ptr[index];
         }
     }
+    
+    // -- read access
 
-    public bool Contains(in T value)
+    public readonly bool Contains(in T value)
     {
         for (var i = 0; i < _count; ++i)
         {
@@ -95,7 +152,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         return false;
     }
     
-    public bool Contains<TComparer>(in T value, TComparer comparer)
+    public readonly bool Contains<TComparer>(in T value, TComparer comparer)
         where TComparer : IEqualityComparer<T>
     {
         for (var i = 0; i < _count; ++i)
@@ -106,7 +163,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         return false;
     }
     
-    public bool Equals(in NativeList<T> other)
+    public readonly bool Equals(in NativeList<T> other)
     {
         if (_ptr == other._ptr)
             return true; // Reference equality short circuit
@@ -122,7 +179,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         return true;
     }
     
-    public bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
+    public readonly bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
         where TComparer : IEqualityComparer<T>
     {
         if (_ptr == other._ptr)
@@ -138,7 +195,18 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         }
         return true;
     }
+    
+    // -- write access
 
+    public bool TrySet(int index, T value)
+    {
+        if (EqualityComparer<T>.Default.Equals(_ptr[index], value))
+            return false;
+
+        _ptr[index] = value;
+        return true;
+    }
+    
     public int Add(T value)
     {
         if (_capacity < _count + 1)
@@ -322,8 +390,10 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         }
         _capacity = newCapacity;
     }
+    
+    // -- access object
 
-    public Enumerator GetEnumerator()
+    public readonly Enumerator GetEnumerator()
         => new Enumerator(this);
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator()
@@ -331,4 +401,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     IEnumerator IEnumerable.GetEnumerator()
         => GetEnumerator();
+    
+    public readonly ReadOnly AsReadOnly()
+        => new(this);
 }

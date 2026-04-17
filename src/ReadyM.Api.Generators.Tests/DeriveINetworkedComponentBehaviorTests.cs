@@ -1,4 +1,4 @@
-﻿using Friflo.Json.Fliox.Transform.Query.Ops;
+﻿using System.Reflection;
 using LiteNetLib.Utils;
 using Xunit;
 using Yooni.Native.LowLevel;
@@ -1461,6 +1461,46 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
     private NativeDictionary<int, NativeString256, IntHash> _intToString256 = new(4, kind);
     private NativeDictionary<NativeString256, NativeString64, NativeStringHash256> _string256ToString64 = new(2, kind);
     private NativeDictionary<int, double, IntHash> _intToDouble = new(0, kind);
+    
+    public NativeDictionary<NativeString256, float, NativeStringHash256> String256ToFloatInternal
+    {
+        get
+        {
+            var result = new NativeDictionary<NativeString256, float, NativeStringHash256>(0, AllocatorKind.Default);
+            result.Assign(GetString256ToFloat());
+            return result;
+        }
+    }
+    
+    public NativeDictionary<int, NativeString256, IntHash> IntToString256Internal
+    {
+        get
+        {
+            var result = new NativeDictionary<int, NativeString256, IntHash>(0, AllocatorKind.Default);
+            result.Assign(GetIntToString256());
+            return result;
+        }
+    }
+    
+    public NativeDictionary<NativeString256, NativeString64, NativeStringHash256> String256ToString64Internal
+    {
+        get
+        {
+            var result = new NativeDictionary<NativeString256, NativeString64, NativeStringHash256>(0, AllocatorKind.Default);
+            result.Assign(GetString256ToString64());
+            return result;
+        }
+    }
+    
+    public NativeDictionary<int, double, IntHash> IntToDoubleInternal
+    {
+        get
+        {
+            var result = new NativeDictionary<int, double, IntHash>(0, AllocatorKind.Default);
+            result.Assign(GetIntToDouble());
+            return result;
+        }
+    }
 }
 """;
 
@@ -1482,10 +1522,10 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         var name256Type = componentType.GetProperty("Name256")!.PropertyType;
         var name64Type = componentType.GetProperty("Name64")!.PropertyType;
 
-        var string256ToFloatType = componentType.GetProperty("String256ToFloat")!.PropertyType;
-        var intToString256Type = componentType.GetProperty("IntToString256")!.PropertyType;
-        var string256ToString64Type = componentType.GetProperty("String256ToString64")!.PropertyType;
-        var intToDoubleType = componentType.GetProperty("IntToDouble")!.PropertyType;
+        var string256ToFloatType = componentType.GetField("_string256ToFloat", BindingFlags.NonPublic | BindingFlags.Instance)!.FieldType;
+        var intToString256Type = componentType.GetField("_intToString256", BindingFlags.NonPublic | BindingFlags.Instance)!.FieldType;
+        var string256ToString64Type = componentType.GetField("_string256ToString64", BindingFlags.NonPublic | BindingFlags.Instance)!.FieldType;
+        var intToDoubleType = componentType.GetField("_intToDouble", BindingFlags.NonPublic | BindingFlags.Instance)!.FieldType;
 
         var alpha256 = CreateNativeString(name256Type, "Alpha");
         var beta256 = CreateNativeString(name256Type, "Beta");
@@ -1520,10 +1560,10 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
 
         SetProperty(instance, "Name256", alpha256);
         SetProperty(instance, "Name64", shortA64);
-        SetProperty(instance, "String256ToFloat", string256ToFloat);
-        SetProperty(instance, "IntToString256", intToString256);
-        SetProperty(instance, "String256ToString64", string256ToString64);
-        SetProperty(instance, "IntToDouble", intToDouble);
+        Invoke(instance, 1, "SetString256ToFloat", string256ToFloat);
+        Invoke(instance, 1, "SetIntToString256", intToString256);
+        Invoke(instance, 1, "SetString256ToString64", string256ToString64);
+        Invoke(instance, 1, "SetIntToDouble", intToDouble);
 
         Assert.True(GetProperty<bool>(instance, "IsDirty"));
 
@@ -1557,10 +1597,10 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
             (9, 21.75d));
 
         SetProperty(instance, "Name64", shortB64);
-        SetProperty(instance, "String256ToFloat", changedString256ToFloat);
-        SetProperty(instance, "IntToString256", changedIntToString256);
-        SetProperty(instance, "String256ToString64", changedString256ToString64);
-        SetProperty(instance, "IntToDouble", changedIntToDouble);
+        Invoke(instance, 1, "SetString256ToFloat", changedString256ToFloat);
+        Invoke(instance, 1, "SetIntToString256", changedIntToString256);
+        Invoke(instance, 1, "SetString256ToString64", changedString256ToString64);
+        Invoke(instance, 1, "SetIntToDouble", changedIntToDouble);
 
         Assert.True(GetProperty<bool>(instance, "IsDirty"));
 
@@ -1574,24 +1614,24 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         AssertNativeStringValue(GetProperty<object>(deserialized, "Name256"), "Alpha");
         AssertNativeStringValue(GetProperty<object>(deserialized, "Name64"), "ShortB");
 
-        var deserializedString256ToFloat = GetProperty<object>(deserialized, "String256ToFloat");
+        var deserializedString256ToFloat = GetProperty<object>(deserialized, "String256ToFloatInternal");
         AssertNativeDictionaryCount(deserializedString256ToFloat, 3);
         AssertNativeDictionaryValue(deserializedString256ToFloat, alpha256, 1.25f);
         AssertNativeDictionaryValue(deserializedString256ToFloat, beta256, 3.75f);
         AssertNativeDictionaryValue(deserializedString256ToFloat, gamma256, 9.5f);
 
-        var deserializedIntToString256 = GetProperty<object>(deserialized, "IntToString256");
+        var deserializedIntToString256 = GetProperty<object>(deserialized, "IntToString256Internal");
         AssertNativeDictionaryCount(deserializedIntToString256, 3);
         AssertNativeDictionaryValue(deserializedIntToString256, 1, "One");
         AssertNativeDictionaryValue(deserializedIntToString256, 2, "Two");
         AssertNativeDictionaryValue(deserializedIntToString256, 3, "Three");
 
-        var deserializedString256ToString64 = GetProperty<object>(deserialized, "String256ToString64");
+        var deserializedString256ToString64 = GetProperty<object>(deserialized, "String256ToString64Internal");
         AssertNativeDictionaryCount(deserializedString256ToString64, 2);
         AssertNativeDictionaryValue(deserializedString256ToString64, alpha256, "ShortA");
         AssertNativeDictionaryValue(deserializedString256ToString64, beta256, "ShortC");
 
-        var deserializedIntToDouble = GetProperty<object>(deserialized, "IntToDouble");
+        var deserializedIntToDouble = GetProperty<object>(deserialized, "IntToDoubleInternal");
         AssertNativeDictionaryCount(deserializedIntToDouble, 2);
         AssertNativeDictionaryValue(deserializedIntToDouble, 7, 10.5d);
         AssertNativeDictionaryValue(deserializedIntToDouble, 9, 21.75d);
@@ -1626,10 +1666,10 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
 
         SetProperty(baseline, "Name256", alpha256);
         SetProperty(baseline, "Name64", shortA64);
-        SetProperty(baseline, "String256ToFloat", baselineString256ToFloat);
-        SetProperty(baseline, "IntToString256", baselineIntToString256);
-        SetProperty(baseline, "String256ToString64", baselineString256ToString64);
-        SetProperty(baseline, "IntToDouble", baselineIntToDouble);
+        Invoke(baseline, 1, "SetString256ToFloat", baselineString256ToFloat);
+        Invoke(baseline, 1, "SetIntToString256", baselineIntToString256);
+        Invoke(baseline, 1, "SetString256ToString64", baselineString256ToString64);
+        Invoke(baseline, 1, "SetIntToDouble", baselineIntToDouble);
 
         var baselineBytes = InvokeSerialize(baseline);
 
@@ -1640,10 +1680,10 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         Invoke(deltaSource, "ClearDirty");
 
         SetProperty(deltaSource, "Name64", shortB64);
-        SetProperty(deltaSource, "String256ToFloat", changedString256ToFloat);
-        SetProperty(deltaSource, "IntToString256", changedIntToString256);
-        SetProperty(deltaSource, "String256ToString64", changedString256ToString64);
-        SetProperty(deltaSource, "IntToDouble", changedIntToDouble);
+        Invoke(deltaSource, 1, "SetString256ToFloat", changedString256ToFloat);
+        Invoke(deltaSource, 1, "SetIntToString256", changedIntToString256);
+        Invoke(deltaSource, 1, "SetString256ToString64", changedString256ToString64);
+        Invoke(deltaSource, 1, "SetIntToDouble", changedIntToDouble);
 
         var deltaBytes = InvokeWriteDelta(deltaSource);
         var deltaReader = new NetDataReader(deltaBytes);
@@ -1669,24 +1709,24 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         AssertNativeStringValue(GetProperty<object>(deltaReceiver, "Name256"), "Alpha");
         AssertNativeStringValue(GetProperty<object>(deltaReceiver, "Name64"), "ShortB");
 
-        var deltaString256ToFloat = GetProperty<object>(deltaReceiver, "String256ToFloat");
+        var deltaString256ToFloat = GetProperty<object>(deltaReceiver, "String256ToFloatInternal");
         AssertNativeDictionaryCount(deltaString256ToFloat, 3);
         AssertNativeDictionaryValue(deltaString256ToFloat, alpha256, 1.25f);
         AssertNativeDictionaryValue(deltaString256ToFloat, beta256, 3.75f);
         AssertNativeDictionaryValue(deltaString256ToFloat, gamma256, 9.5f);
 
-        var deltaIntToString256 = GetProperty<object>(deltaReceiver, "IntToString256");
+        var deltaIntToString256 = GetProperty<object>(deltaReceiver, "IntToString256Internal");
         AssertNativeDictionaryCount(deltaIntToString256, 3);
         AssertNativeDictionaryValue(deltaIntToString256, 1, "One");
         AssertNativeDictionaryValue(deltaIntToString256, 2, "Two");
         AssertNativeDictionaryValue(deltaIntToString256, 3, "Three");
 
-        var deltaString256ToString64 = GetProperty<object>(deltaReceiver, "String256ToString64");
+        var deltaString256ToString64 = GetProperty<object>(deltaReceiver, "String256ToString64Internal");
         AssertNativeDictionaryCount(deltaString256ToString64, 2);
         AssertNativeDictionaryValue(deltaString256ToString64, alpha256, "ShortA");
         AssertNativeDictionaryValue(deltaString256ToString64, beta256, "ShortC");
 
-        var deltaIntToDouble = GetProperty<object>(deltaReceiver, "IntToDouble");
+        var deltaIntToDouble = GetProperty<object>(deltaReceiver, "IntToDoubleInternal");
         AssertNativeDictionaryCount(deltaIntToDouble, 2);
         AssertNativeDictionaryValue(deltaIntToDouble, 7, 10.5d);
         AssertNativeDictionaryValue(deltaIntToDouble, 9, 21.75d);
@@ -1704,22 +1744,22 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name256"), "Alpha");
         AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name64"), "ShortA");
 
-        var skippedString256ToFloat = GetProperty<object>(skippedReceiver, "String256ToFloat");
+        var skippedString256ToFloat = GetProperty<object>(skippedReceiver, "String256ToFloatInternal");
         AssertNativeDictionaryCount(skippedString256ToFloat, 2);
         AssertNativeDictionaryValue(skippedString256ToFloat, alpha256, 1.25f);
         AssertNativeDictionaryValue(skippedString256ToFloat, beta256, 2.50f);
 
-        var skippedIntToString256 = GetProperty<object>(skippedReceiver, "IntToString256");
+        var skippedIntToString256 = GetProperty<object>(skippedReceiver, "IntToString256Internal");
         AssertNativeDictionaryCount(skippedIntToString256, 2);
         AssertNativeDictionaryValue(skippedIntToString256, 1, "One");
         AssertNativeDictionaryValue(skippedIntToString256, 2, "Two");
 
-        var skippedString256ToString64 = GetProperty<object>(skippedReceiver, "String256ToString64");
+        var skippedString256ToString64 = GetProperty<object>(skippedReceiver, "String256ToString64Internal");
         AssertNativeDictionaryCount(skippedString256ToString64, 2);
         AssertNativeDictionaryValue(skippedString256ToString64, alpha256, "ShortA");
         AssertNativeDictionaryValue(skippedString256ToString64, beta256, "ShortB");
 
-        var skippedIntToDouble = GetProperty<object>(skippedReceiver, "IntToDouble");
+        var skippedIntToDouble = GetProperty<object>(skippedReceiver, "IntToDoubleInternal");
         AssertNativeDictionaryCount(skippedIntToDouble, 2);
         AssertNativeDictionaryValue(skippedIntToDouble, 7, 10.5d);
         AssertNativeDictionaryValue(skippedIntToDouble, 9, 20.25d);
