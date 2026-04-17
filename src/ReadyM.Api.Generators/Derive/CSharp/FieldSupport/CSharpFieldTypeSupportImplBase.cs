@@ -45,10 +45,10 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"{context.State.CurrentVar} = value;");
     
-    public virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"return {context.State.CurrentVar};");
 
-    public virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         context.Append("if ");
         EmitNotEqualCheck(symbol, context, forceParen: true);
@@ -61,6 +61,24 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
+    public virtual void EmitAccessors(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.AppendLine($"public {FullyQualifiedTypeName(symbol)} {context.State.GeneratedPropertyName}");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine("get");
+            using (context.WithCodeBlock())
+            {
+                EmitGetterBody(symbol, context);
+            }
+            context.AppendLine("set");
+            using (context.WithCodeBlock())
+            {
+                EmitSetterBody(symbol, context);
+            }
+        }
+    }
+    
     public virtual void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.EmitSerializeVar(context.State.CurrentVar, symbol);
 

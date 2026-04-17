@@ -4,8 +4,7 @@ namespace ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 
 internal interface ICSharpFieldTypeSupportImpl : IDeriveTypeSupportImplBase
 {
-    void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
-    void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
+    void EmitAccessors(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitWriteDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);

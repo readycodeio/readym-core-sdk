@@ -1,5 +1,4 @@
-﻿using System;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -108,7 +107,8 @@ public partial struct {info.Name} : INetworkedComponent
 
         foreach (var member in members)
         {
-            EmitProperty(sb, member, model, classState);
+            EmitAccessors(sb, member, model, classState);
+            sb.AppendLine();
         }
 
         EmitSerialize(sb, model, classState);
@@ -215,7 +215,7 @@ using {ns};
         }
     }
     
-    private void EmitProperty(
+    private void EmitAccessors(
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
@@ -232,69 +232,11 @@ using {ns};
             }
         }
         
-        var field = member.SourceMember;
-        var type = field.Type.ToDisplayString();
-        if (string.IsNullOrEmpty(type))
-            throw new InvalidOperationException("Member type name unexpectedly null or empty.");
-
-        var fieldName = field.Name;
-        var propertyName = member.GeneratedPropertyName;
-
-        if (field.ReadOnly)
-        {
-            sb.AppendLine($"""
-    public readonly {type} {propertyName}
-        => {fieldName};
-""");
-            return;
-        }
-
-        sb.AppendLine($"""
-    public {type} {propertyName}
-""");
-        sb.AppendLine("""
-    {
-        get
-        {
-""");
-        EmitPropertyGetter(sb, member, model, classState);
-        sb.AppendLine("""
-        }
-        set
-        {
-""");
-        EmitPropertySetter(sb, member, model, classState);
-        sb.AppendLine("""
-        }
-    }
-
-""");
-    }
-
-    private void EmitPropertyGetter(
-        StringBuilder sb,
-        DeriveMemberModel member,
-        DeriveTargetModel model,
-        CSharpClassState classState)
-    {
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, classState);
         
-        context.State.ResetIndent("            ");
-        impl.EmitGetterBody(member.SourceMember.Type, context);
-    }
-
-    private void EmitPropertySetter(
-        StringBuilder sb,
-        DeriveMemberModel member,
-        DeriveTargetModel model,
-        CSharpClassState classState)
-    {
-        var impl = GetEmitFieldSupportImpl(member, true);
-        var context = CreateEmitContext(sb, member, model, classState);
-        
-        context.State.ResetIndent("            ");
-        impl.EmitSetterBody(member.SourceMember.Type, context);
+        context.State.ResetIndent("    ");
+        impl.EmitAccessors(member.SourceMember.Type, context);
     }
 
     private void EmitSerialize(
