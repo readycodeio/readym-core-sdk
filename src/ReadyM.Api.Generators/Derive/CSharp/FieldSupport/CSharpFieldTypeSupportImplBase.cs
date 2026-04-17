@@ -42,6 +42,9 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     protected virtual void EmitSetDirty(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"{context.CurrentMaskVar} |= ({FullyQualifiedTypeName(context.MaskType)})1 << {context.MaskIndex};");
 
+    protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+        => context.AppendLine($"{context.State.CurrentVar} = value;");
+    
     public virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"return {context.State.CurrentVar};");
 
@@ -53,7 +56,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         
         using (context.WithCodeBlock())
         {
-            context.AppendLine($"{context.State.CurrentVar} = value;");
+            EmitAssign(symbol, context);
             EmitSetDirty(symbol, context);
         }
     }

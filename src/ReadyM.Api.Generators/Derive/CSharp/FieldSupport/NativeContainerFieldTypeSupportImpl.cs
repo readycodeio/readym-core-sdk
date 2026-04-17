@@ -10,21 +10,10 @@ internal class NativeContainerFieldTypeSupportImpl : CSharpFieldTypeSupportImplB
     protected override void EmitEqualCheck(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.Append($"{context.State.CurrentVar}.Equals(value)");
     
-    public override void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-    {
-        context.Append("if ");
-        EmitNotEqualCheck(symbol, context, forceParen: true);
-        context.AppendLine();
-        
-        using (context.WithCodeBlock())
-        {
-            // NOTE: No ownership transfer, this is copying the contents
-            // Both the source and the destination have to be already allocated
-            context.AppendLine($"{context.State.CurrentVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
-            context.AppendLine($"{context.State.CurrentVar}.Assign(value);");
-            EmitSetDirty(symbol, context);
-        }
-    }
+    protected override void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+        // NOTE: No ownership transfer, this is copying the contents
+        // Both the source and the destination have to be already allocated
+        => context.AppendLine($"{context.State.CurrentVar}.Assign(value);");
     
     public override void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {

@@ -49,9 +49,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
         => context.AppendLine($"{context.CurrentMaskVar} |= static_cast<{CppTypeName(context.MaskType)}>(1) << {context.MaskIndex};");
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CppEmitFieldSupportContext context)
-    {
-        context.AppendLine($"{context.State.CurrentVar} = value;");
-    }
+        => context.AppendLine($"{context.State.CurrentVar} = value;");
     
     public virtual void EmitGetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {

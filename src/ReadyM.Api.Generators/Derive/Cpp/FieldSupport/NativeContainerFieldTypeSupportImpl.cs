@@ -1,5 +1,4 @@
 ﻿using Microsoft.CodeAnalysis;
-using static ReadyM.Api.Generators.DeriveCppUtils;
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 

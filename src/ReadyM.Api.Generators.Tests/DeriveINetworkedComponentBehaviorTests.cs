@@ -1,4 +1,5 @@
-﻿using LiteNetLib.Utils;
+﻿using Friflo.Json.Fliox.Transform.Query.Ops;
+using LiteNetLib.Utils;
 using Xunit;
 using Yooni.Native.LowLevel;
 using static ReadyM.Api.Generators.Tests.DeriveTestAssert;
@@ -1451,15 +1452,15 @@ using Yooni.Native.LowLevel;
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 [DeriveINetworkedComponent]
-public partial struct NativeContainerCoverageComponent : INetworkedComponent
+public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INetworkedComponent
 {
     private NativeString256 _name256;
     private NativeString64 _name64;
 
-    private NativeDictionary<NativeString256, float, NativeStringHash256> _string256ToFloat;
-    private NativeDictionary<int, NativeString256, IntHash> _intToString256;
-    private NativeDictionary<NativeString256, NativeString64, NativeStringHash256> _string256ToString64;
-    private NativeDictionary<int, double, IntHash> _intToDouble;
+    private NativeDictionary<NativeString256, float, NativeStringHash256> _string256ToFloat = new(8, kind);
+    private NativeDictionary<int, NativeString256, IntHash> _intToString256 = new(4, kind);
+    private NativeDictionary<NativeString256, NativeString64, NativeStringHash256> _string256ToString64 = new(2, kind);
+    private NativeDictionary<int, double, IntHash> _intToDouble = new(0, kind);
 }
 """;
 
@@ -1475,7 +1476,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
         var componentType = assembly.GetType("ReadyM.Api.Generators.Tests.TestTypes.NativeContainerCoverageComponent");
         Assert.NotNull(componentType);
 
-        var instance = Activator.CreateInstance(componentType);
+        var instance = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(instance);
 
         var name256Type = componentType.GetProperty("Name256")!.PropertyType;
@@ -1565,7 +1566,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
 
         var serializedBytes = InvokeSerialize(instance);
 
-        var deserialized = Activator.CreateInstance(componentType);
+        var deserialized = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(deserialized);
         
         InvokeDeserialize(deserialized, serializedBytes);
@@ -1600,7 +1601,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
         Invoke(deserialized, "ClearDirty");
         Assert.False(GetProperty<bool>(deserialized, "IsDirty"));
 
-        var baseline = Activator.CreateInstance(componentType);
+        var baseline = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(baseline);
 
         var baselineString256ToFloat = CreateNativeDictionary(
@@ -1632,7 +1633,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
 
         var baselineBytes = InvokeSerialize(baseline);
 
-        var deltaSource = Activator.CreateInstance(componentType);
+        var deltaSource = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(deltaSource);
 
         InvokeDeserialize(deltaSource, baselineBytes);
@@ -1657,7 +1658,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
 
         Assert.Equal(expectedMask, rawMask);
 
-        var deltaReceiver = Activator.CreateInstance(componentType);
+        var deltaReceiver = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(deltaReceiver);
 
         InvokeDeserialize(deltaReceiver, baselineBytes);
@@ -1692,7 +1693,7 @@ public partial struct NativeContainerCoverageComponent : INetworkedComponent
 
         Assert.True(GetProperty<bool>(deltaReceiver, "IsDirty"));
 
-        var skippedReceiver = Activator.CreateInstance(componentType);
+        var skippedReceiver = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(skippedReceiver);
 
         InvokeDeserialize(skippedReceiver, baselineBytes);
