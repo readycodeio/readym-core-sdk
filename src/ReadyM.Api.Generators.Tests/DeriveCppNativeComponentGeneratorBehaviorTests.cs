@@ -1,5 +1,4 @@
 ﻿using Xunit;
-using Xunit.Abstractions;
 
 namespace ReadyM.Api.Generators.Tests;
 
@@ -133,7 +132,7 @@ public partial struct AppearanceComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeList<int32_t>& IntList() const",
             setterSignature: "void SetIntList(const Yooni::Native::Container::NativeList<int32_t>& value)",
             inequalityGuard: "if (_intList != value)",
-            assignment: "_intList = value;",
+            assignment: "_intList.Assign(value);",
             dirtyMaskBit: 0,
             backingField: "Yooni::Native::Container::NativeList<int32_t> _intList = {};",
             maskType: "uint32_t");
@@ -143,7 +142,7 @@ public partial struct AppearanceComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& SexList() const",
             setterSignature: "void SetSexList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& value)",
             inequalityGuard: "if (_sexList != value)",
-            assignment: "_sexList = value;",
+            assignment: "_sexList.Assign(value);",
             dirtyMaskBit: 1,
             backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};",
             maskType: "uint32_t");
@@ -153,7 +152,7 @@ public partial struct AppearanceComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& PairList() const",
             setterSignature: "void SetPairList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& value)",
             inequalityGuard: "if (_pairList != value)",
-            assignment: "_pairList = value;",
+            assignment: "_pairList.Assign(value);",
             dirtyMaskBit: 2,
             backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
             maskType: "uint32_t");
@@ -218,7 +217,7 @@ public partial struct FixedComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeFixed<int32_t, 8>& IntFixed() const",
             setterSignature: "void SetIntFixed(const Yooni::Native::Container::NativeFixed<int32_t, 8>& value)",
             inequalityGuard: "if (_intFixed != value)",
-            assignment: "_intFixed = value;",
+            assignment: "_intFixed.Assign(value);",
             dirtyMaskBit: 0,
             backingField: "Yooni::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};",
             maskType: "uint32_t");
@@ -228,7 +227,7 @@ public partial struct FixedComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexFixed() const",
             setterSignature: "void SetSexFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexFixed != value)",
-            assignment: "_sexFixed = value;",
+            assignment: "_sexFixed.Assign(value);",
             dirtyMaskBit: 1,
             backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};",
             maskType: "uint32_t");
@@ -238,7 +237,7 @@ public partial struct FixedComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& PairFixed() const",
             setterSignature: "void SetPairFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairFixed != value)",
-            assignment: "_pairFixed = value;",
+            assignment: "_pairFixed.Assign(value);",
             dirtyMaskBit: 2,
             backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};",
             maskType: "uint32_t");
@@ -314,7 +313,7 @@ public partial struct DictionaryComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& IntToSex() const",
             setterSignature: "void SetIntToSex(const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& value)",
             inequalityGuard: "if (_intToSex != value)",
-            assignment: "_intToSex = value;",
+            assignment: "_intToSex.Assign(value);",
             dirtyMaskBit: 0,
             backingField: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> _intToSex = {};",
             maskType: "uint32_t");
@@ -324,7 +323,7 @@ public partial struct DictionaryComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& SexToPair() const",
             setterSignature: "void SetSexToPair(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& value)",
             inequalityGuard: "if (_sexToPair != value)",
-            assignment: "_sexToPair = value;",
+            assignment: "_sexToPair.Assign(value);",
             dirtyMaskBit: 1,
             backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};",
             maskType: "uint32_t");
@@ -334,7 +333,7 @@ public partial struct DictionaryComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& PairToInt() const",
             setterSignature: "void SetPairToInt(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& value)",
             inequalityGuard: "if (_pairToInt != value)",
-            assignment: "_pairToInt = value;",
+            assignment: "_pairToInt.Assign(value);",
             dirtyMaskBit: 2,
             backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};",
             maskType: "uint32_t");
@@ -395,7 +394,7 @@ public partial struct RingBufferComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& IntHistory() const",
             setterSignature: "void SetIntHistory(const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& value)",
             inequalityGuard: "if (_intHistory != value)",
-            assignment: "_intHistory = value;",
+            assignment: "_intHistory.Assign(value);",
             dirtyMaskBit: 0,
             backingField: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};",
             maskType: "uint32_t");
@@ -405,7 +404,7 @@ public partial struct RingBufferComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexHistory() const",
             setterSignature: "void SetSexHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexHistory != value)",
-            assignment: "_sexHistory = value;",
+            assignment: "_sexHistory.Assign(value);",
             dirtyMaskBit: 1,
             backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};",
             maskType: "uint32_t");
@@ -415,7 +414,7 @@ public partial struct RingBufferComponent : IComponent
             getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& PairHistory() const",
             setterSignature: "void SetPairHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairHistory != value)",
-            assignment: "_pairHistory = value;",
+            assignment: "_pairHistory.Assign(value);",
             dirtyMaskBit: 2,
             backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};",
             maskType: "uint32_t");

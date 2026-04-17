@@ -25,12 +25,14 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
     }
 
     [Pure]
-    public byte* GetChars()
+    public void CopyTo(byte* dest)
     {
-        fixed (byte* ptr = _bytes)
-            return ptr;
+        fixed (byte* p = _bytes)
+        {
+            Buffer.MemoryCopy(p, dest, _length, _length);
+        }
     }
-
+    
     [Pure]
     public int Length
         => _length;
@@ -99,7 +101,7 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             }
         }
     }
-
+    
     public NativeString64(string? value)
     {
         if (value is null)
@@ -166,7 +168,7 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
     [Pure]
     public bool Equals(string? other)
         => this == other;
-
+    
     public static bool operator ==(in NativeString64 x, string? y)
     {
         fixed (byte* xPtr = x._bytes)

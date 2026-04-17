@@ -11,6 +11,7 @@ internal class CppFieldSupportRegistry
         new PrimitiveFieldTypeSupportImpl(),
         new EnumFieldTypeSupportImpl(),
         new VectorLikeFieldTypeSupportImpl(),
+        new NativeStringFieldTypeSupportImpl(),
         new NativeContainerFieldTypeSupportImpl(),
         new DeltaEquatableFieldTypeSupportImpl(),
         new EquatableFieldTypeSupportImpl(),

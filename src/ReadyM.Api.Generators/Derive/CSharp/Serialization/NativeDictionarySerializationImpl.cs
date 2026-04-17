@@ -14,9 +14,9 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native dictionary type");
 
-        var itemVar = context.State.NewVarName("d");
-        var keyVar = context.State.NewVarName("key");
-        var valueVar = context.State.NewVarName("value");
+        var itemVar = context.MethodState.NewVarName("d");
+        var keyVar = context.MethodState.NewVarName("key");
+        var valueVar = context.MethodState.NewVarName("value");
         context.AppendLine($"writer.Put({context.State.CurrentVar}.Count);");
         context.AppendLine($"foreach (var {itemVar} in {context.State.CurrentVar})");
         using (context.WithCodeBlock())
@@ -33,15 +33,15 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native dictionary type");
         
-        var indexVar = context.State.NewVarName("index");
-        var countVar = context.State.NewVarName("count");
+        var indexVar = context.MethodState.NewVarName("index");
+        var countVar = context.MethodState.NewVarName("count");
         context.AppendLine($"var {countVar} = reader.GetInt();");
         context.AppendLine($"{context.State.CurrentVar}.Clear();");
         context.AppendLine($"for (var {indexVar} = 0; {indexVar} < {countVar}; {indexVar}++)");
         using (context.WithCodeBlock())
         {
-            var keyVar = context.State.NewVarName("key");
-            var valueVar = context.State.NewVarName("value");
+            var keyVar = context.MethodState.NewVarName("key");
+            var valueVar = context.MethodState.NewVarName("value");
             context.AppendLine($"var {keyVar} = default({FullyQualifiedTypeName(keyType)});");
             context.AppendLine($"var {valueVar} = default({FullyQualifiedTypeName(valueType)});");
             context.EmitDeserializeVar(keyVar, keyType);

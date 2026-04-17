@@ -6,7 +6,7 @@ public interface INativeString
     int Capacity { get; }
     
     string ToManaged();
-    unsafe byte* GetChars();
+    public unsafe void CopyTo(byte* dest);
 
     bool Equals(string? str);
 }

@@ -14,7 +14,7 @@ internal class NativeListSerializationImpl : CSharpTypeSerializationImplBase
         if (!SerializationHelper.IsNativeList(symbol, out var itemType))
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native list type");
 
-        var itemVar = context.State.NewVarName("item");
+        var itemVar = context.MethodState.NewVarName("item");
         context.AppendLine($"writer.Put({context.State.CurrentVar}.Count);");
         context.AppendLine($"foreach (var {itemVar} in {context.State.CurrentVar})");
         using (context.WithCodeBlock())
@@ -28,14 +28,14 @@ internal class NativeListSerializationImpl : CSharpTypeSerializationImplBase
         if (!SerializationHelper.IsNativeList(symbol, out var itemType))
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native list type");
         
-        var indexVar = context.State.NewVarName("index");
-        var countVar = context.State.NewVarName("count");
+        var indexVar = context.MethodState.NewVarName("index");
+        var countVar = context.MethodState.NewVarName("count");
         context.AppendLine($"var {countVar} = reader.GetInt();");
         context.AppendLine($"{context.State.CurrentVar}.Clear();");
         context.AppendLine($"for (var {indexVar} = 0; {indexVar} < {countVar}; {indexVar}++)");
         using (context.WithCodeBlock())
         {
-            var itemVar = context.State.NewVarName("item");
+            var itemVar = context.MethodState.NewVarName("item");
             context.AppendLine($"var {itemVar} = default({FullyQualifiedTypeName(itemType)});");
             context.EmitDeserializeVar(itemVar, itemType);
             context.AppendLine($"{context.State.CurrentVar}.Add({itemVar});");

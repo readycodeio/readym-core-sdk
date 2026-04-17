@@ -11,7 +11,7 @@ internal abstract class CSharpTypeSerializationImplBase : ICSharpTypeSerializati
 
     public void Visit(ITypeSymbol symbol, CSharpEmitDeserializeContext context)
         => EmitDeserialize(symbol, context);
-
+    
     protected abstract void EmitSerialize(ITypeSymbol symbol, CSharpEmitSerializeContext context);
     protected abstract void EmitDeserialize(ITypeSymbol symbol, CSharpEmitDeserializeContext context);
 }

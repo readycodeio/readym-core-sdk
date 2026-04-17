@@ -8,14 +8,11 @@ using Yooni.Native.LowLevel;
 namespace Yooni.Native.Container;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, AllocatorKind kind)
-    : IDisposable, IEnumerable<KeyValuePair<TKey, TValue>>
+public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<KeyValuePair<TKey, TValue>>
     where TKey : unmanaged
     where TValue : unmanaged
     where THash : struct, IHashFunction<TKey>
 {
-    private NativeHashCollection<TKey, TValue> _impl = new(initialCapacity, kind);
-
     public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>
     {
         private NativeHashCollection<TKey, TValue>.Enumerator _implEnumerator;
@@ -50,11 +47,26 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
             => _implEnumerator.Dispose();
     }
 
+    private NativeHashCollection<TKey, TValue> _impl;
+
+    // ReSharper disable once ConvertToPrimaryConstructor
+    public NativeDictionary(int initialCapacity, AllocatorKind kind)
+    {
+        _impl = new NativeHashCollection<TKey, TValue>(initialCapacity, kind);
+    }
+
     public void Dispose()
     {
         _impl.Dispose();
     }
 
+    public void TryCreate(AllocatorKind kind)
+    {
+        if (_impl.IsCreated)
+            return;
+        _impl = new NativeHashCollection<TKey, TValue>(0, kind);
+    }
+    
     public bool IsCreated
         => _impl.IsCreated;
 
@@ -92,58 +104,12 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
             }
         }
     }
-
+    
+    // -- read access
+    
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Enumerator GetEnumerator()
-    {
-        if (!IsCreated)
-        {
-            throw new InvalidOperationException("NativeDictionary is not created");
-        }
-
-        return new Enumerator(_impl);
-    }
-
-    IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
-        => GetEnumerator();
-
-    IEnumerator IEnumerable.GetEnumerator()
-        => GetEnumerator();
-
-    public ref TValue GetItemRef(in TKey key)
-    {
-        var hash = default(THash).ComputeHash(in key);
-        var entryPtr = _impl.Find(key, hash);
-        if (entryPtr.IsNull)
-        {
-            throw new InvalidOperationException("Key not found");
-        }
-        
-        return ref entryPtr.Get().Value;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Add(in TKey key, TValue value)
-    {
-        var hash = default(THash).ComputeHash(in key);
-        var entryPtr = _impl.Find(key, hash);
-        if (!entryPtr.IsNull)
-        {
-            return false;
-        }
-        else
-        {
-            _impl.Insert(key, hash, value);
-            return true;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Add(in KeyValuePair<TKey, TValue> item)
-        => Add(item.Key, item.Value);
-
-    public void Clear()
-        => _impl.Clear();
+    public bool ContainsKey(in TKey key)
+        => !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(in KeyValuePair<TKey, TValue> item)
@@ -188,10 +154,26 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetValue(in TKey key, out TValue value)
+    {
+        var entry = _impl.Find(key, default(THash).ComputeHash(in key));
+        if (!entry.IsNull)
+        {
+            value = entry.Get().Value;
+            return true;
+        }
+        value = default;
+        return false;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(in NativeDictionary<TKey, TValue, THash> other)
     {
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
+        
+        if (_impl.IsCreated != other._impl.IsCreated)
+            return false;
         
         if (Count != other.Count)
             return false;
@@ -212,6 +194,9 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
         
+        if (_impl.IsCreated != other._impl.IsCreated)
+            return false;
+        
         if (Count != other.Count)
             return false;
 
@@ -224,24 +209,73 @@ public struct NativeDictionary<TKey, TValue, THash>(int initialCapacity, Allocat
         return true;
     }
 
+    // -- write access
+
+    public ref TValue GetItemRef(in TKey key)
+    {
+        var hash = default(THash).ComputeHash(in key);
+        var entryPtr = _impl.Find(key, hash);
+        if (entryPtr.IsNull)
+        {
+            throw new InvalidOperationException("Key not found");
+        }
+        
+        return ref entryPtr.Get().Value;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool ContainsKey(in TKey key)
-        => !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
+    public bool Add(in TKey key, TValue value)
+    {
+        var hash = default(THash).ComputeHash(in key);
+        var entryPtr = _impl.Find(key, hash);
+        if (!entryPtr.IsNull)
+        {
+            return false;
+        }
+        else
+        {
+            _impl.Insert(key, hash, value);
+            return true;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Add(in KeyValuePair<TKey, TValue> item)
+        => Add(item.Key, item.Value);
+
+    public void Clear()
+        => _impl.Clear();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Remove(in TKey key)
         => _impl.Remove(key, default(THash).ComputeHash(in key));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetValue(in TKey key, out TValue value)
+    public void Assign(NativeDictionary<TKey, TValue, THash> other)
     {
-        var entry = _impl.Find(key, default(THash).ComputeHash(in key));
-        if (!entry.IsNull)
+        Clear();
+        foreach (var item in other)
         {
-            value = entry.Get().Value;
-            return true;
+            Add(item.Key, item.Value);
         }
-        value = default;
-        return false;
     }
+    
+    // -- accessor
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Enumerator GetEnumerator()
+    {
+        if (!IsCreated)
+        {
+            throw new InvalidOperationException("NativeDictionary is not created");
+        }
+
+        return new Enumerator(_impl);
+    }
+
+    IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        => GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator()
+        => GetEnumerator();
 }

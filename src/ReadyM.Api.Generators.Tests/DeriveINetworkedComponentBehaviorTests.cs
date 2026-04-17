@@ -1,6 +1,6 @@
 ﻿using LiteNetLib.Utils;
 using Xunit;
-using Xunit.Abstractions;
+using Yooni.Native.LowLevel;
 using static ReadyM.Api.Generators.Tests.DeriveTestAssert;
 
 namespace ReadyM.Api.Generators.Tests;
@@ -1436,6 +1436,378 @@ public partial struct GeneratedShapeComponent : INetworkedComponent
         Assert.Contains("= (global::ReadyM.Api.Generators.Tests.TestTypes.TinyState)reader.GetByte();", generatedText);
         Assert.Contains("State =", generatedText);
         Assert.Contains("var mask = reader.GetByte();", generatedText);
+    }
+    
+    [Fact]
+    public void NativeContainerCoverageComponent_NativeStringsAndNativeDictionaries_BehaveAsExpected()
+    {
+        const string source = """
+using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer.Generators;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using Yooni.Native.Container;
+using Yooni.Native.LowLevel;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent]
+public partial struct NativeContainerCoverageComponent : INetworkedComponent
+{
+    private NativeString256 _name256;
+    private NativeString64 _name64;
+
+    private NativeDictionary<NativeString256, float, NativeStringHash256> _string256ToFloat;
+    private NativeDictionary<int, NativeString256, IntHash> _intToString256;
+    private NativeDictionary<NativeString256, NativeString64, NativeStringHash256> _string256ToString64;
+    private NativeDictionary<int, double, IntHash> _intToDouble;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveINetworkedComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var assembly = SourceGeneratorTestHelper.EmitToAssembly(result.OutputCompilation, output);
+        var componentType = assembly.GetType("ReadyM.Api.Generators.Tests.TestTypes.NativeContainerCoverageComponent");
+        Assert.NotNull(componentType);
+
+        var instance = Activator.CreateInstance(componentType);
+        Assert.NotNull(instance);
+
+        var name256Type = componentType.GetProperty("Name256")!.PropertyType;
+        var name64Type = componentType.GetProperty("Name64")!.PropertyType;
+
+        var string256ToFloatType = componentType.GetProperty("String256ToFloat")!.PropertyType;
+        var intToString256Type = componentType.GetProperty("IntToString256")!.PropertyType;
+        var string256ToString64Type = componentType.GetProperty("String256ToString64")!.PropertyType;
+        var intToDoubleType = componentType.GetProperty("IntToDouble")!.PropertyType;
+
+        var alpha256 = CreateNativeString(name256Type, "Alpha");
+        var beta256 = CreateNativeString(name256Type, "Beta");
+        var gamma256 = CreateNativeString(name256Type, "Gamma");
+        var one256 = CreateNativeString(name256Type, "One");
+        var two256 = CreateNativeString(name256Type, "Two");
+        var three256 = CreateNativeString(name256Type, "Three");
+
+        var shortA64 = CreateNativeString(name64Type, "ShortA");
+        var shortB64 = CreateNativeString(name64Type, "ShortB");
+        var shortC64 = CreateNativeString(name64Type, "ShortC");
+
+        var string256ToFloat = CreateNativeDictionary(
+            string256ToFloatType,
+            (alpha256, 1.25f),
+            (beta256, 2.50f));
+
+        var intToString256 = CreateNativeDictionary(
+            intToString256Type,
+            (1, one256),
+            (2, two256));
+
+        var string256ToString64 = CreateNativeDictionary(
+            string256ToString64Type,
+            (alpha256, shortA64),
+            (beta256, shortB64));
+
+        var intToDouble = CreateNativeDictionary(
+            intToDoubleType,
+            (7, 10.5d),
+            (9, 20.25d));
+
+        SetProperty(instance, "Name256", alpha256);
+        SetProperty(instance, "Name64", shortA64);
+        SetProperty(instance, "String256ToFloat", string256ToFloat);
+        SetProperty(instance, "IntToString256", intToString256);
+        SetProperty(instance, "String256ToString64", string256ToString64);
+        SetProperty(instance, "IntToDouble", intToDouble);
+
+        Assert.True(GetProperty<bool>(instance, "IsDirty"));
+
+        Invoke(instance, "ClearDirty");
+        Assert.False(GetProperty<bool>(instance, "IsDirty"));
+
+        SetProperty(instance, "Name256", CreateNativeString(name256Type, "Alpha"));
+        SetProperty(instance, "Name64", CreateNativeString(name64Type, "ShortA"));
+        Assert.False(GetProperty<bool>(instance, "IsDirty"));
+
+        var changedString256ToFloat = CreateNativeDictionary(
+            string256ToFloatType,
+            (alpha256, 1.25f),
+            (beta256, 3.75f),
+            (gamma256, 9.5f));
+
+        var changedIntToString256 = CreateNativeDictionary(
+            intToString256Type,
+            (1, one256),
+            (2, two256),
+            (3, three256));
+
+        var changedString256ToString64 = CreateNativeDictionary(
+            string256ToString64Type,
+            (alpha256, shortA64),
+            (beta256, shortC64));
+
+        var changedIntToDouble = CreateNativeDictionary(
+            intToDoubleType,
+            (7, 10.5d),
+            (9, 21.75d));
+
+        SetProperty(instance, "Name64", shortB64);
+        SetProperty(instance, "String256ToFloat", changedString256ToFloat);
+        SetProperty(instance, "IntToString256", changedIntToString256);
+        SetProperty(instance, "String256ToString64", changedString256ToString64);
+        SetProperty(instance, "IntToDouble", changedIntToDouble);
+
+        Assert.True(GetProperty<bool>(instance, "IsDirty"));
+
+        var serializedBytes = InvokeSerialize(instance);
+
+        var deserialized = Activator.CreateInstance(componentType);
+        Assert.NotNull(deserialized);
+        
+        InvokeDeserialize(deserialized, serializedBytes);
+
+        AssertNativeStringValue(GetProperty<object>(deserialized, "Name256"), "Alpha");
+        AssertNativeStringValue(GetProperty<object>(deserialized, "Name64"), "ShortB");
+
+        var deserializedString256ToFloat = GetProperty<object>(deserialized, "String256ToFloat");
+        AssertNativeDictionaryCount(deserializedString256ToFloat, 3);
+        AssertNativeDictionaryValue(deserializedString256ToFloat, alpha256, 1.25f);
+        AssertNativeDictionaryValue(deserializedString256ToFloat, beta256, 3.75f);
+        AssertNativeDictionaryValue(deserializedString256ToFloat, gamma256, 9.5f);
+
+        var deserializedIntToString256 = GetProperty<object>(deserialized, "IntToString256");
+        AssertNativeDictionaryCount(deserializedIntToString256, 3);
+        AssertNativeDictionaryValue(deserializedIntToString256, 1, "One");
+        AssertNativeDictionaryValue(deserializedIntToString256, 2, "Two");
+        AssertNativeDictionaryValue(deserializedIntToString256, 3, "Three");
+
+        var deserializedString256ToString64 = GetProperty<object>(deserialized, "String256ToString64");
+        AssertNativeDictionaryCount(deserializedString256ToString64, 2);
+        AssertNativeDictionaryValue(deserializedString256ToString64, alpha256, "ShortA");
+        AssertNativeDictionaryValue(deserializedString256ToString64, beta256, "ShortC");
+
+        var deserializedIntToDouble = GetProperty<object>(deserialized, "IntToDouble");
+        AssertNativeDictionaryCount(deserializedIntToDouble, 2);
+        AssertNativeDictionaryValue(deserializedIntToDouble, 7, 10.5d);
+        AssertNativeDictionaryValue(deserializedIntToDouble, 9, 21.75d);
+
+        Assert.True(GetProperty<bool>(deserialized, "IsDirty"));
+
+        Invoke(deserialized, "ClearDirty");
+        Assert.False(GetProperty<bool>(deserialized, "IsDirty"));
+
+        var baseline = Activator.CreateInstance(componentType);
+        Assert.NotNull(baseline);
+
+        var baselineString256ToFloat = CreateNativeDictionary(
+            string256ToFloatType,
+            (alpha256, 1.25f),
+            (beta256, 2.50f));
+
+        var baselineIntToString256 = CreateNativeDictionary(
+            intToString256Type,
+            (1, one256),
+            (2, two256));
+
+        var baselineString256ToString64 = CreateNativeDictionary(
+            string256ToString64Type,
+            (alpha256, shortA64),
+            (beta256, shortB64));
+
+        var baselineIntToDouble = CreateNativeDictionary(
+            intToDoubleType,
+            (7, 10.5d),
+            (9, 20.25d));
+
+        SetProperty(baseline, "Name256", alpha256);
+        SetProperty(baseline, "Name64", shortA64);
+        SetProperty(baseline, "String256ToFloat", baselineString256ToFloat);
+        SetProperty(baseline, "IntToString256", baselineIntToString256);
+        SetProperty(baseline, "String256ToString64", baselineString256ToString64);
+        SetProperty(baseline, "IntToDouble", baselineIntToDouble);
+
+        var baselineBytes = InvokeSerialize(baseline);
+
+        var deltaSource = Activator.CreateInstance(componentType);
+        Assert.NotNull(deltaSource);
+
+        InvokeDeserialize(deltaSource, baselineBytes);
+        Invoke(deltaSource, "ClearDirty");
+
+        SetProperty(deltaSource, "Name64", shortB64);
+        SetProperty(deltaSource, "String256ToFloat", changedString256ToFloat);
+        SetProperty(deltaSource, "IntToString256", changedIntToString256);
+        SetProperty(deltaSource, "String256ToString64", changedString256ToString64);
+        SetProperty(deltaSource, "IntToDouble", changedIntToDouble);
+
+        var deltaBytes = InvokeWriteDelta(deltaSource);
+        var deltaReader = new NetDataReader(deltaBytes);
+        var rawMask = deltaReader.GetByte();
+
+        const byte expectedMask =
+            (1 << 1) |
+            (1 << 2) |
+            (1 << 3) |
+            (1 << 4) |
+            (1 << 5);
+
+        Assert.Equal(expectedMask, rawMask);
+
+        var deltaReceiver = Activator.CreateInstance(componentType);
+        Assert.NotNull(deltaReceiver);
+
+        InvokeDeserialize(deltaReceiver, baselineBytes);
+        Invoke(deltaReceiver, "ClearDirty");
+
+        InvokeReadDelta(deltaReceiver, deltaBytes);
+
+        AssertNativeStringValue(GetProperty<object>(deltaReceiver, "Name256"), "Alpha");
+        AssertNativeStringValue(GetProperty<object>(deltaReceiver, "Name64"), "ShortB");
+
+        var deltaString256ToFloat = GetProperty<object>(deltaReceiver, "String256ToFloat");
+        AssertNativeDictionaryCount(deltaString256ToFloat, 3);
+        AssertNativeDictionaryValue(deltaString256ToFloat, alpha256, 1.25f);
+        AssertNativeDictionaryValue(deltaString256ToFloat, beta256, 3.75f);
+        AssertNativeDictionaryValue(deltaString256ToFloat, gamma256, 9.5f);
+
+        var deltaIntToString256 = GetProperty<object>(deltaReceiver, "IntToString256");
+        AssertNativeDictionaryCount(deltaIntToString256, 3);
+        AssertNativeDictionaryValue(deltaIntToString256, 1, "One");
+        AssertNativeDictionaryValue(deltaIntToString256, 2, "Two");
+        AssertNativeDictionaryValue(deltaIntToString256, 3, "Three");
+
+        var deltaString256ToString64 = GetProperty<object>(deltaReceiver, "String256ToString64");
+        AssertNativeDictionaryCount(deltaString256ToString64, 2);
+        AssertNativeDictionaryValue(deltaString256ToString64, alpha256, "ShortA");
+        AssertNativeDictionaryValue(deltaString256ToString64, beta256, "ShortC");
+
+        var deltaIntToDouble = GetProperty<object>(deltaReceiver, "IntToDouble");
+        AssertNativeDictionaryCount(deltaIntToDouble, 2);
+        AssertNativeDictionaryValue(deltaIntToDouble, 7, 10.5d);
+        AssertNativeDictionaryValue(deltaIntToDouble, 9, 21.75d);
+
+        Assert.True(GetProperty<bool>(deltaReceiver, "IsDirty"));
+
+        var skippedReceiver = Activator.CreateInstance(componentType);
+        Assert.NotNull(skippedReceiver);
+
+        InvokeDeserialize(skippedReceiver, baselineBytes);
+        Invoke(skippedReceiver, "ClearDirty");
+
+        InvokeSkipDelta(skippedReceiver, deltaBytes);
+
+        AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name256"), "Alpha");
+        AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name64"), "ShortA");
+
+        var skippedString256ToFloat = GetProperty<object>(skippedReceiver, "String256ToFloat");
+        AssertNativeDictionaryCount(skippedString256ToFloat, 2);
+        AssertNativeDictionaryValue(skippedString256ToFloat, alpha256, 1.25f);
+        AssertNativeDictionaryValue(skippedString256ToFloat, beta256, 2.50f);
+
+        var skippedIntToString256 = GetProperty<object>(skippedReceiver, "IntToString256");
+        AssertNativeDictionaryCount(skippedIntToString256, 2);
+        AssertNativeDictionaryValue(skippedIntToString256, 1, "One");
+        AssertNativeDictionaryValue(skippedIntToString256, 2, "Two");
+
+        var skippedString256ToString64 = GetProperty<object>(skippedReceiver, "String256ToString64");
+        AssertNativeDictionaryCount(skippedString256ToString64, 2);
+        AssertNativeDictionaryValue(skippedString256ToString64, alpha256, "ShortA");
+        AssertNativeDictionaryValue(skippedString256ToString64, beta256, "ShortB");
+
+        var skippedIntToDouble = GetProperty<object>(skippedReceiver, "IntToDouble");
+        AssertNativeDictionaryCount(skippedIntToDouble, 2);
+        AssertNativeDictionaryValue(skippedIntToDouble, 7, 10.5d);
+        AssertNativeDictionaryValue(skippedIntToDouble, 9, 20.25d);
+    }
+
+    private static object CreateNativeString(Type nativeStringType, string value)
+    {
+        var ctor = nativeStringType.GetConstructor([typeof(string)]);
+        Assert.NotNull(ctor);
+        return ctor.Invoke([value]);
+    }
+
+    private static object CreateNativeDictionary(Type dictionaryType, params (object Key, object Value)[] items)
+    {
+        var ctor = dictionaryType.GetConstructors()
+            .Single(c => c.GetParameters().Length == 2);
+
+        var ctorParameters = ctor.GetParameters();
+        var allocatorKindType = ctorParameters[1].ParameterType;
+        var allocatorValue = Enum.ToObject(allocatorKindType, AllocatorKind.Marshal);
+
+        var dictionary = ctor.Invoke([items.Length, allocatorValue]);
+
+        var addMethod = dictionaryType.GetMethods()
+            .Single(m =>
+                m.Name == "Add" &&
+                m.GetParameters().Length == 2);
+
+        foreach (var (key, value) in items)
+        {
+            var added = (bool)addMethod.Invoke(dictionary, [key, value])!;
+            Assert.True(added);
+        }
+
+        return dictionary;
+    }
+
+    private static void AssertNativeDictionaryCount(object dictionary, int expectedCount)
+    {
+        var countProperty = dictionary.GetType().GetProperty("Count");
+        Assert.NotNull(countProperty);
+        Assert.Equal(expectedCount, (int)countProperty.GetValue(dictionary)!);
+    }
+
+    private static void AssertNativeDictionaryValue(object dictionary, object key, object expectedValue)
+    {
+        var indexer = dictionary.GetType().GetProperty("Item");
+        Assert.NotNull(indexer);
+
+        var actualValue = indexer.GetValue(dictionary, [key]);
+        Assert.NotNull(actualValue);
+
+        AssertLooseValueEqual(actualValue, expectedValue);
+    }
+
+    private static void AssertNativeStringValue(object value, string expected)
+    {
+        AssertLooseValueEqual(value, expected);
+    }
+
+    private static void AssertLooseValueEqual(object? actual, object expected)
+    {
+        if (actual is null)
+        {
+            Assert.Null(expected);
+            return;
+        }
+
+        if (expected is string expectedString &&
+            actual.GetType().FullName is { } fullName &&
+            fullName.StartsWith("Yooni.Native.Container.NativeString", StringComparison.Ordinal))
+        {
+            Assert.Equal(expectedString, actual.ToString());
+            return;
+        }
+
+        if (expected is float expectedFloat)
+        {
+            Assert.Equal(expectedFloat, (float)actual);
+            return;
+        }
+
+        if (expected is double expectedDouble)
+        {
+            Assert.Equal(expectedDouble, (double)actual);
+            return;
+        }
+
+        Assert.Equal(expected, actual);
     }
     
     // ---

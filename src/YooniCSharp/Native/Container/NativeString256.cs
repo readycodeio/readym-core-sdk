@@ -26,10 +26,12 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     }
 
     [Pure]
-    public byte* GetChars()
+    public void CopyTo(byte* dest)
     {
-        fixed (byte* ptr = _bytes)
-            return ptr;
+        fixed (byte* p = _bytes)
+        {
+            Buffer.MemoryCopy(p, dest, _length, _length);
+        }
     }
 
     [Pure]

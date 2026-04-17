@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.Derive.CSharp;
 
-internal class CSharpEmitState(StringBuilder sb, CSharpModuleState moduleState)
+internal class CSharpEmitState(StringBuilder sb, CSharpMethodState methodState)
 {
     private struct CurrentVarEntry
     {
@@ -74,15 +74,15 @@ internal class CSharpEmitState(StringBuilder sb, CSharpModuleState moduleState)
         }
     }
 
-    public readonly CSharpModuleState ModuleState = moduleState;
-    
-    private readonly Dictionary<string, int> _varCounters = [];
-    private readonly List<CurrentVarEntry> _currentVarStack = [];
-    private string? _generatedPropertyName;
+    public readonly CSharpMethodState MethodState = methodState;
+    public CSharpClassState ClassState => MethodState.ClassState;
+    public CSharpModuleState ModuleState => MethodState.ModuleState;
     
     private string _prefix = string.Empty;
     private bool _atNewLine = true;
     private readonly List<IndentEntry> _indentStack = [];
+    private readonly List<CurrentVarEntry> _currentVarStack = [];
+    private string? _generatedPropertyName;
     private readonly StringBuilder _sb = sb;
     
     public void Append(string s)
@@ -172,31 +172,6 @@ internal class CSharpEmitState(StringBuilder sb, CSharpModuleState moduleState)
     public ExprContext WithExpr(bool paren = true)
         => new(this, paren);
     
-    public string NewVarName(string name)
-    {
-        if (!_varCounters.TryGetValue(name, out var index))
-        {
-            index = 0;
-            _varCounters.Add(name, 0);
-        }
-        
-        _varCounters[name] = index + 1;
-        return name + index;
-    }
-
-    public string GeneratedPropertyName
-    {
-        get
-        {
-            if (_generatedPropertyName == null)
-                throw new InvalidOperationException("Generated property name is not set for current member.");
-            return _generatedPropertyName;
-        }
-    }
-
-    public void SetGeneratedPropertyName(string name)
-        => _generatedPropertyName = name;
-    
     public string CurrentVar
         => _currentVarStack.Count > 0 ? _currentVarStack[_currentVarStack.Count - 1].VarName : throw new InvalidOperationException("No current entry in context.");
 
@@ -227,4 +202,17 @@ internal class CSharpEmitState(StringBuilder sb, CSharpModuleState moduleState)
     
     public CurrentVarContext WithCurrent(string varName, ITypeSymbol varType)
         => new(this, varName, varType);
+
+    public string GeneratedPropertyName
+    {
+        get
+        {
+            if (_generatedPropertyName == null)
+                throw new InvalidOperationException("Generated property name is not set for current member.");
+            return _generatedPropertyName;
+        }
+    }
+
+    public void SetGeneratedPropertyName(string name)
+        => _generatedPropertyName = name;
 }

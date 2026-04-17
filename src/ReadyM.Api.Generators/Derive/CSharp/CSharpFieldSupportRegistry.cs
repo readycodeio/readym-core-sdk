@@ -12,6 +12,7 @@ internal class CSharpFieldSupportRegistry
         new PrimitiveFieldTypeSupportImpl(),
         new EnumFieldTypeSupportImpl(),
         new VectorLikeFieldTypeSupportImpl(),
+        new NativeStringFieldTypeSupportImpl(),
         new NativeContainerFieldTypeSupportImpl(),
         new DeltaEquatableFieldTypeSupportImpl(),
         new EquatableFieldTypeSupportImpl(),
@@ -24,6 +25,7 @@ internal class CSharpFieldSupportRegistry
         new VectorLikeSerializationImpl(),
         new NativeListSerializationImpl(),
         new NativeDictionarySerializationImpl(),
+        new NativeStringSerializationImpl(),
         new CustomMethodSerializationImpl(),
     ];
     
@@ -41,44 +43,4 @@ internal class CSharpFieldSupportRegistry
         CSharpSerializationImpls,
         new FallbackTypeSerializationImpl()
     );
-    
-    internal static CSharpEmitFieldSupportContext CreateEmitFieldSupportContext(
-        StringBuilder sb,
-        string generatedPropertyName,
-        string fieldName,
-        ITypeSymbol fieldType,
-        ITypeSymbol maskType,
-        int maskIndex,
-        CSharpModuleState moduleState)
-    {
-        var state = new CSharpEmitState(sb, moduleState);
-        var context = new CSharpEmitFieldSupportContext(state, maskType, maskIndex, EmitSerializeVisitor, EmitDeserializeVisitor);
-        context.State.SetGeneratedPropertyName(generatedPropertyName);
-        context.State.ResetCurrent(fieldName, fieldType);
-        return context;
-    }
-    
-    internal static CSharpEmitSerializeContext CreateEmitSerializeContext(
-        string fieldName,
-        ITypeSymbol fieldType,
-        CSharpModuleState moduleState)
-    {
-        var sb = new StringBuilder();
-        var state = new CSharpEmitState(sb, moduleState);
-        var context = new CSharpEmitSerializeContext(state, EmitSerializeVisitor);
-        context.State.ResetCurrent(fieldName, fieldType);
-        return context;
-    }
-    
-    internal static CSharpEmitDeserializeContext CreateEmitDeserializeContext(
-        string fieldName,
-        ITypeSymbol fieldType,
-        CSharpModuleState moduleState)
-    {
-        var sb = new StringBuilder();
-        var state = new CSharpEmitState(sb, moduleState);
-        var context = new CSharpEmitDeserializeContext(state, EmitDeserializeVisitor);
-        context.State.ResetCurrent(fieldName, fieldType);
-        return context;
-    }
 }

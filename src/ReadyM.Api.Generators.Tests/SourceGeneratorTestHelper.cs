@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ReadyM.Api.Generators.Tests;
 
@@ -100,14 +100,15 @@ internal static class SourceGeneratorTestHelper
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable,
-                optimizationLevel: OptimizationLevel.Debug));
+                optimizationLevel: OptimizationLevel.Debug,
+                allowUnsafe: true));
     }
 
     private static void WriteGeneratedFiles(ITestOutputHelper output, GeneratorRunResult result)
     {
         foreach (var diagnostic in result.CompilationDiagnostics)
         {
-            output.WriteLine("DIAGNOSTIC: " + diagnostic.ToString());
+            output.WriteLine($"DIAGNOSTIC: {diagnostic}");
         }
         
         output.WriteLine("===== GENERATED FILES =====");
@@ -127,7 +128,11 @@ internal static class SourceGeneratorTestHelper
             output.WriteLine(string.Empty);
 
             var text = syntaxTree.GetText().ToString();
-            output.WriteLine(text);
+            var lineNumber = 1;
+            foreach (var line in text.EnumerateLines())
+            {
+                output.WriteLine($"{lineNumber++:D4}: {line}");
+            }
 
             if (!text.EndsWith(Environment.NewLine, StringComparison.Ordinal))
             {
@@ -223,6 +228,7 @@ internal static class SourceGeneratorTestHelper
             typeof(LiteNetLib.Utils.NetDataWriter).Assembly,
             typeof(Yooni.Native.Container.ByteHash).Assembly,
             typeof(Yooni.Native.LowLevel.Allocator).Assembly,
+            typeof(Yooni.Native.Serialization.NetSerializationExtensions).Assembly,
 
             typeof(TestAssemblyMarker).Assembly
         };

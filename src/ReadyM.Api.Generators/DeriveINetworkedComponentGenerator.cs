@@ -81,6 +81,8 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         
         var sb = new StringBuilder();
         var moduleState = new CSharpModuleState();
+        var classState = new CSharpClassState(moduleState);
+        
         AddDefaultUsings(moduleState);
         
         sb.Append($@"
@@ -106,21 +108,42 @@ public partial struct {info.Name} : INetworkedComponent
 
         foreach (var member in members)
         {
-            EmitProperty(sb, member, model, moduleState);
+            EmitProperty(sb, member, model, classState);
         }
 
-        EmitSerialize(sb, model, moduleState);
-        EmitDeserialize(sb, model, moduleState);
-        EmitWriteDelta(sb, model, moduleState);
-        EmitReadDelta(sb, model, moduleState);
-        EmitSkipDelta(sb, model, moduleState);
+        EmitSerialize(sb, model, classState);
+        EmitDeserialize(sb, model, classState);
+        EmitWriteDelta(sb, model, classState);
+        EmitReadDelta(sb, model, classState);
+        EmitSkipDelta(sb, model, classState);
 
         sb.AppendLine("""
     public void ClearDirty() => _dirtyMask = 0;
     public bool IsDirty => _dirtyMask != 0;
-}
 """);
 
+        if (classState.Members.Count > 0)
+        {
+            sb.AppendLine();
+            
+            foreach (var generatedMember in classState.Members)
+            {
+                if (generatedMember.IsThreadStatic)
+                {
+                    sb.AppendLine("""
+    [ThreadStatic]
+""");
+                }
+                sb.AppendLine($"""
+    private {(generatedMember.IsStatic ? "static " : " ")}{FullyQualifiedTypeName(generatedMember.MemberType)} {generatedMember.MemberName};
+""");
+            }
+        }
+
+        sb.AppendLine("""
+}
+""");
+        
         // NOTE: Emitting usings
         var usingSb = new StringBuilder();
         usingSb.Append("""
@@ -196,7 +219,7 @@ using {ns};
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         if (member.SourceMember.HasErrors)
         {
@@ -234,13 +257,13 @@ using {ns};
         get
         {
 """);
-        EmitPropertyGetter(sb, member, model, moduleState);
+        EmitPropertyGetter(sb, member, model, classState);
         sb.AppendLine("""
         }
         set
         {
 """);
-        EmitPropertySetter(sb, member, model, moduleState);
+        EmitPropertySetter(sb, member, model, classState);
         sb.AppendLine("""
         }
     }
@@ -252,10 +275,10 @@ using {ns};
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         var impl = GetEmitFieldSupportImpl(member, true);
-        var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+        var context = CreateEmitContext(sb, member, model, classState);
         
         context.State.ResetIndent("            ");
         impl.EmitGetterBody(member.SourceMember.Type, context);
@@ -265,10 +288,10 @@ using {ns};
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         var impl = GetEmitFieldSupportImpl(member, true);
-        var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+        var context = CreateEmitContext(sb, member, model, classState);
         
         context.State.ResetIndent("            ");
         impl.EmitSetterBody(member.SourceMember.Type, context);
@@ -277,17 +300,18 @@ using {ns};
     private void EmitSerialize(
         StringBuilder sb,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         sb.AppendLine("""
     public void Serialize(NetDataWriter writer)
     {
 """);
 
+        var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
-            var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+            var context = CreateEmitContext(sb, member, model, methodContext);
 
             context.State.ResetIndent("        ");
             impl.EmitSerializeBody(member.SourceMember.Type, context);
@@ -302,17 +326,18 @@ using {ns};
     private void EmitDeserialize(
         StringBuilder sb,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         sb.AppendLine("""
     public void Deserialize(NetDataReader reader)
     {
 """);
 
+        var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
-            var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+            var context = CreateEmitContext(sb, member, model, methodContext);
             
             context.State.ResetIndent("        ");
             impl.EmitDeserializeBody(member.SourceMember.Type, context);
@@ -327,7 +352,7 @@ using {ns};
     private void EmitWriteDelta(
         StringBuilder sb,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         sb.AppendLine("""
     public void WriteDelta(NetDataWriter writer)
@@ -336,10 +361,11 @@ using {ns};
         writer.Put(mask);
 """);
 
+        var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
-            var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+            var context = CreateEmitContext(sb, member, model, methodContext);
             
             context.State.ResetIndent("        ");
             impl.EmitWriteDeltaBody(member.SourceMember.Type, context);
@@ -354,7 +380,7 @@ using {ns};
     private void EmitReadDelta(
         StringBuilder sb,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         sb.AppendLine("""
     public void ReadDelta(NetDataReader reader)
@@ -364,10 +390,11 @@ using {ns};
         var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
 """);
 
+        var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
-            var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+            var context = CreateEmitContext(sb, member, model, methodContext);
             context.SetCurrentMaskVarName("mask");
             
             context.State.ResetIndent("        ");
@@ -383,7 +410,7 @@ using {ns};
     private void EmitSkipDelta(
         StringBuilder sb,
         DeriveTargetModel model,
-        CSharpModuleState moduleState)
+        CSharpClassState classState)
     {
         sb.AppendLine("""
     public void SkipDelta(NetDataReader reader)
@@ -393,10 +420,11 @@ using {ns};
         var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
 """);
         
+        var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
-            var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+            var context = CreateEmitContext(sb, member, model, methodContext);
             context.SetCurrentMaskVarName("mask");
             
             context.State.ResetIndent("        ");
@@ -417,7 +445,27 @@ using {ns};
 
     private static ICSharpFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
         => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.SourceMember.Type, fallback);
+
+    private static CSharpEmitFieldSupportContext CreateEmitContext(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        var methodState = new CSharpMethodState(classState);
+        return CreateEmitContext(sb, member, model, methodState);
+    }
     
-    private static CSharpEmitFieldSupportContext GetEmitFieldSupportContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CSharpModuleState moduleState)
-        => CSharpFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member.GeneratedPropertyName, member.SourceMember.Name, member.SourceMember.Type, model.MaskInfo.Type, member.Index, moduleState);
+    private static CSharpEmitFieldSupportContext CreateEmitContext(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpMethodState methodState)
+    {
+        var emitState = new CSharpEmitState(sb, methodState);
+        emitState.SetGeneratedPropertyName(member.GeneratedPropertyName);
+        var context = new CSharpEmitFieldSupportContext(emitState, model.MaskInfo.Type, member.Index, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
+        context.State.ResetCurrent(member.SourceMember.Name, member.SourceMember.Type);
+        return context;
+    }
 }

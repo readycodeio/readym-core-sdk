@@ -39,7 +39,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitSetDirty(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected virtual void EmitSetDirty(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"{context.CurrentMaskVar} |= ({FullyQualifiedTypeName(context.MaskType)})1 << {context.MaskIndex};");
 
     public virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
@@ -63,8 +63,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        var tempVar = context.State.NewVarName("temp");
-        using (context.WithCodeBlock())
+        var tempVar = context.MethodState.NewVarName("temp");
         using (context.WithCurrent(tempVar, symbol))
         {
             context.AppendLine($"{FullyQualifiedTypeName(symbol)} {tempVar} = default;");
@@ -75,11 +74,11 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitWriteDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.AppendLine($"if ");
+        context.AppendLine("if ");
         EmitDirtyCheck(symbol, context, forceParen: true);
         context.AppendLine();
         
-        using (context.WithIndent())
+        using (context.WithCodeBlock())
         {
             EmitSerializeBody(symbol, context);
         }
@@ -87,25 +86,25 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.Append($"if ");
-        EmitDirtyCheck(symbol, context, forceParen: true);
-        context.AppendLine();
-        
-        using (context.WithIndent())
-        {
-            EmitDeserializeBody(symbol, context);
-        }
-    }
-
-    public virtual void EmitSkipDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-    {
-        context.Append($"if ");
+        context.Append("if ");
         EmitDirtyCheck(symbol, context, forceParen: true);
         context.AppendLine();
         
         using (context.WithCodeBlock())
         {
-            var dummyVar = context.State.NewVarName("dummy");
+            EmitDeserializeBody(symbol, context);
+        }
+    }
+    
+    public virtual void EmitSkipDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.Append("if ");
+        EmitDirtyCheck(symbol, context, forceParen: true);
+        context.AppendLine();
+        
+        using (context.WithCodeBlock())
+        {
+            var dummyVar = context.MethodState.NewVarName("dummy");
             context.AppendLine($"var {dummyVar} = default({FullyQualifiedTypeName(context.State.CurrentType)});");
             context.EmitDeserializeVar(dummyVar, context.State.CurrentType);
         }
