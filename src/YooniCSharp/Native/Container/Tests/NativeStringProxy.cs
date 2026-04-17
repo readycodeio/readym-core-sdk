@@ -38,7 +38,7 @@ public static unsafe class NativeStringProxy<TString>
         public fixed byte Bytes[255];
     }
 
-    public static int ToBytes(IntPtr args, int sizeBytes)
+    public static int CopyTo(IntPtr args, int sizeBytes)
     {
         if (sizeBytes != sizeof(ToBytesArgs))
         {
@@ -52,10 +52,9 @@ public static unsafe class NativeStringProxy<TString>
 
         values.Length = target.Length;
 
-        var source = target.GetChars();
-        for (int i = 0; i < values.Length; ++i)
+        fixed (byte* ptr = values.Bytes)
         {
-            values.Bytes[i] = source[i];
+            target.CopyTo(ptr);
         }
 
         if (values.Length < 255)
