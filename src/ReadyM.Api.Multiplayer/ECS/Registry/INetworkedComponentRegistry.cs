@@ -2,6 +2,7 @@ using System;
 using LiteNetLib;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.Interop;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
@@ -15,5 +16,6 @@ internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetwork
     NetworkedComponentId GetNetworkedComponentId(Type type);
     NetworkedComponentId GetNetworkedComponentId<T>();
     Type GetComponentType(NetworkedComponentId componentId);
+    void RunQuery(NetworkedComponentId componentId, EmbedQueryDelegate callbackPtr);
     DeliveryMethod GetNetworkedComponentDeliveryMethod<T>();
 }
