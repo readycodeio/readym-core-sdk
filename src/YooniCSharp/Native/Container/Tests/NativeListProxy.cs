@@ -47,7 +47,7 @@ public static unsafe class NativeListProxy<T>
         var mem = new Memory(args, sizeBytes);
         ref var values = ref mem.ReadRef<IsCreatedArgs>();
         ref var target = ref Unsafe.AsRef<NativeList<T>>(values.TargetPtr);
-        values.Result = (byte)(target.IsCreated() ? 1 : 0);
+        values.Result = (byte)(target.IsCreated ? 1 : 0);
         return 0;
     }
 

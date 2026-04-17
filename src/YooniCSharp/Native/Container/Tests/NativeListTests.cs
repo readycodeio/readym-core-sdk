@@ -9,7 +9,7 @@ public class NativeListTests
     public void TestAdd(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -46,7 +46,7 @@ public class NativeListTests
     public void TestInsert(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -114,7 +114,7 @@ public class NativeListTests
     public void TestInsertRange(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -188,11 +188,11 @@ public class NativeListTests
     public void TestInsertRangeList(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
         Assert.AreEqual(0, lst.Count);
 
         NativeList<int> source = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(source.IsCreated());
+        Assert.IsTrue(source.IsCreated);
         source.Add(234);
         source.Add(123);
 
@@ -270,7 +270,7 @@ public class NativeListTests
     public void TestRemoveAt(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -374,7 +374,7 @@ public class NativeListTests
     public void TestRemoveSwapBack(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -479,7 +479,7 @@ public class NativeListTests
     public void TestRemoveRange(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -580,7 +580,7 @@ public class NativeListTests
     public void TestIntClear(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -632,7 +632,7 @@ public class NativeListTests
     public void TestEnsureLength(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
         Assert.GreaterOrEqual(lst.Capacity, 0);
@@ -765,7 +765,7 @@ public class NativeListTests
     public void TestMemClear(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
 
@@ -851,7 +851,7 @@ public class NativeListTests
     public void TestResize(int initialCapacity)
     {
         var lst = new NativeList<int>(initialCapacity, LowLevel.AllocatorKind.Marshal);
-        Assert.IsTrue(lst.IsCreated());
+        Assert.IsTrue(lst.IsCreated);
 
         Assert.AreEqual(0, lst.Count);
         Assert.GreaterOrEqual(lst.Capacity, 0);
