@@ -10,12 +10,16 @@ internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetwork
 {
     INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, INetworkedComponent;
+
     INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod, T defaultValue = default)
         where T : struct, INetworkedComponent;
 
     NetworkedComponentId GetNetworkedComponentId(Type type);
     NetworkedComponentId GetNetworkedComponentId<T>();
+    NetworkedComponentId GetNetworkedComponentId(string typeFullName);
     Type GetComponentType(NetworkedComponentId componentId);
-    void RunQuery(NetworkedComponentId componentId, EmbedQueryDelegate callbackPtr);
     DeliveryMethod GetNetworkedComponentDeliveryMethod<T>();
+
+    void RunQuery(NetworkedComponentId componentId, EmbedQueryDelegate1 callbackPtr);
+    void RunQuery(NetworkedComponentId c1, NetworkedComponentId c2, EmbedQueryDelegate2 callbackPtr);
 }

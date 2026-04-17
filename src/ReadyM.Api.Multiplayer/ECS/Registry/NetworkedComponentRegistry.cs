@@ -13,11 +13,13 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
 {
     private struct AotEcsCallbacks
     {
-        public HostQueryDelegate Query;
+        public Type ComponentType;
+        public ComponentTypes ComponentTypes;
+        public HostQueryDelegate1 Query1;
     }
 
     private byte _nextComponentId;
-    private readonly Dictionary<Type, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> _componentIds = new();
+    private readonly Dictionary<string, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> _componentIds = new();
     private readonly Dictionary<NetworkedComponentId, Type> _componentTypes = new();
     private readonly Dictionary<NetworkedComponentId, AotEcsCallbacks> _aotEcsCallbacks = new();
 
@@ -29,12 +31,14 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
         where T : struct, INetworkedComponent
     {
         var id = new NetworkedComponentId(_nextComponentId++);
-        _componentIds.Add(typeof(T), (id, deliveryMethod));
+        _componentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
         _componentTypes.Add(id, typeof(T));
 
         _aotEcsCallbacks.Add(id, new AotEcsCallbacks
         {
-            Query = RunQuery<T>
+            ComponentType = typeof(T),
+            ComponentTypes = Signature.Get<T>().ComponentTypes,
+            Query1 = RunQuery<T>
         });
         return base.RegisterComponent(defaultValue);
     }
@@ -42,7 +46,7 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
     public NetworkedComponentId GetNetworkedComponentId(Type type)
         => _componentIds[type].Id;
 
-    private unsafe void RunQuery<T>(EmbedQueryDelegate callback) where T : struct, IComponent
+    private unsafe void RunQuery<T>(EmbedQueryDelegate1 callback) where T : struct, IComponent
     {
         // ptr is a pointer to an unmanaged function that takes a pointer to an array of T and an int for the length of the array
         // and casts it to Span<T> internally, then runs some void method for all elements of the span
@@ -61,17 +65,47 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
     }
 
     public NetworkedComponentId GetNetworkedComponentId<T>()
-        => _componentIds[typeof(T)].Id;
+        => _componentIds[typeof(T).FullName!].Id;
 
-    public void RunQuery(NetworkedComponentId componentId, EmbedQueryDelegate callbackPtr)
+    public NetworkedComponentId GetNetworkedComponentId(string typeFullName)
+        => _componentIds[typeFullName].Id;
+
+    public void RunQuery(NetworkedComponentId c1, EmbedQueryDelegate1 callbackPtr)
     {
-        var callbacks = _aotEcsCallbacks[componentId];
-        callbacks.Query(callbackPtr);
+        var callbacks = _aotEcsCallbacks[c1];
+        callbacks.Query1(callbackPtr);
+    }
+
+    public void RunQuery(NetworkedComponentId c1, NetworkedComponentId c2, EmbedQueryDelegate2 callback)
+    {
+        var types = _aotEcsCallbacks[c1].ComponentTypes;
+        types.Add(_aotEcsCallbacks[c2].ComponentTypes);
+
+        var query = world.Query(new QueryFilter().AllComponents(types));
+
+        foreach (var archetype in query.Archetypes)
+        {
+            GC.TryStartNoGCRegion(1 * 1024 * 1024, true); // 1 MB
+            // get the chunks for each component
+            var (ptr1, count1) = archetype.Components(_aotEcsCallbacks[c1].ComponentType);
+            var (ptr2, count2) = archetype.Components(_aotEcsCallbacks[c2].ComponentType);
+
+            // pack into Chunks2 struct and call the callback
+            var chunks = new Chunks2
+            {
+                Chunk1 = ptr1,
+                Length1 = count1,
+                Chunk2 = ptr2,
+                Length2 = count2
+            };
+            callback(chunks);
+            GC.EndNoGCRegion();
+        }
     }
 
     public Type GetComponentType(NetworkedComponentId componentId)
         => _componentTypes[componentId];
 
     public DeliveryMethod GetNetworkedComponentDeliveryMethod<T>()
-        => _componentIds[typeof(T)].DeliveryMethod;
+        => _componentIds[typeof(T).FullName!].DeliveryMethod;
 }

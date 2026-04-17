@@ -23,6 +23,16 @@ public struct Chunks2
 
     public IntPtr Chunk2;
     public int Length2;
+    
+    public unsafe Span<T> AsSpan1<T>()
+    {
+        return new Span<T>((void*)Chunk1, Length1);
+    }
+    
+    public unsafe Span<T> AsSpan2<T>()
+    {
+        return new Span<T>((void*)Chunk2, Length2);
+    }
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
