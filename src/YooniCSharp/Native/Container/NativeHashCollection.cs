@@ -21,9 +21,9 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         Free = 1,
         Used = 2,
     }
-
+    
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Entry
+    public unsafe struct Entry
     {
         public TypedPtr<Entry> Next;
         public uint Hash;
