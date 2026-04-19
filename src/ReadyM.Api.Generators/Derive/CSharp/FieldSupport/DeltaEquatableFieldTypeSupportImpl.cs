@@ -10,8 +10,8 @@ internal class DeltaEquatableFieldTypeSupportImpl : CSharpFieldTypeSupportImplBa
     protected override void EmitEqualCheck(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (symbol.IsValueType)
-            context.Append($"{context.State.CurrentVar}.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f)");
+            context.Append($"{context.State.CurrentVar}.DeltaEquals(value, {DeriveComponentUtils.ScalarComparisonEpsilon}f)");
         else
-            context.Append($"{context.State.CurrentVar}?.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f) ?? value is null");
+            context.Append($"{context.State.CurrentVar}?.DeltaEquals(value, {DeriveComponentUtils.ScalarComparisonEpsilon}f) ?? value is null");
     }
 }

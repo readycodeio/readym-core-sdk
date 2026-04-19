@@ -5,10 +5,8 @@ namespace ReadyM.Api.Generators;
 
 public class DeriveComponentUtils
 {
-    internal const float FloatComparisonEpsilon = 0.1f;
-    internal const double DoubleComparisonEpsilon = 0.1;
-
-    internal static readonly float VectorComparisonEpsilon = FloatComparisonEpsilon * FloatComparisonEpsilon;
+    internal const string ScalarComparisonEpsilon = "0.1";
+    internal const string VectorComparisonEpsilon = "0.01";
 
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {

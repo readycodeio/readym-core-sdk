@@ -10,9 +10,9 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CSharpFieldTypeSupportImpl
     protected override void EmitEqualCheck(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (symbol.SpecialType == SpecialType.System_Single)
-            context.Append($"Math.Abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.FloatComparisonEpsilon}f");
+            context.Append($"Math.Abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (symbol.SpecialType == SpecialType.System_Double)
-            context.Append($"Math.Abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.DoubleComparisonEpsilon}");
+            context.Append($"Math.Abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else
             context.Append($"{context.State.CurrentVar} == value");
     }
@@ -20,9 +20,9 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CSharpFieldTypeSupportImpl
     protected override void EmitNotEqualCheck(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (symbol.SpecialType == SpecialType.System_Single)
-            context.Append($"Math.Abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.FloatComparisonEpsilon}f");
+            context.Append($"Math.Abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (symbol.SpecialType == SpecialType.System_Double)
-            context.Append($"Math.Abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.DoubleComparisonEpsilon}");
+            context.Append($"Math.Abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else
             context.Append($"{context.State.CurrentVar} != value");
     }

@@ -8,5 +8,5 @@ internal sealed class DeltaEquatableFieldTypeSupportImpl : CppFieldTypeSupportIm
         => SerializationHelper.IsDeltaEquatable(type);
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
-        => context.Append($"{context.State.CurrentVar}.DeltaEquals(value, {DeriveComponentUtils.FloatComparisonEpsilon}f)");
+        => context.Append($"{context.State.CurrentVar}.DeltaEquals(value, {DeriveComponentUtils.ScalarComparisonEpsilon}f)");
 }

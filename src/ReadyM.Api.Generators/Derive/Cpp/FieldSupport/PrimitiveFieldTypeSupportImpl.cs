@@ -17,9 +17,9 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBas
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         if (context.State.CurrentType.SpecialType == SpecialType.System_Single)
-            context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.FloatComparisonEpsilon}f");
+            context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
-            context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.DoubleComparisonEpsilon}");
+            context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else
             context.Append($"{context.State.CurrentVar} == value");
     }
@@ -27,9 +27,9 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBas
     protected override void EmitNotEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         if (context.State.CurrentType.SpecialType == SpecialType.System_Single)
-            context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.FloatComparisonEpsilon}f");
+            context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
-            context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.DoubleComparisonEpsilon}");
+            context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else
             context.Append($"{context.State.CurrentVar} != value");
     }
