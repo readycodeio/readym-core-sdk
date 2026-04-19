@@ -4,12 +4,14 @@ using Microsoft.CodeAnalysis;
 namespace ReadyM.Api.Generators;
 
 internal class DeriveMemberInfo(
+    ISymbol symbol,
     string name,
     ITypeSymbol type,
     int order,
     bool readOnly,
     IReadOnlyList<string> errors)
 {
+    public ISymbol Symbol { get; } = symbol;
     public string Name { get; } = name;
     public ITypeSymbol Type { get; } = type;
     public int Order { get; } = order;

@@ -155,7 +155,7 @@ internal static class DeriveUtils
         var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
 
         return new DeriveTargetInfo(
-            target: symbol,
+            symbol: symbol,
             name: name,
             @namespace: ns,
             members: allMembers.ToArray(),
@@ -171,6 +171,7 @@ internal static class DeriveUtils
     {
         if (symbol is IFieldSymbol f)
             return new DeriveMemberInfo(
+                symbol: symbol,
                 name: f.Name,
                 type: f.Type,
                 order: f.DeclaringSyntaxReferences[0].Span.Start,
@@ -184,6 +185,7 @@ internal static class DeriveUtils
                 errors.Add($"Properties that are init-only are not supported: {p.Name}");
             
             return new DeriveMemberInfo(
+                symbol: symbol,
                 name: p.Name,
                 type: p.Type,
                 order: p.DeclaringSyntaxReferences[0].Span.Start,

@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 namespace ReadyM.Api.Generators;
 
 internal sealed class DeriveTargetInfo(
-    ITypeSymbol target,
+    ITypeSymbol symbol,
     string name,
     string @namespace,
     DeriveMemberInfo[] members,
@@ -15,7 +15,7 @@ internal sealed class DeriveTargetInfo(
     bool emitDirtyMask,
     DeriveMapSettings mapSettings)
 {
-    public ITypeSymbol Target { get; } = target ?? throw new ArgumentNullException(nameof(target));
+    public ITypeSymbol Symbol { get; } = symbol ?? throw new ArgumentNullException(nameof(symbol));
     public string Name { get; } = name ?? throw new ArgumentNullException(nameof(name));
     public string Namespace { get; } = @namespace ?? throw new ArgumentNullException(nameof(@namespace));
     public DeriveMemberInfo[] Members { get; } = members ?? throw new ArgumentNullException(nameof(members));

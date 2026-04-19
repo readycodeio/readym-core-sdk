@@ -6,7 +6,22 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 {
     public abstract bool Supports(ITypeSymbol type);
-
+    
+    public void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    {
+        if (context.Member.SkipAccessorMethods)
+            return;
+        
+        EmitGetterMethod(symbol, context);
+        context.AppendLine();
+        
+        if (!context.Member.Source.ReadOnly)
+        {
+            EmitSetterMethod(symbol, context);
+            context.AppendLine();
+        }
+    }
+    
     protected virtual void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         context.Append("const ");
@@ -46,7 +61,12 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
     }
 
     protected virtual void EmitSetDirty(ITypeSymbol symbol, CppEmitFieldSupportContext context)
-        => context.AppendLine($"{context.CurrentMaskVar} |= static_cast<{CppTypeName(context.MaskType)}>(1) << {context.MaskIndex};");
+    {
+        if (context.Model.MaskInfo == null)
+            return;
+        var maskType = context.Model.MaskInfo.Type;
+        context.AppendLine($"{context.CurrentMaskVar} |= static_cast<{CppTypeName(maskType)}>(1) << {context.Member.MaskIndex};");
+    }
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CppEmitFieldSupportContext context)
         => context.AppendLine($"{context.State.CurrentVar} = value;");
@@ -54,7 +74,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
     public virtual void EmitGetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         EmitGetterType(symbol, context);
-        context.AppendLine($" {context.State.GeneratedPropertyName}() const");
+        context.AppendLine($" {context.Member.GeneratedPropertyName}() const");
         using (context.WithCodeBlock())
         {
             EmitGetterBody(symbol, context);
@@ -64,7 +84,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
     public virtual void EmitSetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         context.Append("void Set");
-        context.Append(context.State.GeneratedPropertyName);
+        context.Append(context.Member.GeneratedPropertyName);
         context.Append("(");
         EmitSetterType(symbol, context);
         context.AppendLine(" value)");

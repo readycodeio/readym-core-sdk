@@ -79,7 +79,6 @@ internal class CppEmitState(StringBuilder sb, CppModuleState moduleState)
     
     private readonly Dictionary<string, int> _varCounters = [];
     private readonly List<CurrentVarEntry> _currentVarStack = [];
-    private string? _generatedPropertyName;
     
     private string _prefix = string.Empty;
     private bool _atNewLine = true;
@@ -184,19 +183,6 @@ internal class CppEmitState(StringBuilder sb, CppModuleState moduleState)
         _varCounters[name] = index + 1;
         return name + index;
     }
-    
-    public string GeneratedPropertyName
-    {
-        get
-        {
-            if (_generatedPropertyName == null)
-                throw new InvalidOperationException("Generated property name is not set for current member.");
-            return _generatedPropertyName;
-        }
-    }
-
-    public void SetGeneratedPropertyName(string name)
-        => _generatedPropertyName = name;
 
     public string CurrentVar
         => _currentVarStack.Count > 0 ? _currentVarStack[_currentVarStack.Count - 1].VarName : throw new InvalidOperationException("No current entry in context.");

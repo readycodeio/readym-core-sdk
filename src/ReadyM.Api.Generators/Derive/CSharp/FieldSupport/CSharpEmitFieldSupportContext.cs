@@ -5,13 +5,13 @@ namespace ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 
 internal class CSharpEmitFieldSupportContext(
     CSharpEmitState state,
-    ITypeSymbol maskType,
-    int maskIndex,
+    DeriveMemberModel member,
+    DeriveTargetModel model,
     IDeriveTypeSupportVisitor<CSharpEmitSerializeContext> serializeVisitor,
     IDeriveTypeSupportVisitor<CSharpEmitDeserializeContext> deserializeVisitor) : CSharpEmitContextBase(state)
 {
-    public readonly ITypeSymbol MaskType = maskType;
-    public readonly int MaskIndex = maskIndex;
+    public readonly DeriveMemberModel Member = member;
+    public readonly DeriveTargetModel Model = model;
 
     public string CurrentMaskVar { get; private set; } = "_dirtyMask";
 

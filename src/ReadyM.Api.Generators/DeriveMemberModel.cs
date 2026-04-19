@@ -5,9 +5,11 @@ namespace ReadyM.Api.Generators;
 internal sealed class DeriveMemberModel(
     DeriveMemberInfo source,
     string generatedPropertyName,
-    int index)
+    int maskIndex,
+    bool skipAccessorMethods)
 {
-    public DeriveMemberInfo SourceMember { get; } = source ?? throw new ArgumentNullException(nameof(source));
+    public DeriveMemberInfo Source { get; } = source ?? throw new ArgumentNullException(nameof(source));
     public string GeneratedPropertyName { get; } = generatedPropertyName ?? throw new ArgumentNullException(nameof(generatedPropertyName));
-    public int Index { get; } = index;
+    public int MaskIndex { get; } = maskIndex;
+    public bool SkipAccessorMethods { get; } = skipAccessorMethods;
 }

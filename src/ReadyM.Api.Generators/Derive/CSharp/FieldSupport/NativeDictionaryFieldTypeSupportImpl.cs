@@ -24,7 +24,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
     }
     
-    public override void EmitAccessors(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    public override void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
             throw new InvalidOperationException("Expected a native dictionary type");

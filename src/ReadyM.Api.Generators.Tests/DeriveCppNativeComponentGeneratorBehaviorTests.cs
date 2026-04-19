@@ -10,7 +10,7 @@ public sealed class DeriveCppNativeComponentGeneratorBehaviorTests(ITestOutputHe
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
@@ -82,7 +82,7 @@ public partial struct AppearanceComponent : IComponent
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 using Yooni.Native.Container;
 
@@ -168,7 +168,7 @@ public partial struct AppearanceComponent : IComponent
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;
@@ -249,7 +249,7 @@ public partial struct FixedComponent : IComponent
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 using Yooni.Native.Container;
 
@@ -345,7 +345,7 @@ public partial struct DictionaryComponent : IComponent
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;
@@ -426,7 +426,7 @@ public partial struct RingBufferComponent : IComponent
         const string source = """
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
-using ReadyM.Api.ECS.Registry;
+using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
 using Yooni.Native.Container;
 
@@ -485,6 +485,98 @@ public partial struct StringComponent : IComponent
             dirtyMaskBit: 2,
             backingField: "Yooni::Native::Container::NativeString256 _biography = {};",
             maskType: "uint32_t");
+    }
+    
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithoutNetworkComponentSkipsDirtyFlag()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct StringComponent : IComponent
+{
+    private NativeString64 _displayName;
+    private NativeString64 _title;
+    private NativeString256 _biography;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+    }
+    
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentSkipAccessMethodsActuallySkipsAccessMethods()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: true), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct StringComponent : IComponent
+{
+    [SkipNativeAccessMethods]
+    private NativeString64 _displayName;
+    private NativeString64 _title;
+    [SkipNativeAccessMethods]
+    private NativeString256 _biography;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+        
+        Assert.Contains("Yooni::Native::Container::NativeString64 _displayName = {};", generatedText);
+        Assert.DoesNotContain("DisplayName", generatedText);
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
+            inequalityGuard: "if (_title != value)",
+            assignment: "_title = value;",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            maskType: "uint8_t");
+        
+        Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
+        Assert.DoesNotContain("Biography", generatedText);
     }
 
     private static void AssertContainerMember(

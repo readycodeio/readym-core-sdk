@@ -55,7 +55,7 @@ public class DeriveComponentUtils
             }
             else
             {
-                maskType = requestedMaskType!;
+                maskType = requestedMaskType;
             }
         }
         else
@@ -118,8 +118,17 @@ public class DeriveComponentUtils
     }
     
     private static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
-        => new(memberInfo, GetGeneratedPropertyName(memberInfo.Name), index);
-    
+    {
+        var generatedPropertyName = GetGeneratedPropertyName(memberInfo.Name);
+        var skipAccessMethods = AttributeUtils.HasAttribute(memberInfo.Symbol, "SkipNativeAccessMethodsAttribute");
+        
+        return new DeriveMemberModel(
+            source: memberInfo, 
+            generatedPropertyName: generatedPropertyName,
+            maskIndex: index,
+            skipAccessorMethods: skipAccessMethods);
+    }
+
     private static string GetGeneratedPropertyName(string memberName)
     {
         if (string.IsNullOrEmpty(memberName))

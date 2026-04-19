@@ -19,7 +19,7 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
     protected override DeliveryMethod DeliveryMethod
         => deliveryMethod;
 
-    protected override int? GetMaxPacketSize()
+    protected override int?  GetMaxPacketSize()
         => relay.GetMaxPacketSize(DeliveryMethod);
 
     protected override uint SentOwners()

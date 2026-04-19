@@ -4,10 +4,11 @@ namespace ReadyM.Api.Generators.Derive.CSharp;
 
 internal abstract class CSharpEmitContextBase(CSharpEmitState state)
 {
-    public CSharpEmitState State => state;
-    public CSharpMethodState MethodState => state.MethodState;
-    public CSharpClassState ClassState => state.ClassState;
-    public CSharpModuleState ModuleState => state.ModuleState;
+    public readonly CSharpEmitState State = state;
+    
+    public CSharpMethodState MethodState => State.MethodState;
+    public CSharpClassState ClassState => State.ClassState;
+    public CSharpModuleState ModuleState => State.ModuleState;
     
     public void Append(string s)
         => State.Append(s);

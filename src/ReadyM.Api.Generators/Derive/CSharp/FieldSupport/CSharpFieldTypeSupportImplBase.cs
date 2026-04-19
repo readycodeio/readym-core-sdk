@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System;
+using Microsoft.CodeAnalysis;
 using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
 namespace ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
@@ -33,14 +34,21 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     protected virtual void EmitDirtyCheck(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool forceParen)
     {
+        if (context.Model.MaskInfo == null)
+            throw new InvalidOperationException();
+        
         using (context.WithExpr(forceParen))
         {
-            context.Append($"(mask & (({context.MaskType})1 << {context.MaskIndex})) != 0");
+            context.Append($"(mask & (({context.Model.MaskInfo.Type})1 << {context.Member.MaskIndex})) != 0");
         }
     }
 
     protected virtual void EmitSetDirty(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-        => context.AppendLine($"{context.CurrentMaskVar} |= ({FullyQualifiedTypeName(context.MaskType)})1 << {context.MaskIndex};");
+    {
+        if (context.Model.MaskInfo == null)
+            return;
+        context.AppendLine($"{context.CurrentMaskVar} |= ({FullyQualifiedTypeName(context.Model.MaskInfo.Type)})1 << {context.Member.MaskIndex};");
+    }
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"{context.State.CurrentVar} = value;");
@@ -61,7 +69,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitAccessors(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    public virtual void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         context.AppendLine($"public {FullyQualifiedTypeName(symbol)} {context.State.GeneratedPropertyName}");
         using (context.WithCodeBlock())

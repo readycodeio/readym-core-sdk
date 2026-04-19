@@ -9,7 +9,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
     public override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsNativeList(type, out _);
 
-    public override void EmitAccessors(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    public override void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (!SerializationHelper.IsNativeList(symbol, out var itemType))
             throw new InvalidOperationException("Expected a native list type.");

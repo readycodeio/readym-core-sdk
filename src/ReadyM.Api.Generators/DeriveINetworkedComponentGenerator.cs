@@ -49,22 +49,22 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 
     private string GenerateNetworkedComponent(DeriveTargetModel model)
     {
-        var info = model.SourceTarget;
+        var info = model.Source;
         var members = model.Members;
         
         if (model.MaskInfo.Bits < members.Count)
         {
-            if (model.SourceTarget.EmitDirtyMask)
+            if (model.Source.EmitDirtyMask)
             {
                 model.MaskInfo.AddError(
-                    $"Too many synced fields in `{model.SourceTarget.Name}` " +
+                    $"Too many synced fields in `{model.Source.Name}` " +
                     $"to fit in a dirty mask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
                     $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
             }
             else
             {
                 model.MaskInfo.AddError(
-                    $"Too many synced members in `{model.SourceTarget.Name}` " +
+                    $"Too many synced members in `{model.Source.Name}` " +
                     $"to fit in the user-supplied _dirtyMask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
                     $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
             }
@@ -74,7 +74,7 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         {
             if (!HasGetEmitFieldSupportImpl(member, false))
             {
-                member.SourceMember.AddError($"Unsupported type '{member.SourceMember.Type.ToDisplayString()}' for networked member '{member.SourceMember.Name}'.");
+                member.Source.AddError($"Unsupported type '{member.Source.Type.ToDisplayString()}' for networked member '{member.Source.Name}'.");
             }
         }
         
@@ -107,7 +107,7 @@ public partial struct {info.Name} : INetworkedComponent
 
         foreach (var member in members)
         {
-            EmitAccessors(sb, member, model, classState);
+            EmitAccessorMethods(sb, member, model, classState);
             sb.AppendLine();
         }
 
@@ -195,7 +195,7 @@ using {ns};
     {
         var mask = model.MaskInfo;
         
-        if (model.SourceTarget.EmitDirtyMask)
+        if (model.Source.EmitDirtyMask)
         {
             sb.AppendLine($"""
     private {FullyQualifiedTypeName(mask.Type)} _dirtyMask;
@@ -215,15 +215,15 @@ using {ns};
         }
     }
     
-    private void EmitAccessors(
+    private void EmitAccessorMethods(
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
         CSharpClassState classState)
     {
-        if (member.SourceMember.HasErrors)
+        if (member.Source.HasErrors)
         {
-            foreach (var error in member.SourceMember.Errors)
+            foreach (var error in member.Source.Errors)
             {
                 sb.AppendLine($"""
     #error {error}
@@ -236,7 +236,7 @@ using {ns};
         var context = CreateEmitContext(sb, member, model, classState);
         
         context.State.ResetIndent("    ");
-        impl.EmitAccessors(member.SourceMember.Type, context);
+        impl.EmitAccessorMethods(member.Source.Type, context);
     }
 
     private void EmitSerialize(
@@ -256,7 +256,7 @@ using {ns};
             var context = CreateEmitContext(sb, member, model, methodContext);
 
             context.State.ResetIndent("        ");
-            impl.EmitSerializeBody(member.SourceMember.Type, context);
+            impl.EmitSerializeBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""
@@ -282,7 +282,7 @@ using {ns};
             var context = CreateEmitContext(sb, member, model, methodContext);
             
             context.State.ResetIndent("        ");
-            impl.EmitDeserializeBody(member.SourceMember.Type, context);
+            impl.EmitDeserializeBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""
@@ -310,7 +310,7 @@ using {ns};
             var context = CreateEmitContext(sb, member, model, methodContext);
             
             context.State.ResetIndent("        ");
-            impl.EmitWriteDeltaBody(member.SourceMember.Type, context);
+            impl.EmitWriteDeltaBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""
@@ -340,7 +340,7 @@ using {ns};
             context.SetCurrentMaskVarName("mask");
             
             context.State.ResetIndent("        ");
-            impl.EmitReadDeltaBody(member.SourceMember.Type, context);
+            impl.EmitReadDeltaBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""
@@ -370,7 +370,7 @@ using {ns};
             context.SetCurrentMaskVarName("mask");
             
             context.State.ResetIndent("        ");
-            impl.EmitSkipDeltaBody(member.SourceMember.Type, context);
+            impl.EmitSkipDeltaBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""
@@ -383,10 +383,10 @@ using {ns};
         => SerializationHelper.GetDeserializationMethod(type.SpecialType);
 
     private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.SourceMember.Type, fallback, out _);
+        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.Source.Type, fallback, out _);
 
     private static ICSharpFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.SourceMember.Type, fallback);
+        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
 
     private static CSharpEmitFieldSupportContext CreateEmitContext(
         StringBuilder sb,
@@ -406,8 +406,10 @@ using {ns};
     {
         var emitState = new CSharpEmitState(sb, methodState);
         emitState.SetGeneratedPropertyName(member.GeneratedPropertyName);
-        var context = new CSharpEmitFieldSupportContext(emitState, model.MaskInfo.Type, member.Index, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
-        context.State.ResetCurrent(member.SourceMember.Name, member.SourceMember.Type);
+        var context = new CSharpEmitFieldSupportContext(emitState, member, model, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
+        var fieldName = member.Source.Name;
+        var fieldType = member.Source.Type;
+        context.State.ResetCurrent(fieldName, fieldType);
         return context;
     }
 }

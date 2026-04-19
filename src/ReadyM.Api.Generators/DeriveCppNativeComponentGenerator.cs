@@ -49,7 +49,7 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 
     private string GenerateCppFragment(DeriveTargetModel model)
     {
-        var info = model.SourceTarget;
+        var info = model.Source;
         var members = model.Members;
         var maskInfo = model.MaskInfo;
 
@@ -57,17 +57,17 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         {
             if (maskInfo.Bits < members.Count)
             {
-                if (model.SourceTarget.EmitDirtyMask)
+                if (model.Source.EmitDirtyMask)
                 {
                     maskInfo.AddError(
-                        $"Too many synced fields in `{model.SourceTarget.Name}` " +
+                        $"Too many synced fields in `{model.Source.Name}` " +
                         $"to fit in a dirty mask. Maximum supported is {maskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
                         $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
                 }
                 else
                 {
                     maskInfo.AddError(
-                        $"Too many synced members in `{model.SourceTarget.Name}` " +
+                        $"Too many synced members in `{model.Source.Name}` " +
                         $"to fit in the user-supplied _dirtyMask. Maximum supported is {maskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
                         $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
                 }
@@ -78,7 +78,7 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         {
             if (!HasGetEmitFieldSupportImpl(member, false))
             {
-                member.SourceMember.AddError($"Unsupported type '{member.SourceMember.Type.ToDisplayString()}' for networked member '{member.SourceMember.Name}'.");
+                member.Source.AddError($"Unsupported type '{member.Source.Type.ToDisplayString()}' for networked member '{member.Source.Name}'.");
             }
         }
         
@@ -139,32 +139,11 @@ private:
         DeriveTargetModel model,
         CppModuleState moduleState)
     {
-        EmitGetter(sb, member, model, moduleState);
-        sb.AppendLine();
-
-        if (!member.SourceMember.ReadOnly)
-        {
-            EmitSetter(sb, member, model, moduleState);
-            sb.AppendLine();
-        }
-    }
-    
-    private void EmitGetter(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
-    {
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
         
         context.State.ResetIndent("    ");
-        impl.EmitGetterMethod(member.SourceMember.Type, context);
-    }
-    
-    private void EmitSetter(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
-    {
-        var impl = GetEmitFieldSupportImpl(member, true);
-        var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
-        
-        context.State.ResetIndent("    ");
-        impl.EmitSetterMethod(member.SourceMember.Type, context);
+        impl.EmitAccessorMethods(member.Source.Type, context);
     }
 
     private void EmitDirtyMaskAccessMethods(StringBuilder sb, DeriveTargetModel model)
@@ -188,7 +167,7 @@ public:
         if (maskInfo == null)
             return;
         
-        if (model.SourceTarget.EmitDirtyMask)
+        if (model.Source.EmitDirtyMask)
         {
             sb.AppendLine($"""
     {CppTypeName(maskInfo.Type)} _dirtyMask = 0;
@@ -206,9 +185,9 @@ public:
 
     private void EmitBackingField(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model)
     {
-        if (member.SourceMember.HasErrors)
+        if (member.Source.HasErrors)
         {
-            foreach (var error in member.SourceMember.Errors)
+            foreach (var error in member.Source.Errors)
             {
                 sb.AppendLine($"""
     #error {error}
@@ -217,16 +196,16 @@ public:
         }
         
         sb.AppendLine($"""
-    {CppTypeName(member.SourceMember.Type)} {member.SourceMember.Name} = {GetCppDefaultValue(member.SourceMember.Type)};
+    {CppTypeName(member.Source.Type)} {member.Source.Name} = {GetCppDefaultValue(member.Source.Type)};
 """);
     }
     
     private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.SourceMember.Type, fallback, out _);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.Source.Type, fallback, out _);
 
     private static ICppFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.SourceMember.Type, fallback);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
     
     private static CppEmitFieldSupportContext GetEmitFieldSupportContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
-        => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member.GeneratedPropertyName, member.SourceMember.Name, member.SourceMember.Type, model.MaskInfo.Type, member.Index, moduleState);
+        => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member, model, moduleState);
 }
