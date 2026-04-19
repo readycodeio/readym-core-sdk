@@ -16,13 +16,12 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.ECS.Systems;
 using ReadyM.Relay.Client.State;
 using ReadyM.Relay.Common.ECS.Jobs;
+using ReadyM.Relay.Common.ECS.Systems;
 
 namespace ReadyM.Relay.Client;
 
 public class ClientNetworkedStateSynchronizer : IDisposable
 {
-    protected IClientEcsUpdateLoop EcsLoop => _ecsLoop;
-
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
         public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue = default)
@@ -32,7 +31,10 @@ public class ClientNetworkedStateSynchronizer : IDisposable
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+            owner._networkSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+
+            owner.Logger.LogDebug("Registering clear dirty for: {ComponentType}", typeof(T).Name);
+            owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
     }
 
@@ -45,7 +47,13 @@ public class ClientNetworkedStateSynchronizer : IDisposable
     private readonly IClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
 
-    private readonly SystemGroup _systemGroup;
+    private readonly SystemGroup _networkSystemGroup;
+    private readonly SystemGroup _syncSystemGroup;
+    private readonly SystemGroup _clearDirtySystemGroup;
+    
+    protected SystemGroup NetworkSystemGroup => _networkSystemGroup;
+    protected SystemGroup SyncSystemGroup => _syncSystemGroup;
+    protected SystemGroup ClearDirtySystemGroup => _clearDirtySystemGroup;
 
     public ClientNetworkedStateSynchronizer(NetworkedEntityManager netEntity,
         ClientState state,
@@ -87,24 +95,34 @@ public class ClientNetworkedStateSynchronizer : IDisposable
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
         // server.
 
-        _systemGroup = new SystemGroup("Network");
+        _networkSystemGroup = new SystemGroup("Network");
+        _networkSystemGroup.SetMonitorPerf(true);
+        _ecsLoop.AddSystem(_networkSystemGroup);
 
-        _systemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
+        _syncSystemGroup = new SystemGroup("Sync");
+        _syncSystemGroup.SetMonitorPerf(true);
+        _ecsLoop.AddSystem(_syncSystemGroup);
+
+        _clearDirtySystemGroup = new SystemGroup("ClearDirty");
+        _ecsLoop.AddSystem(_clearDirtySystemGroup);
+        
+        _networkSystemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
         // NOTE: iterates over all network components with generics without reflection
         netComponentRegistry.Accept(new RegisterSystemCallback(this));
-
-        _systemGroup.SetMonitorPerf(true);
-        _ecsLoop.AddSystem(_systemGroup);
-    }
-
+    } 
+    
     public void Dispose()
     {
+        _ecsLoop.RemoveSystem(_clearDirtySystemGroup);
+        _ecsLoop.RemoveSystem(_syncSystemGroup);
+        _ecsLoop.RemoveSystem(_networkSystemGroup);
+        
         OnDispose();
     }
 
     protected virtual void OnDispose()
     {
-        _ecsLoop.RemoveSystem(_systemGroup);
+        _ecsLoop.RemoveSystem(_networkSystemGroup);
 
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);

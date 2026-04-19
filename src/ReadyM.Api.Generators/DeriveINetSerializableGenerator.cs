@@ -20,7 +20,6 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
     private bool Predicate(SyntaxNode syntaxNode, CancellationToken ct)
     {
         return syntaxNode is TypeDeclarationSyntax { AttributeLists.Count: > 0 } typeDecl &&
-               // structDecl.Modifiers.Any(m => m.Text == "partial") &&
                typeDecl.AttributeLists
                    .SelectMany(a => a.Attributes)
                    .Any(attr => attr.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetSerializable" });
