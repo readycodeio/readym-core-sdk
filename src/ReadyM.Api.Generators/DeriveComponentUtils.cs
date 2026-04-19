@@ -12,6 +12,8 @@ public class DeriveComponentUtils
 
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {
+        var isNetComponent = AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute");
+        
         var mode = AttributeUtils.GetAttribute<byte>(
             symbol,
             "DeriveINetworkedComponentAttribute",
@@ -26,13 +28,16 @@ public class DeriveComponentUtils
             true);
         
         var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, mapSettings);
-        var mask = GetMaskInfo(targetInfo, context);
         var members = GetMemberModelList(targetInfo);
 
-        return new DeriveTargetModel(targetInfo, mask, members);
+        DeriveMaskInfo? mask = null;
+        if (isNetComponent)
+            mask = GetMaskInfo(targetInfo, context);
+        
+        return new DeriveTargetModel(targetInfo, members, mask);
     }
     
-    internal static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, GeneratorSyntaxContext context)
+    private static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, GeneratorSyntaxContext context)
     {
         var memberCount = targetInfo.Members.Length;
         var requestedMaskType = targetInfo.RequestedDirtyMaskType;
@@ -99,7 +104,7 @@ public class DeriveComponentUtils
     }
 
     
-    internal static DeriveMemberModel[] GetMemberModelList(DeriveTargetInfo targetInfo)
+    private static DeriveMemberModel[] GetMemberModelList(DeriveTargetInfo targetInfo)
     {
         var members = new DeriveMemberModel[targetInfo.Members.Length];
 
@@ -112,10 +117,10 @@ public class DeriveComponentUtils
         return members;
     }
     
-    internal static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
+    private static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
         => new(memberInfo, GetGeneratedPropertyName(memberInfo.Name), index);
     
-    internal static string GetGeneratedPropertyName(string memberName)
+    private static string GetGeneratedPropertyName(string memberName)
     {
         if (string.IsNullOrEmpty(memberName))
             throw new ArgumentException("Member name must not be null or empty.", nameof(memberName));

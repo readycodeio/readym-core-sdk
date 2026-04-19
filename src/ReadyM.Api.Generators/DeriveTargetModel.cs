@@ -4,10 +4,10 @@ namespace ReadyM.Api.Generators;
 
 internal class DeriveTargetModel(
     DeriveTargetInfo sourceTarget,
-    DeriveMaskInfo maskInfo,
-    IReadOnlyList<DeriveMemberModel> members)
+    IReadOnlyList<DeriveMemberModel> members,
+    DeriveMaskInfo? maskInfo)
 {
     public DeriveTargetInfo SourceTarget { get; } = sourceTarget;
-    public DeriveMaskInfo MaskInfo { get; } = maskInfo;
     public IReadOnlyList<DeriveMemberModel> Members { get; } = members;
+    public DeriveMaskInfo? MaskInfo { get; } = maskInfo;
 }

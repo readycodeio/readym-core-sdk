@@ -51,22 +51,26 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
     {
         var info = model.SourceTarget;
         var members = model.Members;
-        
-        if (model.MaskInfo.Bits < members.Count)
+        var maskInfo = model.MaskInfo;
+
+        if (maskInfo != null)
         {
-            if (model.SourceTarget.EmitDirtyMask)
+            if (maskInfo.Bits < members.Count)
             {
-                model.MaskInfo.AddError(
-                    $"Too many synced fields in `{model.SourceTarget.Name}` " +
-                    $"to fit in a dirty mask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
-                    $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
-            }
-            else
-            {
-                model.MaskInfo.AddError(
-                    $"Too many synced members in `{model.SourceTarget.Name}` " +
-                    $"to fit in the user-supplied _dirtyMask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
-                    $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
+                if (model.SourceTarget.EmitDirtyMask)
+                {
+                    maskInfo.AddError(
+                        $"Too many synced fields in `{model.SourceTarget.Name}` " +
+                        $"to fit in a dirty mask. Maximum supported is {maskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
+                        $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
+                }
+                else
+                {
+                    maskInfo.AddError(
+                        $"Too many synced members in `{model.SourceTarget.Name}` " +
+                        $"to fit in the user-supplied _dirtyMask. Maximum supported is {maskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
+                        $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
+                }
             }
         }
         
@@ -108,6 +112,8 @@ public:
             EmitAccessMethods(sb, member, model, moduleState);
         }
 
+        EmitDirtyMaskAccessMethods(sb, model);
+        
         sb.AppendLine("""
 private:
 """);
@@ -161,19 +167,38 @@ private:
         impl.EmitSetterMethod(member.SourceMember.Type, context);
     }
 
+    private void EmitDirtyMaskAccessMethods(StringBuilder sb, DeriveTargetModel model)
+    {
+        if (model.MaskInfo == null)
+            return;
+        
+        sb.AppendLine("""
+public:
+    bool IsDirty()
+    {
+        return _dirtyMask != 0;
+    }
+
+""");
+    }
+
     private void EmitDirtyMask(StringBuilder sb, DeriveTargetModel model)
     {
+        var maskInfo = model.MaskInfo;
+        if (maskInfo == null)
+            return;
+        
         if (model.SourceTarget.EmitDirtyMask)
         {
             sb.AppendLine($"""
-    {CppTypeName(model.MaskInfo.Type)} _dirtyMask = 0;
+    {CppTypeName(maskInfo.Type)} _dirtyMask = 0;
 
 """);
         }
         else
         {
             sb.AppendLine($"""
-    {CppTypeName(model.MaskInfo.Type)} _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.
+    {CppTypeName(maskInfo.Type)} _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.
 
 """);
         }
