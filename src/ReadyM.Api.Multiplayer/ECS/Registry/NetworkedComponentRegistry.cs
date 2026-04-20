@@ -85,21 +85,35 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
 
         foreach (var archetype in query.Archetypes)
         {
-            GC.TryStartNoGCRegion(1 * 1024 * 1024, true); // 1 MB
-            // get the chunks for each component
-            var (ptr1, count1) = archetype.Components(_aotEcsCallbacks[c1].ComponentType);
-            var (ptr2, count2) = archetype.Components(_aotEcsCallbacks[c2].ComponentType);
-
-            // pack into Chunks2 struct and call the callback
-            var chunks = new Chunks2
+            // archetype.Components returns a pointer to T[] and a count
+            // since we cannot pin multiple arrays to managed types, we disable GC for the duration of the callback
+            // this is probably extremely cursed
+            var inNoGcRegion = GC.TryStartNoGCRegion(1 * 1024 * 1024, true); // 1 MB
+            if (!inNoGcRegion)
             {
-                Chunk1 = ptr1,
-                Length1 = count1,
-                Chunk2 = ptr2,
-                Length2 = count2
-            };
-            callback(chunks);
-            GC.EndNoGCRegion();
+                throw new InvalidOperationException("Failed to start no GC region. Too many components in archetype?");
+            }
+            
+            try
+            {
+                // get pointers to the chunks for each component
+                var (ptr1, count1) = archetype.ComponentsAsUnsafeSpan(_aotEcsCallbacks[c1].ComponentType);
+                var (ptr2, count2) = archetype.ComponentsAsUnsafeSpan(_aotEcsCallbacks[c2].ComponentType);
+
+                // pack into Chunks2 struct and call the callback
+                var chunks = new Chunks2
+                {
+                    Chunk1 = ptr1,
+                    Length1 = count1,
+                    Chunk2 = ptr2,
+                    Length2 = count2
+                };
+                callback(chunks);
+            }
+            finally
+            {
+                GC.EndNoGCRegion();
+            }
         }
     }
 
