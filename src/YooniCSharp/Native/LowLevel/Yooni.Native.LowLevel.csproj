@@ -5,6 +5,8 @@
         <LangVersion>latest</LangVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />

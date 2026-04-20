@@ -5,6 +5,8 @@
         <LangVersion>latest</LangVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="../LowLevel/Yooni.Native.LowLevel.csproj" />

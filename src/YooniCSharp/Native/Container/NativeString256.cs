@@ -14,7 +14,8 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     public const int Capacity = CharBufferLength - 1;
 
     private readonly byte _length;
-    private fixed byte _bytes[CharBufferLength];
+    private readonly byte _isWide;
+    private fixed byte _bytes[Capacity];
 
     [Pure]
     public string ToManaged()
