@@ -32,7 +32,7 @@ public class DeriveComponentUtils
         }
         else
         {
-            mode = 0;
+            mode = (1 << 0) | (1 << 2);
         }
         
         var mapSettings = DeriveUtils.GetMapSettings(mode);

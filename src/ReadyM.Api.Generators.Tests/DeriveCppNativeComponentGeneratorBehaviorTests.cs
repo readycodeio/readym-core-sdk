@@ -573,6 +573,51 @@ public partial struct StringComponent : IComponent
         Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
         Assert.DoesNotContain("Biography", generatedText);
     }
+    
+    [Fact]
+    public void GeneratedCppFragment_SkipAccessorsWorksInCpp()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[NativeComponent]
+public struct LocalAppearanceComponent : IComponent
+{
+    [SkipNativeAccessMethods]
+    private byte _isAppearanceSynced;
+    
+    public bool IsAppearanceSynced
+    {
+        get => _isAppearanceSynced != 0;
+        set => _isAppearanceSynced = (byte)(value ? 1 : 0);
+    }
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+        
+        Assert.Contains("uint8_t _isAppearanceSynced = 0;", generatedText);
+        Assert.DoesNotContain("IsAppearanceSynced", generatedText);
+        Assert.DoesNotContain("SetIsAppearanceSynced", generatedText);
+    }
 
     private static void AssertContainerMember(
         string generatedText,
