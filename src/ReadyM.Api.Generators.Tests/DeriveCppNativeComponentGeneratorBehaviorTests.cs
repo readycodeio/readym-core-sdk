@@ -50,7 +50,6 @@ public partial struct AppearanceComponent : IComponent
             Environment.NewLine,
             result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
 
-        Assert.Contains("#if GENERATED_CPP_FRAGMENT", generatedText);
         Assert.Contains("RM::Generators::Tests::TestTypes::CharacterSex Sex() const", generatedText);
         Assert.Contains("void SetSex(RM::Generators::Tests::TestTypes::CharacterSex value)", generatedText);
         Assert.Contains("if (_sex != value)", generatedText);
@@ -64,7 +63,7 @@ public partial struct AppearanceComponent : IComponent
         Assert.Contains("void SetCustomisationBeardIndex(int32_t value)", generatedText);
         Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 6;", generatedText);
 
-        Assert.Contains("private:", generatedText);
+        Assert.Contains("protected:", generatedText);
         Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
         Assert.Contains("CharacterSex _sex = {};", generatedText);
         Assert.Contains("int32_t _senescenceLevel = 0;", generatedText);
@@ -73,7 +72,6 @@ public partial struct AppearanceComponent : IComponent
         Assert.Contains("int32_t _customisationEyebrowsIndex = 0;", generatedText);
         Assert.Contains("int32_t _customisationMustacheIndex = 0;", generatedText);
         Assert.Contains("int32_t _customisationBeardIndex = 0;", generatedText);
-        Assert.Contains("#endif", generatedText);
     }
 
     [Fact]
@@ -125,8 +123,6 @@ public partial struct AppearanceComponent : IComponent
             Environment.NewLine,
             result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
 
-        Assert.Contains("#if GENERATED_CPP_FRAGMENT", generatedText);
-
         AssertContainerMember(
             generatedText,
             getterSignature: "const Yooni::Native::Container::NativeList<int32_t>& IntList() const",
@@ -157,9 +153,8 @@ public partial struct AppearanceComponent : IComponent
             backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
             maskType: "uint32_t");
 
-        Assert.Contains("private:", generatedText);
+        Assert.Contains("protected:", generatedText);
         Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
-        Assert.Contains("#endif", generatedText);
     }
 
     [Fact]

@@ -10,17 +10,21 @@ public sealed class CppTypeRenderer : ITypeRenderer
     public string Render(ITypeName typeName)
     {
         if (TryRenderSpecialType(typeName, out var renderedSpecialType))
-        {
             return renderedSpecialType;
-        }
-
+        
+        return RenderNonSpecial(typeName);
+    }
+    
+    private string RenderNonSpecial(ITypeName typeName)
+    {
         return typeName switch
         {
             TypeName typeNameLeaf => typeNameLeaf.Name,
             TypeParam typeParam => typeParam.Name,
             Numeric numeric => numeric.Value.ToString(),
-            QualifiedName qualifiedName => $"{Render(qualifiedName.Prefix)}::{Render(qualifiedName.InnerType)}",
+            QualifiedName qualifiedName => $"{RenderNonSpecial(qualifiedName.Prefix)}::{RenderNonSpecial(qualifiedName.InnerType)}",
             GenericInstanceName genericInstanceName => RenderGeneric(genericInstanceName),
+            EmptyName => "",
             _ => throw new NotSupportedException($"Unsupported type name kind: {typeName.GetType().FullName}"),
         };
     }
@@ -56,8 +60,8 @@ public sealed class CppTypeRenderer : ITypeRenderer
 
         rendered = parts.Count switch
         {
-            1 => RenderSpecialTypeName(parts[0]),
-            2 when parts[0] is "System" => RenderSpecialTypeName(parts[1]),
+            1 => RenderShortSpecialTypeName(parts[0]),
+            2 when parts[0] is "System" => RenderLongSpecialTypeName(parts[1]),
             _ => string.Empty,
         };
 
@@ -68,6 +72,7 @@ public sealed class CppTypeRenderer : ITypeRenderer
     {
         TypeName typeNameLeaf => [typeNameLeaf.Name],
         QualifiedName qualifiedName => GetQualifiedParts(qualifiedName, []),
+        EmptyName => [],
         _ => null,
     };
 
@@ -75,6 +80,7 @@ public sealed class CppTypeRenderer : ITypeRenderer
     {
         TypeName typeNameLeaf => AddPart(parts, typeNameLeaf.Name),
         QualifiedName qualifiedName => GetQualifiedParts(qualifiedName.InnerType, [.. GetQualifiedParts(qualifiedName.Prefix, parts)!]),
+        EmptyName => [],
         _ => null,
     };
 
@@ -84,21 +90,39 @@ public sealed class CppTypeRenderer : ITypeRenderer
         return parts;
     }
 
-    private static string RenderSpecialTypeName(string name) => name switch
+    private static string RenderShortSpecialTypeName(string name) => name switch
     {
-        "bool" or "Boolean" => "bool",
-        "byte" or "Byte" => "uint8_t",
-        "sbyte" or "SByte" => "int8_t",
-        "short" or "Int16" => "int16_t",
-        "ushort" or "UInt16" => "uint16_t",
-        "int" or "Int32" or "Integer" => "int32_t",
-        "uint" or "UInt32" => "uint32_t",
-        "long" or "Int64" => "int64_t",
-        "ulong" or "UInt64" => "uint64_t",
-        "float" or "Single" => "float",
-        "double" or "Double" => "double",
-        "string" or "String" => "Interop::String",
-        "char" or "Char" => "wchar_t",
+        "bool" => "bool",
+        "byte" => "uint8_t",
+        "sbyte" => "int8_t",
+        "short" => "int16_t",
+        "ushort" => "uint16_t",
+        "int" => "int32_t",
+        "uint" => "uint32_t",
+        "long" => "int64_t",
+        "ulong" => "uint64_t",
+        "float" => "float",
+        "double" => "double",
+        "string" => "Interop::String",
+        "char" => "wchar_t",
+        _ => string.Empty,
+    };
+
+    private static string RenderLongSpecialTypeName(string name) => name switch
+    {
+        "Boolean" => "bool",
+        "Byte" => "uint8_t",
+        "SByte" => "int8_t",
+        "Int16" => "int16_t",
+        "UInt16" => "uint16_t",
+        "Int32" or "Integer" => "int32_t",
+        "UInt32" => "uint32_t",
+        "Int64" => "int64_t",
+        "UInt64" => "uint64_t",
+        "Single" => "float",
+        "Double" => "double",
+        "String" => "Interop::String",
+        "Char" => "wchar_t",
         _ => string.Empty,
     };
 }

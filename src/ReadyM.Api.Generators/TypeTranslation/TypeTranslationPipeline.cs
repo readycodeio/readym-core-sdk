@@ -11,11 +11,11 @@ public sealed class TypeTranslationPipeline(
     TypeNameTranslator translator,
     ITypeRenderer renderer)
 {
-    private ITypeName Parse(ITypeSymbol typeSymbol) => parser.Parse(typeSymbol);
+    public ITypeName Parse(ITypeSymbol typeSymbol) => parser.Parse(typeSymbol);
 
-    private ITypeName Translate(ITypeName typeName) => translator.Translate(typeName);
+    public ITypeName Translate(ITypeName typeName) => translator.Translate(typeName);
 
-    private string Render(ITypeName typeName) => renderer.Render(typeName);
+    public string Render(ITypeName typeName) => renderer.Render(typeName);
 
     public string Translate(ITypeSymbol typeSymbol)
         => Render(Translate(Parse(typeSymbol)));

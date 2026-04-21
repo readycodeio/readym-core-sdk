@@ -5,20 +5,27 @@ namespace ReadyM.Api.Generators.Derive.Cpp;
 
 internal class CppModuleState()
 {
-    public readonly struct CppInclude(string ns, bool angleBrackets) : IEquatable<CppInclude>
+    public readonly struct CppInclude(string path, bool angleBrackets) : IEquatable<CppInclude>, IComparable<CppInclude>
     {
-        public readonly string Namespace = ns;
+        public readonly string Path = path;
         public readonly bool AngleBrackets = angleBrackets;
 
         public bool Equals(CppInclude other)
-            => Namespace == other.Namespace && AngleBrackets == other.AngleBrackets;
+            => Path == other.Path && AngleBrackets == other.AngleBrackets;
 
         public override bool Equals(object? obj)
             => obj is CppInclude other && Equals(other);
 
         public override int GetHashCode()
         {
-            unchecked { return (Namespace.GetHashCode() * 397) ^ AngleBrackets.GetHashCode(); }
+            unchecked { return (Path.GetHashCode() * 397) ^ AngleBrackets.GetHashCode(); }
+        }
+
+        public int CompareTo(CppInclude other)
+        {
+            var pathComparison = string.Compare(Path, other.Path, StringComparison.Ordinal);
+            if (pathComparison != 0) return pathComparison;
+            return AngleBrackets.CompareTo(other.AngleBrackets);
         }
     }
     

@@ -198,5 +198,5 @@ internal static class DeriveUtils
     }
 
     public static string GetGeneratedFileName(INamedTypeSymbol symbol)
-        => symbol.ContainingNamespace != null ? $"{symbol.ContainingNamespace.ToDisplayString()}.{symbol.Name}" : symbol.Name;
+        => symbol.Name;
 }

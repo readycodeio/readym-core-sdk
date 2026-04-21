@@ -14,7 +14,7 @@ public sealed class NamespaceReplacementRule(ITypeName source, ITypeName target)
 
         if (input is QualifiedName qualifiedName && TypeNameEqualityComparer.Instance.Equals(qualifiedName.Prefix, source))
         {
-            output = new QualifiedName(target, qualifiedName.InnerType);
+            output = TypeNameFactory.Combine(target, qualifiedName.InnerType);
             return true;
         }
 

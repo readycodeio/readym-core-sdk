@@ -70,7 +70,7 @@ public sealed class GenericPatternTypeNameRule(ITypeName pattern, ITypeName repl
     private static ITypeName Substitute(ITypeName node, IReadOnlyDictionary<string, ITypeName> bindings) => node switch
     {
         TypeParam typeParam when bindings.TryGetValue(typeParam.Name, out var boundValue) => boundValue,
-        QualifiedName qualifiedName => new QualifiedName(
+        QualifiedName qualifiedName => TypeNameFactory.Combine(
             Substitute(qualifiedName.Prefix, bindings),
             Substitute(qualifiedName.InnerType, bindings)),
         GenericInstanceName genericInstanceName => new GenericInstanceName(

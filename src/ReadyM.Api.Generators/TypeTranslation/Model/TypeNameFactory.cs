@@ -5,6 +5,8 @@ namespace ReadyM.Api.Generators.TypeTranslation.Model;
 
 public static class TypeNameFactory
 {
+    public static ITypeName Empty() => new EmptyName();
+    
     public static ITypeName Name(string name) => new TypeName(name);
 
     public static ITypeName Param(string name) => new TypeParam(name);
@@ -32,4 +34,11 @@ public static class TypeNameFactory
 
     public static ITypeName Generic(ITypeName genericDefinition, params ITypeName[] typeArguments) =>
         new GenericInstanceName(genericDefinition, typeArguments);
+    
+    public static ITypeName Combine(ITypeName prefix, ITypeName innerType)
+    {
+        if (prefix is EmptyName)
+            return innerType;
+        return new QualifiedName(prefix, innerType);
+    }
 }

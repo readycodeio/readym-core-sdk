@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
@@ -40,6 +41,7 @@ public class DeriveComponentUtils
         var memberCount = targetInfo.Members.Length;
         var requestedMaskType = targetInfo.RequestedDirtyMaskType;
         var emitDirtyMask = targetInfo.EmitDirtyMask;
+        var errors = new List<string>();
         
         ITypeSymbol maskType;
         var invalid = false;
@@ -69,7 +71,7 @@ public class DeriveComponentUtils
             else
             {
                 maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
-                invalid = true;
+                errors.Add($"The number of members ({memberCount}) exceeds the maximum supported by the largest dirty mask type (64 bits).");
             }
         }
 
@@ -91,16 +93,17 @@ public class DeriveComponentUtils
                 break;
             default:
                 bits = sizeof(ulong) * 8;
-                invalid = true;
+                errors.Add($"The specified dirty mask type '{maskType.ToDisplayString()}' is not a supported integral type. Supported types are byte, ushort, uint, and ulong.");
                 break;
         }
 
         if (bits < memberCount)
-            invalid = true;
+        {
+            errors.Add($"The number of members ({memberCount}) exceeds the number of bits in the dirty mask type ({bits}).");
+        }
 
-        return new DeriveMaskInfo(maskType, bits, invalid);
+        return new DeriveMaskInfo(maskType, bits, errors);
     }
-
     
     private static DeriveMemberModel[] GetMemberModelList(DeriveTargetInfo targetInfo)
     {

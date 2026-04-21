@@ -10,11 +10,13 @@ namespace ReadyM.Api.Generators.Derive.Cpp;
 
 public static class CppTypeTranslationPipeline
 {
-    public static TypeTranslationPipeline CreatePipeline()
+    public static TypeTranslationPipeline CreateTypeTranslationPipeline()
     {
         var parser = new RoslynTypeNameParser();
         var translator = new TypeNameTranslator(new List<ITypeNameRule>()
         {
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("OblivionMpCSharpMod"),
+                TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Relay", "Common", "Oblivion"),
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Relay", "Common"),
@@ -55,5 +57,55 @@ public static class CppTypeTranslationPipeline
             renderer);
     }
     
-    public static readonly TypeTranslationPipeline Instance = CreatePipeline();
+    public static TypeTranslationPipeline CreatePathTranslationPipeline()
+    {
+        var parser = new RoslynTypeNameParser();
+        var translator = new TypeNameTranslator(new List<ITypeNameRule>()
+        {
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("OblivionMpCSharpMod"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Relay", "Common", "Oblivion"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Relay", "Common"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Relay"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Api", "Multiplayer"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Api"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Name("ReadyM"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "Numerics"),
+                TypeNameFactory.Name("Interop")),
+            new NamespaceReplacementRule(TypeNameFactory.Name("System"),
+                TypeNameFactory.Name("Interop")),
+            new ExactTypeReplacementRule(
+                TypeNameFactory.Qualified("Yooni", "Native", "Container", "ByteHash"),
+                TypeNameFactory.Qualified("Native", "Container", "IntHash")),
+            new ExactTypeReplacementRule(
+                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString256"),
+                TypeNameFactory.Qualified("Native", "Container", "NativeString")),
+            new ExactTypeReplacementRule(
+                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString64"),
+                TypeNameFactory.Qualified("Native", "Container", "NativeString")),
+            new ExactTypeReplacementRule(
+                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeStringHash256"),
+                TypeNameFactory.Qualified("Native", "Container", "NativeStringHash")),
+            new ExactTypeReplacementRule(
+                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeStringHash64"),
+                TypeNameFactory.Qualified("Native", "Container", "NativeStringHash")),
+            new NamespaceReplacementRule(TypeNameFactory.Name("Yooni"),
+                TypeNameFactory.Empty()),
+        });
+        var renderer = new CppPathRenderer();
+        
+        return new TypeTranslationPipeline(
+            parser,
+            translator,
+            renderer);
+    }
+    
+    public static readonly TypeTranslationPipeline TypeTranslation = CreateTypeTranslationPipeline();
+    public static readonly TypeTranslationPipeline PathTranslation = CreatePathTranslationPipeline();
 }

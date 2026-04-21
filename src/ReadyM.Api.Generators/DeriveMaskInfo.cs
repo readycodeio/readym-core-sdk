@@ -4,12 +4,12 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-internal sealed class DeriveMaskInfo(ITypeSymbol type, int bits, bool invalid)
+internal sealed class DeriveMaskInfo(ITypeSymbol type, int bits, IReadOnlyList<string> errors)
 {
     public ITypeSymbol Type { get; } = type ?? throw new ArgumentNullException(nameof(type));
     public int Bits { get; } = bits;
 
-    private readonly List<string> _errors = [];
+    private readonly List<string> _errors = [..errors];
     
     public IReadOnlyList<string> Errors
         => _errors;
