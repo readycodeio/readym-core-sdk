@@ -63,7 +63,7 @@ public abstract class RpcClassBase(IRpcClient client, IRelaySerializer serialize
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public virtual void Dispose()
     {
         DeInitRpc();
     }
