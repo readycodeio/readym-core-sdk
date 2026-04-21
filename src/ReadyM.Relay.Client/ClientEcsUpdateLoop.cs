@@ -5,7 +5,6 @@ using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
-using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client;
@@ -14,18 +13,12 @@ namespace ReadyM.Relay.Client;
 /// This class is responsible for scheduling ECS operations on the client side. The current implementation assumes
 /// that the update loop tick will be called externally from the game code, on the appropriate thread.
 /// </summary>
-public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
+public class ClientEcsUpdateLoop
 {
     public readonly Store World;
-    public CommandBufferSynced CommandBuffer { get; }
 
     private readonly ILogger _logger;
 
-    private readonly PendingActionUpdater<CommandBufferSynced> _scheduler;
-
-    public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
-
-    public event Action<CommandBufferSynced>? OnUpdateLoop;
     public event Action? OnStarted;
     public event Action? OnStopped;
 
@@ -35,12 +28,7 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     public ClientEcsUpdateLoop(Store world, ILogger logger)
     {
         World = world;
-        var cb = World.GetCommandBuffer();
-        cb.ReuseBuffer = true;
-        CommandBuffer = cb.Synced;
-
         _logger = logger;
-        _scheduler = new PendingActionUpdater<CommandBufferSynced>(CommandBuffer, logger);
     }
 
     public void Start()
@@ -55,8 +43,6 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
         _logger.LogInformation("Starting ECS update loop");
 
-        _scheduler.SetThread(Thread.CurrentThread);
-
         OnStarted?.Invoke();
 
         _logger.LogInformation("ECS update loop started successfully");
@@ -70,20 +56,8 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
             return;
         }
 
-        try
-        {
-            CommandBuffer.Playback();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogError(ex, "Error during CommandBuffer playback");
-        }
-
         _applicationTime += deltaTime;
         World.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
-        _scheduler.Update();
-
-        OnUpdateLoop?.Invoke(CommandBuffer);
     }
 
     public void Wait(Task task)
@@ -111,7 +85,6 @@ public class ClientEcsUpdateLoop : IClientEcsUpdateLoop
         }
 
         IsRunning = false;
-        _scheduler.SetThread(null);
 
         OnStopped?.Invoke();
 

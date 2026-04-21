@@ -10,7 +10,7 @@ using ReadyM.Relay.Common.ECS.Systems;
 namespace ReadyM.Relay.Client.ECS.Systems;
 
 public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId, DeliveryMethod deliveryMethod, IRelayClient relay)
-    : SendComponentDeltaSystemBase<T>(componentId)
+    : SendComponentDeltaSystemBase<T>(componentId, false)
     where T : struct, INetworkedComponent
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
