@@ -12,19 +12,40 @@ public class DeriveComponentUtils
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {
         var isNetComponent = AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute");
+
+        byte mode;
+        if (AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute"))
+        {
+            mode = AttributeUtils.GetAttribute<byte>(
+                symbol,
+                "DeriveINetworkedComponentAttribute",
+                "mode",
+                (1 << 0) | (1 << 2));
+        }
+        else if (AttributeUtils.HasAttribute(symbol, "DeriveINetSerializableAttribute"))
+        {
+            mode = AttributeUtils.GetAttribute<byte>(
+                symbol,
+                "DeriveINetSerializableAttribute",
+                "mode",
+                (1 << 0) | (1 << 2));
+        }
+        else
+        {
+            mode = 0;
+        }
         
-        var mode = AttributeUtils.GetAttribute<byte>(
-            symbol,
-            "DeriveINetworkedComponentAttribute",
-            "mode",
-            (1 << 0) | (1 << 2));
         var mapSettings = DeriveUtils.GetMapSettings(mode);
 
-        var emitDirtyMask = AttributeUtils.GetAttribute(
-            symbol,
-            "DeriveINetworkedComponentAttribute",
-            "emitDirtyMask",
-            true);
+        var emitDirtyMask = false;
+        if (AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute"))
+        {
+            emitDirtyMask = AttributeUtils.GetAttribute(
+                symbol,
+                "DeriveINetworkedComponentAttribute",
+                "emitDirtyMask",
+                true);
+        }
         
         var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, mapSettings);
         var members = GetMemberModelList(targetInfo);

@@ -42,6 +42,42 @@ public static class DeriveTestAssert
         Assert.NotNull(GetProperty<object?>(instance, propertyName));
     }
 
+    public static void AssertFieldValue<T>(object instance, string fieldName, T expectedValue)
+    {
+        Assert.Equal(expectedValue, GetField<T>(instance, fieldName));
+    }
+
+    public static void AssertFieldNotValue<T>(object instance, string fieldName, T unexpectedValue)
+    {
+        Assert.NotEqual(unexpectedValue, GetField<T>(instance, fieldName));
+    }
+
+    public static void AssertEnumFieldValue(Assembly assembly, object instance, string fieldName, string enumTypeName, string expectedValueName)
+    {
+        var actualValue = GetField<object>(instance, fieldName);
+        var expectedValue = ParseEnum(assembly, enumTypeName, expectedValueName);
+
+        Assert.Equal(expectedValue, actualValue);
+    }
+
+    public static void AssertEnumFieldNotValue(Assembly assembly, object instance, string fieldName, string enumTypeName, string unexpectedValueName)
+    {
+        var actualValue = GetField<object>(instance, fieldName);
+        var unexpectedValue = ParseEnum(assembly, enumTypeName, unexpectedValueName);
+
+        Assert.NotEqual(unexpectedValue, actualValue);
+    }
+
+    public static void AssertNullFieldValue(object instance, string fieldName)
+    {
+        Assert.Null(GetField<object?>(instance, fieldName));
+    }
+
+    public static void AssertNotNullFieldValue(object instance, string fieldName)
+    {
+        Assert.NotNull(GetField<object?>(instance, fieldName));
+    }
+
     public static void AssertCustomValueValue(Type customValueType, object boxedValue, int expectedId, float expectedAmount)
     {
         var idField = customValueType.GetField("Id");
@@ -202,15 +238,29 @@ public static class DeriveTestAssert
 
     public static void SetProperty(object instance, string propertyName, object? value)
     {
-        var property = instance.GetType().GetProperty(propertyName);
+        var property = instance.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(property);
         property.SetValue(instance, value);
     }
 
     public static T GetProperty<T>(object instance, string propertyName)
     {
-        var property = instance.GetType().GetProperty(propertyName);
+        var property = instance.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(property);
         return (T)property.GetValue(instance)!;
+    }
+
+    public static void SetField(object instance, string fieldName, object? value)
+    {
+        var field = instance.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(field);
+        field.SetValue(instance, value);
+    }
+
+    public static T GetField<T>(object instance, string fieldName)
+    {
+        var field = instance.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(field);
+        return (T)field.GetValue(instance)!;
     }
 }
