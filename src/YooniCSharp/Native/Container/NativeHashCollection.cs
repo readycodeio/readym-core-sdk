@@ -22,8 +22,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         Used = 2,
     }
     
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public unsafe struct Entry
+    public struct Entry
     {
         public TypedPtr<Entry> Next;
         public uint Hash;
@@ -319,7 +318,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
             {
                 entry.Next = _freeHead;
                 _freeHead = new TypedPtr<Entry>(ref entry);
-                _freeCount = _freeCount + 1;
+                _freeCount++;
             }
         }
 

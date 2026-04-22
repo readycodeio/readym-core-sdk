@@ -14,4 +14,10 @@
       <ProjectReference Include="..\..\..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
       <ProjectReference Include="..\Container\Yooni.Native.Container.csproj" />
     </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="Tests/**/*.cs" />
+        <None Remove="Tests/**" />
+        <Content Remove="Tests/**" />
+        <EmbeddedResource Remove="Tests/**" />
+    </ItemGroup>
 </Project>

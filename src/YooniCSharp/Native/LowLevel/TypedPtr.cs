@@ -36,19 +36,19 @@ public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
         => _ptr == null;
 
     public static TypedPtr<T> operator +(TypedPtr<T> ptr, int index)
-        => new((byte*)ptr._ptr + index * sizeof(T));
+        => new(((byte*)ptr._ptr) + index * sizeof(T));
 
     public static TypedPtr<T> operator -(TypedPtr<T> ptr, int index)
-        => new((byte*)ptr._ptr - index * sizeof(T));
+        => new(((byte*)ptr._ptr) - index * sizeof(T));
 
     public static int operator -(TypedPtr<T> ptr, TypedPtr<T> other)
-        => (int)(((byte*)ptr._ptr - (byte*)other._ptr) / sizeof(T));
+        => (int)((((byte*)ptr._ptr) - (byte*)other._ptr) / sizeof(T));
     
     public static TypedPtr<T> operator ++(TypedPtr<T> c)
-        => new((byte*)c._ptr + sizeof(T));
+        => new(((byte*)c._ptr) + sizeof(T));
 
     public static TypedPtr<T> operator --(TypedPtr<T> c)
-        => new((byte*)c._ptr - sizeof(T));
+        => new(((byte*)c._ptr) - sizeof(T));
 
     public static bool operator ==(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr == y._ptr;

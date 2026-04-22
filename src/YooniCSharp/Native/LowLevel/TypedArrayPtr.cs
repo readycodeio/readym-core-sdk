@@ -21,7 +21,7 @@ public readonly unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
     }
 
     public ref T this[int index]
-        => ref Unsafe.AsRef<T>((byte*)_ptr + index * sizeof(T));
+        => ref Unsafe.AsRef<T>(((byte*)_ptr) + index * sizeof(T));
 
     public bool Equals(TypedArrayPtr<T> other)
         => _ptr == other._ptr;
@@ -65,9 +65,9 @@ public readonly unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
     public void ZeroMemory(int count)
         => MemoryUtils.ZeroMemory((byte*)_ptr, sizeof(T) * count);
 
-    public void CopyMemory(TypedArrayPtr<T> entries, int count)
-        => MemoryUtils.CopyMemory((byte*)_ptr, (byte*)entries._ptr, sizeof(T) * count);
+    public void CopyMemory(TypedArrayPtr<T> fromEntries, int count)
+        => MemoryUtils.CopyMemory((byte*)_ptr, (byte*)fromEntries._ptr, sizeof(T) * count);
 
     public TypedPtr<T> GetPointer(int index)
-        => new((byte*)_ptr + index * sizeof(T));
+        => new(((byte*)_ptr) + index * sizeof(T));
 }

@@ -2393,9 +2393,9 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
 
     private static object CreateNativeString(Type nativeStringType, string value)
     {
-        var ctor = nativeStringType.GetConstructor([typeof(string)]);
+        var ctor = nativeStringType.GetConstructor([typeof(string), typeof(bool)]);
         Assert.NotNull(ctor);
-        return ctor.Invoke([value]);
+        return ctor.Invoke([value, false]);
     }
 
     private static object CreateNativeDictionary(Type dictionaryType, params (object Key, object Value)[] items)

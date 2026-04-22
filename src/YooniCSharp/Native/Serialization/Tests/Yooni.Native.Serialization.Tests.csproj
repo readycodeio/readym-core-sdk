@@ -9,7 +9,8 @@
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="../../LowLevel/Yooni.Native.LowLevel.csproj" />
-        <ProjectReference Include="../Yooni.Native.Container.csproj" />
+        <ProjectReference Include="../../Container/Yooni.Native.Container.csproj" />
+        <ProjectReference Include="../Yooni.Native.Serialization.csproj" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="CsCheck" Version="2.10.1" />
