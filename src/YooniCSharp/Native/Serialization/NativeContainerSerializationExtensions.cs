@@ -9,7 +9,10 @@ public static class NetSerializationExtensions
     public static unsafe void Serialize(this in NativeString64 str, NetDataWriter writer)
     {
         writer.ResizeIfNeed(writer.Length + str.Length + sizeof(byte));
-        writer.Put((byte)str.Length);
+        checked
+        {
+            writer.Put((byte)str.Length);
+        }
         fixed (byte* ptr = writer.Data)
         {
             str.CopyTo(ptr + writer.Length);
@@ -31,7 +34,10 @@ public static class NetSerializationExtensions
     public static unsafe void Serialize(this in NativeString256 str, NetDataWriter writer)
     {
         writer.ResizeIfNeed(writer.Length + str.Length + sizeof(byte));
-        writer.Put((byte)str.Length);
+        checked
+        {
+            writer.Put((byte)str.Length);
+        }
         fixed (byte* ptr = writer.Data)
         {
             str.CopyTo(ptr + writer.Length);

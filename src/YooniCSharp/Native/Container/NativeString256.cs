@@ -57,7 +57,7 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity)
             throw new InvalidOperationException();
 
         _length = (byte) length;
@@ -74,7 +74,7 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity)
             throw new InvalidOperationException();
 
         _length = (byte) length;
@@ -91,7 +91,7 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity)
             throw new InvalidOperationException();
 
         _length = (byte) length;
