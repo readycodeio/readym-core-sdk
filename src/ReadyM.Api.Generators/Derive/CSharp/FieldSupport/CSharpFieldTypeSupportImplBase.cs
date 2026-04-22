@@ -103,7 +103,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitWriteDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.AppendLine("if ");
+        context.Append("if ");
         EmitDirtyCheck(symbol, context, forceParen: true);
         context.AppendLine();
         

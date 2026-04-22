@@ -20,7 +20,7 @@ public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId,
         => deliveryMethod;
 
     protected override int?  GetMaxPacketSize()
-        => relay.GetMaxPacketSize(DeliveryMethod);
+        => DeliveryMethod == DeliveryMethod.ReliableOrdered ? null : relay.GetMaxPacketSize(DeliveryMethod);
 
     protected override uint SentOwners()
     {
