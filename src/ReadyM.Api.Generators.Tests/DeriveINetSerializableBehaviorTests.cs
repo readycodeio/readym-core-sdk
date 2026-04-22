@@ -552,6 +552,8 @@ public partial struct NullableStringSerializable
         AssertFieldValue(valueRoundTrip, "_name", "Alpha");
     }
 
+    // ---
+    
     private static object CreateManagedPayload(Type payloadType, int revision, string? name)
     {
         var instance = Activator.CreateInstance(payloadType);

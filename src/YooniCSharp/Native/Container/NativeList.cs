@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Yooni.Native.LowLevel;
 
@@ -39,7 +40,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly ref struct ReadOnly(NativeList<T> owner) : IEnumerable<T>
     {
-        private readonly NativeList<T> _impl = owner;
+        internal readonly NativeList<T> _impl = owner;
 
         public AllocatorKind Allocator
             => _impl.Allocator;
@@ -127,6 +128,17 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
         _ptr.Free(_allocator);
     }
+    
+    public void TryCreate(AllocatorKind kind)
+    {
+        if (IsCreated)
+            return;
+        
+        _ptr = TypedArrayPtr<T>.Alloc(0, kind);
+        _count = 0;
+        _capacity = 0;
+        _allocator = kind;
+    }
 
     public ref T this[int index]
     {
@@ -197,7 +209,21 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     }
     
     // -- write access
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Assign(NativeList<T> other)
+    {
+        Clear();
+        foreach (var item in other)
+        {
+            Add(item);
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Assign(ReadOnly other)
+        => Assign(other._impl);
+    
     public bool TrySet(int index, T value)
     {
         if (EqualityComparer<T>.Default.Equals(_ptr[index], value))
