@@ -8,19 +8,27 @@ namespace Yooni.Native.Container;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
 {
-    private const int CharBufferLength = 63;
-    private const int ByteBufferLength = Capacity * 4; // each UTF-8 char takes up to 4 bytes
-    public const int Capacity = CharBufferLength - 1;
+    private const int TotalSize = 64;
+    private const int Capacity = TotalSize - sizeof(byte);
+    private const int ByteBufferLength = (Capacity + 1) * 4; // each UTF-8 char takes up to 4 bytes
 
     private readonly byte _length;
-    private fixed byte _bytes[CharBufferLength];
+    private readonly byte _isWide;
+    private fixed byte _bytes[Capacity];
 
+    [Pure]
+    public bool IsWide
+        => _isWide != 0;
+    
     [Pure]
     public string ToManaged()
     {
         fixed (byte* p = _bytes)
         {
-            return new string((sbyte*) p, 0, _length, Encoding.UTF8);
+            if (_isWide != 0)
+                return new string((sbyte*) p, 0, _length, Encoding.Unicode);
+            else
+                return new string((sbyte*) p, 0, _length, Encoding.UTF8);
         }
     }
 
@@ -32,6 +40,10 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             Buffer.MemoryCopy(p, dest, _length, _length);
         }
     }
+    
+    [Pure]
+    int INativeString.Capacity
+        => Capacity;
     
     [Pure]
     public int Length
@@ -46,19 +58,16 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             return _bytes[index];
         }
     }
-    
-    [Pure]
-    int INativeString.Capacity
-        => Capacity;
 
-    public NativeString64(byte* bytes, int length)
+    public NativeString64(byte* bytes, int length, bool isWide)
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity) // leave space for null terminator
             throw new InvalidOperationException();
 
         _length = (byte) length;
+        _isWide = (byte)(isWide ? 1 : 0);
         fixed (byte* p = _bytes)
         {
             for (var i = 0; i < length; i++)
@@ -68,14 +77,15 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
         }
     }
     
-    public NativeString64(byte[] bytes, int length)
+    public NativeString64(byte[] bytes, int length, bool isWide)
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity) // leave space for null terminator
             throw new InvalidOperationException();
 
         _length = (byte) length;
+        _isWide = (byte)(isWide ? 1 : 0);
         fixed (byte* p = _bytes)
         {
             for (var i = 0; i < length; i++)
@@ -85,14 +95,15 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
         }
     }
 
-    public NativeString64(byte[] bytes, int offset, int length)
+    public NativeString64(byte[] bytes, int offset, int length, bool isWide)
     {
         if (length < 0)
             throw new InvalidOperationException();
-        if (length > ByteBufferLength - 1) // leave space for null terminator
+        if (length > Capacity) // leave space for null terminator
             throw new InvalidOperationException();
 
         _length = (byte) length;
+        _isWide = (byte)(isWide ? 1 : 0);
         fixed (byte* p = _bytes)
         {
             for (var i = 0; i < length; i++)
@@ -102,7 +113,7 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
         }
     }
     
-    public NativeString64(string? value)
+    public NativeString64(string? value, bool useWide)
     {
         if (value is null)
         {
@@ -114,15 +125,21 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             throw new InvalidOperationException($"String \"{value}\" is too long to be converted to an UnmanagedString64");
 
         var buffer = stackalloc byte[ByteBufferLength];
+        int result;
 
         fixed (char* charPtr = value)
         {
-            _length = (byte) Encoding.UTF8.GetBytes(charPtr, value.Length, buffer, ByteBufferLength);
+            if (useWide)
+                result = Encoding.Unicode.GetBytes(charPtr, value.Length, buffer, ByteBufferLength);
+            else
+                result = Encoding.UTF8.GetBytes(charPtr, value.Length, buffer, ByteBufferLength);
         }
 
-        if (_length > Capacity)
+        if (result > Capacity)
             throw new InvalidOperationException($"String \"{value}\" is too long to be converted to an UnmanagedString64");
 
+        _isWide = (byte)(useWide ? 1 : 0);
+        _length = (byte)result;
         fixed (byte* p = _bytes)
         {
             for (var i = 0; i < _length; i++)
@@ -181,7 +198,11 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             var yBytes = stackalloc byte[ByteBufferLength];
             fixed (char* yPtr = y)
             {
-                var yByteLength = Encoding.UTF8.GetBytes(yPtr, y.Length, yBytes, ByteBufferLength);
+                int yByteLength;
+                if (x._isWide != 0)
+                    yByteLength = Encoding.Unicode.GetBytes(yPtr, y.Length, yBytes, ByteBufferLength);
+                else
+                    yByteLength = Encoding.UTF8.GetBytes(yPtr, y.Length, yBytes, ByteBufferLength);
                 if (x._length != yByteLength)
                     return false;
             }
@@ -215,6 +236,8 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
                 return false;
 
             if (x._length != y._length)
+                return false;
+            if (x._isWide != y._isWide)
                 return false;
 
             for (var i = 0; i < x._length; i++)

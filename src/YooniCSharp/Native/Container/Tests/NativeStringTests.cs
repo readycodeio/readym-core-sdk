@@ -7,24 +7,26 @@ namespace Yooni.Native.Container.Tests;
 public abstract class NativeStringTests<TString>
     where TString : unmanaged, INativeString, IEquatable<TString>
 {
-    protected abstract TString CreateString(string str);
+    protected abstract TString CreateString(string str, bool isWide);
     
     [Test, Category("String"), Category("ECS")]
-    public void TestStringCompare()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TestStringCompare(bool isWide)
     {
-        var x = CreateString("abc");
+        var x = CreateString("abc", isWide);
 
-        Assert.AreEqual(CreateString("abc"), x);
-        Assert.AreNotEqual(CreateString("def"), x);
-        Assert.AreNotEqual(CreateString("abcc"), x);
+        Assert.AreEqual(CreateString("abc", isWide), x);
+        Assert.AreNotEqual(CreateString("def", isWide), x);
+        Assert.AreNotEqual(CreateString("abcc", isWide), x);
 
         Assert.IsTrue(x.Equals("abc"));
         Assert.IsFalse(x.Equals("def"));
         Assert.IsFalse(x.Equals("abcc"));
 
-        var y = CreateString("aaaaaaaaaaaaaaaa");
-        var z = CreateString("aaaaaaaaaaaaaaaa");
-        var w = CreateString("aaaaaaaaaaaaaaab");
+        var y = CreateString("aaaaaaaaaaaaaaaa", isWide);
+        var z = CreateString("aaaaaaaaaaaaaaaa", isWide);
+        var w = CreateString("aaaaaaaaaaaaaaab", isWide);
 
         Assert.IsTrue(y.Equals(z));
         Assert.IsTrue(!y.Equals(w));
@@ -34,9 +36,11 @@ public abstract class NativeStringTests<TString>
     }
 
     [Test, Category("String"), Category("ECS")]
-    public void TestToString()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TestToString(bool isWide)
     {
-        var x = CreateString("test");
+        var x = CreateString("test", isWide);
 
         var y = x;
 
@@ -44,18 +48,22 @@ public abstract class NativeStringTests<TString>
     }
 
     [Test, Category("String"), Category("ECS")]
-    public void TestToManaged()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TestToManaged(bool isWide)
     {
-        var x = CreateString("test");
+        var x = CreateString("test", isWide);
 
         Assert.AreEqual("test", x.ToManaged());
     }
 
     [Test, Category("String"), Category("ECS")]
-    public void TestGetHashCoded()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TestGetHashCoded(bool isWide)
     {
-        var x = CreateString("test");
-        var y = CreateString("test");
+        var x = CreateString("test", isWide);
+        var y = CreateString("test", isWide);
         var hashX = x.GetHashCode();
         var hashY = y.GetHashCode();
         Assert.AreEqual(hashX, hashY);
@@ -70,12 +78,12 @@ public abstract class NativeStringTests<TString>
             {
                 if (str.Length <= default(TString).Capacity)
                 {
-                    var u = CreateString(str);
+                    var u = CreateString(str, false);
                     Assert.AreEqual(str, u.ToManaged());
                 }
                 else
                 {
-                    Assert.Throws<InvalidOperationException>(() => CreateString(str));
+                    Assert.Throws<InvalidOperationException>(() => CreateString(str, false));
                 }
             });
     }

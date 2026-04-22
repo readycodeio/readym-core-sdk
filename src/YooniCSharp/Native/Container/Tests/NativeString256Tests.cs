@@ -2,6 +2,6 @@
 
 public class NativeString256Tests : NativeStringTests<NativeString256>
 {
-    protected override NativeString256 CreateString(string str)
-        => new(str);
+    protected override NativeString256 CreateString(string str, bool isWide)
+        => new(str, isWide);
 }
