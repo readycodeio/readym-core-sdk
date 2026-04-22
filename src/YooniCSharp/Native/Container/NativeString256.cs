@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -9,8 +8,8 @@ namespace Yooni.Native.Container;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeString
 {
-    private const int TotalSize = 256;
-    private const int Capacity = TotalSize - sizeof(byte);
+    public const int Size = 256;
+    public const int Capacity = Size - sizeof(byte) - sizeof(byte);
     private const int ByteBufferLength = (Capacity + 1) * 4; // each UTF-8 char takes up to 4 bytes
 
     private readonly byte _length;
@@ -122,7 +121,6 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
             return;
         }
 
-        var charCount = Math.Min(value.Length, Capacity);
         var buffer = stackalloc byte[ByteBufferLength];
 
         int result;
@@ -135,10 +133,7 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
         }
 
         if (result > Capacity)
-        {
-            Debug.WriteLine($"String \"{value}\" is too long to be converted to an UnmanagedString256");
-            _length = Capacity;
-        }
+            throw new InvalidOperationException($"String \"{value}\" is too long to be converted to an UnmanagedString256");
 
         _length = (byte)result;
         _isWide = (byte)(useWide ? 1 : 0);

@@ -8,8 +8,8 @@ namespace Yooni.Native.Container;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
 {
-    private const int TotalSize = 64;
-    private const int Capacity = TotalSize - sizeof(byte);
+    public const int Size = 64;
+    public const int Capacity = Size - sizeof(byte) - sizeof(byte);
     private const int ByteBufferLength = (Capacity + 1) * 4; // each UTF-8 char takes up to 4 bytes
 
     private readonly byte _length;
@@ -120,9 +120,6 @@ public unsafe struct NativeString64 : IEquatable<NativeString64>, INativeString
             _length = 0;
             return;
         }
-
-        if (value.Length > Capacity)
-            throw new InvalidOperationException($"String \"{value}\" is too long to be converted to an UnmanagedString64");
 
         var buffer = stackalloc byte[ByteBufferLength];
         int result;
