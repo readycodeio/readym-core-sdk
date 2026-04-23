@@ -343,7 +343,19 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         var entryPtr = _impl.Find(key, hash);
         if (entryPtr.IsNull)
         {
-            throw new InvalidOperationException("Key not found");
+            throw new InvalidOperationException($"Key not found: {key}");
+        }
+        
+        return ref entryPtr.Get().Value;
+    }
+    
+    public ref TValue GetItemRef(TKey key)
+    {
+        var hash = default(THash).ComputeHash(in key);
+        var entryPtr = _impl.Find(key, hash);
+        if (entryPtr.IsNull)
+        {
+            throw new InvalidOperationException($"Key not found: {key}");
         }
         
         return ref entryPtr.Get().Value;

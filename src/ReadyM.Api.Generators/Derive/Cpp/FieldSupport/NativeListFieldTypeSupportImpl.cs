@@ -11,17 +11,18 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
     public override void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
+        if (context.Member.Settings.SkipAccessors)
+            return;
+
         if (!SerializationHelper.IsNativeList(symbol, out var itemType))
             throw new InvalidOperationException("Expected a native list type");
         
         base.EmitAccessorMethods(symbol, context);
         
-        // {CppTypeName(symbol)}
-        
         context.AppendLine($"int {context.Member.GeneratedPropertyName}Count() const");
         using (context.WithCodeBlock())
         {
-            context.AppendLine($"return {context.State.CurrentVar}.Count();");
+            context.AppendLine($"return {context.State.CurrentVar}.GetCount();");
         }
         context.AppendLine();
         
@@ -32,10 +33,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         }
         context.AppendLine();
         
-        context.AppendLine($"void Set{context.Member.GeneratedPropertyName}(int index, const {CppTypeName(itemType)}& value) const");
+        context.AppendLine($"void Set{context.Member.GeneratedPropertyName}(int index, const {CppTypeName(itemType)}& value)");
         using (context.WithCodeBlock())
         {
-            context.AppendLine($"{context.State.CurrentVar}[key] = value;");
+            context.AppendLine($"{context.State.CurrentVar}[index] = value;");
             EmitSetDirty(symbol, context);
         }
         context.AppendLine();

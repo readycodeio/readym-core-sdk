@@ -11,6 +11,9 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
 
     public override void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
+        if (context.Member.Settings.SkipAccessors)
+            return;
+
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
             throw new InvalidOperationException("Expected a native dictionary type");
         

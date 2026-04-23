@@ -83,11 +83,13 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         var classState = new CSharpClassState(moduleState);
         
         AddDefaultUsings(moduleState);
+
+        var hasDispose = HasDispose(sb, model, classState);
         
         sb.Append($@"
 namespace {info.Namespace};
 
-public partial struct {info.Name} : INetworkedComponent
+public partial struct {info.Name} : INetworkedComponent{(hasDispose ? ", IDisposable" : string.Empty)}
 {{
 ");
 
@@ -107,8 +109,8 @@ public partial struct {info.Name} : INetworkedComponent
 
         foreach (var member in members)
         {
+            EmitDirtyMethods(sb, member, model, classState);
             EmitAccessorMethods(sb, member, model, classState);
-            sb.AppendLine();
         }
 
         EmitSerialize(sb, model, classState);
@@ -122,10 +124,15 @@ public partial struct {info.Name} : INetworkedComponent
     public bool IsDirty => _dirtyMask != 0;
 """);
 
+        EmitAssign(sb, model, classState);
+        
+        if (hasDispose)
+        {
+            EmitDispose(sb, model, classState);
+        }
+        
         if (classState.Members.Count > 0)
         {
-            sb.AppendLine();
-            
             foreach (var generatedMember in classState.Members)
             {
                 if (generatedMember.IsThreadStatic)
@@ -213,6 +220,19 @@ using {ns};
 """);
             }
         }
+    }
+    
+    private void EmitDirtyMethods(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, classState);
+        
+        context.State.ResetIndent("    ");
+        impl.EmitDirtyMethods(member.Source.Type, context);
     }
     
     private void EmitAccessorMethods(
@@ -379,6 +399,79 @@ using {ns};
 """);
     }
 
+    private bool HasDispose(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        var result = false;
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+        
+            result = result || impl.HasDispose(member.Source.Type, context);
+        }
+
+        return result;
+    }
+    
+    private void EmitDispose(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void Dispose()
+    {
+""");
+        
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+    
+            context.State.ResetIndent("        ");
+            impl.EmitDisposeBody(member.Source.Type, context);
+        }
+            
+        sb.AppendLine("""
+    }
+
+""");
+    }
+    
+    private void EmitAssign(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.Append(@$"
+    public void Assign(in {FullyQualifiedTypeName(model.Source.Symbol)} value)
+");
+        
+        sb.AppendLine("""
+    {
+""");
+        
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+    
+            context.State.ResetIndent("        ");
+            impl.EmitAssignComponentBody(member.Source.Type, context);
+        }
+            
+        sb.AppendLine("""
+    }
+
+""");
+    }
+    
     private static string GetDeserializationMethod(ITypeSymbol type)
         => SerializationHelper.GetDeserializationMethod(type.SpecialType);
 
@@ -405,7 +498,6 @@ using {ns};
         CSharpMethodState methodState)
     {
         var emitState = new CSharpEmitState(sb, methodState);
-        emitState.SetGeneratedPropertyName(member.GeneratedPropertyName);
         var context = new CSharpEmitFieldSupportContext(emitState, member, model, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
         var fieldName = member.Source.Name;
         var fieldType = member.Source.Type;

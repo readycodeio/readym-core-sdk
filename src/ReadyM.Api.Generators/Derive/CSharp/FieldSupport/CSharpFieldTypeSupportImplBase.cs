@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
@@ -39,7 +40,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         
         using (context.WithExpr(forceParen))
         {
-            context.Append($"(mask & (({context.Model.MaskInfo.Type})1 << {context.Member.MaskIndex})) != 0");
+            context.Append($"({context.CurrentMaskVar} & (({context.Model.MaskInfo.Type})1 << {context.Member.MaskIndex})) != 0");
         }
     }
 
@@ -51,27 +52,56 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     }
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-        => context.AppendLine($"{context.State.CurrentVar} = value;");
-    
-    protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-        => context.AppendLine($"return {context.State.CurrentVar};");
-
-    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.Append("if ");
-        EmitNotEqualCheck(symbol, context, forceParen: true);
-        context.AppendLine();
-        
+        if (context.Member.Settings.BoolAccessors)
+            context.AppendLine($"{context.State.CurrentVar} = (byte)(value ? 1 : 0);");
+        else
+            context.AppendLine($"{context.State.CurrentVar} = value;");
+    }
+
+    public void EmitDirtyMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.AppendLine($"bool Is{context.Member.GeneratedPropertyName}Dirty()");
         using (context.WithCodeBlock())
         {
-            EmitAssign(symbol, context);
+            context.Append($"return ");
+            EmitDirtyCheck(symbol, context, false);
+            context.AppendLine(";");
+        }
+        context.AppendLine();
+        
+        context.Append($"void Set{context.Member.GeneratedPropertyName}Dirty()");
+        using (context.WithCodeBlock())
+        {
             EmitSetDirty(symbol, context);
         }
+        context.AppendLine();
     }
 
     public virtual void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.AppendLine($"public {FullyQualifiedTypeName(symbol)} {context.State.GeneratedPropertyName}");
+        if (context.Member.Settings.SkipAccessors)
+        {
+            context.AppendLine($"private {FullyQualifiedTypeName(symbol)} {context.Member.GeneratedPropertyName}");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine("set");
+                using (context.WithCodeBlock())
+                {
+                    EmitSetterBody(symbol, context);
+                }
+            }
+            
+            return;
+        }
+
+        var accessorType = FullyQualifiedTypeName(symbol);
+        if (context.Member.Settings.BoolAccessors)
+        {
+            accessorType = "bool";
+        }
+
+        context.AppendLine($"public {accessorType} {context.Member.GeneratedPropertyName}");
         using (context.WithCodeBlock())
         {
             context.AppendLine("get");
@@ -87,6 +117,27 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
     
+    protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        if (context.Member.Settings.BoolAccessors)
+            context.AppendLine($"return {context.State.CurrentVar} != 0;");
+        else
+            context.AppendLine($"return {context.State.CurrentVar};");
+    }
+
+    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.Append("if ");
+        EmitNotEqualCheck(symbol, context, forceParen: true);
+        context.AppendLine();
+        
+        using (context.WithCodeBlock())
+        {
+            EmitAssign(symbol, context);
+            EmitSetDirty(symbol, context);
+        }
+    }
+    
     public virtual void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.EmitSerializeVar(context.State.CurrentVar, symbol);
 
@@ -97,7 +148,11 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         {
             context.AppendLine($"{FullyQualifiedTypeName(symbol)} {tempVar} = default;");
             context.EmitDeserializeVar(context.State.CurrentVar, symbol);
-            context.AppendLine($"{context.State.GeneratedPropertyName} = {tempVar};");
+            
+            if (context.Member.Settings.BoolAccessors)
+                context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar} != 0;");
+            else
+                context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");
         }
     }
 
@@ -137,5 +192,26 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"var {dummyVar} = default({FullyQualifiedTypeName(context.State.CurrentType)});");
             context.EmitDeserializeVar(dummyVar, context.State.CurrentType);
         }
+    }
+
+    public virtual bool HasDispose(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        return symbol.AllInterfaces.Any(i => i.ContainingNamespace.ToDisplayString() == "System" && i.Name == "IDisposable");
+    }
+
+    public virtual void EmitDisposeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        if (HasDispose(symbol, context))
+        {
+            if (symbol.IsReferenceType)
+                context.AppendLine($"{context.State.CurrentVar}?.Dispose();");
+            else
+                context.AppendLine($"{context.State.CurrentVar}.Dispose();");
+        }
+    }
+    
+    public virtual void EmitAssignComponentBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.AppendLine($"{context.Member.GeneratedPropertyName} = value.{context.Member.GeneratedPropertyName};");
     }
 }

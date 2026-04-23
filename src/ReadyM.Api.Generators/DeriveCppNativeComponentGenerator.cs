@@ -155,10 +155,13 @@ namespace {ns}
 {{
 ");
         }
+
+        var hasCreate = HasCreate(sb, model, moduleState);
+        var hasDispose = HasDispose(sb, model, moduleState);
         
         sb.AppendLine($@"
-struct {model.Source.Name}GeneratedBase
-{{
+    struct {model.Source.Name}GeneratedBase
+    {{
 ");
 
         if (info.HasErrors)
@@ -166,26 +169,39 @@ struct {model.Source.Name}GeneratedBase
             foreach (var error in info.Errors)
             {
                 sb.AppendLine($"""
-                                   #error {error}
-                               """);
+        #error {error}
+""");
             }
 
             sb.AppendLine();
         }
 
         sb.AppendLine("""
-public:
+    public:
 """);
 
         foreach (var member in members)
         {
-            EmitAccessMethods(sb, member, model, moduleState);
+            EmitDirtyMethods(sb, member, model, moduleState);
+            EmitAccessorMethods(sb, member, model, moduleState);
         }
 
         EmitDirtyMaskAccessMethods(sb, model);
+
+        EmitAssign(sb, model, moduleState);
+
+        if (hasCreate)
+        {
+            EmitCreate(sb, model, moduleState);
+        }
+
+        if (hasDispose)
+        {
+            EmitDispose(sb, model, moduleState);
+        }
         
         sb.AppendLine("""
-protected:
+    protected:
 """);
 
         EmitDirtyMask(sb, model);
@@ -196,7 +212,7 @@ protected:
         }
 
         sb.AppendLine($@"
-}}; // struct {model.Source.Name}GeneratedBase
+    }}; // struct {model.Source.Name}GeneratedBase
 ");
         if (!string.IsNullOrEmpty(ns))
         {
@@ -265,20 +281,140 @@ protected:
         }
     }
     
-    private void EmitAccessMethods(
+    private void EmitDirtyMethods(
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
         CppModuleState moduleState)
     {
-        if (member.SkipAccessorMethods)
-            return;
-        
         var impl = GetEmitFieldSupportImpl(member, true);
-        var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
+        var context = CreateEmitContext(sb, member, model, moduleState);
         
-        context.State.ResetIndent("    ");
+        context.State.ResetIndent("        ");
+        impl.EmitDirtyMethods(member.Source.Type, context);
+    }
+    
+    private void EmitAccessorMethods(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, moduleState);
+        
+        context.State.ResetIndent("        ");
         impl.EmitAccessorMethods(member.Source.Type, context);
+    }
+    
+    private void EmitAssign(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        sb.Append($@"
+        void Assign(const {CppTypeName(model.Source.Symbol)}GeneratedBase& value)
+");
+        sb.AppendLine("""
+        {
+""");
+        
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, moduleState);
+    
+            context.State.ResetIndent("            ");
+            impl.EmitAssignComponentBody(member.Source.Type, context);
+        }
+            
+        sb.AppendLine("""
+        }
+""");
+    }
+
+    private bool HasCreate(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        var result = false;
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, moduleState);
+        
+            result = result || impl.HasCreate(member.Source.Type, context);
+        }
+
+        return result;
+    }
+
+    private void EmitCreate(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+            sb.AppendLine("""
+        void TryCreate(Yooni::Native::LowLevel::AllocatorKind allocatorKind)
+        {
+""");
+        
+            foreach (var member in model.Members)
+            {
+                var impl = GetEmitFieldSupportImpl(member, true);
+                var context = CreateEmitContext(sb, member, model, moduleState);
+        
+                context.State.ResetIndent("            ");
+                impl.EmitTryCreateBody(member.Source.Type, context);
+            }
+            
+            sb.AppendLine("""
+        }
+
+""");
+    }
+
+    private bool HasDispose(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        var result = false;
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, moduleState);
+        
+            result = result || impl.HasDispose(member.Source.Type, context);
+        }
+
+        return result;
+    }
+
+    private void EmitDispose(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+            sb.AppendLine("""
+        void Dispose()
+        {
+""");
+        
+            foreach (var member in model.Members)
+            {
+                var impl = GetEmitFieldSupportImpl(member, true);
+                var context = CreateEmitContext(sb, member, model, moduleState);
+        
+                context.State.ResetIndent("            ");
+                impl.EmitDisposeBody(member.Source.Type, context);
+            }
+            
+            sb.AppendLine("""
+        }
+
+""");
     }
 
     private void EmitDirtyMaskAccessMethods(StringBuilder sb, DeriveTargetModel model)
@@ -287,12 +423,17 @@ protected:
             return;
         
         sb.AppendLine("""
-public:
-    bool IsDirty()
-    {
-        return _dirtyMask != 0;
-    }
-
+    public:
+        void ClearDirty()
+        {
+            _dirtyMask = 0;
+        }
+        
+        bool IsDirty()
+        {
+            return _dirtyMask != 0;
+        }
+        
 """);
     }
 
@@ -305,14 +446,14 @@ public:
         if (model.Source.EmitDirtyMask)
         {
             sb.AppendLine($"""
-    {CppTypeName(maskInfo.Type)} _dirtyMask = 0;
+        {CppTypeName(maskInfo.Type)} _dirtyMask = 0;
 
 """);
         }
         else
         {
             sb.AppendLine($"""
-    {CppTypeName(maskInfo.Type)} _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.
+        {CppTypeName(maskInfo.Type)} _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.
 
 """);
         }
@@ -325,13 +466,13 @@ public:
             foreach (var error in member.Source.Errors)
             {
                 sb.AppendLine($"""
-    #error {error}
+        #error {error}
 """);
             }
         }
         
         sb.AppendLine($"""
-    {CppTypeName(member.Source.Type)} {member.Source.Name} = {GetCppDefaultValue(member.Source.Type)};
+        {CppTypeName(member.Source.Type)} {member.Source.Name} = {GetCppDefaultValue(member.Source.Type)};
 """);
     }
     
@@ -341,6 +482,6 @@ public:
     private static ICppFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
         => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
     
-    private static CppEmitFieldSupportContext GetEmitFieldSupportContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
+    private static CppEmitFieldSupportContext CreateEmitContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
         => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member, model, moduleState);
 }

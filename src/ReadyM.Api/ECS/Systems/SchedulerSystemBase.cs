@@ -9,14 +9,15 @@ namespace ReadyM.Api.ECS.Systems;
 public abstract class SchedulerSystemBase(ILogger logger) : BaseSystem
 {
     private readonly PendingActionUpdater<CommandBufferSynced> _scheduler = new(null!, logger);
+    private CommandBuffer? _commandBuffer;
 
     public PendingActionScheduler<CommandBufferSynced> Scheduler => _scheduler;
 
     protected override void OnAddStore(EntityStore store)
     {
-        var cb = store.GetCommandBuffer();
-        cb.ReuseBuffer = true;
-        var commandBuffer = cb.Synced;
+        _commandBuffer = store.GetCommandBuffer();
+        _commandBuffer.ReuseBuffer = true;
+        var commandBuffer = _commandBuffer.Synced;
         _scheduler.SetContext(commandBuffer);
         _scheduler.SetThread(Thread.CurrentThread);
     }
@@ -24,11 +25,14 @@ public abstract class SchedulerSystemBase(ILogger logger) : BaseSystem
     protected override void OnRemoveStore(EntityStore store)
     {
         _scheduler.SetContext(null!);
+        _commandBuffer!.ReturnBuffer();
+        _commandBuffer = null;
     }
 
     protected override void OnUpdateGroup()
     {
         _scheduler.Update();
+        _commandBuffer!.Playback();
     }
 
     public void BeginDelay()
