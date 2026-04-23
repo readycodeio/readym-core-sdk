@@ -4,15 +4,17 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-        <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="CsCheck" Version="2.10.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-        <PackageReference Include="xunit" Version="2.9.2" />
-        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
@@ -21,8 +23,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />
-        <ProjectReference Include="..\..\..\YooniCSharp\Native\LowLevel\Yooni.Native.LowLevel.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\LowLevel\Yooni.Native.LowLevel.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\Serialization\Yooni.Native.Serialization.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" />

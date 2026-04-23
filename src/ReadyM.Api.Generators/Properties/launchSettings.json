@@ -3,8 +3,7 @@
   "profiles": {
     "Generators": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../ReadyM.Api.Multiplayer/ReadyM.Api.Multiplayer.csproj",
-      "targetFramework": "netstandard2.0"
+      "targetProject": "../ReadyM.Api.Multiplayer/ReadyM.Api.Multiplayer.csproj"
     }
   }
 }

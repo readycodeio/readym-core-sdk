@@ -6,7 +6,7 @@ using ReadyM.Api.Serialization;
 namespace ReadyM.Api.Multiplayer.Idents;
 
 [DeriveJsonSerializable]
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
+[StructLayout(LayoutKind.Sequential)]
 public partial struct PlayerId(ushort id) : INetSerializable, IEquatable<PlayerId>
 {
     private ushort _id = id;

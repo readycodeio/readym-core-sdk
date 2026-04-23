@@ -6,6 +6,17 @@ namespace ReadyM.Api.Generators;
 
 public static class AttributeUtils
 {
+    public static bool HasAttribute(ISymbol symbol, string deriveinetworkedcomponentattribute)
+    {
+        return symbol.GetAttributes()
+            .Any(ad =>
+                ad.AttributeClass is not null &&
+                (ad.AttributeClass.Name == deriveinetworkedcomponentattribute ||
+                 ad.AttributeClass.Name == deriveinetworkedcomponentattribute + "Attribute" ||
+                 ad.AttributeClass.ToDisplayString().EndsWith("." + deriveinetworkedcomponentattribute, StringComparison.Ordinal) ||
+                 ad.AttributeClass.ToDisplayString().EndsWith("." + deriveinetworkedcomponentattribute + "Attribute", StringComparison.Ordinal)));
+    }
+    
     public static T GetAttribute<T>(
         INamedTypeSymbol? symbol,
         string attrName,

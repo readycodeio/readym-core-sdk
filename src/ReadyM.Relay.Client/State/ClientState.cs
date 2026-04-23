@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Friflo.Engine.ECS;
+using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
@@ -21,6 +22,14 @@ namespace ReadyM.Relay.Client.State;
 
 public class ClientState : IDisposable
 {
+    private class ProcessPendingEventsSystem(ClientState owner) : BaseSystem
+    {
+        protected override void OnUpdateGroup()
+        {
+            owner.ProcessPendingEvents();
+        }
+    }
+    
     private enum PendingEventKind
     {
         Connected,
@@ -63,7 +72,7 @@ public class ClientState : IDisposable
     private readonly Store _world;
     private readonly NetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
-    private readonly IClientEcsUpdateLoop _ecsLoop;
+    private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly JobRegistry _jobRegistry;
     private readonly ILogger _logger;
 
@@ -77,6 +86,8 @@ public class ClientState : IDisposable
 
     private readonly object _lock = new();
     private readonly List<PendingEvent> _pendingEvents = [];
+    
+    private readonly ProcessPendingEventsSystem _system;
 
     public bool IsConnected
         => _localPlayerEntry != null;
@@ -89,6 +100,9 @@ public class ClientState : IDisposable
 
     public Entity? LocalPlayerEntity
         => _localPlayerEntry?.PlayerEntity;
+    
+    public BaseSystem System 
+        => _system;
 
     public Api.Helpers.ReadOnlyList<PlayerId> AllPlayers => new(_allPlayers);
     public Api.Helpers.ReadOnlyList<PlayerId> OtherPlayers => new([.. _allPlayers.Where(p => p != LocalPlayerId)]);
@@ -120,12 +134,12 @@ public class ClientState : IDisposable
 
     public ArchetypeId AreaArchetype { get; }
     public ArchetypeId PlayerArchetype { get; }
-
+    
     public ClientState(
         Store world,
         NetworkedEntityManager netEntity,
         IRelayClient relayClient,
-        IClientEcsUpdateLoop ecsLoop,
+        ClientEcsUpdateLoop ecsLoop,
         JobRegistry jobRegistry,
         DefaultAreaArchetypeRegistration areaArchetype,
         DefaultPlayerArchetypeRegistration playerArchetype,
@@ -141,7 +155,7 @@ public class ClientState : IDisposable
         AreaArchetype = areaArchetype.AreaArchetype;
         PlayerArchetype = playerArchetype.PlayerArchetype;
 
-        _ecsLoop.OnUpdateLoop += ProcessPendingEvents;
+        _system = new ProcessPendingEventsSystem(this);
 
         _relayClient.OnConnected += OnConnectedHandler;
         _relayClient.OnDisconnected += OnDisconnectedHandler;
@@ -151,16 +165,10 @@ public class ClientState : IDisposable
         _relayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
-
-        _jobRegistry.OnApplySnapshot += OnApplySnapshotHandler;
     }
 
     public void Dispose()
     {
-        _ecsLoop.OnUpdateLoop -= ProcessPendingEvents;
-
-        _jobRegistry.OnApplySnapshot -= OnApplySnapshotHandler;
-
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
@@ -194,8 +202,6 @@ public class ClientState : IDisposable
                 });
             }
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
@@ -209,8 +215,6 @@ public class ClientState : IDisposable
                 DisconnectReason = disconnectReason,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
@@ -236,8 +240,6 @@ public class ClientState : IDisposable
                 });
             }
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
@@ -265,8 +267,6 @@ public class ClientState : IDisposable
                 PlayerId = playerId.Value,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -279,8 +279,6 @@ public class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -293,8 +291,6 @@ public class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -308,8 +304,6 @@ public class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -330,13 +324,6 @@ public class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
-    }
-
-    private void OnApplySnapshotHandler()
-    {
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void PrunePendingEvents()
@@ -570,8 +557,6 @@ public class ClientState : IDisposable
             _pendingEvents[i] = pendingEvent;
         }
     }
-
-    private void ProcessPendingEvents(CommandBufferSynced _) => ProcessPendingEvents();
 
     private void ProcessPendingEvents()
     {

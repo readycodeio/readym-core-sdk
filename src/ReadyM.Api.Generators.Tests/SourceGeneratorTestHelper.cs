@@ -6,23 +6,25 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ReadyM.Api.Generators.Tests;
 
 internal static class SourceGeneratorTestHelper
 {
     internal sealed class GeneratorRunResult(
+        ImmutableArray<Diagnostic> compilationDiagnostics,
         Compilation inputCompilation,
         Compilation outputCompilation,
         GeneratorDriverRunResult driverRunResult)
     {
+        public ImmutableArray<Diagnostic> CompilationDiagnostics { get; } = compilationDiagnostics;
         public Compilation InputCompilation { get; } = inputCompilation ?? throw new ArgumentNullException(nameof(inputCompilation));
 
         public Compilation OutputCompilation { get; } = outputCompilation ?? throw new ArgumentNullException(nameof(outputCompilation));
 
         public GeneratorDriverRunResult DriverRunResult { get; } = driverRunResult;
-
+        
         public ImmutableArray<Diagnostic> InputDiagnostics => InputCompilation.GetDiagnostics();
 
         public ImmutableArray<Diagnostic> OutputDiagnostics => OutputCompilation.GetDiagnostics();
@@ -43,10 +45,10 @@ internal static class SourceGeneratorTestHelper
         driver = driver.RunGeneratorsAndUpdateCompilation(
             inputCompilation,
             out var outputCompilation,
-            out _);
+            out var compilationDiagnostics);
 
         var runResult = driver.GetRunResult();
-        var result = new GeneratorRunResult(inputCompilation, outputCompilation, runResult);
+        var result = new GeneratorRunResult(compilationDiagnostics, inputCompilation, outputCompilation, runResult);
 
         WriteGeneratedFiles(output, result);
 
@@ -98,11 +100,17 @@ internal static class SourceGeneratorTestHelper
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable,
-                optimizationLevel: OptimizationLevel.Debug));
+                optimizationLevel: OptimizationLevel.Debug,
+                allowUnsafe: true));
     }
 
     private static void WriteGeneratedFiles(ITestOutputHelper output, GeneratorRunResult result)
     {
+        foreach (var diagnostic in result.CompilationDiagnostics)
+        {
+            output.WriteLine($"DIAGNOSTIC: {diagnostic}");
+        }
+        
         output.WriteLine("===== GENERATED FILES =====");
         output.WriteLine(string.Empty);
 
@@ -120,7 +128,11 @@ internal static class SourceGeneratorTestHelper
             output.WriteLine(string.Empty);
 
             var text = syntaxTree.GetText().ToString();
-            output.WriteLine(text);
+            var lineNumber = 1;
+            foreach (var line in text.EnumerateLines())
+            {
+                output.WriteLine($"{lineNumber++:D4}: {line}");
+            }
 
             if (!text.EndsWith(Environment.NewLine, StringComparison.Ordinal))
             {
@@ -214,6 +226,9 @@ internal static class SourceGeneratorTestHelper
             typeof(ReadyM.Api.Multiplayer.Generators.DeriveINetworkedComponentAttribute).Assembly,
             typeof(ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent).Assembly,
             typeof(LiteNetLib.Utils.NetDataWriter).Assembly,
+            typeof(Yooni.Native.Container.ByteHash).Assembly,
+            typeof(Yooni.Native.LowLevel.Allocator).Assembly,
+            typeof(Yooni.Native.Serialization.NetSerializationExtensions).Assembly,
 
             typeof(TestAssemblyMarker).Assembly
         };
