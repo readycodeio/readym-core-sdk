@@ -21,7 +21,7 @@ public partial struct PlayerId : INetSerializable, IEquatable<PlayerId>
         _id = id;
     }
 
-    internal ushort RawValue => _id;
+    public ushort RawValue => _id;
 
     /// <summary>
     /// The PlayerId representing the server itself.

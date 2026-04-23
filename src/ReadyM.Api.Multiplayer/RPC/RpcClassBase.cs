@@ -1,4 +1,7 @@
-﻿using ReadyM.Api.DI;
+﻿using System;
+using Friflo.Engine.ECS;
+using ReadyM.Api.DI;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Serialization;
 
@@ -40,15 +43,18 @@ public abstract class RpcClassBase(IRpcClient client, IRelaySerializer serialize
     /// RPC client to use for sending RPCs. This is injected by the DI container.
     /// </summary>
     protected IRpcClient RelayClient { get; } = client;
-    
+
     /// <summary>
     /// Serializer to use for serializing RPC parameters. This is injected by the DI container.
     /// </summary>
     protected IRelaySerializer Serializer { get; } = serializer;
 
-    internal void SetUpOffset(RpcOffsetProvider offsetProvider)
+    private PendingActionScheduler<CommandBufferSynced> _scheduler = null!;
+
+    internal void Initialize(RpcOffsetProvider offsetProvider, PendingActionScheduler<CommandBufferSynced> scheduler)
     {
         Offset = offsetProvider.GetNextOffset(EventsCount);
+        _scheduler = scheduler;
     }
 
     public virtual void OnScopeStart()
@@ -57,8 +63,13 @@ public abstract class RpcClassBase(IRpcClient client, IRelaySerializer serialize
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public virtual void Dispose()
     {
         DeInitRpc();
+    }
+
+    protected void RunOnMainThread(Action callback)
+    {
+        _scheduler.Schedule((_, c) => c(), callback);
     }
 }
