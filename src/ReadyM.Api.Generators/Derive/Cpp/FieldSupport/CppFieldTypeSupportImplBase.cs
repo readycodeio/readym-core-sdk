@@ -7,11 +7,8 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 {
     public abstract bool Supports(ITypeSymbol type);
     
-    public void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    public virtual void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.SkipAccessorMethods)
-            return;
-        
         EmitGetterMethod(symbol, context);
         context.AppendLine();
         

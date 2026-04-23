@@ -271,6 +271,9 @@ protected:
         DeriveTargetModel model,
         CppModuleState moduleState)
     {
+        if (member.SkipAccessorMethods)
+            return;
+        
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = GetEmitFieldSupportContext(sb, member, model, moduleState);
         
