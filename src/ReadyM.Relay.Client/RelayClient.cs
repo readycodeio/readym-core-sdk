@@ -50,9 +50,9 @@ internal class RelayClient : IRelayClient
     private readonly EventBasedNetListener _listener;
 
     // Read-only value types, so thread safe
-    private readonly RelayConnectionOptions _options;
     private readonly string _host;
     private readonly int _port;
+    private RelayConnectionOptions _options; // should be safe
 
     // This isn't thread-safe, but we use it for some inconsequential things. DO NOT USE it for anything important,
     // it'll return an abnormal number of 0s when used in parallel. With the papal blessing nothing should break
@@ -587,6 +587,7 @@ internal class RelayClient : IRelayClient
         {
             case RelayMessageCode.HandshakeConnected:
             {
+                var reconnectTicket = reader.Get<ConnectionTicket>();
                 var playerId = reader.Get<PlayerId>();
                 var nextId = reader.GetUInt();
                 if (_netThreadContext.PlayerId != null && _netThreadContext.PlayerId != playerId)
@@ -616,6 +617,8 @@ internal class RelayClient : IRelayClient
 
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
                 _logger.LogDebug("Next available NetworkId is {NextNetworkId}", nextId);
+
+                _options.Ticket = reconnectTicket;
 
                 OnConnected?.Invoke(_netThreadContext, playerId, nextId);
                 break;
