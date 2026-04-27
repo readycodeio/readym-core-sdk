@@ -36,6 +36,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         using (context.WithCodeBlock())
         {
             context.AppendLine($"{context.State.CurrentVar}[key] = value;");
+            EmitSetDirty(symbol, context);
         }
         context.AppendLine();
         
