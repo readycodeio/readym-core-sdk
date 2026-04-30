@@ -6,9 +6,8 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using ReadyM.Api.Generators;
 
-namespace ReadyM.Relay.Common.Generators;
+namespace ReadyM.Api.Generators;
 
 [Generator]
 public class ServerRpcEventGenerator : IIncrementalGenerator
