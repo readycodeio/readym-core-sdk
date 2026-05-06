@@ -22,11 +22,22 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
             context.AppendLine($"return {context.State.CurrentVar}.GetCount();");
         }
         context.AppendLine();
-        
-        context.AppendLine($"const {CppTypeName(valueType)}& Get{context.Member.GeneratedPropertyName}(const {CppTypeName(keyType)}& key) const");
-        using (context.WithCodeBlock())
+
+        if (SerializationHelper.IsPrimitive(valueType))
         {
-            context.AppendLine($"return {context.State.CurrentVar}.GetItem(key);");
+            context.AppendLine($"{CppTypeName(valueType)} Get{context.Member.GeneratedPropertyName}(const {CppTypeName(keyType)}& key) const");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine($"return {context.State.CurrentVar}.GetItem(key);");
+            }
+        }
+        else
+        {
+            context.AppendLine($"const {CppTypeName(valueType)}& Get{context.Member.GeneratedPropertyName}(const {CppTypeName(keyType)}& key) const");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine($"return {context.State.CurrentVar}.GetItemRef(key);");
+            }
         }
         context.AppendLine();
         
@@ -34,6 +45,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         using (context.WithCodeBlock())
         {
             context.AppendLine($"{context.State.CurrentVar}.SetItem(key, value);");
+            EmitSetDirty(symbol, context);
         }
         context.AppendLine();
         

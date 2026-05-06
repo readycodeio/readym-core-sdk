@@ -25,6 +25,24 @@ public static class SerializationHelper
         { SpecialType.System_String,    "String"    },
     };
 
+    private static readonly List<SpecialType> PrimitiveTypeList = // https://learn.microsoft.com/en-us/dotnet/api/system.type.isprimitive?view=net-10.0
+    [
+        SpecialType.System_Boolean,
+        SpecialType.System_Byte,
+        SpecialType.System_SByte,
+        SpecialType.System_Int16,
+        SpecialType.System_UInt16,
+        SpecialType.System_Int32,
+        SpecialType.System_UInt32,
+        SpecialType.System_Int64,
+        SpecialType.System_UInt64,
+        SpecialType.System_IntPtr,
+        SpecialType.System_UIntPtr,
+        SpecialType.System_Char,
+        SpecialType.System_Single,
+        SpecialType.System_Double,
+    ];
+
     public static string GetDeserializationMethod(SpecialType specialType)
         => SpecialTypeMap.TryGetValue(specialType, out var methodName)
             ? $"Get{methodName}"
@@ -67,6 +85,9 @@ public static class SerializationHelper
     internal static bool IsVectorLike(ITypeSymbol type)
         => (type.Name is "Vector2" or "Vector3" or "Vector4") &&
            type.ContainingNamespace.ToDisplayString() == "System.Numerics";
+
+    internal static bool IsPrimitive(ITypeSymbol type)
+        => PrimitiveTypeList.Contains(type.SpecialType);
 
     internal static bool IsNativeContainer(ITypeSymbol type)
     {
