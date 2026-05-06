@@ -809,7 +809,7 @@ internal class RelayClient : IRelayClient
 
                     return;
                 }
-                
+
                 var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
                 var clientHandler = _clientMessageHandlers[(byte)eventCode];
 
@@ -863,7 +863,7 @@ internal class RelayClient : IRelayClient
             delta = now - _lastStatCheck;
 
             _lastStatCheck = now;
-            
+
             _netStats.UpdateTransfer(_client.Statistics, (now - _processStart).TotalSeconds);
         }
 
@@ -872,7 +872,7 @@ internal class RelayClient : IRelayClient
         var avgSent = (long)(dSent / delta.TotalSeconds);
         var packetLoss = _client.Statistics.PacketLoss;
         var sent = _client.Statistics.PacketsSent;
-        
+
         _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}", avgRecv, avgSent, packetLoss, sent);
     }
 
@@ -888,7 +888,22 @@ internal class RelayClient : IRelayClient
         _netThreadContext.LastDisconnectReason = info.Reason;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
-        OnDisconnected?.Invoke(_netThreadContext, info.Reason);
+
+        // TODO: Cannot change the API on OnDisconnected since we're making 0.2.1 a non-breaking update
+        // We should update this in the next version
+        var liteNetLibReason = info.Reason;
+        if (info.AdditionalData.TryGetByte(out var b))
+        {
+            var reason = (KickReason)b;
+            _logger.LogWarning("Disconnected from server with kick reason: {KickReason}", reason);
+
+            if (reason is KickReason.Kicked or KickReason.Banned)
+            {
+                liteNetLibReason = DisconnectReason.ConnectionRejected;
+            }
+        }
+
+        OnDisconnected?.Invoke(_netThreadContext, liteNetLibReason);
     }
 
     public void LogEventStats()
