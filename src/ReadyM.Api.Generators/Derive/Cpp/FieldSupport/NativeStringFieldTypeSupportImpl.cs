@@ -13,4 +13,7 @@ internal sealed class NativeStringFieldTypeSupportImpl : CppFieldTypeSupportImpl
 
     protected override void EmitNotEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
         => context.Append($"{context.State.CurrentVar} != value");
+
+    public override bool HasCreate(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+        => false;
 }
