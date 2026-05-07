@@ -60,8 +60,11 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 ref var component = ref entity.Value.GetComponent<T>();
                 component.ReadDelta(reader);
 
+				// FIXME: This should be simplified to playerId == PlayerId.Server
                 if (playerId == owner)
                 {
+                	// NOTE: Currently, dirty flags do not need to be set during server logic. Therefore we can clear them
+                	// right away, unlike on the client
                     component.ClearDirty();
                 }
             }

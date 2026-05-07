@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Configurations>Debug;Release;NoDisconnect</Configurations>
+        <Platforms>AnyCPU</Platforms>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
+      <ProjectReference Include="..\Container\Yooni.Native.Container.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="Tests/**/*.cs" />
+        <None Remove="Tests/**" />
+        <Content Remove="Tests/**" />
+        <EmbeddedResource Remove="Tests/**" />
+    </ItemGroup>
+</Project>

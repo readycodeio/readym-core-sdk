@@ -1,427 +1,419 @@
-﻿using System;
+﻿using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using ReadyM.Api.Generators.Derive.CSharp;
+using ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
+using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public class DeriveINetworkedComponentGenerator : IIncrementalGenerator
+public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 {
-    private const string FloatComparisonEpsilon = "0.1f";
-    private const string VectorComparisonEpsilon = "0.01f";
-
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var codeProvider = context.SyntaxProvider
-            .CreateSyntaxProvider(Predicate, Transform);
+        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
 
-        context.RegisterSourceOutput(codeProvider, (spc, nameAndContent) => { spc.AddSource($"{nameAndContent.Name}.g.cs", nameAndContent.Code); });
+        context.RegisterSourceOutput(
+            codeProvider,
+            static (spc, nameAndContent) => spc.AddSource($"{nameAndContent.Name}.g.cs", nameAndContent.Code));
     }
 
-    private bool Predicate(SyntaxNode syntaxNode, CancellationToken ct)
+    private bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
     {
-        return syntaxNode is StructDeclarationSyntax { AttributeLists.Count: > 0 } structDecl
-               && structDecl.AttributeLists
-                   .SelectMany(a => a.Attributes)
-                   .Any(attr => attr.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" });
+        if (cancellationToken.IsCancellationRequested)
+            return false;
+
+        if (syntaxNode is not StructDeclarationSyntax { AttributeLists.Count: > 0 } structDecl)
+            return false;
+
+        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" });
     }
 
     private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        var node = context.Node;
+        if (ct.IsCancellationRequested)
+            return (string.Empty, string.Empty);
 
-        var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
-        var symbol = model.GetDeclaredSymbol(node) as INamedTypeSymbol;
+        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
+        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var code = GenerateNetworkedComponent(targetModel);
+        var genName = DeriveUtils.GetGeneratedFileName(symbol);
 
-        var mode = AttributeUtils.GetAttribute<byte>(symbol, "DeriveINetworkedComponentAttribute", "Mode", (1 << 0) | (1 << 2));
-
-        var mapFields = (mode & (1 << 0)) != 0;
-        var mapProperties = (mode & (1 << 1)) != 0;
-        var mapPrivate = (mode & (1 << 2)) != 0;
-        var mapPublic = (mode & (1 << 3)) != 0;
-        var mapInternal = (mode & (1 << 4)) != 0;
-
-        var name = symbol!.Name;
-        var source = GenerateNetworkedComponent(
-            symbol,
-            mapFields: mapFields,
-            mapProperties: mapProperties,
-            mapPrivate: mapPrivate,
-            mapPublic: mapPublic,
-            mapInternal: mapInternal);
-
-        return (name, source);
+        return (genName, code);
     }
 
-    private string GenerateNetworkedComponent(INamedTypeSymbol symbol, bool mapFields, bool mapProperties, bool mapPrivate, bool mapPublic, bool mapInternal)
+    private string GenerateNetworkedComponent(DeriveTargetModel model)
     {
-        var info = GeneratorHelper.GetSymbolInfo(
-            symbol,
-            mapFields: mapFields,
-            mapProperties: mapProperties,
-            mapPrivate: mapPrivate,
-            mapPublic: mapPublic,
-            mapInternal: mapInternal);
-        
+        var info = model.Source;
+        var members = model.Members;
         var access = symbol.DeclaredAccessibility.ToString().ToLower(); // public, internal, etc.
-
-        string maskType;
-        string maskTypeRead;
-
-        switch (info.Members.Length)
+        
+        if (model.MaskInfo.Bits < members.Count)
+        
         {
-            case < sizeof(byte) * 8:
-                maskType = "byte";
-                maskTypeRead = "GetByte";
-                break;
-            case < sizeof(ushort) * 8:
-                maskType = "ushort";
-                maskTypeRead = "GetUShort";
-                break;
-            case < sizeof(uint) * 8:
-                maskType = "uint";
-                maskTypeRead = "GetUInt";
-                break;
-            case < sizeof(ulong) * 8:
-                maskType = "ulong";
-                maskTypeRead = "GetULong";
-                break;
-            default:
-                throw new InvalidOperationException($"NetworkedComponent {info.Name} has more than 64 fields. This is not supported.");
+            if (model.Source.EmitDirtyMask)
+            {
+                model.MaskInfo.AddError(
+                    $"Too many synced fields in `{model.Source.Name}` " +
+                    $"to fit in a dirty mask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
+                    $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
+            }
+            else
+            {
+                model.MaskInfo.AddError(
+                    $"Too many synced members in `{model.Source.Name}` " +
+                    $"to fit in the user-supplied _dirtyMask. Maximum supported is {model.MaskInfo.Bits.ToString(CultureInfo.InvariantCulture)}" +
+                    $", but {members.Count.ToString(CultureInfo.InvariantCulture)} were found.");
+            }
+        }
+        
+        foreach (var member in members)
+        {
+            if (!HasGetEmitFieldSupportImpl(member, false))
+            {
+                member.Source.AddError($"Unsupported type '{member.Source.Type.ToDisplayString()}' for networked member '{member.Source.Name}'.");
+            }
+        }
+        
+        var sb = new StringBuilder();
+        var moduleState = new CSharpModuleState();
+        var classState = new CSharpClassState(moduleState);
+        
+        AddDefaultUsings(moduleState);
+        
+        sb.Append($@"
+namespace {info.Namespace};
+
+{access} partial struct {info.Name} : INetworkedComponent
+{{
+");
+
+        if (info.HasErrors)
+        {
+            foreach (var error in info.Errors)
+            {
+                sb.AppendLine($"""
+    #error {error}
+""");
+            }
+
+            sb.AppendLine();
+        }
+        
+        EmitDirtyMask(sb, model);
+
+        foreach (var member in members)
+        {
+            EmitAccessorMethods(sb, member, model, classState);
+            sb.AppendLine();
         }
 
-        var sb = new StringBuilder($@"
+        EmitSerialize(sb, model, classState);
+        EmitDeserialize(sb, model, classState);
+        EmitWriteDelta(sb, model, classState);
+        EmitReadDelta(sb, model, classState);
+        EmitSkipDelta(sb, model, classState);
+
+        sb.AppendLine("""
+    public void ClearDirty() => _dirtyMask = 0;
+    public bool IsDirty => _dirtyMask != 0;
+""");
+
+        if (classState.Members.Count > 0)
+        {
+            sb.AppendLine();
+            
+            foreach (var generatedMember in classState.Members)
+            {
+                if (generatedMember.IsThreadStatic)
+                {
+                    sb.AppendLine("""
+    [ThreadStatic]
+""");
+                }
+                sb.AppendLine($"""
+    private {(generatedMember.IsStatic ? "static " : " ")}{FullyQualifiedTypeName(generatedMember.MemberType)} {generatedMember.MemberName};
+""");
+            }
+        }
+
+        sb.AppendLine("""
+}
+""");
+        
+        // NOTE: Emitting beginning of the file here so that all usings added during generation are added.
+        var usingSb = new StringBuilder();
+        usingSb.Append("""
 // <auto-generated/>
 #nullable enable
 
-using System;
-using System.Numerics;
-using LiteNetLib.Utils;
-using ReadyM.Api.Generators;
-using ReadyM.Api.Multiplayer;
-using ReadyM.Api.Multiplayer.Mapping.Data;
-using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.ECS.Components;
+""");
+        
+        EmitUsings(usingSb, moduleState);
 
-namespace {info.Namespace}
-{{
-    {access} partial struct {info.Name} : INetworkedComponent
-    {{
-        private {maskType} _dirtyMask;
-        private {maskType} _apiMask;
-
-");
-        foreach (var error in info.ErrorMessage)
-        {
-            sb.AppendLine($"    #error {error}");
-        }
-
-        var propertyNames = new string[info.Members.Length];
-        var usePutGet = new bool[info.Members.Length];
-        var isEnum = new bool[info.Members.Length];
-        var enumBaseType = new SpecialType[info.Members.Length];
-        var isEquatable = new bool[info.Members.Length];
-        var isDeltaEquatable = new bool[info.Members.Length];
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-
-            usePutGet[i] = SerializationHelper.IsSerializablePrimitive(info.Members[i].Type.SpecialType);
-            isEnum[i] = info.Members[i].Type.TypeKind == TypeKind.Enum;
-            isEquatable[i] = SerializationHelper.IsEquatable(info.Members[i].Type);
-            isDeltaEquatable[i] = SerializationHelper.IsDeltaEquatable(info.Members[i].Type);
-
-            if (isEnum[i])
-            {
-                enumBaseType[i] = SerializationHelper.GetEnumBaseType(info.Members[i].Type);
-            }
-
-            var fieldName = field.Name;
-            if (fieldName.StartsWith("_"))
-                propertyNames[i] = char.ToUpper(fieldName[1]) + fieldName.Substring(2);
-            else
-                propertyNames[i] = char.ToUpper(fieldName[0]) + fieldName.Substring(2);
-        }
-
-        // public enum Fields : int
-        // {
-        //     Field1,
-        //     Field2,
-        //     ...
-        // }
-        sb.AppendLine("        public static class Fields\n        {");
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var type = info.Members[i].Type;
-
-            // find the 
-            sb.AppendLine($"            public static readonly Field<{info.Name}, {type}> {propertyNames[i]} = new({i}, static c => c.{propertyNames[i]}, static (ref c, v) => c.{propertyNames[i]}_SetFromGame(v), static (ref c, v) => c.{propertyNames[i]}_SetFromApi(v), static c => c.WasSetFromApi({i}));");
-        }
-
-        sb.AppendLine("        }\n");
-
-
-        // Getters and [Obsolete] setters
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-            var type = field.Type.ToDisplayString();
-            var propertyName = propertyNames[i];
-
-            if (field.ReadOnly)
-            {
-                sb.AppendLine($"        public readonly {type} {propertyName}");
-                sb.AppendLine($"            => {field.Name};");
-            }
-            else
-            {
-                sb.AppendLine($"        public {type} {propertyName}");
-                sb.AppendLine("        {");
-                sb.AppendLine($"            get => {field.Name};");
-                sb.AppendLine($"            [Obsolete] set => {propertyName}_SetFromGame(value);");
-                sb.AppendLine("        }\n");
-            }
-        }
-
-        // New setters for setting from Game and from API
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-            var type = field.Type.ToDisplayString();
-            var propertyName = propertyNames[i];
-
-            if (field.ReadOnly)
-            {
-                continue;
-            }
-
-            // Set from Game setter
-
-            sb.AppendLine($"        private void {propertyName}_SetFromGame({type} value)");
-            sb.AppendLine("        {");
-
-            if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
-            {
-                sb.AppendLine($"            if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-            else if (field.Type.Name == "Vector3")
-            {
-                sb.AppendLine($"            if (Vector3.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-            else if (field.Type.Name == "Vector2")
-            {
-                sb.AppendLine($"            if (Vector2.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-            else if (isDeltaEquatable[i])
-            {
-                if (field.Type.IsValueType)
-                    sb.AppendLine($"            if (!{field.Name}.DeltaEquals(value, {VectorComparisonEpsilon})) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-                else
-                    sb.AppendLine($"            if (!({field.Name}?.DeltaEquals(value, {VectorComparisonEpsilon}) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-            else if (isEquatable[i])
-            {
-                if (field.Type.IsValueType)
-                    sb.AppendLine($"            if (!{field.Name}.Equals(value)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-                else
-                    sb.AppendLine($"            if (!({field.Name}?.Equals(value) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-            else
-            {
-                sb.AppendLine($"            if ({field.Name} != value) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, false); }}");
-            }
-
-            sb.AppendLine("        }\n");
-
-            // Set from API setter
-
-            sb.AppendLine($"        private void {propertyName}_SetFromApi({type} value)");
-            sb.AppendLine("        {");
-
-            if (field.Type.SpecialType is SpecialType.System_Single or SpecialType.System_Double)
-            {
-                sb.AppendLine($"            if (Math.Abs({field.Name} - value) > {FloatComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-            else if (field.Type.Name == "Vector3")
-            {
-                sb.AppendLine($"            if (Vector3.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-            else if (field.Type.Name == "Vector2")
-            {
-                sb.AppendLine($"            if (Vector2.DistanceSquared({field.Name}, value) > {VectorComparisonEpsilon}) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-            else if (isDeltaEquatable[i])
-            {
-                if (field.Type.IsValueType)
-                    sb.AppendLine($"            if (!{field.Name}.DeltaEquals(value, {VectorComparisonEpsilon})) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-                else
-                    sb.AppendLine($"            if (!({field.Name}?.DeltaEquals(value, {VectorComparisonEpsilon}) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-            else if (isEquatable[i])
-            {
-                if (field.Type.IsValueType)
-                    sb.AppendLine($"            if (!{field.Name}.Equals(value)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-                else
-                    sb.AppendLine($"            if (!({field.Name}?.Equals(value) ?? value is null)) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-            else
-            {
-                sb.AppendLine($"            if ({field.Name} != value) {{ {field.Name} = value; SetDirty(Fields.{propertyName}, true); }}");
-            }
-
-            sb.AppendLine("        }\n");
-        }
+        sb.Insert(0, usingSb.ToString());
 
         sb.AppendLine("""
-                              public readonly void Serialize(NetDataWriter writer)
-                              {
-                      """);
 
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-
-            if (usePutGet[i])
-            {
-                sb.AppendLine($"            writer.Put({field.Name});");
-            }
-            else if (isEnum[i])
-            {
-                var baseType = SerializationHelper.GetSpecialTypeCSharpName(enumBaseType[i]);
-                sb.AppendLine($"            writer.Put(({baseType}){field.Name});");
-            }
-            else
-            {
-                sb.AppendLine($"            {field.Name}.Serialize(writer);");
-            }
-        }
-
-        sb.AppendLine("        }\n");
-
-        sb.AppendLine("        public void Deserialize(NetDataReader reader)");
-        sb.AppendLine("        {");
-
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-            var propertyName = char.ToUpper(field.Name[1]) + field.Name.Substring(2);
-
-            if (usePutGet[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"            {propertyName} = reader.{getMethod}();");
-            }
-            else if (isEnum[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"            {field.Name} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
-            }
-            else
-            {
-                sb.AppendLine($"            {{ {field.Name}.Deserialize(reader); SetDirty(Fields.{propertyName}, false); }}");
-            }
-        }
-
-        sb.AppendLine("        }\n");
-
-        sb.AppendLine("""
-                              public readonly void WriteDelta(NetDataWriter writer)
-                              {
-                                  var mask = _dirtyMask;
-                                  writer.Put(mask);
-                      """);
-
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-
-            if (usePutGet[i])
-            {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) writer.Put({field.Name});");
-            }
-            else if (isEnum[i])
-            {
-                var baseType = SerializationHelper.GetSpecialTypeCSharpName(enumBaseType[i]);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) writer.Put(({baseType}){field.Name});");
-            }
-            else
-            {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {field.Name}.Serialize(writer);");
-            }
-        }
-
-        sb.AppendLine("        }\n");
-
-        sb.AppendLine("        public void ReadDelta(NetDataReader reader)");
-        sb.AppendLine("        {");
-        sb.AppendLine($"            var mask = reader.{maskTypeRead}();");
-
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-            var propertyName = char.ToUpper(field.Name[1]) + field.Name.Substring(2);
-
-            if (usePutGet[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {propertyName} = reader.{getMethod}();");
-            }
-            else if (isEnum[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {propertyName} = ({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})reader.{getMethod}();");
-            }
-            else
-            {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ {field.Name}.Deserialize(reader); SetDirty(Fields.{propertyName}, false); }}");
-            }
-        }
-
-        sb.AppendLine("        }\n");
-        sb.AppendLine("        public readonly void SkipDelta(NetDataReader reader)");
-        sb.AppendLine("        {");
-        sb.AppendLine($"            var mask = reader.{maskTypeRead}();");
-
-        for (var i = 0; i < info.Members.Length; i++)
-        {
-            var field = info.Members[i];
-
-            if (usePutGet[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(field.Type.SpecialType);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) reader.{getMethod}();");
-            }
-            else if (isEnum[i])
-            {
-                var getMethod = SerializationHelper.GetDeserializationMethod(enumBaseType[i]);
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) reader.{getMethod}();");
-            }
-            else
-            {
-                sb.AppendLine($"            if ((mask & (({maskType})1 << {i})) != 0) {{ var dummy = default({field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}); dummy.Deserialize(reader); }}");
-            }
-        }
-
-        sb.AppendLine("        }\n");
-        sb.AppendLine("        private void SetDirty(int field, bool fromApi)");
-        sb.AppendLine("        {");
-        sb.AppendLine($"            var bit = ({maskType})(1 << field);");
-        sb.AppendLine("            _dirtyMask |= bit;");
-        sb.AppendLine("            if (fromApi)");
-        sb.AppendLine("                _apiMask |= bit;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        public void ClearDirty() => _dirtyMask = 0;");
-        sb.AppendLine("        public void ClearApiFlag() => _apiMask = 0;");
-        sb.AppendLine($"        public void ClearApiFlag(int field) => _apiMask = ({maskType})(_apiMask & ~(({maskType})1 << field));");
-        sb.AppendLine("        public readonly bool IsDirty => _dirtyMask != 0;");
-        sb.AppendLine("        public readonly bool ChangedFromApi => _apiMask != 0;");
-        sb.AppendLine($"        private readonly bool WasSetFromApi(int field) => 0 != (_apiMask & (({maskType})1 << field));");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
+#nullable disable
+""");
 
         return sb.ToString();
+    }
+    
+    // TODO: ^^ Fields and other access stuff from develop
+
+    private void AddDefaultUsings(CSharpModuleState moduleState)
+    {
+        moduleState.AddUsingList([
+            "System",
+            "System.Numerics",
+            "LiteNetLib.Utils",
+            "ReadyM.Api.Generators",
+            "ReadyM.Api.Multiplayer",
+            "ReadyM.Api.Multiplayer.Extensions",
+            "ReadyM.Api.Multiplayer.ECS.Components",
+            "ReadyM.Relay.Common"
+        ]);
+    }
+
+    private void EmitUsings(StringBuilder sb, CSharpModuleState moduleState)
+    {
+        var usings = moduleState.Usings.Distinct().ToList();
+        usings.Sort();
+        
+        foreach (var ns in usings)
+        {
+            sb.AppendLine($"""
+using {ns};
+""");
+        }
+    }
+
+    private void EmitDirtyMask(StringBuilder sb, DeriveTargetModel model)
+    {
+        var mask = model.MaskInfo;
+        
+        if (model.Source.EmitDirtyMask)
+        {
+            sb.AppendLine($"""
+    private {FullyQualifiedTypeName(mask.Type)} _dirtyMask;
+                                   
+""");
+        }
+
+        if (mask.HasErrors)
+        {
+            foreach (var error in mask.Errors)
+            {
+                sb.AppendLine($"""
+    #error {error}
+                                   
+""");
+            }
+        }
+    }
+    
+    private void EmitAccessorMethods(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        if (member.Source.HasErrors)
+        {
+            foreach (var error in member.Source.Errors)
+            {
+                sb.AppendLine($"""
+    #error {error}
+
+""");
+            }
+        }
+        
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, classState);
+        
+        context.State.ResetIndent("    ");
+        impl.EmitAccessorMethods(member.Source.Type, context);
+    }
+
+    private void EmitSerialize(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void Serialize(NetDataWriter writer)
+    {
+""");
+
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+
+            context.State.ResetIndent("        ");
+            impl.EmitSerializeBody(member.Source.Type, context);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+    }
+
+    private void EmitDeserialize(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void Deserialize(NetDataReader reader)
+    {
+""");
+
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+            
+            context.State.ResetIndent("        ");
+            impl.EmitDeserializeBody(member.Source.Type, context);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+    }
+
+    private void EmitWriteDelta(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void WriteDelta(NetDataWriter writer)
+    {
+        var mask = _dirtyMask;
+        writer.Put(mask);
+""");
+
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+            
+            context.State.ResetIndent("        ");
+            impl.EmitWriteDeltaBody(member.Source.Type, context);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+    }
+
+    private void EmitReadDelta(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void ReadDelta(NetDataReader reader)
+    {
+""");
+        sb.AppendLine($"""
+        var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
+""");
+
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+            context.SetCurrentMaskVarName("mask");
+            
+            context.State.ResetIndent("        ");
+            impl.EmitReadDeltaBody(member.Source.Type, context);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+    }
+
+    private void EmitSkipDelta(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        sb.AppendLine("""
+    public void SkipDelta(NetDataReader reader)
+    {
+""");
+        sb.AppendLine($"""
+        var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
+""");
+        
+        var methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+            context.SetCurrentMaskVarName("mask");
+            
+            context.State.ResetIndent("        ");
+            impl.EmitSkipDeltaBody(member.Source.Type, context);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+    }
+
+    private static string GetDeserializationMethod(ITypeSymbol type)
+        => SerializationHelper.GetDeserializationMethod(type.SpecialType);
+
+    private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
+        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.Source.Type, fallback, out _);
+
+    private static ICSharpFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
+        => CSharpFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
+
+    private static CSharpEmitFieldSupportContext CreateEmitContext(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        var methodState = new CSharpMethodState(classState);
+        return CreateEmitContext(sb, member, model, methodState);
+    }
+    
+    private static CSharpEmitFieldSupportContext CreateEmitContext(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpMethodState methodState)
+    {
+        var emitState = new CSharpEmitState(sb, methodState);
+        emitState.SetGeneratedPropertyName(member.GeneratedPropertyName);
+        var context = new CSharpEmitFieldSupportContext(emitState, member, model, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
+        var fieldName = member.Source.Name;
+        var fieldType = member.Source.Type;
+        context.State.ResetCurrent(fieldName, fieldType);
+        return context;
     }
 }

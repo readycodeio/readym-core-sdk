@@ -12,34 +12,28 @@ internal struct NetworkedComponentId(byte id) : IEquatable<NetworkedComponentId>
     private byte _id = id;
 
     public bool Equals(NetworkedComponentId other)
-    {
-        return _id == other._id;
-    }
+        => _id == other._id;
 
     public override bool Equals(object? obj)
-    {
-        return obj is NetworkedComponentId other && Equals(other);
-    }
+        => obj is NetworkedComponentId other && Equals(other);
 
     public override int GetHashCode()
-    {
-        return _id.GetHashCode();
-    }
+        => _id.GetHashCode();
+
+    public override string ToString()
+        => $"NetworkedComponentId({_id})";
 
     public static bool operator ==(NetworkedComponentId left, NetworkedComponentId right)
-    {
-        return left.Equals(right);
-    }
+        => left.Equals(right);
 
     public static bool operator !=(NetworkedComponentId left, NetworkedComponentId right)
-    {
-        return !left.Equals(right);
-    }
+        => !left.Equals(right);
 
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(_id);
     }
+    
     public void Deserialize(NetDataReader reader)
     {
         _id = reader.GetByte();

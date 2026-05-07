@@ -22,4 +22,13 @@
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
         <PackageReference Include="System.Text.Json" Version="10.0.0" />
     </ItemGroup>
+
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);RS1035</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <CompilerVisibleProperty Include="GeneratedCppPath" />
+        <CompilerVisibleProperty Include="GeneratedCppEnabled" />
+    </ItemGroup>
 </Project>

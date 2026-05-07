@@ -7,24 +7,26 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.DI;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
+using ReadyM.Api.ECS.Systems;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.ECS.Systems;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.ECS.Systems;
 using ReadyM.Relay.Client.State;
+using ReadyM.Relay.Common.ECS.Jobs;
+using ReadyM.Relay.Common.ECS.Systems;
 
 namespace ReadyM.Relay.Client;
 
 internal class ClientNetworkedStateSynchronizer : IHostedService
 {
-    private IClientEcsUpdateLoop EcsLoop { get; }
-
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
         public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue = default)
@@ -34,7 +36,8 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner._systemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+            owner._sendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+            owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
     }
 
@@ -44,22 +47,32 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     protected readonly ILogger Logger;
 
     protected readonly JobRegistry JobRegistry;
+    private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
-    private readonly INetworkedComponentRegistry _netComponentRegistry;
+    private readonly ReceiveSchedulerSystem _receive;
 
-    private readonly SystemGroup _systemGroup;
+    private readonly SystemGroup _receiveSystemGroup;
+    private readonly SystemGroup _syncSystemGroup;
+    private readonly SystemGroup _sendSystemGroup;
+    private readonly SystemGroup _clearDirtySystemGroup;
+
+    protected SystemGroup ReceiveSystemGroup => _receiveSystemGroup;
+    protected SystemGroup SendSystemGroup => _sendSystemGroup;
+    protected SystemGroup SyncSystemGroup => _syncSystemGroup;
 
     public ClientNetworkedStateSynchronizer(INetworkedEntityManager netEntity,
         ClientState state,
         JobRegistry jobRegistry,
         INetworkedComponentRegistry netComponentRegistry,
         IRelayClient relayClient,
-        IClientEcsUpdateLoop ecsLoop,
+        ReceiveSchedulerSystem receive,
+        ClientEcsUpdateLoop ecsLoop,
         ClientOwnershipManager ownershipManager,
         ILogger logger)
     {
         State = state;
-        EcsLoop = ecsLoop;
+        _receive = receive;
+        _ecsLoop = ecsLoop;
         _ownershipManager = ownershipManager;
         _netComponentRegistry = netComponentRegistry;
         NetEntity = netEntity;
@@ -97,14 +110,41 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         // sent to the server. 
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
 
-        // NOTE: iterates over all network components with generics without reflection
-        _netComponentRegistry.Accept(new RegisterSystemCallback(this));
-#if DEBUG
-        _systemGroup.SetMonitorPerf(true);
-#endif
-        EcsLoop.AddSystem(_systemGroup);
-    }
+        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
+        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
+        // server.
 
+        _receiveSystemGroup = new SchedulerSystemGroup("Receive", receive);
+#if DEBUG
+        _receiveSystemGroup.SetMonitorPerf(true);
+#endif
+        _ecsLoop.AddSystem(_receiveSystemGroup);
+
+        _syncSystemGroup = new SystemGroup("Sync");
+#if DEBUG
+        _syncSystemGroup.SetMonitorPerf(true);
+#endif
+        _ecsLoop.AddSystem(_syncSystemGroup);
+        
+        _sendSystemGroup = new SystemGroup("Send");
+#if DEBUG
+        _sendSystemGroup.SetMonitorPerf(true);
+#endif
+        _ecsLoop.AddSystem(_sendSystemGroup);
+        
+        _clearDirtySystemGroup = new SystemGroup("ClearDirty");
+#if DEBUG
+        _clearDirtySystemGroup.SetMonitorPerf(true);
+#endif
+        _ecsLoop.AddSystem(_clearDirtySystemGroup);
+
+        _receiveSystemGroup.Add(receive);
+        _syncSystemGroup.Add(state.System);
+        _sendSystemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
+        // NOTE: iterates over all network components with generics without reflection
+        netComponentRegistry.Accept(new RegisterSystemCallback(this));
+    } 
+    
     public void Dispose()
     {
         OnDispose();
@@ -112,7 +152,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
     protected virtual void OnDispose()
     {
-        EcsLoop.RemoveSystem(_systemGroup);
+        _ecsLoop.RemoveSystem(_sendSystemGroup);
+        _ecsLoop.RemoveSystem(_syncSystemGroup);
+        _ecsLoop.RemoveSystem(_receiveSystemGroup);
 
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);
@@ -135,7 +177,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
     protected void OnEcsSnapshotMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        _receive.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -174,12 +216,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             {
                 _skipEcsEventMessages--;
             }
-        }, this, EcsLoop.Scheduler.MakeSafe(reader));
+        }, this, _receive.Scheduler.MakeSafe(reader));
     }
 
     protected void OnEcsChangeOwnershipMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        _receive.Scheduler.Schedule(static (context0, self, readerCopy) =>
         {
             try
             {
@@ -203,12 +245,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             {
                 _skipEcsEventMessages--;
             }
-        }, this, EcsLoop.Scheduler.MakeSafe(reader));
+        }, this, _receive.Scheduler.MakeSafe(reader));
     }
 
     protected void OnEcsDeltaMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        _receive.Scheduler.Schedule(static (_, self, readerCopy) =>
         {
             try
             {
@@ -219,13 +261,13 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             {
                 _skipEcsEventMessages--;
             }
-        }, this, EcsLoop.Scheduler.MakeSafe(reader));
+        }, this, _receive.Scheduler.MakeSafe(reader));
     }
 
     // NOTE: Someone else created an entity, and we are notified about it
     protected void OnEcsCreateEntityMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
-        EcsLoop.Scheduler.Schedule(static (_, self, readerCopy) =>
+        _receive.Scheduler.Schedule(static (cb, self, readerCopy) =>
         {
             try
             {
@@ -259,14 +301,14 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             {
                 _skipEcsEventMessages--;
             }
-        }, this, EcsLoop.Scheduler.MakeSafe(reader));
+        }, this, _receive.Scheduler.MakeSafe(reader));
     }
 
     // NOTE: Someone else deleted an entity, and we are notified about it
     protected void OnEcsDeleteEntityMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         var netId = reader.Get<NetworkId>();
-        EcsLoop.Scheduler.Schedule(static (cb, self, netId0) =>
+        _receive.Scheduler.Schedule(static (cb, self, netId0) =>
         {
             try
             {
@@ -294,7 +336,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         if (_skipEcsEventMessages > 0)
             return;
 
-        EcsLoop.Scheduler.EnsureThread();
+        _receive.Scheduler.EnsureThread();
 
         if (!_ownershipManager.OwnsEntity(netId))
             return;
