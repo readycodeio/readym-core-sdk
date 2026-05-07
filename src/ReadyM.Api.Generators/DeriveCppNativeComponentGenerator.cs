@@ -39,7 +39,12 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             (spc, result) =>
             {
                 // NOTE: For debugging purposes
-                spc.AddSource(result.Left.Name + ".g.h", $"/*\n{result.Left.Code}\n*/");
+                var source = result.Left.Code;
+                // Replace /* with (* and */ with *)
+                source = System.Text.RegularExpressions.Regex.Replace(source, @"/\*", "(*");
+                source = System.Text.RegularExpressions.Regex.Replace(source, @"\*/", "*)");
+                
+                spc.AddSource(result.Left.Name + ".g.h", $"/*\n{source}\n*/");
 
                 if (!result.Right.GenCppEnabled)
                     return;
@@ -183,7 +188,7 @@ namespace {ns}
         foreach (var member in members)
         {
             EmitDirtyMethods(sb, member, model, moduleState);
-            EmitAccessorMethods(sb, member, model, moduleState);
+            EmitAccessorMethods(sb, member, model, moduleState, true);
         }
 
         EmitDirtyMaskAccessMethods(sb, model);
@@ -209,6 +214,15 @@ namespace {ns}
         foreach (var member in members)
         {
             EmitBackingField(sb, member, model);
+        }
+
+        sb.AppendLine("""
+    private:
+""");
+
+        foreach (var member in members)
+        {
+            EmitAccessorMethods(sb, member, model, moduleState, false);
         }
 
         sb.AppendLine($@"
@@ -287,6 +301,9 @@ namespace {ns}
         DeriveTargetModel model,
         CppModuleState moduleState)
     {
+        if (model.MaskInfo == null)
+            return;
+
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, moduleState);
         
@@ -298,13 +315,14 @@ namespace {ns}
         StringBuilder sb,
         DeriveMemberModel member,
         DeriveTargetModel model,
-        CppModuleState moduleState)
+        CppModuleState moduleState,
+        bool emitPublic)
     {
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
         context.State.ResetIndent("        ");
-        impl.EmitAccessorMethods(member.Source.Type, context);
+        impl.EmitAccessorMethods(member.Source.Type, context, emitPublic);
     }
     
     private void EmitAssign(

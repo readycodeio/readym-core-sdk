@@ -107,33 +107,55 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
         context.AppendLine();
     }
 
-    public virtual void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    public virtual void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool emitPublic)
     {
-        if (context.Member.Settings.SkipAccessors)
-            return;
-
-        EmitGetterMethod(symbol, context);
-        context.AppendLine();
-        
-        if (!context.Member.Source.ReadOnly)
+        if (emitPublic)
         {
-            EmitSetterMethod(symbol, context);
+            if (context.Member.Settings.SkipAccessors)
+                return;
+            
+            EmitGetterMethod(symbol, context, true);
             context.AppendLine();
+            
+            if (!context.Member.Source.ReadOnly)
+            {
+                EmitSetterMethod(symbol, context, true);
+                context.AppendLine();
+            }
+        }
+        else // emitPrivate
+        {
+            if (!context.Member.Settings.SkipAccessors)
+                return;
+            
+            EmitGetterMethod(symbol, context, false);
+            context.AppendLine();
+
+            if (!context.Member.Source.ReadOnly)
+            {
+                EmitSetterMethod(symbol, context, false);
+                context.AppendLine();
+            }
         }
     }
 
-    public virtual void EmitGetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    public virtual void EmitGetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool isPublic)
     {
+        if (!isPublic)
+            context.Append("/* private */"); // NOTE: Used inside tests
         EmitGetterType(symbol, context);
-        context.AppendLine($" {context.Member.GeneratedPropertyName}() const");
+        context.Append($" {context.Member.GeneratedPropertyName}() const");
+        context.AppendLine();
         using (context.WithCodeBlock())
         {
             EmitGetterBody(symbol, context);
         }
     }
 
-    public virtual void EmitSetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    public virtual void EmitSetterMethod(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool isPublic)
     {
+        if (!isPublic)
+            context.Append("/* private */"); // NOTE: Used inside tests
         context.Append("void Set");
         context.Append(context.Member.GeneratedPropertyName);
         context.Append("(");
