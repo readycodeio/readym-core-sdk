@@ -68,7 +68,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public void EmitDirtyMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        context.AppendLine($"bool Is{context.Member.GeneratedPropertyName}Dirty()");
+        context.AppendLine($"private bool Is{context.Member.GeneratedPropertyName}Dirty()");
         using (context.WithCodeBlock())
         {
             context.Append($"return ");
@@ -78,7 +78,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
         context.AppendLine();
 
-        context.Append($"void Set{context.Member.GeneratedPropertyName}Dirty()");
+        context.Append($"private void Set{context.Member.GeneratedPropertyName}Dirty()");
         using (context.WithCodeBlock())
         {
             EmitSetDirty(symbol, context);
@@ -170,7 +170,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"   static c => c.{name},");
             context.AppendLine($"   static (ref c, v) => c.{name} = v,");
             context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => ((c._apiMask >> {i}) & 0x1f) == 1);");
+            context.AppendLine($"   static c => c.Is{name}Dirty());");
         }
     }
 

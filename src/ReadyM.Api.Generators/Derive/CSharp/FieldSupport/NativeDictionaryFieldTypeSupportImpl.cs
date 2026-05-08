@@ -155,7 +155,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
             context.AppendLine($"   static c => c.{fieldName},");
             context.AppendLine($"   static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
             context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => ((c._apiMask >> {i}) & 0x1f) == 1);");
+            context.AppendLine($"   static c => c.Is{name}Dirty());");
         }
     }
 }
