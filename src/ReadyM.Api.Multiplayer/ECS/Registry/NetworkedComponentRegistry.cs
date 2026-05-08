@@ -27,7 +27,7 @@ internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistr
     }
 
     public NetworkedComponentId GetNetworkedComponentId(Type type)
-        => _ids[type].Id;
+        => _componentIds[type].Id;
 
     public NetworkedComponentId GetNetworkedComponentId<T>()
         => _componentIds[typeof(T)].Id;

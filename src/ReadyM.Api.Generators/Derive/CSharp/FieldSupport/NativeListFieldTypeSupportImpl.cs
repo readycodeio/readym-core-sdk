@@ -110,5 +110,12 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             context.AppendLine($"{context.State.CurrentVar}.Clear();");
             EmitSetDirty(symbol, context);
         }
+        
+        // TODO: Set-from-api semantics for complex component fields
+        context.AppendLine($"public void {context.State.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine("throw new NotImplementedException(\"Setting entire dictionary from API is not supported. Use individual key-value setters instead.\");");
+        }
     }
 }

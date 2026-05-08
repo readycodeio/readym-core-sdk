@@ -8,9 +8,6 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 {
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = new();
     private readonly List<Type> _componentTypes = [];
-    
-    public IReadOnlyList<Type> ComponentTypes
-        => _componentTypes;
 
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
@@ -26,7 +23,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         return _componentTypes.Count;
     }
 
-    protected TRegistry RegisterComponent<T>(T defaultValue = default)
+    public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
         _componentTypes.Add(typeof(T));

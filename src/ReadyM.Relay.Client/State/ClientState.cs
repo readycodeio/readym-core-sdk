@@ -11,6 +11,7 @@ using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
+using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
@@ -138,6 +139,8 @@ internal class ClientState : IDisposable
         INetworkedEntityManager netEntity,
         IRelayClient relayClient,
         ClientEcsUpdateLoop ecsLoop,
+        DefaultAreaArchetypeRegistration areaArchetype,
+        DefaultPlayerArchetypeRegistration playerArchetype,
         JobRegistry jobRegistry,
         ILogger logger)
     {

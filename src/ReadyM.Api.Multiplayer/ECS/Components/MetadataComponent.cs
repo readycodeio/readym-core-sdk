@@ -9,7 +9,8 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
-internal struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) : IIndexedComponent<NetworkId>, INetSerializable
+internal struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) 
+    : IIndexedComponent<NetworkId>
 {
     public readonly NetworkId NetId = netId;
     public readonly ArchetypeId Archetype = archetype;

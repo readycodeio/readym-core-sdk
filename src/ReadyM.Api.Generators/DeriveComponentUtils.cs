@@ -65,14 +65,12 @@ public class DeriveComponentUtils
         var errors = new List<string>();
         
         ITypeSymbol maskType;
-        var invalid = false;
 
         if (!emitDirtyMask)
         {
             if (requestedMaskType == null)
             {
                 maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
-                invalid = true;
             }
             else
             {

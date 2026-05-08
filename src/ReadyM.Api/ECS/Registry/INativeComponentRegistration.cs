@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.ECS.Registry;
 
-public interface INativeComponentRegistration : IComponentRegistrationBase<INativeComponentRegistry, ValueType>
+internal interface INativeComponentRegistration : IComponentRegistrationBase<INativeComponentRegistry, ValueType>
 {
     // empty    
 }

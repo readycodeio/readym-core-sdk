@@ -14,51 +14,41 @@ namespace ReadyM.Relay.Client;
 /// This class is responsible for scheduling ECS operations on the client side. The current implementation assumes
 /// that the update loop tick will be called externally from the game code, on the appropriate thread.
 /// </summary>
-internal class ClientEcsUpdateLoop : IClientEcsUpdateLoop
+internal class ClientEcsUpdateLoop(Store world, ILogger logger)
 {
-    private readonly Store _world;
-
-    private readonly ILogger _logger;
-
     public event Action? OnStarted;
     public event Action? OnStopped;
 
     public bool IsRunning { get; private set; }
-    private float _applicationTime = 0f;
-
-    public ClientEcsUpdateLoop(Store world, ILogger logger)
-    {
-        _world = world;
-        _logger = logger;
-    }
+    private float _applicationTime;
 
     public void Start()
     {
         if (IsRunning)
         {
-            _logger.LogError("ECS update loop is already running");
+            logger.LogError("ECS update loop is already running");
             return;
         }
 
         IsRunning = true;
 
-        _logger.LogInformation("Starting ECS update loop");
+        logger.LogInformation("Starting ECS update loop");
 
         OnStarted?.Invoke();
 
-        _logger.LogInformation("ECS update loop started successfully");
+        logger.LogInformation("ECS update loop started successfully");
     }
 
     public void Tick(float deltaTime)
     {
         if (!IsRunning)
         {
-            _logger.LogError("ECS update loop is not running. Call `Start()` first.");
+            logger.LogError("ECS update loop is not running. Call `Start()` first.");
             return;
         }
 
         _applicationTime += deltaTime;
-        _world.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
+        world.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
     }
 
     public void Wait(Task task)
@@ -81,7 +71,7 @@ internal class ClientEcsUpdateLoop : IClientEcsUpdateLoop
     {
         if (!IsRunning)
         {
-            _logger.LogError("ECS update loop is not running. Cannot stop.");
+            logger.LogError("ECS update loop is not running. Cannot stop.");
             return;
         }
 
@@ -89,22 +79,22 @@ internal class ClientEcsUpdateLoop : IClientEcsUpdateLoop
 
         OnStopped?.Invoke();
 
-        _logger.LogInformation("ECS update loop stopped.");
+        logger.LogInformation("ECS update loop stopped.");
     }
 
     public void AddSystem(BaseSystem system)
     {
-        _world.SystemRoot.Add(system);
+        world.SystemRoot.Add(system);
     }
 
     public void AddSystem<T>()
         where T : BaseSystem, new()
     {
-        _world.SystemRoot.Add(new T());
+        world.SystemRoot.Add(new T());
     }
 
     public void RemoveSystem(BaseSystem system)
     {
-        _world.SystemRoot.Remove(system);
+        world.SystemRoot.Remove(system);
     }
 }

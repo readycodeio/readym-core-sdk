@@ -14,6 +14,7 @@ internal class CSharpEmitFieldSupportContext(
     public readonly DeriveTargetModel Model = model;
 
     public string CurrentMaskVar { get; private set; } = "_dirtyMask";
+    public string CurrentApiMaskVar { get; private set; } = "_apiMask";
 
     public void EmitSerializeVar(string varName, ITypeSymbol varType)
     {

@@ -20,7 +20,6 @@ using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.ECS.Systems;
 using ReadyM.Relay.Client.State;
-using ReadyM.Relay.Common.ECS.Jobs;
 using ReadyM.Relay.Common.ECS.Systems;
 
 namespace ReadyM.Relay.Client;
@@ -50,11 +49,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
     private readonly ReceiveSchedulerSystem _receive;
+    private readonly INetworkedComponentRegistry _netComponentRegistry;
 
-    private readonly SystemGroup _receiveSystemGroup;
-    private readonly SystemGroup _syncSystemGroup;
-    private readonly SystemGroup _sendSystemGroup;
-    private readonly SystemGroup _clearDirtySystemGroup;
+    private SystemGroup _receiveSystemGroup;
+    private SystemGroup _syncSystemGroup;
+    private SystemGroup _sendSystemGroup;
+    private SystemGroup _clearDirtySystemGroup;
 
     protected SystemGroup ReceiveSystemGroup => _receiveSystemGroup;
     protected SystemGroup SendSystemGroup => _sendSystemGroup;
@@ -79,14 +79,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient = relayClient;
         Logger = logger;
         JobRegistry = jobRegistry;
-
-        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
-        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
-        // server.
-        _systemGroup = new SystemGroup("Networking")
-        {
-            new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient)
-        };
     }
 
     public void OnScopeStart()
@@ -114,7 +106,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
         // server.
 
-        _receiveSystemGroup = new SchedulerSystemGroup("Receive", receive);
+        _receiveSystemGroup = new SchedulerSystemGroup("Receive", _receive);
 #if DEBUG
         _receiveSystemGroup.SetMonitorPerf(true);
 #endif
@@ -125,26 +117,27 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         _syncSystemGroup.SetMonitorPerf(true);
 #endif
         _ecsLoop.AddSystem(_syncSystemGroup);
-        
+
         _sendSystemGroup = new SystemGroup("Send");
 #if DEBUG
         _sendSystemGroup.SetMonitorPerf(true);
 #endif
         _ecsLoop.AddSystem(_sendSystemGroup);
-        
+
         _clearDirtySystemGroup = new SystemGroup("ClearDirty");
 #if DEBUG
         _clearDirtySystemGroup.SetMonitorPerf(true);
 #endif
         _ecsLoop.AddSystem(_clearDirtySystemGroup);
 
-        _receiveSystemGroup.Add(receive);
-        _syncSystemGroup.Add(state.System);
-        _sendSystemGroup.Add(new ClientSendEntityCreatedSystem(jobRegistry, state, relayClient));
+        _receiveSystemGroup.Add(_receive);
+        _syncSystemGroup.Add(State.System);
+        _sendSystemGroup.Add(new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient));
+
         // NOTE: iterates over all network components with generics without reflection
-        netComponentRegistry.Accept(new RegisterSystemCallback(this));
-    } 
-    
+        _netComponentRegistry.Accept(new RegisterSystemCallback(this));
+    }
+
     public void Dispose()
     {
         OnDispose();

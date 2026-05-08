@@ -16,6 +16,6 @@ internal class FallbackFieldTypeSupportImpl : CSharpFieldTypeSupportImplBase
     protected override void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.Append($"throw new System.NotSupportedException(\"No support for field type {symbol.ToDisplayString()}\");");
 
-    protected override void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected override void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi = false)
         => context.Append($"throw new System.NotSupportedException(\"No support for field type {symbol.ToDisplayString()}\");");
 }

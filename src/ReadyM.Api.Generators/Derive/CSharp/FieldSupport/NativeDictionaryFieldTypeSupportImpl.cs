@@ -11,11 +11,11 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
 
     protected override void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"return {context.State.CurrentVar}.AsReadOnly();");
-    
+
     public override void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         var tempVar = context.ClassState.AddTempThreadStatic(symbol);
-        
+
         using (context.WithCurrent(tempVar, symbol))
         {
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
@@ -23,7 +23,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
             context.AppendLine($"Set{context.State.GeneratedPropertyName}({tempVar});");
         }
     }
-    
+
     public override void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
@@ -34,15 +34,17 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             EmitGetterBody(symbol, context);
         }
+
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context);
         }
+
         context.AppendLine();
-        
+
         context.AppendLine($"public int {context.State.GeneratedPropertyName}Count");
         using (context.WithCodeBlock())
         {
@@ -52,6 +54,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
                 context.AppendLine($"return {context.State.CurrentVar}.Count;");
             }
         }
+
         context.AppendLine();
 
         context.AppendLine($"public {FullyQualifiedTypeName(valueType)} Get{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key)");
@@ -59,8 +62,9 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             context.AppendLine($"return {context.State.CurrentVar}[in key];");
         }
+
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key, in {FullyQualifiedTypeName(valueType)} value)");
         using (context.WithCodeBlock())
         {
@@ -70,6 +74,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
                 EmitSetDirty(symbol, context);
             }
         }
+
         context.AppendLine();
 
         context.AppendLine($"public bool Contains{context.State.GeneratedPropertyName}Key(in {FullyQualifiedTypeName(keyType)} key)");
@@ -77,6 +82,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             context.AppendLine($"return {context.State.CurrentVar}.ContainsKey(in key);");
         }
+
         context.AppendLine();
 
         context.AppendLine($"public bool Contains{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key, in {FullyQualifiedTypeName(valueType)} value)");
@@ -84,6 +90,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             context.AppendLine($"return {context.State.CurrentVar}.Contains(in key, value);");
         }
+
         context.AppendLine();
 
         context.AppendLine($"public bool TryGet{context.State.GeneratedPropertyName}Value(in {FullyQualifiedTypeName(keyType)} key, out {FullyQualifiedTypeName(valueType)} value)");
@@ -91,8 +98,9 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             context.AppendLine($"return {context.State.CurrentVar}.TryGetValue(in key, out value);");
         }
+
         context.AppendLine();
-        
+
         context.AppendLine($"public bool Add{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key, in {FullyQualifiedTypeName(valueType)} value)");
         using (context.WithCodeBlock())
         {
@@ -100,14 +108,16 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
             EmitSetDirty(symbol, context);
             context.AppendLine("return result;");
         }
+
         context.AppendLine();
-        
+
         context.AppendLine($"public void Clear{context.State.GeneratedPropertyName}()");
         using (context.WithCodeBlock())
         {
             context.AppendLine($"{context.State.CurrentVar}.Clear();");
             EmitSetDirty(symbol, context);
         }
+
         context.AppendLine();
 
         context.AppendLine($"public bool Remove{context.State.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key)");
@@ -117,6 +127,32 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
             EmitSetDirty(symbol, context);
             context.AppendLine("return result;");
         }
+
         context.AppendLine();
+
+        context.AppendLine($"public void {context.State.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
+        using (context.WithCodeBlock())
+        {
+            EmitSetterBody(symbol, context, true);
+        }
+    }
+
+    public override void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
+    {
+        var member = context.Member;
+        var i = context.Member.MaskIndex;
+        var name = member.GeneratedPropertyName;
+        var type = member.Source.Type;
+        var typeName = context.Model.Source.Name;
+        var fieldName = member.Source.Name;
+
+        using (context.WithIndent())
+        {
+            context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
+            context.AppendLine($"   static c => c.{fieldName},");
+            context.AppendLine($"   static (ref c, v) => c.Set{context.State.GeneratedPropertyName}(v),");
+            context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
+            context.AppendLine($"   static c => ((c._apiMask >> {i}) & 0x1f) == 1);");
+        }
     }
 }

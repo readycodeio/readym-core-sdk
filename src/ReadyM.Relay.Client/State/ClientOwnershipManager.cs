@@ -1,5 +1,6 @@
 ﻿using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 

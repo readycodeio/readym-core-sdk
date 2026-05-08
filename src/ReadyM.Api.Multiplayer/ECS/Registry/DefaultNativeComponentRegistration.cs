@@ -1,10 +1,9 @@
 ﻿using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Relay.Common.ECS.Components;
 
-namespace ReadyM.Relay.Common.ECS.Registry;
+namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-public class DefaultNativeComponentRegistration : INativeComponentRegistration
+internal class DefaultNativeComponentRegistration : INativeComponentRegistration
 {
     public void Register(INativeComponentRegistry registry)
     {

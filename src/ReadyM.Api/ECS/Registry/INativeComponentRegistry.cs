@@ -1,9 +1,8 @@
 ﻿using System;
-using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Registry;
 
-public interface INativeComponentRegistry : IComponentRegistryBase<INativeComponentRegistry, ValueType>
+internal interface INativeComponentRegistry : IComponentRegistryBase<INativeComponentRegistry, ValueType>
 {
-    // empty
+    INativeComponentRegistry RegisterComponent<T>(T defaultValue = default) where T : struct;
 }

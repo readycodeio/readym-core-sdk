@@ -6,7 +6,7 @@ using ReadyM.Api.Helpers;
 
 namespace ReadyM.Api.ECS.Systems;
 
-public abstract class SchedulerSystemBase(ILogger logger) : BaseSystem
+internal abstract class SchedulerSystemBase(ILogger logger) : BaseSystem
 {
     private readonly PendingActionUpdater<CommandBufferSynced> _scheduler = new(null!, logger);
 

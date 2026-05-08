@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.ECS.Systems;
 
-public class SchedulerSystemGroup : SystemGroup
+internal class SchedulerSystemGroup : SystemGroup
 {
     private readonly SchedulerSystemBase schedulerSystem;
 

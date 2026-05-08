@@ -4,11 +4,11 @@ using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
+using ReadyM.Api.Multiplayer.Compat;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Relay.Common.Compat;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
