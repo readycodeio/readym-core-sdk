@@ -8,7 +8,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [NativeComponent]
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) 
     : IIndexedComponent<NetworkId>
 {

@@ -34,7 +34,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
             owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner._sendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+            owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
             owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
     }
@@ -50,14 +50,13 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     private readonly ReceiveSchedulerSystem _receive;
     private readonly INetworkedComponentRegistry _netComponentRegistry;
 
-    private SystemGroup _receiveSystemGroup;
-    private SystemGroup _syncSystemGroup;
-    private SystemGroup _sendSystemGroup;
-    private SystemGroup _clearDirtySystemGroup;
+    private readonly SystemGroup _clearDirtySystemGroup;
 
-    protected SystemGroup ReceiveSystemGroup => _receiveSystemGroup;
-    protected SystemGroup SendSystemGroup => _sendSystemGroup;
-    protected SystemGroup SyncSystemGroup => _syncSystemGroup;
+    protected SystemGroup ReceiveSystemGroup { get; }
+
+    protected SystemGroup SendSystemGroup { get; }
+
+    protected SystemGroup SyncSystemGroup { get; }
 
     public ClientNetworkedStateSynchronizer(INetworkedEntityManager netEntity,
         ClientState state,
@@ -78,9 +77,34 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient = relayClient;
         Logger = logger;
         JobRegistry = jobRegistry;
+        
+        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
+        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
+        // server.
+
+        ReceiveSystemGroup = new SchedulerSystemGroup("Receive", _receive);
+#if DEBUG
+        ReceiveSystemGroup.SetMonitorPerf(true);
+#endif
+
+        SyncSystemGroup = new SystemGroup("Sync");
+#if DEBUG
+        SyncSystemGroup.SetMonitorPerf(true);
+#endif
+        
+
+        SendSystemGroup = new SystemGroup("Send");
+#if DEBUG
+        SendSystemGroup.SetMonitorPerf(true);
+#endif
+
+        _clearDirtySystemGroup = new SystemGroup("ClearDirty");
+#if DEBUG
+        _clearDirtySystemGroup.SetMonitorPerf(true);
+#endif
     }
 
-    public void OnScopeStart()
+    public virtual void OnScopeStart()
     {
         // When an ECS snapshot message is received, the client applies it to its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotMessageHandler);
@@ -100,38 +124,15 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
         // sent to the server. 
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
-
-        // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
-        // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
-        // server.
-
-        _receiveSystemGroup = new SchedulerSystemGroup("Receive", _receive);
-#if DEBUG
-        _receiveSystemGroup.SetMonitorPerf(true);
-#endif
-        _ecsLoop.AddSystem(_receiveSystemGroup);
-
-        _syncSystemGroup = new SystemGroup("Sync");
-#if DEBUG
-        _syncSystemGroup.SetMonitorPerf(true);
-#endif
-        _ecsLoop.AddSystem(_syncSystemGroup);
-
-        _sendSystemGroup = new SystemGroup("Send");
-#if DEBUG
-        _sendSystemGroup.SetMonitorPerf(true);
-#endif
-        _ecsLoop.AddSystem(_sendSystemGroup);
-
-        _clearDirtySystemGroup = new SystemGroup("ClearDirty");
-#if DEBUG
-        _clearDirtySystemGroup.SetMonitorPerf(true);
-#endif
+        
+        _ecsLoop.AddSystem(ReceiveSystemGroup);
+        _ecsLoop.AddSystem(SyncSystemGroup);
+        _ecsLoop.AddSystem(SendSystemGroup);
         _ecsLoop.AddSystem(_clearDirtySystemGroup);
 
-        _receiveSystemGroup.Add(_receive);
-        _syncSystemGroup.Add(State.System);
-        _sendSystemGroup.Add(new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient));
+        ReceiveSystemGroup.Add(_receive);
+        SyncSystemGroup.Add(State.System);
+        SendSystemGroup.Add(new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient));
 
         // NOTE: iterates over all network components with generics without reflection
         _netComponentRegistry.Accept(new RegisterSystemCallback(this));
@@ -144,9 +145,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
     protected virtual void OnDispose()
     {
-        _ecsLoop.RemoveSystem(_sendSystemGroup);
-        _ecsLoop.RemoveSystem(_syncSystemGroup);
-        _ecsLoop.RemoveSystem(_receiveSystemGroup);
+        _ecsLoop.RemoveSystem(SendSystemGroup);
+        _ecsLoop.RemoveSystem(SyncSystemGroup);
+        _ecsLoop.RemoveSystem(ReceiveSystemGroup);
 
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);

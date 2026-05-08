@@ -8,6 +8,8 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 {
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = new();
     private readonly List<Type> _componentTypes = [];
+    
+    public List<Type> ComponentTypes => _componentTypes;
 
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
