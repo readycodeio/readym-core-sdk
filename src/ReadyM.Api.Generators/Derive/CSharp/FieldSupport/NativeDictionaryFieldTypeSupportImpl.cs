@@ -133,7 +133,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
 
         context.AppendLine();
 
-        context.AppendLine($"public void {context.State.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
+        context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);
@@ -153,7 +153,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         {
             context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
             context.AppendLine($"   static c => c.{fieldName},");
-            context.AppendLine($"   static (ref c, v) => c.Set{context.State.GeneratedPropertyName}(v),");
+            context.AppendLine($"   static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
             context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
             context.AppendLine($"   static c => ((c._apiMask >> {i}) & 0x1f) == 1);");
         }

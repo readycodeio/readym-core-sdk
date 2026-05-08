@@ -54,7 +54,6 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         var access = model.Source.Symbol.DeclaredAccessibility.ToString().ToLower(); // public, internal, etc.
 
         if (model.MaskInfo.Bits < members.Count)
-
         {
             if (model.Source.EmitDirtyMask)
             {
@@ -87,7 +86,7 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         AddDefaultUsings(moduleState);
 
         var hasDispose = HasDispose(sb, model, classState);
-        
+
         sb.Append($@"
 namespace {info.Namespace};
 
@@ -111,12 +110,17 @@ namespace {info.Namespace};
 
         foreach (var member in members)
         {
+            if (member.Source.Type.ContainingNamespace is { } ns)
+            {
+                moduleState.AddUsing(ns.ToDisplayString());
+            }
+
             EmitDirtyMethods(sb, member, model, classState);
             EmitAccessorMethods(sb, member, model, classState);
         }
 
         EmitFieldEnums(sb, model, classState);
-        EmitApiFlagHelpers(sb);
+        EmitApiFlagHelpers(sb, model);
 
         EmitSerialize(sb, model, classState);
         EmitDeserialize(sb, model, classState);
@@ -130,12 +134,12 @@ namespace {info.Namespace};
                       """);
 
         EmitAssign(sb, model, classState);
-        
+
         if (hasDispose)
         {
             EmitDispose(sb, model, classState);
         }
-        
+
         if (classState.Members.Count > 0)
         {
             foreach (var generatedMember in classState.Members)
@@ -229,7 +233,7 @@ namespace {info.Namespace};
             }
         }
     }
-    
+
     private void EmitDirtyMethods(
         StringBuilder sb,
         DeriveMemberModel member,
@@ -238,11 +242,11 @@ namespace {info.Namespace};
     {
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, classState);
-        
+
         context.State.ResetIndent("    ");
         impl.EmitDirtyMethods(member.Source.Type, context);
     }
-    
+
     private void EmitAccessorMethods(
         StringBuilder sb,
         DeriveMemberModel member,
@@ -283,14 +287,14 @@ namespace {info.Namespace};
         sb.AppendLine("        }\n");
     }
 
-    private void EmitApiFlagHelpers(StringBuilder sb)
+    private void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
         // public void ClearApiFlag() => _apiMask = 0;
         // public void ClearApiFlag(int field) => _apiMask = (byte)(_apiMask & ~((byte)1 << field));
         // public readonly bool ChangedFromApi => _apiMask != 0;
 
         sb.AppendLine("public void ClearApiFlag() => _apiMask = 0;");
-        sb.AppendLine("public void ClearApiFlag(int field) => _apiMask = (byte)(_apiMask & ~((byte)1 << field));");
+        sb.AppendLine($"public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));");
         sb.AppendLine("public readonly bool ChangedFromApi => _apiMask != 0;");
     }
 
@@ -445,39 +449,39 @@ namespace {info.Namespace};
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, methodContext);
-        
+
             result = result || impl.HasDispose(member.Source.Type, context);
         }
 
         return result;
     }
-    
+
     private void EmitDispose(
         StringBuilder sb,
         DeriveTargetModel model,
         CSharpClassState classState)
     {
         sb.AppendLine("""
-    public void Dispose()
-    {
-""");
-        
+                          public void Dispose()
+                          {
+                      """);
+
         var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, methodContext);
-    
+
             context.State.ResetIndent("        ");
             impl.EmitDisposeBody(member.Source.Type, context);
         }
-            
+
         sb.AppendLine("""
+                          }
+
+                      """);
     }
 
-""");
-    }
-    
     private void EmitAssign(
         StringBuilder sb,
         DeriveTargetModel model,
@@ -486,27 +490,27 @@ namespace {info.Namespace};
         sb.Append(@$"
     public void Assign(in {FullyQualifiedTypeName(model.Source.Symbol)} value)
 ");
-        
+
         sb.AppendLine("""
-    {
-""");
-        
+                          {
+                      """);
+
         var methodContext = new CSharpMethodState(classState);
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, methodContext);
-    
+
             context.State.ResetIndent("        ");
             impl.EmitAssignComponentBody(member.Source.Type, context);
         }
-            
+
         sb.AppendLine("""
+                          }
+
+                      """);
     }
 
-""");
-    }
-    
     private static string GetDeserializationMethod(ITypeSymbol type)
         => SerializationHelper.GetDeserializationMethod(type.SpecialType);
 

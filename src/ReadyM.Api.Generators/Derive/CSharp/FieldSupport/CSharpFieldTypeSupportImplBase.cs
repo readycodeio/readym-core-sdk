@@ -75,13 +75,15 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             EmitDirtyCheck(symbol, context, false);
             context.AppendLine(";");
         }
+
         context.AppendLine();
-        
+
         context.Append($"void Set{context.Member.GeneratedPropertyName}Dirty()");
         using (context.WithCodeBlock())
         {
             EmitSetDirty(symbol, context);
         }
+
         context.AppendLine();
     }
 
@@ -98,7 +100,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
                     EmitSetterBody(symbol, context);
                 }
             }
-            
+
             return;
         }
 
@@ -124,14 +126,15 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             }
         }
 
-        context.AppendLine($"private void {context.State.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
+        var paramType = context.Member.Settings.BoolAccessors ? "bool" : FullyQualifiedTypeName(symbol);
+        context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);
         }
     }
-    
-    protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi = false)
+
+    protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (context.Member.Settings.BoolAccessors)
             context.AppendLine($"return {context.State.CurrentVar} != 0;");
@@ -139,33 +142,32 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"return {context.State.CurrentVar};");
     }
 
-    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi = false)
     {
         context.Append("if ");
         EmitNotEqualCheck(symbol, context, forceParen: true);
         context.AppendLine();
-        
+
         using (context.WithCodeBlock())
         {
             EmitAssign(symbol, context);
             EmitSetDirty(symbol, context, fromApi);
         }
     }
-    
+
 
     public virtual void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
         var name = member.GeneratedPropertyName;
-        var type = member.Source.Type;
+        var type = context.Member.Settings.BoolAccessors ? "bool" : member.Source.Type.ToString();
         var typeName = context.Model.Source.Name;
-        var fieldName = member.Source.Name;
 
         using (context.WithIndent())
         {
             context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
-            context.AppendLine($"   static c => c.{fieldName},");
+            context.AppendLine($"   static c => c.{name},");
             context.AppendLine($"   static (ref c, v) => c.{name} = v,");
             context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
             context.AppendLine($"   static c => ((c._apiMask >> {i}) & 0x1f) == 1);");
@@ -182,7 +184,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         {
             context.AppendLine($"{FullyQualifiedTypeName(symbol)} {tempVar} = default;");
             context.EmitDeserializeVar(context.State.CurrentVar, symbol);
-            
+
             if (context.Member.Settings.BoolAccessors)
                 context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar} != 0;");
             else
@@ -243,7 +245,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
                 context.AppendLine($"{context.State.CurrentVar}.Dispose();");
         }
     }
-    
+
     public virtual void EmitAssignComponentBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         context.AppendLine($"{context.Member.GeneratedPropertyName} = value.{context.Member.GeneratedPropertyName};");
