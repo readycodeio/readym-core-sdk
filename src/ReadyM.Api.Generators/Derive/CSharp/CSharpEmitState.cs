@@ -202,17 +202,4 @@ internal class CSharpEmitState(StringBuilder sb, CSharpMethodState methodState)
     
     public CurrentVarContext WithCurrent(string varName, ITypeSymbol varType)
         => new(this, varName, varType);
-
-    public string GeneratedPropertyName
-    {
-        get
-        {
-            if (_generatedPropertyName == null)
-                throw new InvalidOperationException("Generated property name is not set for current member.");
-            return _generatedPropertyName;
-        }
-    }
-
-    public void SetGeneratedPropertyName(string name)
-        => _generatedPropertyName = name;
 }

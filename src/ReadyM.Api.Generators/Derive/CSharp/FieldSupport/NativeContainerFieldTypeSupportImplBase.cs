@@ -21,7 +21,7 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
         {
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
-            context.AppendLine($"{context.State.GeneratedPropertyName} = {tempVar};");
+            context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");
         }
     }
     
@@ -38,5 +38,10 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
         }
+    }
+    
+    public override void EmitAssignComponentBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        context.AppendLine($"Set{context.Member.GeneratedPropertyName}(value.{context.State.CurrentVar});");
     }
 }

@@ -615,8 +615,10 @@ public struct LocalAppearanceComponent : IComponent
         Assert.NotEmpty(generatedText);
         
         Assert.Contains("uint8_t _isAppearanceSynced = 0;", generatedText);
-        Assert.DoesNotContain("IsAppearanceSynced", generatedText);
-        Assert.DoesNotContain("SetIsAppearanceSynced", generatedText);
+        Assert.DoesNotContain(" uint8_t IsAppearanceSynced", generatedText);
+        Assert.DoesNotContain(" void SetIsAppearanceSynced", generatedText);
+        Assert.Contains("(* private *)uint8_t IsAppearanceSynced", generatedText);
+        Assert.Contains("(* private *)void SetIsAppearanceSynced", generatedText);
     }
 
     private static void AssertContainerMember(

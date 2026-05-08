@@ -140,13 +140,17 @@ public class DeriveComponentUtils
     private static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
     {
         var generatedPropertyName = GetGeneratedPropertyName(memberInfo.Name);
-        var skipAccessMethods = AttributeUtils.HasAttribute(memberInfo.Symbol, "SkipNativeAccessMethodsAttribute");
+        var skipAccessors = AttributeUtils.HasAttribute(memberInfo.Symbol, "SkipNativeAccessMethodsAttribute");
+        var boolAccessors = AttributeUtils.HasAttribute(memberInfo.Symbol, "BoolNativeAccessMethodsAttribute");
+        var settings = new DeriveAccessorMemberSettings(
+            skipAccessors: skipAccessors,
+            boolAccessors: boolAccessors);
         
         return new DeriveMemberModel(
             source: memberInfo, 
             generatedPropertyName: generatedPropertyName,
             maskIndex: index,
-            skipAccessorMethods: skipAccessMethods);
+            settings: settings);
     }
 
     private static string GetGeneratedPropertyName(string memberName)
