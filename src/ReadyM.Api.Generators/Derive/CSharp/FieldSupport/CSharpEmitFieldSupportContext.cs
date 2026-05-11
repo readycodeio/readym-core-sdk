@@ -7,8 +7,8 @@ internal class CSharpEmitFieldSupportContext(
     CSharpEmitState state,
     DeriveMemberModel member,
     DeriveTargetModel model,
-    IDeriveTypeSupportVisitor<CSharpEmitSerializeContext> serializeVisitor,
-    IDeriveTypeSupportVisitor<CSharpEmitDeserializeContext> deserializeVisitor) : CSharpEmitContextBase(state)
+    IDeriveSupportVisitor<ITypeSymbol, CSharpEmitSerializeContext> serializeVisitor,
+    IDeriveSupportVisitor<ITypeSymbol, CSharpEmitDeserializeContext> deserializeVisitor) : CSharpEmitContextBase(state)
 {
     public readonly DeriveMemberModel Member = member;
     public readonly DeriveTargetModel Model = model;

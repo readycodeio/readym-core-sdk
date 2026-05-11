@@ -1,8 +1,10 @@
-﻿namespace ReadyM.Api.Generators.Derive.CSharp.Serialization;
+﻿using Microsoft.CodeAnalysis;
+
+namespace ReadyM.Api.Generators.Derive.CSharp.Serialization;
 
 internal interface ICSharpTypeSerializationImpl
-    : IDeriveTypeSupportImpl<CSharpEmitSerializeContext>,
-      IDeriveTypeSupportImpl<CSharpEmitDeserializeContext>
+    : IDeriveSupportImpl<ITypeSymbol, CSharpEmitSerializeContext>,
+      IDeriveSupportImpl<ITypeSymbol, CSharpEmitDeserializeContext>
 {
     // empty
 }

@@ -4,7 +4,7 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 internal class FallbackFieldTypeSupportImpl : CppFieldTypeSupportImplBase
 {
-    public override bool Supports(ITypeSymbol type)
+    public override bool Supports(DeriveMemberModel type)
         => true;
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)

@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 
-internal interface ICSharpFieldTypeSupportImpl : IDeriveTypeSupportImplBase
+internal interface ICSharpFieldTypeSupportImpl : IDeriveSupportImplBase<ITypeSymbol>
 {
     void EmitDirtyMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);

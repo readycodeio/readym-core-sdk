@@ -7,7 +7,7 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 {
-    public abstract bool Supports(ITypeSymbol type);
+    public abstract bool Supports(DeriveMemberModel type);
 
     protected virtual void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
@@ -210,8 +210,16 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
         }
     }
 
+    public virtual bool HasAssignComponent(ITypeSymbol sourceType, CppEmitFieldSupportContext context)
+        => true;
+
     public virtual void EmitAssignComponentBody(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         context.AppendLine($"Set{context.Member.GeneratedPropertyName}(value.{context.Member.GeneratedPropertyName}());");
+    }
+
+    public virtual void EmitBackingField(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    {
+        context.AppendLine($"{CppTypeName(symbol)} {context.Member.Source.Name} = {GetCppDefaultValue(symbol)};");
     }
 }

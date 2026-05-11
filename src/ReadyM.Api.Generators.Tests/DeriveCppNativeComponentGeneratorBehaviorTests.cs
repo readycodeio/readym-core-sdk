@@ -626,7 +626,125 @@ public struct LocalAppearanceComponent : IComponent
         Assert.Contains("(* private *)uint8_t IsAppearanceSynced(", generatedText);
         Assert.Contains("(* private *)void SetIsAppearanceSynced(", generatedText);
     }
+    
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithIntPtrField_TransformsIntPtrIntoVoidPointer()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
 
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct PointerComponent : IComponent
+{
+    private uint _dirtyMask;
+
+    private IntPtr _nativeHandle;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.Contains("void* NativeHandle() const", generatedText);
+        Assert.Contains("void SetNativeHandle(void* value)", generatedText);
+        Assert.Contains("if (_nativeHandle != value)", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 0;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+        Assert.Contains("void* _nativeHandle = nullptr;", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithCppNativeFieldTypeAttribute_UsesSpecifiedCppTypeAndInclude()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct LocalAnimationComponent : IComponent
+{
+    private uint _dirtyMask;
+
+    [CppNativeFieldType("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>", includes: "Unreal/GCPinnedPtr.h")]
+    private IntPtr _localMontage;
+
+    private int _localMontagePosition;
+
+    [CppNativeFieldType("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>", defaultValue: "{}", includes: "Unreal/GCPinnedPtr.h")]
+    private IntPtr _animInstance;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("#include \"Unreal/GCPinnedPtr.h\"", generatedText);
+
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> LocalMontage() const", generatedText);
+        Assert.Contains("void SetLocalMontage(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
+        Assert.Contains("if (_localMontage != value)", generatedText);
+        Assert.Contains("_localMontage = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 0;", generatedText);
+
+        Assert.Contains("int32_t LocalMontagePosition() const", generatedText);
+        Assert.Contains("void SetLocalMontagePosition(int32_t value)", generatedText);
+        Assert.Contains("if (_localMontagePosition != value)", generatedText);
+        Assert.Contains("_localMontagePosition = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 1;", generatedText);
+
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> AnimInstance() const", generatedText);
+        Assert.Contains("void SetAnimInstance(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
+        Assert.Contains("if (_animInstance != value)", generatedText);
+        Assert.Contains("_animInstance = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 2;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _localMontage = {};", generatedText);
+        Assert.Contains("int32_t _localMontagePosition = 0;", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _animInstance = {};", generatedText);
+
+        Assert.DoesNotContain("void* LocalMontage() const", generatedText);
+        Assert.DoesNotContain("void* _localMontage = nullptr;", generatedText);
+        Assert.DoesNotContain("void* AnimInstance() const", generatedText);
+        Assert.DoesNotContain("void* _animInstance = nullptr;", generatedText);
+    }
+    
     private static void AssertContainerMember(
         string generatedText,
         string getterSignature,

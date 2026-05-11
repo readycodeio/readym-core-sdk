@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -161,10 +162,13 @@ namespace {ns}
 ");
         }
 
+        var hasAssign = HasAssignComponent(sb, model, moduleState);
         var hasCreate = HasCreate(sb, model, moduleState);
         var hasDispose = HasDispose(sb, model, moduleState);
         
         sb.AppendLine($@"
+    struct {model.Source.Name};
+
     struct {model.Source.Name}GeneratedBase
     {{
 ");
@@ -193,7 +197,10 @@ namespace {ns}
 
         EmitDirtyMaskAccessMethods(sb, model);
 
-        EmitAssign(sb, model, moduleState);
+        if (hasAssign)
+        {
+            EmitAssign(sb, model, moduleState);
+        }
 
         if (hasCreate)
         {
@@ -213,7 +220,7 @@ namespace {ns}
 
         foreach (var member in members)
         {
-            EmitBackingField(sb, member, model);
+            EmitBackingField(sb, member, model, moduleState);
         }
 
         sb.AppendLine("""
@@ -225,6 +232,14 @@ namespace {ns}
             EmitAccessorMethods(sb, member, model, moduleState, false);
         }
 
+        sb.AppendLine("""
+    protected:
+""");
+        if (info.EmitBindDelete)
+        {
+            EmitNativeEntityDeleteImpl(sb, model);
+        }
+        
         sb.AppendLine($@"
     }}; // struct {model.Source.Name}GeneratedBase
 ");
@@ -260,17 +275,27 @@ namespace {ns}
             ("Native/Container/NativeDictionary.h", false),
             ("Native/Container/IntHash.h", false),
             ("Native/Container/NativeList.h", false),
+            ("ECS/Values/RawEntity.h", false),
         ]);
 
         foreach (var member in model.Members)
         {
-            AddDefaultIncludes(moduleState, member.Source.Type);
+            AddDefaultIncludes(moduleState, member);
         }
     }
     
-    private void AddDefaultIncludes(CppModuleState moduleState, ITypeSymbol symbol)
+    private void AddDefaultIncludes(CppModuleState moduleState, DeriveMemberModel model)
     {
-        var includes = CppPaths(symbol);
+        var attrIncludes = AttributeUtils.GetArrayAttribute<string>(model.Source.Symbol, "CppNativeFieldTypeAttribute", "includes");
+        if (attrIncludes != null)
+        {
+            foreach (var path in attrIncludes)
+            {
+                moduleState.AddInclude(path, false);
+            }
+        }
+
+        var includes = CppPaths(model.Source.Type);
         foreach (var path in includes)
         {
             moduleState.AddInclude(path, false);
@@ -349,6 +374,23 @@ namespace {ns}
         sb.AppendLine("""
         }
 """);
+    }
+    
+    private bool HasAssignComponent(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        var result = true;
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, moduleState);
+        
+            result = result && impl.HasAssignComponent(member.Source.Type, context);
+        }
+
+        return result;
     }
 
     private bool HasCreate(
@@ -477,7 +519,10 @@ namespace {ns}
         }
     }
 
-    private void EmitBackingField(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model)
+    private void EmitBackingField(StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
     {
         if (member.Source.HasErrors)
         {
@@ -489,16 +534,66 @@ namespace {ns}
             }
         }
         
-        sb.AppendLine($"""
-        {CppTypeName(member.Source.Type)} {member.Source.Name} = {GetCppDefaultValue(member.Source.Type)};
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, moduleState);
+        
+        context.State.ResetIndent("        ");
+        impl.EmitBackingField(member.Source.Type, context);
+    }
+    
+    private void EmitNativeEntityDeleteImpl(StringBuilder sb, DeriveTargetModel model)
+    {
+        sb.AppendLine($$"""
+        class NativeEntityDeleteImplGeneratedBase
+        {
+        public:
+            struct NativeBinding
+            {
+                void* Target = nullptr;
+                void (*OnEntityDeleteHandler)(
+                    void* target,
+                    Friflo::Engine::ECS::RawEntity entity,
+                    {{model.Source.Name}}* comp) = nullptr;
+
+                bool IsValid() const
+                {
+                    return Target != nullptr && OnEntityDeleteHandler != nullptr;
+                }
+            };
+            
+            NativeEntityDeleteImplGeneratedBase() = default;
+            NativeEntityDeleteImplGeneratedBase(const NativeEntityDeleteImplGeneratedBase&) = delete;
+            NativeEntityDeleteImplGeneratedBase(NativeEntityDeleteImplGeneratedBase&&) = delete;
+            NativeEntityDeleteImplGeneratedBase& operator=(const NativeEntityDeleteImplGeneratedBase&) = delete;
+            NativeEntityDeleteImplGeneratedBase& operator=(NativeEntityDeleteImplGeneratedBase&&) = delete;
+            virtual ~NativeEntityDeleteImplGeneratedBase() = default;
+            
+            NativeBinding GetNativeBinding()
+            {
+                return NativeBinding
+                {
+                    .Target = this,
+                    .OnEntityDeleteHandler = [](
+                        void* target,
+                        Friflo::Engine::ECS::RawEntity entity,
+                        {{model.Source.Name}}* comp)
+                    {
+                        static_cast<NativeEntityDeleteImplGeneratedBase*>(target)->HandleEntityDelete(entity, *comp);
+                    }
+                };
+            }
+
+        protected:
+            virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, {{model.Source.Name}}& comp) = 0;
+        };
 """);
     }
     
     private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.Source.Type, fallback, out _);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member, fallback, out _);
 
     private static ICppFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member, fallback);
     
     private static CppEmitFieldSupportContext CreateEmitContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
         => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member, model, moduleState);

@@ -31,7 +31,11 @@ public static class CppTypeTranslationPipeline
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "Numerics"),
                 TypeNameFactory.Name("Interop")),
-            new NamespaceReplacementRule(TypeNameFactory.Name("System"),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "IntPtr"),
+                TypeNameFactory.Qualified("System", "IntPtr")),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "UIntPtr"),
+                TypeNameFactory.Qualified("System", "UIntPtr")),
+            new NamespaceReplacementRule(TypeNameFactory.Name("System"), 
                 TypeNameFactory.Name("Interop")),
             new GenericPatternTypeNameRule(
                 TypeNameFactory.Generic(
@@ -78,6 +82,10 @@ public static class CppTypeTranslationPipeline
                 TypeNameFactory.Empty()),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "Numerics"),
                 TypeNameFactory.Name("Interop")),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "IntPtr"),
+                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "UIntPtr"),
+                TypeNameFactory.Empty()),
             new NamespaceReplacementRule(TypeNameFactory.Name("System"),
                 TypeNameFactory.Name("Interop")),
             new ExactTypeReplacementRule(

@@ -27,7 +27,7 @@ internal static class DeriveUtils
             mapPublic: (mode & (1 << 3)) != 0,
             mapInternal: (mode & (1 << 4)) != 0);
 
-    internal static DeriveTargetInfo GetTargetInfo(INamedTypeSymbol symbol, bool emitDirtyMask, DeriveMapSettings mapSettings)
+    internal static DeriveTargetInfo GetTargetInfo(INamedTypeSymbol symbol, bool emitDirtyMask, bool emitBindDelete, DeriveMapSettings mapSettings)
     {
         if (symbol == null)
             throw new ArgumentNullException(nameof(symbol));
@@ -163,6 +163,7 @@ internal static class DeriveUtils
             errors: [],
             requestedDirtyMaskType: requestedDirtyMaskType,
             emitDirtyMask: emitDirtyMask,
+            emitBindDelete: emitBindDelete,
             mapSettings: mapSettings
         );
     }

@@ -6,7 +6,7 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportImplBase
 {
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsNativeList(type, out _);
 
     public override void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool emitPublic)

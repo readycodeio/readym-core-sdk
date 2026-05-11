@@ -6,7 +6,7 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSupportImplBase
 {
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsNativeDictionary(type, out _, out _, out _);
 
     public override void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool emitPublic)

@@ -123,6 +123,7 @@ public sealed class CppTypeRenderer : ITypeRenderer
         "Double" => "double",
         "String" => "Interop::String",
         "Char" => "wchar_t",
+        "IntPtr" => "void*",
         _ => string.Empty,
     };
 }

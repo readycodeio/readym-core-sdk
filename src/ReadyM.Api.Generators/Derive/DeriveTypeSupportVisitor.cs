@@ -4,8 +4,8 @@ using Microsoft.CodeAnalysis;
 namespace ReadyM.Api.Generators.Derive;
 
 internal class DeriveTypeSupportVisitor<TImpl, TContext>(IReadOnlyList<TImpl> impls, TImpl? fallbackImpl) 
-    : DeriveTypeSupportVisitorBase<TImpl>(impls, fallbackImpl), IDeriveTypeSupportVisitor<TContext>
-    where TImpl : IDeriveTypeSupportImpl<TContext>
+    : DeriveTypeSupportVisitorBase<TImpl>(impls, fallbackImpl), IDeriveSupportVisitor<ITypeSymbol, TContext>
+    where TImpl : IDeriveSupportImpl<ITypeSymbol, TContext>
 {
     public void Visit(ITypeSymbol symbol, TContext context)
     {

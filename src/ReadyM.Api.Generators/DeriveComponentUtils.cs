@@ -46,8 +46,19 @@ public class DeriveComponentUtils
                 "emitDirtyMask",
                 true);
         }
+
+        var emitBindDelete = false;
+            
+        if (AttributeUtils.HasAttribute(symbol, "NativeComponentAttribute"))
+        {
+            emitBindDelete = AttributeUtils.GetAttribute<bool>(
+                symbol,
+                "NativeComponentAttribute",
+                "bindDelete",
+                false);
+        }
         
-        var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, mapSettings);
+        var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, emitBindDelete, mapSettings);
         var members = GetMemberModelList(targetInfo);
 
         DeriveMaskInfo? mask = null;

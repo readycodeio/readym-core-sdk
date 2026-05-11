@@ -23,6 +23,8 @@ public static class SerializationHelper
         { SpecialType.System_Double,    "Double"    },
         { SpecialType.System_Char,      "Char"      },
         { SpecialType.System_String,    "String"    },
+        { SpecialType.System_IntPtr,    "IntPtr"    },
+        { SpecialType.System_UIntPtr,   "UIntPtr"   },
     };
 
     private static readonly List<SpecialType> PrimitiveTypeList = // https://learn.microsoft.com/en-us/dotnet/api/system.type.isprimitive?view=net-10.0

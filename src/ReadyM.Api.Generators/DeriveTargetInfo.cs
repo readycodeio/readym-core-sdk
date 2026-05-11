@@ -13,6 +13,7 @@ internal sealed class DeriveTargetInfo(
     IReadOnlyList<string> errors,
     ITypeSymbol? requestedDirtyMaskType,
     bool emitDirtyMask,
+    bool emitBindDelete,
     DeriveMapSettings mapSettings)
 {
     public ITypeSymbol Symbol { get; } = symbol ?? throw new ArgumentNullException(nameof(symbol));
@@ -22,6 +23,7 @@ internal sealed class DeriveTargetInfo(
     public bool IsNullable { get; } = isNullable;
     public ITypeSymbol? RequestedDirtyMaskType { get; } = requestedDirtyMaskType;
     public bool EmitDirtyMask { get; } = emitDirtyMask;
+    public bool EmitBindDelete { get; } = emitBindDelete;
     public DeriveMapSettings MapSettings { get; } = mapSettings;
 
     private readonly List<string> _errors = [..errors ?? throw new ArgumentNullException(nameof(errors))];

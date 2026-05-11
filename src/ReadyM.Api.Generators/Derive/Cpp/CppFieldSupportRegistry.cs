@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Microsoft.CodeAnalysis;
 using ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 namespace ReadyM.Api.Generators.Derive.Cpp;
@@ -7,6 +8,7 @@ internal class CppFieldSupportRegistry
 {
     private static readonly ICppFieldTypeSupportImpl[] CppFieldSupportImpls =
     [
+        new CppOverrideFieldTypeSupportImpl(),
         new PrimitiveFieldTypeSupportImpl(),
         new EnumFieldTypeSupportImpl(),
         new VectorLikeFieldTypeSupportImpl(),
@@ -18,7 +20,7 @@ internal class CppFieldSupportRegistry
         new EquatableFieldTypeSupportImpl(),
     ];
 
-    internal static readonly DeriveTypeSupportVisitorBase<ICppFieldTypeSupportImpl> FieldTypeSupportVisitor = new(
+    internal static readonly DeriveFieldSupportVisitorBase<ICppFieldTypeSupportImpl> FieldTypeSupportVisitor = new(
         CppFieldSupportImpls,
         new FallbackFieldTypeSupportImpl()
     );

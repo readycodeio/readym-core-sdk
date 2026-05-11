@@ -3,7 +3,7 @@ using static ReadyM.Api.Generators.DeriveCppUtils;
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal sealed class EnumFieldTypeSupportImpl : CppFieldTypeSupportImplBase
+internal sealed class EnumFieldTypeSupportImpl : CppNonOverrideFieldTypeSupportImplBase
 {
     protected override void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
         => context.Append(CppTypeName(symbol));
@@ -11,7 +11,7 @@ internal sealed class EnumFieldTypeSupportImpl : CppFieldTypeSupportImplBase
     protected override void EmitSetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
         => context.Append(CppTypeName(symbol));
 
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => type.TypeKind == TypeKind.Enum;
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
