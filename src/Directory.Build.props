@@ -28,6 +28,7 @@
         <IntermediateOutputPath>obj\Testing\</IntermediateOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DefineConstants>$(DefineConstants);SELF_HOSTED</DefineConstants>
         <DebugType>none</DebugType>
         <DebugSymbols>false</DebugSymbols>
     </PropertyGroup>
