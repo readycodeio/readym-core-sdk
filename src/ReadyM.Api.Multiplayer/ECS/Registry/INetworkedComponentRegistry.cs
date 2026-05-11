@@ -12,6 +12,7 @@ internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetwork
     INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod, T defaultValue = default)
         where T : struct, INetworkedComponent;
 
+    NetworkedComponentId GetNetworkedComponentId(Type type);
     NetworkedComponentId GetNetworkedComponentId<T>();
     Type GetComponentType(NetworkedComponentId componentId);
     DeliveryMethod GetNetworkedComponentDeliveryMethod<T>();

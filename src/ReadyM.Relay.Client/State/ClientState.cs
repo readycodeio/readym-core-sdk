@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Friflo.Engine.ECS;
+using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
@@ -10,6 +11,7 @@ using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Common;
+using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
@@ -19,6 +21,14 @@ namespace ReadyM.Relay.Client.State;
 
 internal class ClientState : IDisposable
 {
+    private class ProcessPendingEventsSystem(ClientState owner) : BaseSystem
+    {
+        protected override void OnUpdateGroup()
+        {
+            owner.ProcessPendingEvents();
+        }
+    }
+    
     private enum PendingEventKind
     {
         Connected,
@@ -61,7 +71,7 @@ internal class ClientState : IDisposable
     private readonly Store _world;
     private readonly INetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
-    private readonly IClientEcsUpdateLoop _ecsLoop;
+    private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly JobRegistry _jobRegistry;
     private readonly ILogger _logger;
 
@@ -75,6 +85,8 @@ internal class ClientState : IDisposable
 
     private readonly object _lock = new();
     private readonly List<PendingEvent> _pendingEvents = [];
+    
+    private readonly ProcessPendingEventsSystem _system;
 
     public bool IsConnected
         => _localPlayerEntry != null;
@@ -87,6 +99,9 @@ internal class ClientState : IDisposable
 
     public Entity? LocalPlayerEntity
         => _localPlayerEntry?.PlayerEntity;
+    
+    public BaseSystem System 
+        => _system;
 
     public Api.Helpers.ReadOnlyList<PlayerId> AllPlayers => new(_allPlayers);
     public Api.Helpers.ReadOnlyList<PlayerId> OtherPlayers => new([.. _allPlayers.Where(p => p != LocalPlayerId)]);
@@ -107,7 +122,7 @@ internal class ClientState : IDisposable
         => _currentAreaEntry?.AreaEntity;
 
     public event Action<PlayerId, Entity>? OnConnected;
-    public event Action<PlayerId, Entity?, DisconnectReason>? OnDisconnected;
+    public event Action<PlayerId, Entity, DisconnectReason>? OnDisconnected;
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -116,11 +131,16 @@ internal class ClientState : IDisposable
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
+    public ArchetypeId AreaArchetype { get; }
+    public ArchetypeId PlayerArchetype { get; }
+    
     public ClientState(
         Store world,
         INetworkedEntityManager netEntity,
         IRelayClient relayClient,
-        IClientEcsUpdateLoop ecsLoop,
+        ClientEcsUpdateLoop ecsLoop,
+        DefaultAreaArchetypeRegistration areaArchetype,
+        DefaultPlayerArchetypeRegistration playerArchetype,
         JobRegistry jobRegistry,
         ILogger logger)
     {
@@ -131,7 +151,10 @@ internal class ClientState : IDisposable
         _jobRegistry = jobRegistry;
         _logger = logger;
 
-        _ecsLoop.OnUpdateLoop += ProcessPendingEvents;
+        AreaArchetype = areaArchetype.AreaArchetype;
+        PlayerArchetype = playerArchetype.PlayerArchetype;
+
+        _system = new ProcessPendingEventsSystem(this);
 
         _relayClient.OnConnected += OnConnectedHandler;
         _relayClient.OnDisconnected += OnDisconnectedHandler;
@@ -141,16 +164,10 @@ internal class ClientState : IDisposable
         _relayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
-
-        _jobRegistry.OnApplySnapshot += OnApplySnapshotHandler;
     }
 
     public void Dispose()
     {
-        _ecsLoop.OnUpdateLoop -= ProcessPendingEvents;
-
-        _jobRegistry.OnApplySnapshot -= OnApplySnapshotHandler;
-
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
@@ -184,8 +201,6 @@ internal class ClientState : IDisposable
                 });
             }
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
@@ -199,8 +214,6 @@ internal class ClientState : IDisposable
                 DisconnectReason = disconnectReason,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
@@ -226,8 +239,6 @@ internal class ClientState : IDisposable
                 });
             }
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnLeftAreaHandler(IRelayClientNetworkThreadContext context)
@@ -255,8 +266,6 @@ internal class ClientState : IDisposable
                 PlayerId = playerId.Value,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerConnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -269,8 +278,6 @@ internal class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerDisconnectedHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -283,8 +290,6 @@ internal class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerJoinedAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -298,8 +303,6 @@ internal class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void OnOtherPlayerLeftAreaHandler(IRelayClientNetworkThreadContext context, PlayerId playerId)
@@ -320,13 +323,6 @@ internal class ClientState : IDisposable
                 PlayerId = playerId,
             });
         }
-
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
-    }
-
-    private void OnApplySnapshotHandler()
-    {
-        _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
     private void PrunePendingEvents()
@@ -520,7 +516,7 @@ internal class ClientState : IDisposable
                         break;
                     }
 
-                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out var otherPlayerJoinedIndex))
+                    if (areaPlayers.TryGetValue(pendingEvent.PlayerId, out _))
                     {
                         // NOTE: If the player already joined, remove the current duplicate event.
                         pendingEvent.Invalidated = true;
@@ -560,8 +556,6 @@ internal class ClientState : IDisposable
             _pendingEvents[i] = pendingEvent;
         }
     }
-
-    private void ProcessPendingEvents(CommandBufferSynced _) => ProcessPendingEvents();
 
     private void ProcessPendingEvents()
     {
@@ -687,7 +681,7 @@ internal class ClientState : IDisposable
                     _playerEntries.Remove(otherPlayerId);
                 }
 
-                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry?.PlayerEntity, pendingEvent.DisconnectReason);
+                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry!.Value.PlayerEntity, pendingEvent.DisconnectReason);
 
                 _allPlayers.Clear();
                 _playerEntries.Clear();

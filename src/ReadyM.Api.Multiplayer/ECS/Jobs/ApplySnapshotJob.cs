@@ -1,4 +1,5 @@
-﻿using LiteNetLib.Utils;
+﻿using Friflo.Engine.ECS;
+using LiteNetLib.Utils;
 using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
@@ -24,7 +25,16 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
                 continue;
             }
 
-            entity.Value.AddComponent(reader.Get<T>());
+            if (entity.Value.HasComponent<T>())
+            {
+                var comp = entity.Value.GetComponent<T>();
+                comp.Deserialize(reader);
+                entity.Value.Set(comp);
+            }
+            else
+            {
+                entity.Value.AddComponent(reader.Get<T>());
+            }
         }
     }
 }

@@ -12,4 +12,4 @@ namespace ReadyM.Api.Multiplayer.Generators;
 /// <param name="relayMode">Determines how the event is relayed to other clients.</param>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class RpcEventAttribute(RelayMode relayMode) : Attribute;
-#pragma warning re store CS9113 // Parameter is unread.
+#pragma warning restore CS9113 // Parameter is unread.

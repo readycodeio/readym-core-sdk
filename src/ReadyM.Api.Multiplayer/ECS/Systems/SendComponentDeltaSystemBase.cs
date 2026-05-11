@@ -1,6 +1,7 @@
 ﻿using System;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
+using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -12,11 +13,13 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T> where T : struct, INetworkedComponent
 {
     private readonly NetworkedComponentId _componentId;
+    private readonly bool _clearDirty;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;
 
-    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId)
+    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearDirty)
     {
         _componentId = componentId;
+        _clearDirty = clearDirty;
         _queryCache = new QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>>(
             context => context.ScopeEntity,
             context =>
@@ -29,6 +32,8 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
         );
     }
 
+    protected abstract DeliveryMethod DeliveryMethod { get; }
+    
     /// <returns>null if unbound, otherwise the max packet size in bytes</returns>
     protected abstract int? GetMaxPacketSize();
 
@@ -57,17 +62,17 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     protected void OnUpdate(SendContext context)
     {
         var maxPacketSize = GetMaxPacketSize();
-        if (maxPacketSize.HasValue)
+        if (maxPacketSize == null)
         {
-            OnUpdateChunked(context, maxPacketSize.Value);
+            OnUpdateOneChunk(context);
         }
         else
         {
-            OnUpdateReliable(context);
+            OnUpdateChunked(context, maxPacketSize.Value);
         }
     }
 
-    private void OnUpdateReliable(SendContext context)
+    private void OnUpdateOneChunk(SendContext context)
     {
         var owners = SentOwners();
 
@@ -106,7 +111,11 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
                     _writer.Put(meta.NetId);
                     comp.WriteDelta(_writer);
-                    comp.ClearDirty();
+
+                    if (_clearDirty)
+                    {
+                        comp.ClearDirty();
+                    }
                 }
             }
 
@@ -169,7 +178,7 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
                             if (retried)
                             {
                                 // if we retried and still failed, log an error
-                                throw new Exception("Packet too large, unable to send");
+                                throw new InvalidOperationException($"Component {typeof(T).Name} with NetId {meta.NetId} is too large to fit in a packet even by itself. Max packet size is {maxPacketSize} bytes.");
                             }
 
                             // Rewind and send the partial packet
@@ -185,8 +194,11 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
                             continue;
                         }
 
-                        comp.ClearDirty();
-
+                        if (_clearDirty)
+                        {
+                            comp.ClearDirty();
+                        }
+                        
                         break;
                     }
                 }

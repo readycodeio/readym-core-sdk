@@ -47,7 +47,6 @@ internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
             _writer.Put(comp);
         });
         counter = _counter;
-        writer = _writer;
 
         if (counter == 0)
         {
