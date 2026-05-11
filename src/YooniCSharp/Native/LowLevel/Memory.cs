@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Yooni.Native.LowLevel;
 
-public unsafe struct Memory
+public unsafe ref struct Memory
 {
     private void* _ptr;
     private int _length;
@@ -24,7 +24,7 @@ public unsafe struct Memory
         where T : unmanaged
     {
         if (sizeof(T) > _length)
-            throw new InvalidOperationException($"Cannot peek type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
+            throw new InvalidOperationException($"Cannot get type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
         
         return Unsafe.AsRef<T>(_ptr);
     }
@@ -33,7 +33,7 @@ public unsafe struct Memory
         where T : unmanaged
     {
         if (sizeof(IntPtr) > _length)
-            throw new InvalidOperationException($"Cannot peek pointer for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(IntPtr)} bytes required)");
+            throw new InvalidOperationException($"Cannot get pointer for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(IntPtr)} bytes required)");
         
         return (T*)Unsafe.AsRef<IntPtr>(_ptr).ToPointer();
     }
@@ -42,7 +42,7 @@ public unsafe struct Memory
         where T : unmanaged
     {
         if (sizeof(T) > _length)
-            throw new InvalidOperationException($"Cannot peek reference for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
+            throw new InvalidOperationException($"Cannot get reference for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
         
         return ref Unsafe.AsRef<T>(_ptr);
     }
@@ -51,7 +51,7 @@ public unsafe struct Memory
         where T : unmanaged
     {
         if (sizeof(T) > _length)
-            throw new InvalidOperationException($"Cannot peek type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
+            throw new InvalidOperationException($"Cannot set type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(T)} bytes required)");
 
         Unsafe.AsRef<T>(_ptr) = value;
     }
@@ -60,7 +60,7 @@ public unsafe struct Memory
         where T : unmanaged
     {
         if (sizeof(IntPtr) > _length)
-            throw new InvalidOperationException($"Cannot peek pointer for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(IntPtr)} bytes required)");
+            throw new InvalidOperationException($"Cannot set pointer for type {typeof(T)}: not enough data left in buffer ({_length} bytes remaining, but {sizeof(IntPtr)} bytes required)");
         
         Unsafe.AsRef<IntPtr>(_ptr) = new IntPtr(value);
     }
@@ -84,7 +84,7 @@ public unsafe struct Memory
         _ptr = (byte*)_ptr + sizeof(IntPtr);
         _length -= sizeof(IntPtr);
         
-        return (T*)ptrResult;
+        return ptrResult;
     }
 
     public ref T ReadRef<T>()
