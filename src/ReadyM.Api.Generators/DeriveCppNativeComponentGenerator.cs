@@ -95,7 +95,7 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             return false;
 
         var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" });
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" or "NativeComponentAttribute" });
     }
 
     private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)

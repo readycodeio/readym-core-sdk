@@ -558,7 +558,10 @@ public partial struct StringComponent : IComponent
         Assert.NotEmpty(generatedText);
         
         Assert.Contains("Yooni::Native::Container::NativeString64 _displayName = {};", generatedText);
-        Assert.DoesNotContain("DisplayName", generatedText);
+        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.DoesNotContain(" void SetDisplayName(", generatedText);
+        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.Contains("(* private *)void SetDisplayName(", generatedText);
 
         AssertContainerMember(
             generatedText,
@@ -571,7 +574,10 @@ public partial struct StringComponent : IComponent
             maskType: "uint8_t");
         
         Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
-        Assert.DoesNotContain("Biography", generatedText);
+        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.DoesNotContain(" void SetBiography(", generatedText);
+        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.Contains("(* private *)void SetBiography(", generatedText);
     }
     
     [Fact]
@@ -615,10 +621,10 @@ public struct LocalAppearanceComponent : IComponent
         Assert.NotEmpty(generatedText);
         
         Assert.Contains("uint8_t _isAppearanceSynced = 0;", generatedText);
-        Assert.DoesNotContain(" uint8_t IsAppearanceSynced", generatedText);
-        Assert.DoesNotContain(" void SetIsAppearanceSynced", generatedText);
-        Assert.Contains("(* private *)uint8_t IsAppearanceSynced", generatedText);
-        Assert.Contains("(* private *)void SetIsAppearanceSynced", generatedText);
+        Assert.DoesNotContain(" uint8_t IsAppearanceSynced(", generatedText);
+        Assert.DoesNotContain(" void SetIsAppearanceSynced(", generatedText);
+        Assert.Contains("(* private *)uint8_t IsAppearanceSynced(", generatedText);
+        Assert.Contains("(* private *)void SetIsAppearanceSynced(", generatedText);
     }
 
     private static void AssertContainerMember(

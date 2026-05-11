@@ -31,7 +31,7 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
             return false;
 
         var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" });
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" or "DeriveINetworkedComponentAttribute" });
     }
 
     private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
