@@ -17,5 +17,5 @@ public class CppNativeFieldTypeAttribute(
     public readonly string? SetterType = setterTypeName;
     public readonly string DefaultValue = defaultValue;
     public readonly bool UseMove = useMove;
-    public readonly IReadOnlyList<string> Includes = Array.Empty<string>();
+    public readonly IReadOnlyList<string> Includes = includes;
 }

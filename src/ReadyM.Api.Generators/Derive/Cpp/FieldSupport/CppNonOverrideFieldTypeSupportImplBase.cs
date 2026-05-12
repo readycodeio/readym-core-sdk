@@ -8,8 +8,7 @@ internal abstract class CppNonOverrideFieldTypeSupportImplBase : CppFieldTypeSup
 
     public override bool Supports(DeriveMemberModel model)
     {
-        var cppName = AttributeUtils.GetAttribute<string?>(model.Source.Symbol, "CppNativeFieldTypeAttribute", "cppTypeName", null);
-        if (cppName != null)
+        if (!string.IsNullOrEmpty(model.CppSettings.CppTypeName))
             return false;
         
         return Supports(model.Source.Type);

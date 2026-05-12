@@ -7,15 +7,61 @@ namespace ReadyM.Api.Generators;
 
 public static class AttributeUtils
 {
+    public static AttributeData? GetAttributeData(
+        ISymbol? symbol,
+        string attrName,
+        SyntaxNode? syntaxNode = null)
+    {
+        if (symbol is null)
+            return null;
+
+        return symbol.GetAttributes()
+            .FirstOrDefault(attributeData =>
+                IsAttribute(attributeData, attrName) &&
+                IsFromSyntax(attributeData, syntaxNode));
+    }
+    
+    public static AttributeData? GetAttributeData(
+        ISymbol? symbol,
+        SyntaxNode? syntaxNode)
+    {
+        if (symbol is null)
+            return null;
+
+        return symbol.GetAttributes()
+            .FirstOrDefault(attributeData => IsFromSyntax(attributeData, syntaxNode));
+    }
+
+    private static bool IsFromSyntax(AttributeData attributeData, SyntaxNode? syntaxNode)
+    {
+        if (syntaxNode is null)
+            return true;
+
+        return attributeData.ApplicationSyntaxReference is not null &&
+               attributeData.ApplicationSyntaxReference.SyntaxTree == syntaxNode.SyntaxTree &&
+               attributeData.ApplicationSyntaxReference.Span == syntaxNode.Span;
+    }
+    
+    public static bool IsAttribute(AttributeData? attributeData, string attrName)
+    {
+        if (attributeData?.AttributeClass is null)
+            return false;
+
+        return IsAttributeClass(attributeData.AttributeClass, attrName);
+    }
+
     public static bool HasAttribute(ISymbol symbol, string attrName)
     {
         return symbol.GetAttributes()
-            .Any(ad =>
-                ad.AttributeClass is not null &&
-                (ad.AttributeClass.Name == attrName ||
-                 ad.AttributeClass.Name == attrName + "Attribute" ||
-                 ad.AttributeClass.ToDisplayString().EndsWith("." + attrName, StringComparison.Ordinal) ||
-                 ad.AttributeClass.ToDisplayString().EndsWith("." + attrName + "Attribute", StringComparison.Ordinal)));
+            .Any(attributeData => IsAttribute(attributeData, attrName));
+    }
+
+    private static bool IsAttributeClass(INamedTypeSymbol attributeClass, string attrName)
+    {
+        return attributeClass.Name == attrName ||
+               attributeClass.Name == attrName + "Attribute" ||
+               attributeClass.ToDisplayString().EndsWith("." + attrName, StringComparison.Ordinal) ||
+               attributeClass.ToDisplayString().EndsWith("." + attrName + "Attribute", StringComparison.Ordinal);
     }
     
     public static T GetAttribute<T>(

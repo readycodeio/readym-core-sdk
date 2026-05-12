@@ -7,7 +7,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
 {
     protected override void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.Append("bool");
         else
             context.Append(CppTypeName(symbol));
@@ -15,7 +15,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
 
     protected override void EmitSetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.Append("bool");
         else
             context.Append(CppTypeName(symbol));
@@ -30,7 +30,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
             context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}");
-        else if (context.Member.Settings.BoolAccessors)
+        else if (context.Member.AccessorSettings.BoolAccessors)
             context.Append($"({context.State.CurrentVar} ? 1 : 0) == value");
         else
             context.Append($"{context.State.CurrentVar} == value");
@@ -42,7 +42,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
             context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}");
-        else if (context.Member.Settings.BoolAccessors)
+        else if (context.Member.AccessorSettings.BoolAccessors)
             context.Append($"({context.State.CurrentVar} ? 1 : 0) != value");
         else
             context.Append($"{context.State.CurrentVar} != value");

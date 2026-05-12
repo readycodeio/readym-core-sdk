@@ -4,14 +4,22 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-public class DeriveComponentUtils
+public static class DeriveComponentUtils
 {
     internal const string ScalarComparisonEpsilon = "0.1";
     internal const string VectorComparisonEpsilon = "0.01";
 
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {
-        return GetTargetModel(symbol, context, null, null);
+        return GetTargetModel(symbol, context, null);
+    }
+
+    internal static DeriveTargetModel GetTargetModel(
+        INamedTypeSymbol symbol,
+        GeneratorSyntaxContext context,
+        IReadOnlyList<AttributeData>? fieldAttributes)
+    {
+        return GetTargetModel(symbol, context, null, null, fieldAttributes);
     }
 
     internal static DeriveTargetModel GetTargetModel(
@@ -19,14 +27,24 @@ public class DeriveComponentUtils
         AttributeData? nativeComponentAttribute,
         Location? location)
     {
-        return GetTargetModel(symbol, null, nativeComponentAttribute, location);
+        return GetTargetModel(symbol, nativeComponentAttribute, location, null);
+    }
+
+    internal static DeriveTargetModel GetTargetModel(
+        INamedTypeSymbol symbol,
+        AttributeData? nativeComponentAttribute,
+        Location? location,
+        IReadOnlyList<AttributeData>? fieldAttributes)
+    {
+        return GetTargetModel(symbol, null, nativeComponentAttribute, location, fieldAttributes);
     }
 
     private static DeriveTargetModel GetTargetModel(
         INamedTypeSymbol symbol,
         GeneratorSyntaxContext? context,
         AttributeData? nativeComponentAttribute,
-        Location? location)
+        Location? location,
+        IReadOnlyList<AttributeData>? fieldAttributes)
     {
         var isNetComponent = AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute");
 
@@ -83,7 +101,7 @@ public class DeriveComponentUtils
         }
         
         var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, emitBindDelete, mapSettings);
-        var members = GetMemberModelList(targetInfo);
+        var members = GetMemberModelList(targetInfo, fieldAttributes);
 
         DeriveMaskInfo? mask = null;
         if (isNetComponent)
@@ -164,33 +182,126 @@ public class DeriveComponentUtils
         return new DeriveMaskInfo(maskType, bits, errors);
     }
     
-    private static DeriveMemberModel[] GetMemberModelList(DeriveTargetInfo targetInfo)
+    private static DeriveMemberModel[] GetMemberModelList(
+        DeriveTargetInfo targetInfo,
+        IReadOnlyList<AttributeData>? fieldAttributes)
     {
         var members = new DeriveMemberModel[targetInfo.Members.Length];
 
         for (var i = 0; i < targetInfo.Members.Length; i++)
         {
-            var memberModel = GetMemberModel(targetInfo.Members[i], i);
+            var memberModel = GetMemberModel(targetInfo.Members[i], i, fieldAttributes);
             members[i] = memberModel;
         }
 
         return members;
     }
     
-    private static DeriveMemberModel GetMemberModel(DeriveMemberInfo memberInfo, int index)
+    private static DeriveMemberModel GetMemberModel(
+        DeriveMemberInfo memberInfo,
+        int index,
+        IReadOnlyList<AttributeData>? fieldAttributes)
     {
         var generatedPropertyName = GetGeneratedPropertyName(memberInfo.Name);
-        var skipAccessors = AttributeUtils.HasAttribute(memberInfo.Symbol, "SkipNativeAccessMethodsAttribute");
-        var boolAccessors = AttributeUtils.HasAttribute(memberInfo.Symbol, "BoolNativeAccessMethodsAttribute");
+        var skipAccessors =
+            AttributeUtils.HasAttribute(memberInfo.Symbol, "SkipNativeAccessMethodsAttribute") ||
+            HasFieldAttribute(fieldAttributes, memberInfo.Name, "SkipNativeAccessMethodsForAttribute");
+        var boolAccessors =
+            AttributeUtils.HasAttribute(memberInfo.Symbol, "BoolNativeAccessMethodsAttribute") ||
+            HasFieldAttribute(fieldAttributes, memberInfo.Name, "BoolNativeAccessMethodsForAttribute");
         var settings = new DeriveAccessorMemberSettings(
             skipAccessors: skipAccessors,
             boolAccessors: boolAccessors);
+
+        var cppSettings = GetCppSettings(memberInfo, fieldAttributes);
         
         return new DeriveMemberModel(
             source: memberInfo, 
             generatedPropertyName: generatedPropertyName,
             maskIndex: index,
-            settings: settings);
+            accessorSettings: settings,
+            cppSettings: cppSettings);
+    }
+    
+    private static DeriveMemberCppSettings GetCppSettings(
+        DeriveMemberInfo memberInfo,
+        IReadOnlyList<AttributeData>? fieldAttributes)
+    {
+        var cppTypeName = AttributeUtils.GetAttribute<string?>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "cppTypeName", null)
+            ?? GetFieldAttribute<string?>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "cppTypeName", null);
+        var defaultValue = AttributeUtils.GetAttribute<string?>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "defaultValue", "{}")
+            ?? GetFieldAttribute<string?>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "defaultValue", "{}");
+        var getterTypeName = AttributeUtils.GetAttribute<string?>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "getterTypeName", null)
+            ?? GetFieldAttribute<string?>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "getterTypeName", null);
+        var setterTypeName = AttributeUtils.GetAttribute<string?>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "setterTypeName", null)
+            ?? GetFieldAttribute<string?>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "setterTypeName", null);
+        var useMove = AttributeUtils.GetAttribute<bool>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "useMove", false)
+            || GetFieldAttribute<bool>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "useMove", false);
+        var includes = AttributeUtils.GetArrayAttribute<string>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "includes");
+        if (includes == null || includes.Count == 0)
+            includes = GetFieldAttribute<IReadOnlyList<string>>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "includes", []);
+        
+        return new DeriveMemberCppSettings(
+            cppTypeName: cppTypeName,
+            defaultValue: defaultValue,
+            getterTypeName: getterTypeName,
+            setterTypeName: setterTypeName,
+            useMove: useMove,
+            includes: includes);
+    }
+
+    private static bool HasFieldAttribute(
+        IReadOnlyList<AttributeData>? fieldAttributes,
+        string fieldName,
+        string attrName)
+    {
+        if (fieldAttributes == null)
+            return false;
+
+        foreach (var attr in fieldAttributes)
+        {
+            if (!AttributeUtils.IsAttribute(attr, attrName))
+                continue;
+
+            var forField = AttributeUtils.GetAttributeValue<string?>(
+                attr,
+                "forField",
+                null);
+
+            if (string.Equals(forField, fieldName, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static T GetFieldAttribute<T>(IReadOnlyList<AttributeData>? fieldAttributes,
+        string fieldName,
+        string attrName,
+        string keyName,
+        T defaultValue)
+    {
+        if (fieldAttributes == null)
+            return defaultValue;
+        foreach (var attr in fieldAttributes)
+        {
+            if (!AttributeUtils.IsAttribute(attr, attrName))
+                continue;
+            
+            var forField = AttributeUtils.GetAttributeValue<string?>(
+                attr,
+                "forField",
+                null);
+            if (string.Equals(forField, fieldName, StringComparison.Ordinal))
+            {
+                return AttributeUtils.GetAttributeValue<T>(
+                    attr,
+                    keyName,
+                    defaultValue);
+            }
+        }
+        
+        return defaultValue;
     }
 
     private static string GetGeneratedPropertyName(string memberName)

@@ -754,7 +754,14 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 
-[assembly: NativeComponent(bindDelete: true, forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>))]
+[assembly: CppNativeFieldTypeFor(
+    forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>),
+    forField: "_value",
+    cppTypeName: "Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>",
+    getterTypeName: "const Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>&",
+    useMove: true,
+    includes: "Unreal/GCPinnedPtr.h")]
+[assembly: NativeComponentFor(forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>), bindDelete: true)]
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -781,13 +788,13 @@ public partial struct MappingComponent<T> : IComponent
 
         Assert.Contains("struct MappingComponentGeneratedBase", generatedText);
 
-        Assert.Contains("void* Value() const", generatedText);
-        Assert.Contains("void SetValue(void* value)", generatedText);
+        Assert.Contains("const Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>& Value() const", generatedText);
+        Assert.Contains("void SetValue(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
         Assert.Contains("if (_value != value)", generatedText);
-        Assert.Contains("_value = value;", generatedText);
+        Assert.Contains("_value = std::move(value);", generatedText);
 
         Assert.Contains("protected:", generatedText);
-        Assert.Contains("void* _value = nullptr;", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _value = {};", generatedText);
 
         Assert.DoesNotContain("_dirtyMask", generatedText);
 

@@ -18,7 +18,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
 
         if (emitPublic)
         {
-            if (context.Member.Settings.SkipAccessors)
+            if (context.Member.AccessorSettings.SkipAccessors)
                 return;
 
             context.AppendLine($"int {context.Member.GeneratedPropertyName}Count() const");
