@@ -63,11 +63,11 @@ namespace {info.Namespace};
 """);
         }
         
-        var usePutGet = new bool[info.Members.Length];
-        var isEnum = new bool[info.Members.Length];
-        var enumBaseType = new SpecialType[info.Members.Length];
+        var usePutGet = new bool[info.Members.Count];
+        var isEnum = new bool[info.Members.Count];
+        var enumBaseType = new SpecialType[info.Members.Count];
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             usePutGet[i] = SerializationHelper.IsSerializablePrimitive(info.Members[i].Type.SpecialType);
             isEnum[i] = info.Members[i].Type.TypeKind == TypeKind.Enum;
@@ -84,7 +84,7 @@ namespace {info.Namespace};
     {
 """);
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 
@@ -119,7 +119,7 @@ namespace {info.Namespace};
     {
 """);
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 

@@ -745,7 +745,7 @@ public partial struct LocalAnimationComponent : IComponent
         Assert.DoesNotContain("void* _animInstance = nullptr;", generatedText);
     }
     
-        [Fact]
+    [Fact]
     public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetTypeAndUsesAttributeSettings()
     {
         const string source = """
@@ -802,6 +802,59 @@ public partial struct MappingComponent<T> : IComponent
         Assert.Contains("struct NativeBinding", generatedText);
         Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
         Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, MappingComponent& comp) = 0;", generatedText);
+    }
+    
+    [Fact]
+    public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetInAnotherModule()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.ECS.Components;
+
+[assembly: CppNativeFieldTypeFor(
+    forType: typeof(ReadyM.Api.Multiplayer.ECS.Components.InScopeComponent),
+    forField: "_entity",
+    cppTypeName: "RM::ECS::Values::RawEntity",
+    getterTypeName: "const RM::ECS::Values::RawEntity&",
+    useMove: true,
+    fieldType: typeof(Friflo.Engine.ECS.Entity),
+    includes: "Unreal/GCPinnedPtr.h")]
+[assembly: NativeComponentFor(forType: typeof(ReadyM.Api.Multiplayer.ECS.Components.InScopeComponent), bindDelete: true)]
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("struct InScopeComponentGeneratedBase", generatedText);
+
+        Assert.Contains("const RM::ECS::Values::RawEntity& Entity() const", generatedText);
+        Assert.Contains("void SetEntity(RM::ECS::Values::RawEntity value)", generatedText);
+        Assert.Contains("if (_entity != value)", generatedText);
+        Assert.Contains("_entity = std::move(value);", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("RM::ECS::Values::RawEntity _entity = {};", generatedText);
+
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+
+        Assert.Contains("class NativeEntityDeleteImplGeneratedBase", generatedText);
+        Assert.Contains("struct NativeBinding", generatedText);
+        Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
+        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, InScopeComponent& comp) = 0;", generatedText);
     }
     
     private static void AssertContainerMember(

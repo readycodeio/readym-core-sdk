@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,7 @@ using static ReadyM.Api.Generators.DeriveCppUtils;
 namespace ReadyM.Api.Generators;
 
 [Generator]
+[SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035")]
 public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 {
     private sealed class NativeComponentCandidate(
@@ -344,7 +346,6 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             targetModel = DeriveComponentUtils.GetTargetModel(
                 symbol,
                 candidate.NativeComponentAttribute,
-                candidate.Location,
                 candidate.FieldAttributes);
         }
 

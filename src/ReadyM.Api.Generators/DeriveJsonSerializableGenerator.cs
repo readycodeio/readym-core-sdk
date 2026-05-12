@@ -100,13 +100,13 @@ namespace {info.Namespace};
             sb.AppendLine($"    #error {error}");
         }
 
-        var useReadWrite = new bool[info.Members.Length];
-        var readMethods = new string[info.Members.Length];
-        var writeMethods = new string[info.Members.Length];
-        var useTextSerialize = new bool[info.Members.Length];
-        var isNullable = new bool[info.Members.Length];
+        var useReadWrite = new bool[info.Members.Count];
+        var readMethods = new string[info.Members.Count];
+        var writeMethods = new string[info.Members.Count];
+        var useTextSerialize = new bool[info.Members.Count];
+        var isNullable = new bool[info.Members.Count];
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             useReadWrite[i] = TextSerializationHelper.IsSerializablePrimitive(info.Members[i].Type.SpecialType);
             useTextSerialize[i] = IsTextSerializable(info.Members[i].Type);
@@ -147,7 +147,7 @@ namespace {info.Namespace};
                           """);
         }
         
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 
@@ -166,7 +166,7 @@ namespace {info.Namespace};
                                   
                       """);
         
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 
@@ -199,7 +199,7 @@ namespace {info.Namespace};
             sb.AppendLine( """            }""");
         }
 
-        if (info.Members.Length > 0)
+        if (info.Members.Count > 0)
         {
             sb.AppendLine("""
                                       else
@@ -226,7 +226,7 @@ namespace {info.Namespace};
                                 writer.WriteStartObject();
                         """);
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 

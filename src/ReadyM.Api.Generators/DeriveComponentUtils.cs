@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
@@ -9,41 +10,26 @@ public static class DeriveComponentUtils
     internal const string ScalarComparisonEpsilon = "0.1";
     internal const string VectorComparisonEpsilon = "0.01";
 
-    internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
-    {
-        return GetTargetModel(symbol, context, null);
-    }
-
     internal static DeriveTargetModel GetTargetModel(
         INamedTypeSymbol symbol,
         GeneratorSyntaxContext context,
-        IReadOnlyList<AttributeData>? fieldAttributes)
+        IReadOnlyList<AttributeData>? fieldAttributes = null)
     {
-        return GetTargetModel(symbol, context, null, null, fieldAttributes);
+        return GetTargetModel(symbol, context, null, fieldAttributes);
     }
 
     internal static DeriveTargetModel GetTargetModel(
         INamedTypeSymbol symbol,
         AttributeData? nativeComponentAttribute,
-        Location? location)
-    {
-        return GetTargetModel(symbol, nativeComponentAttribute, location, null);
-    }
-
-    internal static DeriveTargetModel GetTargetModel(
-        INamedTypeSymbol symbol,
-        AttributeData? nativeComponentAttribute,
-        Location? location,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {
-        return GetTargetModel(symbol, null, nativeComponentAttribute, location, fieldAttributes);
+        return GetTargetModel(symbol, null, nativeComponentAttribute, fieldAttributes);
     }
 
     private static DeriveTargetModel GetTargetModel(
         INamedTypeSymbol symbol,
         GeneratorSyntaxContext? context,
         AttributeData? nativeComponentAttribute,
-        Location? location,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {
         var isNetComponent = AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute");
@@ -101,6 +87,7 @@ public static class DeriveComponentUtils
         }
         
         var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, emitBindDelete, mapSettings);
+        ExtendTargetInfo(targetInfo, fieldAttributes);
         var members = GetMemberModelList(targetInfo, fieldAttributes);
 
         DeriveMaskInfo? mask = null;
@@ -114,10 +101,55 @@ public static class DeriveComponentUtils
         
         return new DeriveTargetModel(targetInfo, members, mask);
     }
-    
+
+    private static void ExtendTargetInfo(DeriveTargetInfo targetInfo, IReadOnlyList<AttributeData>? fieldAttributes)
+    {
+        if (fieldAttributes == null)
+            return;
+        
+        var newMembers = new List<MemberInfo>();
+        foreach (var fieldAttribute in fieldAttributes)
+        {
+            var forField = AttributeUtils.GetAttributeValue<string?>(fieldAttribute, "forField", null);
+            if (string.IsNullOrEmpty(forField))
+                continue;
+
+            if (forField == null)
+            {
+                targetInfo.AddError($"Field attribute '{fieldAttribute.AttributeClass?.Name}' is missing the required 'forField' argument.");
+                continue;   
+            }
+            
+            foreach (var member in targetInfo.Members)
+            {
+                if (member.Name == forField)
+                    goto end;
+            }
+            
+            var fieldType = AttributeUtils.GetAttributeValue<INamedTypeSymbol?>(fieldAttribute, "fieldType", null);
+            if (fieldType == null)
+            {
+                targetInfo.AddError($"Field attribute '{fieldAttribute.AttributeClass?.Name}' is missing the required 'fieldType' argument.");
+                continue;
+            }
+
+            var readOnly = AttributeUtils.GetAttributeValue<bool>(fieldAttribute, "readOnly", false);
+            
+            targetInfo.AddMember(new DeriveMemberInfo(
+                symbol: new DummySymbol(forField!, targetInfo.Symbol, null, Accessibility.Private),
+                name: forField!,
+                type: fieldType,
+                order: 99999,
+                readOnly: readOnly,
+                errors: []));
+            
+            end: {}
+        }
+    }
+
     private static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, GeneratorSyntaxContext context)
     {
-        var memberCount = targetInfo.Members.Length;
+        var memberCount = targetInfo.Members.Count;
         var requestedMaskType = targetInfo.RequestedDirtyMaskType;
         var emitDirtyMask = targetInfo.EmitDirtyMask;
         var errors = new List<string>();
@@ -186,9 +218,9 @@ public static class DeriveComponentUtils
         DeriveTargetInfo targetInfo,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {
-        var members = new DeriveMemberModel[targetInfo.Members.Length];
+        var members = new DeriveMemberModel[targetInfo.Members.Count];
 
-        for (var i = 0; i < targetInfo.Members.Length; i++)
+        for (var i = 0; i < targetInfo.Members.Count; i++)
         {
             var memberModel = GetMemberModel(targetInfo.Members[i], i, fieldAttributes);
             members[i] = memberModel;
