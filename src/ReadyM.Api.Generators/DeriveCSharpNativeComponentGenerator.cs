@@ -41,7 +41,7 @@ public sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerator
         if (ct.IsCancellationRequested)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
+        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
         var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
         
         if (!targetModel.Source.EmitBindDelete)

@@ -745,6 +745,58 @@ public partial struct LocalAnimationComponent : IComponent
         Assert.DoesNotContain("void* _animInstance = nullptr;", generatedText);
     }
     
+        [Fact]
+    public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetTypeAndUsesAttributeSettings()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+
+[assembly: NativeComponent(bindDelete: true, forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>))]
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[StructLayout(LayoutKind.Sequential)]
+public partial struct MappingComponent<T> : IComponent
+{
+    private T _value;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("struct MappingComponentGeneratedBase", generatedText);
+
+        Assert.Contains("void* Value() const", generatedText);
+        Assert.Contains("void SetValue(void* value)", generatedText);
+        Assert.Contains("if (_value != value)", generatedText);
+        Assert.Contains("_value = value;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("void* _value = nullptr;", generatedText);
+
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+
+        Assert.Contains("class NativeEntityDeleteImplGeneratedBase", generatedText);
+        Assert.Contains("struct NativeBinding", generatedText);
+        Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
+        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, MappingComponent& comp) = 0;", generatedText);
+    }
+    
     private static void AssertContainerMember(
         string generatedText,
         string getterSignature,

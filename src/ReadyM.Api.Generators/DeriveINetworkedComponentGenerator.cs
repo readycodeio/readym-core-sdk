@@ -39,7 +39,7 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         if (ct.IsCancellationRequested)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
+        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
         var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
         var code = GenerateNetworkedComponent(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol);

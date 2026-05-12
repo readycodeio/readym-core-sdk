@@ -8,7 +8,7 @@ namespace ReadyM.Api.Generators;
 
 internal static class DeriveUtils
 {
-    internal static INamedTypeSymbol GetAttributedSymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+    internal static INamedTypeSymbol GetTargetSymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         var node = context.Node;
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);

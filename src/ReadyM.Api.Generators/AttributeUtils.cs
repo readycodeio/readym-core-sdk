@@ -38,6 +38,14 @@ public static class AttributeUtils
         if (attr is null)
             return defaultValue;
 
+        return GetAttributeValue(attr, keyName, defaultValue);
+    }
+
+    public static T GetAttributeValue<T>(
+        AttributeData attr,
+        string keyName,
+        T defaultValue)
+    {
         foreach (var named in attr.NamedArguments)
         {
             if (string.Equals(named.Key, keyName))
@@ -66,7 +74,7 @@ public static class AttributeUtils
 
         return defaultValue;
     }
-
+    
     public static IReadOnlyList<T>? GetArrayAttribute<T>(
         ISymbol? symbol,
         string attrName,
@@ -80,10 +88,8 @@ public static class AttributeUtils
         {
             case TypedConstantKind.Enum:
             case TypedConstantKind.Primitive:
-                return ConvertValue(typedConst.Value, defaultValue);
-
             case TypedConstantKind.Type:
-                return ConvertValue(typedConst.Type, defaultValue);
+                return ConvertValue(typedConst.Value, defaultValue);
 
             case TypedConstantKind.Array:
                 return ConvertArrayValue(typedConst, defaultValue);
@@ -112,8 +118,7 @@ public static class AttributeUtils
 
             object? rawValue = itemTypedConst.Kind switch
             {
-                TypedConstantKind.Enum or TypedConstantKind.Primitive => itemTypedConst.Value,
-                TypedConstantKind.Type => itemTypedConst.Type,
+                TypedConstantKind.Array => ConvertArrayValue<object?>(itemTypedConst, null),
                 _ => itemTypedConst.Value
             };
 

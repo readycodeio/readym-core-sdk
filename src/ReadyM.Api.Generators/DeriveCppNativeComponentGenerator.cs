@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,6 +14,18 @@ namespace ReadyM.Api.Generators;
 [Generator]
 public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 {
+    private sealed class NativeComponentCandidate(
+        INamedTypeSymbol symbol,
+        AttributeData? nativeComponentAttribute,
+        Location? location,
+        GeneratorSyntaxContext? context)
+    {
+        public INamedTypeSymbol Symbol { get; } = symbol;
+        public AttributeData? NativeComponentAttribute { get; } = nativeComponentAttribute;
+        public Location? Location { get; } = location;
+        public GeneratorSyntaxContext? Context { get; } = context;
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var outputPathProvider =
@@ -32,7 +43,15 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                     (string? GenCppPath, bool GenCppEnabled) opts = (genCppPath, genCppEnabled);
                     return opts;
                 });
-        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
+        var typeLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, TransformTypeLevel);
+        var assemblyLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(AssemblyPredicate, TransformAssemblyLevel);
+        var codeProvider =
+            typeLevelProvider
+                .Collect()
+                .Combine(assemblyLevelProvider.Collect())
+                .SelectMany((result, _) => result.Left.Concat(result.Right))
+                .Where(static x => x != null)
+                .Select(Transform);
         var combined = codeProvider.Combine(outputPathProvider);
         
         context.RegisterSourceOutput(
@@ -96,16 +115,128 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             return false;
 
         var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" or "NativeComponentAttribute" });
+        return attributes.Any(x => IsNativeComponentAttributeName(x.Name));
     }
 
-    private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
+    private bool AssemblyPredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return false;
+
+        var attribute = syntaxNode as AttributeSyntax;
+        if (attribute == null)
+            return false;
+
+        var attributeList = attribute.Parent as AttributeListSyntax;
+        if (attributeList == null)
+            return false;
+
+        if (attributeList.Target == null || attributeList.Target.Identifier.Text != "assembly")
+            return false;
+
+        return IsNativeComponentAttributeName(attribute.Name);
+    }
+
+    private static bool IsNativeComponentAttributeName(NameSyntax name)
+    {
+        if (name is IdentifierNameSyntax identifierName)
+            return identifierName.Identifier.Text is "NativeComponent" or "NativeComponentAttribute";
+
+        if (name is QualifiedNameSyntax qualifiedName)
+            return IsNativeComponentAttributeName(qualifiedName.Right);
+
+        if (name is AliasQualifiedNameSyntax aliasQualifiedName)
+            return aliasQualifiedName.Name.Identifier.Text is "NativeComponent" or "NativeComponentAttribute";
+
+        return false;
+    }
+
+    private NativeComponentCandidate? TransformTypeLevel(GeneratorSyntaxContext context, CancellationToken ct)
     {
         if (ct.IsCancellationRequested)
+            return null;
+
+        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
+        var attr = symbol
+            .GetAttributes()
+            .FirstOrDefault(static x => x.AttributeClass?.Name is "NativeComponent" or "NativeComponentAttribute");
+
+        return new NativeComponentCandidate(
+            symbol,
+            attr,
+            symbol.Locations.FirstOrDefault(),
+            context);
+    }
+
+    private NativeComponentCandidate? TransformAssemblyLevel(GeneratorSyntaxContext context, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested)
+            return null;
+
+        var attributeSyntax = context.Node as AttributeSyntax;
+        if (attributeSyntax == null)
+            return null;
+
+        if (!AttributeUtils.HasAttribute(
+                context.SemanticModel.Compilation.Assembly,
+                "NativeComponentAttribute"))
+        {
+            return null;
+        }
+
+        var skipCpp = AttributeUtils.GetAttribute<bool>(
+            context.SemanticModel.Compilation.Assembly,
+            "NativeComponentAttribute",
+            "skipCpp",
+            false);
+
+        if (skipCpp)
+            return null;
+        
+        var targetSymbol = AttributeUtils.GetAttribute<INamedTypeSymbol?>(
+            context.SemanticModel.Compilation.Assembly,
+            "NativeComponentAttribute",
+            "forType",
+            null);
+
+        if (targetSymbol == null)
+            return null;
+
+        var attr = context.SemanticModel.Compilation
+            .Assembly
+            .GetAttributes()
+            .FirstOrDefault(x =>
+                x.ApplicationSyntaxReference != null &&
+                x.ApplicationSyntaxReference.SyntaxTree == attributeSyntax.SyntaxTree &&
+                x.ApplicationSyntaxReference.Span == attributeSyntax.Span);
+
+        return new NativeComponentCandidate(
+            targetSymbol,
+            attr,
+            attributeSyntax.GetLocation(),
+            null);
+    }
+
+    private (string Name, string Code) Transform(NativeComponentCandidate? candidate, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested || candidate == null)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var symbol = candidate.Symbol;
+        DeriveTargetModel targetModel;
+
+        if (candidate.Context != null)
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(symbol, candidate.Context.Value);
+        }
+        else
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(
+                symbol,
+                candidate.NativeComponentAttribute,
+                candidate.Location);
+        }
+
         var code = GenerateCppFragment(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol) + "GeneratedBase";
 

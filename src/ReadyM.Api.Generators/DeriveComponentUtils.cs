@@ -11,6 +11,23 @@ public class DeriveComponentUtils
 
     internal static DeriveTargetModel GetTargetModel(INamedTypeSymbol symbol, GeneratorSyntaxContext context)
     {
+        return GetTargetModel(symbol, context, null, null);
+    }
+
+    internal static DeriveTargetModel GetTargetModel(
+        INamedTypeSymbol symbol,
+        AttributeData? nativeComponentAttribute,
+        Location? location)
+    {
+        return GetTargetModel(symbol, null, nativeComponentAttribute, location);
+    }
+
+    private static DeriveTargetModel GetTargetModel(
+        INamedTypeSymbol symbol,
+        GeneratorSyntaxContext? context,
+        AttributeData? nativeComponentAttribute,
+        Location? location)
+    {
         var isNetComponent = AttributeUtils.HasAttribute(symbol, "DeriveINetworkedComponentAttribute");
 
         byte mode;
@@ -49,7 +66,14 @@ public class DeriveComponentUtils
 
         var emitBindDelete = false;
             
-        if (AttributeUtils.HasAttribute(symbol, "NativeComponentAttribute"))
+        if (nativeComponentAttribute != null)
+        {
+            emitBindDelete = AttributeUtils.GetAttributeValue<bool>(
+                nativeComponentAttribute,
+                "bindDelete",
+                false);
+        }
+        else if (AttributeUtils.HasAttribute(symbol, "NativeComponentAttribute"))
         {
             emitBindDelete = AttributeUtils.GetAttribute<bool>(
                 symbol,
@@ -63,7 +87,12 @@ public class DeriveComponentUtils
 
         DeriveMaskInfo? mask = null;
         if (isNetComponent)
-            mask = GetMaskInfo(targetInfo, context);
+        {
+            if (context == null)
+                throw new InvalidOperationException("GeneratorSyntaxContext is required to derive dirty mask information.");
+
+            mask = GetMaskInfo(targetInfo, context.Value);
+        }
         
         return new DeriveTargetModel(targetInfo, members, mask);
     }
