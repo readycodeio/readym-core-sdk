@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+[AttributeUsage(AttributeTargets.Field)]
 public class CppNativeFieldTypeAttribute(
     string cppTypeName,
     string defaultValue = "{}",

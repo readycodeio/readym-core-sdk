@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Assembly)]
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = true)]
 public class BoolNativeAccessMethodsForAttribute(
     Type forType,
     string forField) : BoolNativeAccessMethodsAttribute

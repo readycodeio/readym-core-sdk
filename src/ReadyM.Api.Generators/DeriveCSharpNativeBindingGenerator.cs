@@ -1,0 +1,416 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace ReadyM.Api.Generators;
+
+[Generator]
+public sealed class DeriveNativeBindingGenerator : IIncrementalGenerator
+{
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
+
+        context.RegisterSourceOutput(
+            codeProvider,
+            static (spc, result) =>
+            {
+                foreach (var diagnostic in result.Diagnostics)
+                    spc.ReportDiagnostic(diagnostic);
+
+                if (string.IsNullOrEmpty(result.Name))
+                    return;
+
+                spc.AddSource($"{result.Name}.g.cs", result.Code);
+            });
+    }
+
+    private static bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return false;
+
+        if (syntaxNode is not StructDeclarationSyntax { AttributeLists.Count: > 0 } structDecl)
+            return false;
+
+        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
+
+        return attributes.Any(static x =>
+            x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveNativeBinding" or "DeriveNativeBindingAttribute" } ||
+            x.Name is QualifiedNameSyntax { Right.Identifier.Text: "DeriveNativeBinding" or "DeriveNativeBindingAttribute" });
+    }
+
+    private static GenerationResult Transform(GeneratorSyntaxContext context, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested)
+            return GenerationResult.Empty;
+
+        var structDecl = (StructDeclarationSyntax)context.Node;
+        var symbol = context.SemanticModel.GetDeclaredSymbol(structDecl, ct);
+
+        if (symbol is null)
+            return GenerationResult.Empty;
+
+        var diagnostics = new List<Diagnostic>();
+        var fields = GetFields(symbol);
+        var fieldModels = fields.Select(GetFieldModel).ToList();
+
+        if (diagnostics.Count > 0)
+            return new GenerationResult(string.Empty, string.Empty, [..diagnostics]);
+
+        var code = Generate(symbol, structDecl, fieldModels);
+        var name = GetGeneratedFileName(symbol);
+
+        return new GenerationResult(name, code, [..diagnostics]);
+    }
+
+    private static IReadOnlyList<IFieldSymbol> GetFields(INamedTypeSymbol symbol)
+    {
+        return symbol.GetMembers()
+            .OfType<IFieldSymbol>()
+            .Where(static x => !x.IsStatic && !x.IsConst && !x.IsImplicitlyDeclared)
+            .ToList();
+    }
+
+    private static FieldModel GetFieldModel(IFieldSymbol field)
+    {
+        if (field.Type is IPointerTypeSymbol)
+            return new FieldModel(field.Name, FieldKind.NullableNativeValue);
+
+        if (field.Type.TypeKind == TypeKind.FunctionPointer)
+            return new FieldModel(field.Name, FieldKind.NullableNativeValue);
+
+        if (IsIntPtr(field.Type))
+            return new FieldModel(field.Name, FieldKind.IntPtr);
+
+        if (IsUIntPtr(field.Type))
+            return new FieldModel(field.Name, FieldKind.UIntPtr);
+
+        return new FieldModel(field.Name, FieldKind.GeneratedNestedBinding);
+    }
+
+    private static bool IsIntPtr(ITypeSymbol type)
+    {
+        return type.SpecialType == SpecialType.System_IntPtr ||
+               type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.IntPtr";
+    }
+
+    private static bool IsUIntPtr(ITypeSymbol type)
+    {
+        return type.SpecialType == SpecialType.System_UIntPtr ||
+               type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.UIntPtr";
+    }
+
+    private static IReadOnlyList<TypeDeclarationSyntax> GetContainingTypeDeclarations(TypeDeclarationSyntax declaration)
+    {
+        var result = new List<TypeDeclarationSyntax>();
+        var current = declaration.Parent;
+
+        while (current is not null)
+        {
+            if (current is TypeDeclarationSyntax typeDeclaration)
+                result.Add(typeDeclaration);
+
+            current = current.Parent;
+        }
+
+        result.Reverse();
+        return result;
+    }
+
+    private static string Generate(
+        INamedTypeSymbol symbol,
+        StructDeclarationSyntax structDecl,
+        IReadOnlyList<FieldModel> fields)
+    {
+        var sb = new StringBuilder();
+        var namespaceName = symbol.ContainingNamespace.IsGlobalNamespace
+            ? string.Empty
+            : symbol.ContainingNamespace.ToDisplayString();
+
+        if (string.IsNullOrEmpty(namespaceName))
+        {
+            sb.Append("""
+// <auto-generated/>
+#nullable enable
+
+""");
+        }
+        else
+        {
+            sb.Append($$"""
+// <auto-generated/>
+#nullable enable
+
+namespace {{namespaceName}};
+
+""");
+        }
+
+        var containingTypes = GetContainingTypeDeclarations(structDecl);
+
+        foreach (var containingType in containingTypes)
+        {
+            EmitTypeDeclarationStart(sb, containingType, false);
+        }
+
+        EmitTypeDeclarationStart(sb, structDecl, true);
+
+        EmitIsValid(sb, fields);
+        EmitEnsureValid(sb, symbol, fields);
+
+        EmitTypeDeclarationEnd(sb);
+
+        for (var i = 0; i < containingTypes.Count; i++)
+            EmitTypeDeclarationEnd(sb);
+
+        sb.Append("""
+#nullable disable
+""");
+
+        return sb.ToString();
+    }
+
+    private static void EmitTypeDeclarationStart(
+        StringBuilder sb,
+        TypeDeclarationSyntax declaration,
+        bool forceUnsafe)
+    {
+        var modifiers = GetTypeModifiers(declaration, forceUnsafe);
+        var keyword = declaration.Keyword.Text;
+        var typeParameterList = declaration.TypeParameterList?.ToString() ?? string.Empty;
+
+        sb.Append($$"""
+{{modifiers}} {{keyword}} {{declaration.Identifier.Text}}{{typeParameterList}}
+{
+
+""");
+    }
+
+    private static void EmitTypeDeclarationEnd(StringBuilder sb)
+    {
+        sb.Append("""
+}
+
+""");
+    }
+
+    private static string GetTypeModifiers(TypeDeclarationSyntax declaration, bool forceUnsafe)
+    {
+        var modifiers = declaration.Modifiers
+            .Where(static x =>
+                x.IsKind(SyntaxKind.PublicKeyword) ||
+                x.IsKind(SyntaxKind.InternalKeyword) ||
+                x.IsKind(SyntaxKind.ProtectedKeyword) ||
+                x.IsKind(SyntaxKind.PrivateKeyword) ||
+                x.IsKind(SyntaxKind.UnsafeKeyword) ||
+                x.IsKind(SyntaxKind.PartialKeyword))
+            .Select(static x => x.Text)
+            .ToList();
+
+        if (forceUnsafe && !modifiers.Contains("unsafe"))
+        {
+            var partialIndex = modifiers.IndexOf("partial");
+
+            if (partialIndex >= 0)
+                modifiers.Insert(partialIndex, "unsafe");
+            else
+                modifiers.Add("unsafe");
+        }
+
+        if (!modifiers.Contains("partial"))
+            modifiers.Add("partial");
+
+        return string.Join(" ", modifiers);
+    }
+
+    private static void EmitIsValid(StringBuilder sb, IReadOnlyList<FieldModel> fields)
+    {
+        if (fields.Count == 0)
+        {
+            sb.Append("""
+    public bool IsValid()
+    {
+        return true;
+    }
+
+""");
+            return;
+        }
+
+        sb.Append("""
+    public bool IsValid
+        =>
+""");
+
+        for (var i = 0; i < fields.Count; i++)
+        {
+            var field = fields[i];
+            var suffix = i == fields.Count - 1 ? ";" : " &&";
+
+            var expr = $"{GetIsValidExpression(field)}{suffix}";
+            
+            if (i == 0)
+                sb.AppendLine($" {expr}");
+            else
+                sb.AppendLine($$"""
+            {{expr}}
+""");
+        }
+
+        sb.AppendLine("""
+
+""");
+    }
+
+    private static void EmitEnsureValid(
+        StringBuilder sb,
+        INamedTypeSymbol symbol,
+        IReadOnlyList<FieldModel> fields)
+    {
+        var genericArgs = "";
+        if (symbol.TypeArguments.Length > 0)
+        {
+            var genericArgsBuilder = new StringBuilder();
+            genericArgsBuilder.Append("<");
+            for (var i = 0; i < symbol.TypeArguments.Length; i++)
+            {
+                if (i > 0)
+                    genericArgsBuilder.Append(", ");
+                var arg = symbol.TypeArguments[i];
+                genericArgsBuilder.Append(arg.Name);
+            }
+            genericArgsBuilder.Append(">");
+            genericArgs = genericArgsBuilder.ToString();
+        }
+        
+        sb.Append($$"""
+    public void EnsureValid()
+    {
+        EnsureValid(nameof({{symbol.Name}}{{genericArgs}}));
+    }
+
+    public void EnsureValid(string path)
+    {
+
+""");
+
+        foreach (var field in fields)
+        {
+            AppendEnsureValidField(sb, field);
+        }
+
+        sb.Append("""
+    }
+
+""");
+    }
+
+    private static void AppendEnsureValidField(StringBuilder sb, FieldModel field)
+    {
+        if (field.Kind == FieldKind.GeneratedNestedBinding)
+        {
+            sb.Append($$"""
+        {{field.Name}}.EnsureValid($"{path}.{nameof({{field.Name}})}");
+
+""");
+            return;
+        }
+
+        sb.Append($$"""
+        if ({{GetInvalidExpression(field)}})
+            throw new System.InvalidOperationException($"{path}.{nameof({{field.Name}})} is null");
+
+""");
+    }
+
+    private static string GetIsValidExpression(FieldModel field)
+    {
+        switch (field.Kind)
+        {
+            case FieldKind.NullableNativeValue:
+                return field.Name + " != null";
+
+            case FieldKind.IntPtr:
+                return field.Name + " != System.IntPtr.Zero";
+
+            case FieldKind.UIntPtr:
+                return field.Name + " != System.UIntPtr.Zero";
+
+            case FieldKind.GeneratedNestedBinding:
+                return field.Name + ".IsValid";
+
+            default:
+                throw new InvalidOperationException("Unsupported field kind: " + field.Kind);
+        }
+    }
+
+    private static string GetInvalidExpression(FieldModel field)
+    {
+        switch (field.Kind)
+        {
+            case FieldKind.NullableNativeValue:
+                return field.Name + " == null";
+
+            case FieldKind.IntPtr:
+                return field.Name + " == System.IntPtr.Zero";
+
+            case FieldKind.UIntPtr:
+                return field.Name + " == System.UIntPtr.Zero";
+
+            case FieldKind.GeneratedNestedBinding:
+                return "!" + field.Name + ".IsValid()";
+
+            default:
+                throw new InvalidOperationException("Unsupported field kind: " + field.Kind);
+        }
+    }
+
+    private static string GetGeneratedFileName(INamedTypeSymbol symbol)
+    {
+        var name = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            .Replace("global::", string.Empty)
+            .Replace(".", "_")
+            .Replace("<", "_")
+            .Replace(">", "_")
+            .Replace(",", "_")
+            .Replace(" ", string.Empty);
+
+        return name + "_NativeBindingValidation";
+    }
+
+    private sealed class GenerationResult(
+        string name,
+        string code,
+        ImmutableArray<Diagnostic> diagnostics)
+    {
+        public static readonly GenerationResult Empty = new(
+            string.Empty,
+            string.Empty,
+            ImmutableArray<Diagnostic>.Empty);
+
+        public string Name { get; } = name;
+        public string Code { get; } = code;
+        public ImmutableArray<Diagnostic> Diagnostics { get; } = diagnostics;
+    }
+
+    private sealed class FieldModel(string name, FieldKind kind)
+    {
+        public string Name { get; } = name;
+        public FieldKind Kind { get; } = kind;
+    }
+
+    private enum FieldKind
+    {
+        NullableNativeValue,
+        IntPtr,
+        UIntPtr,
+        GeneratedNestedBinding,
+    }
+}

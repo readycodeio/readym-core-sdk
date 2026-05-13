@@ -72,16 +72,6 @@ public sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerator
         return $"<{args}>";
     }
     
-    private static string GetConstraintClauses(StructDeclarationSyntax structDecl)
-    {
-        if (structDecl.ConstraintClauses.Count == 0)
-            return string.Empty;
-
-        return "\n" + string.Join(
-            "\n",
-            structDecl.ConstraintClauses.Select(static c => c.ToString()));
-    }
-
     private string GenerateNativeBindingComponent(
         DeriveTargetModel model,
         StructDeclarationSyntax structDecl)
@@ -89,7 +79,6 @@ public sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerator
         var info = model.Source;
         var typeParameterList = GetTypeParameterList(structDecl);
         var typeArgumentList = GetTypeArgumentList(structDecl);
-        var constraintClauses = GetConstraintClauses(structDecl);
 
         var componentType = $"{info.Name}{typeArgumentList}";
 
@@ -104,7 +93,7 @@ using Friflo.Engine.ECS;
 
 namespace {info.Namespace};
 
-public partial struct {info.Name}{typeParameterList}{constraintClauses}
+public partial struct {info.Name}{typeParameterList}
 {{
     public unsafe class NativeEntityDeleteImpl : IEntityDeleteImpl
     {{
@@ -116,6 +105,17 @@ public partial struct {info.Name}{typeParameterList}{constraintClauses}
 
             public bool IsValid
                 => Target != null && OnEntityDeleteHandler != null;
+
+            public void EnsureValid()
+                => EnsureValid($""{{nameof({info.Name}{typeParameterList})}}.{{nameof(NativeEntityDeleteImpl)}}"");
+
+            public void EnsureValid(string path)
+            {{
+                if (Target == null)
+                    throw new System.InvalidOperationException($""{{path}}.Target is null"");
+                if (OnEntityDeleteHandler == null)
+                    throw new System.InvalidOperationException($""{{path}}.OnEntityDeleteHandler is null"");
+            }}
         }}
 
         private NativeBinding _binding;
