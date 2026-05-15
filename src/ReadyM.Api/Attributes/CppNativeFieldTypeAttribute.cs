@@ -10,6 +10,7 @@ public class CppNativeFieldTypeAttribute(
     string? getterTypeName = null,
     string? setterTypeName = null,
     bool useMove = false,
+    bool readOnly = false,
     params string[] includes) : System.Attribute
 {
     public readonly string CppTypeName = cppTypeName;
@@ -17,5 +18,6 @@ public class CppNativeFieldTypeAttribute(
     public readonly string? SetterType = setterTypeName;
     public readonly string DefaultValue = defaultValue;
     public readonly bool UseMove = useMove;
+    public readonly bool ReadOnly = readOnly;
     public readonly IReadOnlyList<string> Includes = includes;
 }

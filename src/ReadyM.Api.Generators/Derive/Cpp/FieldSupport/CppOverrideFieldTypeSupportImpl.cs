@@ -16,7 +16,34 @@ internal class CppOverrideFieldTypeSupportImpl : CppFieldTypeSupportImplBase
             context.State.ModuleState.AddInclude(include, false);
         }
         
-        base.EmitAccessorMethods(symbol, context, emitPublic);
+        if (emitPublic)
+        {
+            if (context.Member.AccessorSettings.SkipAccessors)
+                return;
+            
+            EmitGetterMethod(symbol, context, true);
+            context.AppendLine();
+            
+            if (!context.Member.CppSettings.ReadOnly)
+            {
+                EmitSetterMethod(symbol, context, true);
+                context.AppendLine();
+            }
+        }
+        else // emitPrivate
+        {
+            if (!context.Member.AccessorSettings.SkipAccessors)
+                return;
+            
+            EmitGetterMethod(symbol, context, false);
+            context.AppendLine();
+
+            if (!context.Member.CppSettings.ReadOnly)
+            {
+                EmitSetterMethod(symbol, context, false);
+                context.AppendLine();
+            }
+        }
     }
 
     protected override void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)

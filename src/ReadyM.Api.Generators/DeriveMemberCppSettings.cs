@@ -8,6 +8,7 @@ internal readonly struct DeriveMemberCppSettings(
     string? getterTypeName,
     string? setterTypeName,
     bool useMove,
+    bool readOnly,
     params IReadOnlyList<string> includes)
 {
     public string? CppTypeName { get; } = cppTypeName;
@@ -15,5 +16,6 @@ internal readonly struct DeriveMemberCppSettings(
     public string? GetterTypeName { get; } = getterTypeName;
     public string? SetterTypeName { get; } = setterTypeName;
     public bool UseMove { get; } = useMove;
+    public bool ReadOnly { get; } = readOnly;
     public IReadOnlyList<string> Includes { get; } = includes;
 }

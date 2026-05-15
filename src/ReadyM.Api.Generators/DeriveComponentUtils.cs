@@ -269,6 +269,8 @@ public static class DeriveComponentUtils
             ?? GetFieldAttribute<string?>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "setterTypeName", null);
         var useMove = AttributeUtils.GetAttribute<bool>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "useMove", false)
             || GetFieldAttribute<bool>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "useMove", false);
+        var readOnly = AttributeUtils.GetAttribute<bool>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "readOnly", false)
+            || GetFieldAttribute<bool>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "readOnly", false);
         var includes = AttributeUtils.GetArrayAttribute<string>(memberInfo.Symbol, "CppNativeFieldTypeAttribute", "includes");
         if (includes == null || includes.Count == 0)
             includes = GetFieldAttribute<IReadOnlyList<string>>(fieldAttributes, memberInfo.Name, "CppNativeFieldTypeForAttribute", "includes", []);
@@ -279,6 +281,7 @@ public static class DeriveComponentUtils
             getterTypeName: getterTypeName,
             setterTypeName: setterTypeName,
             useMove: useMove,
+            readOnly: readOnly,
             includes: includes);
     }
 

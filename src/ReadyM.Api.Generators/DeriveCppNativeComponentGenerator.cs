@@ -599,7 +599,7 @@ namespace {ns}
         CppModuleState moduleState)
     {
         sb.Append($@"
-        void Assign(const {CppTypeName(model.Source.Symbol)}GeneratedBase& value)
+        void Assign(const {model.Source.Name}GeneratedBase& value)
 ");
         sb.AppendLine("""
         {

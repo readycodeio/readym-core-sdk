@@ -12,7 +12,7 @@ public class CppNativeFieldTypeForAttribute(
     string? setterTypeName = null,
     bool useMove = false,
     Type? fieldType = null,
-    bool isReadOnly = false,
+    bool readOnly = false,
     params string[] includes)
     : CppNativeFieldTypeAttribute(
         cppTypeName,
@@ -20,10 +20,10 @@ public class CppNativeFieldTypeForAttribute(
         getterTypeName,
         setterTypeName,
         useMove,
+        readOnly,
         includes)
 {
     public Type ForType { get; } = forType;
     public string ForField { get; } = forField;
     public Type? FieldType { get; } = fieldType;
-    public bool IsReadOnly { get; } = isReadOnly;
 }

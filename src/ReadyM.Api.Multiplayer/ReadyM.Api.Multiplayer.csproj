@@ -19,6 +19,8 @@
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+        <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\Serialization\Yooni.Native.Serialization.csproj" />
     </ItemGroup>
 
     <PropertyGroup>
