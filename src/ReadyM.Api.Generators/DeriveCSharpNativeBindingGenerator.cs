@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public sealed class DeriveNativeBindingGenerator : IIncrementalGenerator
+internal sealed class DeriveNativeBindingGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -182,7 +182,7 @@ namespace {{namespaceName}};
         TypeDeclarationSyntax declaration,
         bool forceUnsafe)
     {
-        var modifiers = GetTypeModifiers(declaration, forceUnsafe);
+        var modifiers = DeriveCSharpUtils.GetTypeModifiers(declaration, forceUnsafe);
         var keyword = declaration.Keyword.Text;
         var typeParameterList = declaration.TypeParameterList?.ToString() ?? string.Empty;
 
@@ -199,35 +199,6 @@ namespace {{namespaceName}};
 }
 
 """);
-    }
-
-    private static string GetTypeModifiers(TypeDeclarationSyntax declaration, bool forceUnsafe)
-    {
-        var modifiers = declaration.Modifiers
-            .Where(static x =>
-                x.IsKind(SyntaxKind.PublicKeyword) ||
-                x.IsKind(SyntaxKind.InternalKeyword) ||
-                x.IsKind(SyntaxKind.ProtectedKeyword) ||
-                x.IsKind(SyntaxKind.PrivateKeyword) ||
-                x.IsKind(SyntaxKind.UnsafeKeyword) ||
-                x.IsKind(SyntaxKind.PartialKeyword))
-            .Select(static x => x.Text)
-            .ToList();
-
-        if (forceUnsafe && !modifiers.Contains("unsafe"))
-        {
-            var partialIndex = modifiers.IndexOf("partial");
-
-            if (partialIndex >= 0)
-                modifiers.Insert(partialIndex, "unsafe");
-            else
-                modifiers.Add("unsafe");
-        }
-
-        if (!modifiers.Contains("partial"))
-            modifiers.Add("partial");
-
-        return string.Join(" ", modifiers);
     }
 
     private static void EmitIsValid(StringBuilder sb, IReadOnlyList<FieldModel> fields)

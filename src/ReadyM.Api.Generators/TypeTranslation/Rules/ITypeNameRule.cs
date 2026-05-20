@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rules;
 
-public interface ITypeNameRule
+internal interface ITypeNameRule
 {
     bool TryTranslate(ITypeName input, out ITypeName output);
 }

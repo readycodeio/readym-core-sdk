@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-public static class TextSerializationHelper
+internal static class TextSerializationHelper
 {
     private static readonly Dictionary<SpecialType, (string WriteName, string ReadName)> _specialTypeMap = new()
     {

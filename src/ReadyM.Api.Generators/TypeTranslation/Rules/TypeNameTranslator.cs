@@ -4,7 +4,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rules;
 
-public sealed class TypeNameTranslator(IReadOnlyList<ITypeNameRule> rules)
+internal sealed class TypeNameTranslator(IReadOnlyList<ITypeNameRule> rules)
 {
     public ITypeName Translate(ITypeName input)
     {

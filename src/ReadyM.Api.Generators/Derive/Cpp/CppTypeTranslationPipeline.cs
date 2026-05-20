@@ -8,7 +8,7 @@ using ReadyM.Api.Generators.TypeTranslation.Rules;
 
 namespace ReadyM.Api.Generators.Derive.Cpp;
 
-public static class CppTypeTranslationPipeline
+internal static class CppTypeTranslationPipeline
 {
     public static TypeTranslationPipeline CreateTypeTranslationPipeline()
     {

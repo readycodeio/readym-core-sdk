@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.TypeTranslation.Model;
 
-public sealed class GenericInstanceName(ITypeName genericDefinition, IReadOnlyList<ITypeName> typeArguments) : ITypeName
+internal sealed class GenericInstanceName(ITypeName genericDefinition, IReadOnlyList<ITypeName> typeArguments) : ITypeName
 {
     public ITypeName GenericDefinition { get; } = genericDefinition;
 

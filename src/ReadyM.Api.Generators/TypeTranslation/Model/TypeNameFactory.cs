@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Model;
 
-public static class TypeNameFactory
+internal static class TypeNameFactory
 {
     public static ITypeName Empty() => new EmptyName();
     

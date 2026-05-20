@@ -3,7 +3,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Parsing;
 
-public interface ITypeNameParser
+internal interface ITypeNameParser
 {
     ITypeName Parse(ITypeSymbol typeSymbol);
 }

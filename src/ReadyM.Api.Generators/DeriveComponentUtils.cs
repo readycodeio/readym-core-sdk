@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-public static class DeriveComponentUtils
+internal static class DeriveComponentUtils
 {
     internal const string ScalarComparisonEpsilon = "0.1";
     internal const string VectorComparisonEpsilon = "0.01";

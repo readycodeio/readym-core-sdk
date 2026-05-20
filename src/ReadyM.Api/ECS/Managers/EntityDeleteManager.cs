@@ -7,7 +7,7 @@ using ReadyM.Api.ECS.Worlds;
 
 namespace ReadyM.Api.ECS.Managers;
 
-public class EntityDeleteManager : IDisposable
+internal class EntityDeleteManager : IDisposable
 {
     private readonly Store _world;
     private readonly List<IEntityDeleteImpl> _impls = [];

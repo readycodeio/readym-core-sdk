@@ -15,7 +15,7 @@ namespace ReadyM.Api.Generators;
 
 [Generator]
 [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035")]
-public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
+internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 {
     private sealed class NativeComponentCandidate(
         INamedTypeSymbol symbol,

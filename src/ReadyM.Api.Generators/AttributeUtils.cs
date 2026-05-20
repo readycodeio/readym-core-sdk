@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-public static class AttributeUtils
+internal static class AttributeUtils
 {
     public static AttributeData? GetAttributeData(
         ISymbol? symbol,

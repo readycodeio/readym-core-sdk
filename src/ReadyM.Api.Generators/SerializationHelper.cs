@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators;
 
-public static class SerializationHelper
+internal static class SerializationHelper
 {
     private static readonly Dictionary<SpecialType, string> SpecialTypeMap = new()
     {

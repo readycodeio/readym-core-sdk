@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Generators;
 
-public class DeriveMapSettings(
+internal class DeriveMapSettings(
     bool mapFields,
     bool mapProperties,
     bool mapPrivate,

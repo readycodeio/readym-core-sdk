@@ -5,7 +5,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rules;
 
-public sealed class GenericPatternTypeNameRule(ITypeName pattern, ITypeName replacement) : ITypeNameRule
+internal sealed class GenericPatternTypeNameRule(ITypeName pattern, ITypeName replacement) : ITypeNameRule
 {
     public bool TryTranslate(ITypeName input, out ITypeName output)
     {

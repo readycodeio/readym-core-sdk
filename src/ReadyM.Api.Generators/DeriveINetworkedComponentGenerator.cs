@@ -11,7 +11,7 @@ using static ReadyM.Api.Generators.DeriveCSharpUtils;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
+internal sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

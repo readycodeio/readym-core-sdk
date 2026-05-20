@@ -4,7 +4,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rendering;
 
-public sealed class CppPathRenderer : ITypeRenderer
+internal sealed class CppPathRenderer : ITypeRenderer
 {
     public string Render(ITypeName typeName)
     {

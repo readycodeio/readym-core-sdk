@@ -6,7 +6,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators;
 
-public static class DeriveCppUtils
+internal static class DeriveCppUtils
 {
     public static string CppTypeNamespace(ITypeSymbol type)
     {

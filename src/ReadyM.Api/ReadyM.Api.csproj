@@ -27,6 +27,8 @@
         <ProjectReference Include="..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS.Boost\Friflo.Engine.ECS.Boost.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />
+        <ProjectReference Include="..\YooniCSharp\Native\Serialization\Yooni.Native.Serialization.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
