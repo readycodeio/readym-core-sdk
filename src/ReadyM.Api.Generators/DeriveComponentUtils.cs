@@ -11,22 +11,25 @@ internal static class DeriveComponentUtils
     internal const string VectorComparisonEpsilon = "0.01";
 
     internal static DeriveTargetModel GetTargetModel(
+        bool isExternal,
         INamedTypeSymbol symbol,
         GeneratorSyntaxContext context,
         IReadOnlyList<AttributeData>? fieldAttributes = null)
     {
-        return GetTargetModel(symbol, context, null, fieldAttributes);
+        return GetTargetModel(isExternal, symbol, context, null, fieldAttributes);
     }
 
     internal static DeriveTargetModel GetTargetModel(
+        bool isExternal,
         INamedTypeSymbol symbol,
         AttributeData? nativeComponentAttribute,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {
-        return GetTargetModel(symbol, null, nativeComponentAttribute, fieldAttributes);
+        return GetTargetModel(isExternal, symbol, null, nativeComponentAttribute, fieldAttributes);
     }
 
     private static DeriveTargetModel GetTargetModel(
+        bool isExternal,
         INamedTypeSymbol symbol,
         GeneratorSyntaxContext? context,
         AttributeData? nativeComponentAttribute,
@@ -86,7 +89,7 @@ internal static class DeriveComponentUtils
                 false);
         }
         
-        var targetInfo = DeriveUtils.GetTargetInfo(symbol, emitDirtyMask, emitBindDelete, mapSettings);
+        var targetInfo = DeriveUtils.GetTargetInfo(isExternal, symbol, emitDirtyMask, emitBindDelete, mapSettings);
         ExtendTargetInfo(targetInfo, fieldAttributes);
         var members = GetMemberModelList(targetInfo, fieldAttributes);
 

@@ -31,7 +31,7 @@ internal class DeriveINetSerializableGenerator : IIncrementalGenerator
             return (string.Empty, string.Empty);
 
         var symbol = DeriveUtils.GetTargetSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var targetModel = DeriveComponentUtils.GetTargetModel(false, symbol, context);
         var code = GenerateINetSerializableImpl(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol);
 

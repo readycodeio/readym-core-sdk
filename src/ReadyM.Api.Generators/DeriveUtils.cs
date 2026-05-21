@@ -28,6 +28,7 @@ internal static class DeriveUtils
             mapInternal: (mode & (1 << 4)) != 0);
 
     internal static DeriveTargetInfo GetTargetInfo(
+        bool isExternal,
         INamedTypeSymbol symbol,
         bool emitDirtyMask,
         bool emitBindDelete,
@@ -165,6 +166,7 @@ internal static class DeriveUtils
         var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
 
         return new DeriveTargetInfo(
+            isExternal: isExternal,
             symbol: symbol,
             name: name,
             @namespace: ns,

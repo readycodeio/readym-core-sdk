@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -11,7 +12,15 @@ internal sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerat
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
+        var typeLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, TransformTypeLevel);
+        var assemblyLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(AssemblyPredicate, TransformAssemblyLevel);
+        var codeProvider =
+            typeLevelProvider
+                .Collect()
+                .Combine(assemblyLevelProvider.Collect())
+                .SelectMany((result, _) => result.Left.Concat(result.Right))
+                .Where(static x => x != null)
+                .Select(Transform);
 
         context.RegisterSourceOutput(
             codeProvider,
@@ -24,31 +33,61 @@ internal sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerat
             });
     }
 
-    private bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+    private static bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.TypePredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
+
+    private static bool AssemblyPredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.AssemblyPredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
+
+    private static DeriveDiscoverUtils.TargetCandidate? TransformTypeLevel(GeneratorSyntaxContext context, CancellationToken ct)
+        => DeriveDiscoverUtils.TransformTypeLevel(
+            context,
+            ct,
+            "NativeComponentAttribute");
+
+    private static DeriveDiscoverUtils.TargetCandidate? TransformAssemblyLevel(GeneratorSyntaxContext context, CancellationToken ct)
+        => DeriveDiscoverUtils.TransformAssemblyLevel(
+            context,
+            ct,
+            "NativeComponentForAttribute",
+            "skipCSharp");
+
+    private (string Name, string Code) Transform(DeriveDiscoverUtils.TargetCandidate? candidate, CancellationToken ct)
     {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
-
-        if (syntaxNode is not StructDeclarationSyntax { AttributeLists.Count: > 0 } structDecl)
-            return false;
-
-        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" or "NativeComponentAttribute" });
-    }
-
-    private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
-    {
-        if (ct.IsCancellationRequested)
+        if (ct.IsCancellationRequested || candidate == null)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var symbol = candidate.Symbol;
+        DeriveTargetModel targetModel;
+
+        if (candidate.Context != null)
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
+                symbol,
+                candidate.Context.Value);
+        }
+        else
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
+                symbol,
+                candidate.Attribute,
+                null);
+        }
         
         if (!targetModel.Source.EmitBindDelete)
             return (string.Empty, string.Empty);
         
-        var structDecl = (StructDeclarationSyntax)context.Node;
-        var code = GenerateNativeBindingComponent(targetModel, structDecl);
+        var code = GenerateNativeBindingComponent(targetModel, candidate.Context);
 
         var genName = DeriveUtils.GetGeneratedFileName(symbol);
 
@@ -72,13 +111,49 @@ internal sealed class DeriveCSharpNativeComponentGenerator : IIncrementalGenerat
         return $"<{args}>";
     }
     
+    private static string GetTypeParameterList(INamedTypeSymbol symbol)
+    {
+        if (symbol.TypeParameters.Length == 0)
+            return string.Empty;
+
+        var args = string.Join(
+            ", ",
+            symbol.TypeParameters.Select(static p => p.Name));
+
+        return $"<{args}>";
+    }
+    
+    private static string GetTypeArgumentList(INamedTypeSymbol symbol)
+    {
+        if (symbol.TypeArguments.Length == 0)
+            return string.Empty;
+
+        var args = string.Join(
+            ", ",
+            symbol.TypeArguments.Select(static p => p.ToDisplayString()));
+
+        return $"<{args}>";
+    }
+    
     private string GenerateNativeBindingComponent(
         DeriveTargetModel model,
-        StructDeclarationSyntax structDecl)
+        GeneratorSyntaxContext? context)
     {
         var info = model.Source;
-        var typeParameterList = GetTypeParameterList(structDecl);
-        var typeArgumentList = GetTypeArgumentList(structDecl);
+        var structDecl = context?.Node as StructDeclarationSyntax;
+
+        var namedDecl = model.Source.Symbol as INamedTypeSymbol;
+        var typeParameterList = structDecl != null
+            ? GetTypeParameterList(structDecl)
+            : namedDecl != null
+                ? GetTypeArgumentList(namedDecl)
+                : "";
+        var typeArgumentList = structDecl != null
+            ? GetTypeArgumentList(structDecl)
+            : namedDecl != null
+                ? GetTypeArgumentList(namedDecl)
+                : "";
+        var externalModule = info.IsExternal;
 
         var componentType = $"{info.Name}{typeArgumentList}";
 
@@ -93,8 +168,22 @@ using ReadyM.Api.ECS.Managers;
 using Friflo.Engine.ECS;
 
 namespace {info.Namespace};
+");
 
+        if (externalModule)
+        {
+            sb.Append($"""
+{access} class {info.Name}Extensions
+""");
+        }
+        else
+        {
+            sb.Append($"""
 {access} partial struct {info.Name}{typeParameterList}
+""");
+        }
+        
+        sb.Append($@"
 {{
     public unsafe class NativeEntityDeleteImpl : IEntityDeleteImpl
     {{

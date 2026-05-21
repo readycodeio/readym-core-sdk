@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ReadyM.Api.Generators.Derive.Cpp;
 using ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 using static ReadyM.Api.Generators.DeriveCppUtils;
@@ -18,27 +17,19 @@ namespace ReadyM.Api.Generators;
 internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 {
     private sealed class NativeComponentCandidate(
+        bool isExternal,
         INamedTypeSymbol symbol,
         AttributeData? nativeComponentAttribute,
         Location? location,
         GeneratorSyntaxContext? context,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {
+        public bool IsExternal { get; } = isExternal;
         public INamedTypeSymbol Symbol { get; } = symbol;
         public AttributeData? NativeComponentAttribute { get; } = nativeComponentAttribute;
         public Location? Location { get; } = location;
         public GeneratorSyntaxContext? Context { get; } = context;
         public IReadOnlyList<AttributeData>? FieldAttributes { get; } = fieldAttributes;
-    }
-    
-    private sealed class AssemblyFieldAttributeCandidate(
-        INamedTypeSymbol forType,
-        string? forField,
-        AttributeData attribute)
-    {
-        public INamedTypeSymbol ForType { get; } = forType;
-        public string? ForField { get; } = forField;
-        public AttributeData Attribute { get; } = attribute;
     }
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -113,7 +104,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                         title: "Cpp generator output",
                         messageFormat: "Generated file = '{0}'",
                         category: "Generator",
-                        defaultSeverity: DiagnosticSeverity.Warning,
+                        defaultSeverity: DiagnosticSeverity.Info,
                         isEnabledByDefault: true),
                     Location.None,
                     fullFileName));
@@ -124,201 +115,81 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             });
     }
 
-    private bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
-    {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
+    private static bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.TypePredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
 
-        var structDecl = syntaxNode as StructDeclarationSyntax;
-        if (structDecl == null || structDecl.AttributeLists.Count == 0)
-            return false;
-
-        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => IsNativeComponentAttributeName(x.Name));
-    }
-
-    private bool AssemblyPredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
-    {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
-
-        var attribute = syntaxNode as AttributeSyntax;
-        if (attribute == null)
-            return false;
-
-        var attributeList = attribute.Parent as AttributeListSyntax;
-        if (attributeList == null)
-            return false;
-
-        if (attributeList.Target == null || attributeList.Target.Identifier.Text != "assembly")
-            return false;
-
-        return IsNativeComponentAttributeName(attribute.Name);
-    }
+    private static bool AssemblyPredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.AssemblyPredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
     
-    private bool AssemblyFieldAttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+    private static bool AssemblyFieldAttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.AssemblyFieldAttributePredicate(syntaxNode, cancellationToken);
+
+    private static NativeComponentCandidate? TransformTypeLevel(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
-
-        var attribute = syntaxNode as AttributeSyntax;
-        if (attribute == null)
-            return false;
-
-        var attributeList = attribute.Parent as AttributeListSyntax;
-        if (attributeList == null)
-            return false;
-
-        if (attributeList.Target == null || attributeList.Target.Identifier.Text != "assembly")
-            return false;
-
-        var argumentList = attribute.ArgumentList;
-        if (argumentList == null)
-            return false;
-
-        var hasForType = argumentList.Arguments.Any(static x =>
-            x.NameEquals is { Name.Identifier.Text: "forType" } ||
-            x.NameColon is { Name.Identifier.Text: "forType" });
-
-        if (!hasForType)
-            return false;
-
-        var hasForField = argumentList.Arguments.Any(static x =>
-            x.NameEquals is { Name.Identifier.Text: "forField" } ||
-            x.NameColon is { Name.Identifier.Text: "forField" });
-
-        return hasForField;
-    }
-
-    private static bool IsNativeComponentAttributeName(NameSyntax name)
-    {
-        if (name is IdentifierNameSyntax identifierName)
-            return identifierName.Identifier.Text is "NativeComponent" or "NativeComponentAttribute" or "NativeComponentFor" or "NativeComponentForAttribute";
-
-        if (name is QualifiedNameSyntax qualifiedName)
-            return IsNativeComponentAttributeName(qualifiedName.Right);
-
-        if (name is AliasQualifiedNameSyntax aliasQualifiedName)
-            return aliasQualifiedName.Name.Identifier.Text is "NativeComponent" or "NativeComponentAttribute" or "NativeComponentFor" or "NativeComponentForAttribute";
-
-        return false;
-    }
-
-    private NativeComponentCandidate? TransformTypeLevel(GeneratorSyntaxContext context, CancellationToken ct)
-    {
-        if (ct.IsCancellationRequested)
-            return null;
-
-        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
-        var attr = AttributeUtils.GetAttributeData(
-            symbol,
+        var candidate = DeriveDiscoverUtils.TransformTypeLevel(
+            context,
+            ct,
             "NativeComponentAttribute");
 
+        if (candidate == null)
+            return null;
+
         return new NativeComponentCandidate(
-            symbol,
-            attr,
-            symbol.Locations.FirstOrDefault(),
-            context,
+            false,
+            candidate.Symbol,
+            candidate.Attribute,
+            candidate.Location,
+            candidate.Context,
             null);
     }
 
-    private NativeComponentCandidate? TransformAssemblyLevel(GeneratorSyntaxContext context, CancellationToken ct)
+    private static NativeComponentCandidate? TransformAssemblyLevel(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        if (ct.IsCancellationRequested)
-            return null;
-
-        var attributeSyntax = context.Node as AttributeSyntax;
-        if (attributeSyntax == null)
-            return null;
-
-        var attr = AttributeUtils.GetAttributeData(
-            context.SemanticModel.Compilation.Assembly,
+        var candidate = DeriveDiscoverUtils.TransformAssemblyLevel(
+            context,
+            ct,
             "NativeComponentForAttribute",
-            attributeSyntax);
+            "skipCpp");
 
-        if (attr == null)
-            return null;
-
-        var skipCpp = AttributeUtils.GetAttributeValue<bool>(
-            attr,
-            "skipCpp",
-            false);
-
-        if (skipCpp)
-            return null;
-        
-        var targetSymbol = AttributeUtils.GetAttributeValue<INamedTypeSymbol?>(
-            attr,
-            "forType",
-            null);
-
-        if (targetSymbol == null)
+        if (candidate == null)
             return null;
 
         return new NativeComponentCandidate(
-            targetSymbol,
-            attr,
-            attributeSyntax.GetLocation(),
-            null,
+            true,
+            candidate.Symbol,
+            candidate.Attribute,
+            candidate.Location,
+            candidate.Context,
             null);
     }
     
-    private AssemblyFieldAttributeCandidate? TransformAssemblyFieldAttribute(GeneratorSyntaxContext context, CancellationToken ct)
-    {
-        if (ct.IsCancellationRequested)
-            return null;
-
-        var attributeSyntax = context.Node as AttributeSyntax;
-        if (attributeSyntax == null)
-            return null;
-
-        var attr = AttributeUtils.GetAttributeData(
-            context.SemanticModel.Compilation.Assembly,
-            attributeSyntax);
-
-        if (attr == null)
-            return null;
-
-        var forType = AttributeUtils.GetAttributeValue<INamedTypeSymbol?>(
-            attr,
-            "forType",
-            null);
-
-        if (forType == null)
-            return null;
-
-        var forField = AttributeUtils.GetAttributeValue<string?>(
-            attr,
-            "forField",
-            null);
-
-        if (string.IsNullOrEmpty(forField))
-            return null;
-
-        return new AssemblyFieldAttributeCandidate(
-            forType,
-            forField,
-            attr);
-    }
+    private static DeriveDiscoverUtils.AssemblyFieldAttributeCandidate? TransformAssemblyFieldAttribute(GeneratorSyntaxContext context, CancellationToken ct)
+        => DeriveDiscoverUtils.TransformAssemblyFieldAttribute(context, ct);
     
     private static NativeComponentCandidate? AttachFieldAttributes(
         NativeComponentCandidate? component,
-        IEnumerable<AssemblyFieldAttributeCandidate?> fieldAttributes)
+        IEnumerable<DeriveDiscoverUtils.AssemblyFieldAttributeCandidate?> fieldAttributes)
     {
         if (component == null)
             return null;
 
-        var matchingFieldAttributes = fieldAttributes
-            .Where(x =>
-                x != null &&
-                SymbolEqualityComparer.Default.Equals(x.ForType, component.Symbol))
-            .Select(x => x!.Attribute)
-            .ToArray();
+        var matchingFieldAttributes = DeriveDiscoverUtils.GetAssemblyFieldAttributesFor(
+            component.Symbol,
+            fieldAttributes);
 
-        if (matchingFieldAttributes.Length == 0)
+        if (matchingFieldAttributes.Count == 0)
             return component;
 
         return new NativeComponentCandidate(
+            component.IsExternal,
             component.Symbol,
             component.NativeComponentAttribute,
             component.Location,
@@ -337,6 +208,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         if (candidate.Context != null)
         {
             targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
                 symbol,
                 candidate.Context.Value,
                 candidate.FieldAttributes);
@@ -344,6 +216,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
         else
         {
             targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
                 symbol,
                 candidate.NativeComponentAttribute,
                 candidate.FieldAttributes);

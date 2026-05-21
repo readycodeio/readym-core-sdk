@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 namespace ReadyM.Api.Generators;
 
 internal sealed class DeriveTargetInfo(
+    bool isExternal,
     ITypeSymbol symbol,
     string name,
     string @namespace,
@@ -16,6 +17,7 @@ internal sealed class DeriveTargetInfo(
     bool emitBindDelete,
     DeriveMapSettings mapSettings)
 {
+    public bool IsExternal { get; } = isExternal;
     public ITypeSymbol Symbol { get; } = symbol ?? throw new ArgumentNullException(nameof(symbol));
     public string Name { get; } = name ?? throw new ArgumentNullException(nameof(name));
     public string Namespace { get; } = @namespace ?? throw new ArgumentNullException(nameof(@namespace));
