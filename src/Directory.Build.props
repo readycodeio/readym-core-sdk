@@ -14,7 +14,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
-        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
+        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT;SELF_HOSTED</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <OutputPath>bin\NoDisconnect\</OutputPath>
         <DebugSymbols>true</DebugSymbols>
