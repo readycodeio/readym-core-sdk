@@ -2,9 +2,9 @@
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal sealed class EquatableFieldTypeSupportImpl : CppFieldTypeSupportImplBase
+internal sealed class EquatableFieldTypeSupportImpl : CppNonOverrideFieldTypeSupportImplBase
 {
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsEquatable(type);
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)

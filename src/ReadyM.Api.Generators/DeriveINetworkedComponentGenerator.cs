@@ -11,7 +11,7 @@ using static ReadyM.Api.Generators.DeriveCSharpUtils;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
+internal sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -31,7 +31,7 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
             return false;
 
         var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" });
+        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" or "DeriveINetworkedComponentAttribute" });
     }
 
     private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
@@ -39,8 +39,8 @@ public sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         if (ct.IsCancellationRequested)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
+        var targetModel = DeriveComponentUtils.GetTargetModel(false, symbol, context);
         var code = GenerateNetworkedComponent(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol);
 
@@ -99,8 +99,8 @@ namespace {info.Namespace};
             foreach (var error in info.Errors)
             {
                 sb.AppendLine($"""
-                                   #error {error}
-                               """);
+    #error {error}
+""");
             }
 
             sb.AppendLine();
@@ -110,6 +110,11 @@ namespace {info.Namespace};
 
         foreach (var member in members)
         {
+            if (member.Source.ReadOnly)
+                sb.AppendLine($"""
+    #error Field {member.Source.Name} cannot be read-only
+""");
+            
             if (member.Source.Type.ContainingNamespace is { } ns)
             {
                 moduleState.AddUsing(ns.ToDisplayString());

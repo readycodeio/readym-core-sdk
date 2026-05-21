@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public class WrapperGenerator : IIncrementalGenerator
+internal class WrapperGenerator : IIncrementalGenerator
 {
     private bool Predicate(SyntaxNode syntaxNode, CancellationToken ct)
     {

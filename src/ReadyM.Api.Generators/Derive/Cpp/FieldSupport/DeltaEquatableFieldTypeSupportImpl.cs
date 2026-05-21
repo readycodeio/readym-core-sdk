@@ -2,9 +2,9 @@
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal sealed class DeltaEquatableFieldTypeSupportImpl : CppFieldTypeSupportImplBase
+internal sealed class DeltaEquatableFieldTypeSupportImpl : CppNonOverrideFieldTypeSupportImplBase
 {
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsDeltaEquatable(type);
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)

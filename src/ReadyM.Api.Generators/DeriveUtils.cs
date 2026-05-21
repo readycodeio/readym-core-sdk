@@ -8,7 +8,7 @@ namespace ReadyM.Api.Generators;
 
 internal static class DeriveUtils
 {
-    internal static INamedTypeSymbol GetAttributedSymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+    internal static INamedTypeSymbol GetTargetSymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         var node = context.Node;
         var model = context.SemanticModel.Compilation.GetSemanticModel(node.SyntaxTree);
@@ -27,7 +27,12 @@ internal static class DeriveUtils
             mapPublic: (mode & (1 << 3)) != 0,
             mapInternal: (mode & (1 << 4)) != 0);
 
-    internal static DeriveTargetInfo GetTargetInfo(INamedTypeSymbol symbol, bool emitDirtyMask, DeriveMapSettings mapSettings)
+    internal static DeriveTargetInfo GetTargetInfo(
+        bool isExternal,
+        INamedTypeSymbol symbol,
+        bool emitDirtyMask,
+        bool emitBindDelete,
+        DeriveMapSettings mapSettings)
     {
         if (symbol == null)
             throw new ArgumentNullException(nameof(symbol));
@@ -44,6 +49,7 @@ internal static class DeriveUtils
             bool isField;
             var useMember = true;
             var canUseMember = true;
+            var canUseMemberFailReasons = new List<string>();
 
             if (member.Name == "_dirtyMask")
             {
@@ -75,12 +81,14 @@ internal static class DeriveUtils
             {
                 useMember = false;
                 canUseMember = false;
+                canUseMemberFailReasons.Add($"Invalid accessibility: {member.DeclaredAccessibility}");
             }
 
             if (member.DeclaringSyntaxReferences.Length <= 0)
             {
                 useMember = false;
                 canUseMember = false;
+                canUseMemberFailReasons.Add("No declaring syntax reference");
             }
 
             if (member is IFieldSymbol f)
@@ -93,11 +101,7 @@ internal static class DeriveUtils
                     // Static readonly fields are not serialized
                     useMember = false;
                     canUseMember = false;
-                }
-
-                if (f is { IsReadOnly: true })
-                {
-                    canUseMember = false;
+                    canUseMemberFailReasons.Add("Static fields are not supported");
                 }
 
                 isField = true;
@@ -111,11 +115,13 @@ internal static class DeriveUtils
                 {
                     useMember = false;
                     canUseMember = false;
+                    canUseMemberFailReasons.Add("Static properties are not supported");
                 }
-
-                if (p is not { GetMethod: not null, SetMethod: not null })
+                
+                if (p is not { GetMethod: not null })
                 {
                     canUseMember = false;
+                    canUseMemberFailReasons.Add("Properties must have a getter");
                 }
 
                 isField = false;
@@ -124,6 +130,7 @@ internal static class DeriveUtils
             {
                 useMember = false;
                 canUseMember = false;
+                canUseMemberFailReasons.Add($"Unsupported member type: {member.GetType().Name}");
                 isField = false;
             }
 
@@ -143,6 +150,10 @@ internal static class DeriveUtils
             if (!canUseMember && useMember)
             {
                 errors.Add($"Cannot use {(isField ? "field" : "property")}: {member.Name}");
+                foreach (var reason in canUseMemberFailReasons)
+                {
+                    errors.Add($" - {reason}");
+                }
             }
 
             if (useMember)
@@ -155,6 +166,7 @@ internal static class DeriveUtils
         var thisNullable = symbol.IsReferenceType && symbol.NullableAnnotation != NullableAnnotation.Annotated;
 
         return new DeriveTargetInfo(
+            isExternal: isExternal,
             symbol: symbol,
             name: name,
             @namespace: ns,
@@ -163,6 +175,7 @@ internal static class DeriveUtils
             errors: [],
             requestedDirtyMaskType: requestedDirtyMaskType,
             emitDirtyMask: emitDirtyMask,
+            emitBindDelete: emitBindDelete,
             mapSettings: mapSettings
         );
     }

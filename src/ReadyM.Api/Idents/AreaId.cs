@@ -1,6 +1,8 @@
 ﻿using System;
 using LiteNetLib.Utils;
 using ReadyM.Api.Serialization;
+using Yooni.Native.Container;
+using Yooni.Native.Serialization;
 
 namespace ReadyM.Api.Idents;
 
@@ -11,21 +13,35 @@ namespace ReadyM.Api.Idents;
 /// </summary>
 /// <param name="id">The underlying ID value. This is not guaranteed to be stable across game versions, and should not be used for anything other than debugging or logging purposes.</param>
 [DeriveJsonSerializable]
-public partial struct AreaId(ushort id) : INetSerializable, IEquatable<AreaId>
+public partial struct AreaId : INetSerializable, IEquatable<AreaId>
 {
-    private ushort _id = id;
+    private NativeString256 _id;
+
+    public AreaId(NativeString256 id)
+    {
+        _id = id;
+    }
+    
+    public AreaId(string id)
+    {
+        _id = new NativeString256(id, true);
+    }
+    
+    public AreaId(int id)
+    {
+        _id = new NativeString256(id.ToString(), true);
+    }
 
     public static AreaId Invalid => default;
-    public static AreaId Max => new(ushort.MaxValue);
 
     public void Serialize(NetDataWriter writer)
     {
-        writer.Put(_id);
+        _id.Serialize(writer);
     }
 
     public void Deserialize(NetDataReader reader)
     {
-        _id = reader.GetUShort();
+        _id.Deserialize(reader);
     }
 
     public bool Equals(AreaId other)

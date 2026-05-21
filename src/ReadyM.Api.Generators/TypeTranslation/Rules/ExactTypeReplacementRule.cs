@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rules;
 
-public sealed class ExactTypeReplacementRule(ITypeName source, ITypeName target) : ITypeNameRule
+internal sealed class ExactTypeReplacementRule(ITypeName source, ITypeName target) : ITypeNameRule
 {
     public bool TryTranslate(ITypeName input, out ITypeName output)
     {

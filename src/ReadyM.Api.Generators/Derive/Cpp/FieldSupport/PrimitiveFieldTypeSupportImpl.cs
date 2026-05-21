@@ -3,11 +3,11 @@ using static ReadyM.Api.Generators.DeriveCppUtils;
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBase
+internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSupportImplBase
 {
     protected override void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.Append("bool");
         else
             context.Append(CppTypeName(symbol));
@@ -15,13 +15,13 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBas
 
     protected override void EmitSetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.Append("bool");
         else
             context.Append(CppTypeName(symbol));
     }
 
-    public override bool Supports(ITypeSymbol type)
+    protected override bool Supports(ITypeSymbol type)
         => SerializationHelper.IsSerializablePrimitive(type.SpecialType);
 
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
@@ -30,7 +30,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBas
             context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}");
-        else if (context.Member.Settings.BoolAccessors)
+        else if (context.Member.AccessorSettings.BoolAccessors)
             context.Append($"({context.State.CurrentVar} ? 1 : 0) == value");
         else
             context.Append($"{context.State.CurrentVar} == value");
@@ -42,7 +42,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppFieldTypeSupportImplBas
             context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}f");
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}");
-        else if (context.Member.Settings.BoolAccessors)
+        else if (context.Member.AccessorSettings.BoolAccessors)
             context.Append($"({context.State.CurrentVar} ? 1 : 0) != value");
         else
             context.Append($"{context.State.CurrentVar} != value");

@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public class ServerRpcEventGenerator : IIncrementalGenerator
+internal class ServerRpcEventGenerator : IIncrementalGenerator
 {
     private const string ContextTypeName = "IRelayClientNetworkThreadContext";
     private const string ContextParameterName = "__context";

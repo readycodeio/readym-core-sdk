@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Model;
 
-public sealed class TypeNameEqualityComparer : IEqualityComparer<ITypeName>
+internal sealed class TypeNameEqualityComparer : IEqualityComparer<ITypeName>
 {
     public static TypeNameEqualityComparer Instance { get; } = new();
 

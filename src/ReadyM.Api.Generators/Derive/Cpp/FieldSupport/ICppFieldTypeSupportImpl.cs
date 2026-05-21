@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal interface ICppFieldTypeSupportImpl : IDeriveTypeSupportImplBase
+internal interface ICppFieldTypeSupportImpl : IDeriveSupportImplBase<DeriveMemberModel>
 {
     void EmitDirtyMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context);
     void EmitAccessorMethods(ITypeSymbol symbol, CppEmitFieldSupportContext context, bool emitPublic);
@@ -12,5 +12,8 @@ internal interface ICppFieldTypeSupportImpl : IDeriveTypeSupportImplBase
     bool HasDispose(ITypeSymbol symbol, CppEmitFieldSupportContext context);
     void EmitDisposeBody(ITypeSymbol symbol, CppEmitFieldSupportContext context);
     
+    bool HasAssignComponent(ITypeSymbol sourceType, CppEmitFieldSupportContext context);
     void EmitAssignComponentBody(ITypeSymbol symbol, CppEmitFieldSupportContext context);
+    
+    void EmitBackingField(ITypeSymbol symbol, CppEmitFieldSupportContext context);
 }

@@ -6,7 +6,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators;
 
-public static class DeriveCppUtils
+internal static class DeriveCppUtils
 {
     public static string CppTypeNamespace(ITypeSymbol type)
     {
@@ -18,7 +18,7 @@ public static class DeriveCppUtils
     public static string CppTypeName(ITypeSymbol type)
         => CppTypeTranslationPipeline.TypeTranslation.Translate(type);
 
-    public static string CppPath(ITypeSymbol type)
+    public static string CppPath(ITypeSymbol type, IFieldSymbol? field)
         => CppTypeTranslationPipeline.PathTranslation.Translate(type);
 
     public static IReadOnlyList<string> CppPaths(ITypeSymbol type)
@@ -65,6 +65,8 @@ public static class DeriveCppUtils
             SpecialType.System_Single => "0.0f",
             SpecialType.System_Double => "0.0",
             SpecialType.System_Char => "0",
+            SpecialType.System_IntPtr => "nullptr",
+            SpecialType.System_UIntPtr => "nullptr",
             _ => type.IsReferenceType ? "nullptr" : "{}"
         };
     }

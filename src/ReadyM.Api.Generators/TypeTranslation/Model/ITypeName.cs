@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Generators.TypeTranslation.Model;
 
-public interface ITypeName
+internal interface ITypeName
 {
     // empty
 }

@@ -5,7 +5,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rendering;
 
-public sealed class CppTypeRenderer : ITypeRenderer
+internal sealed class CppTypeRenderer : ITypeRenderer
 {
     public string Render(ITypeName typeName)
     {
@@ -123,6 +123,7 @@ public sealed class CppTypeRenderer : ITypeRenderer
         "Double" => "double",
         "String" => "Interop::String",
         "Char" => "wchar_t",
+        "IntPtr" => "void*",
         _ => string.Empty,
     };
 }

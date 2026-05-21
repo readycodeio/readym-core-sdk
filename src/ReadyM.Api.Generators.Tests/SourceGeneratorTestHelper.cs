@@ -39,7 +39,20 @@ internal static class SourceGeneratorTestHelper
         if (source is null)
             throw new ArgumentNullException(nameof(source));
 
-        var inputCompilation = CreateCompilation(source, output);
+        return RunGenerator<TGenerator>(
+            [("TestInput.cs", source)],
+            output);
+    }
+
+    public static GeneratorRunResult RunGenerator<TGenerator>(
+        IEnumerable<(string Path, string Source)> sources,
+        ITestOutputHelper output)
+        where TGenerator : IIncrementalGenerator, new()
+    {
+        if (sources is null)
+            throw new ArgumentNullException(nameof(sources));
+
+        var inputCompilation = CreateCompilation(sources, output);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new TGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -85,17 +98,39 @@ internal static class SourceGeneratorTestHelper
         if (source is null)
             throw new ArgumentNullException(nameof(source));
 
+        return CreateCompilation(
+            [("TestInput.cs", source)],
+            output);
+    }
+
+    public static Compilation CreateCompilation(
+        IEnumerable<(string Path, string Source)> sources,
+        ITestOutputHelper output)
+    {
+        if (sources is null)
+            throw new ArgumentNullException(nameof(sources));
+
         var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
 
-        var sourceText = SourceText.From(source, Encoding.UTF8);
-        var syntaxTree = CSharpSyntaxTree.ParseText(
-            sourceText,
-            parseOptions,
-            path: "TestInput.cs");
+        var syntaxTrees = sources
+            .Select(source =>
+            {
+                if (source.Source is null)
+                    throw new ArgumentNullException(nameof(source.Source));
+
+                var sourceText = SourceText.From(source.Source, Encoding.UTF8);
+                return CSharpSyntaxTree.ParseText(
+                    sourceText,
+                    parseOptions,
+                    path: string.IsNullOrWhiteSpace(source.Path)
+                        ? "TestInput.cs"
+                        : source.Path);
+            })
+            .ToArray();
 
         return CSharpCompilation.Create(
             assemblyName: "ReadyM.Api.Generators.Tests.Dynamic_" + Guid.NewGuid().ToString("N"),
-            syntaxTrees: new[] { syntaxTree },
+            syntaxTrees: syntaxTrees,
             references: GetMetadataReferences(output),
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,

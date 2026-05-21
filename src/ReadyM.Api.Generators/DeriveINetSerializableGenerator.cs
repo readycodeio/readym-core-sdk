@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public class DeriveINetSerializableGenerator : IIncrementalGenerator
+internal class DeriveINetSerializableGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -30,8 +30,8 @@ public class DeriveINetSerializableGenerator : IIncrementalGenerator
         if (ct.IsCancellationRequested)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
+        var targetModel = DeriveComponentUtils.GetTargetModel(false, symbol, context);
         var code = GenerateINetSerializableImpl(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol);
 
@@ -63,11 +63,11 @@ namespace {info.Namespace};
 """);
         }
         
-        var usePutGet = new bool[info.Members.Length];
-        var isEnum = new bool[info.Members.Length];
-        var enumBaseType = new SpecialType[info.Members.Length];
+        var usePutGet = new bool[info.Members.Count];
+        var isEnum = new bool[info.Members.Count];
+        var enumBaseType = new SpecialType[info.Members.Count];
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             usePutGet[i] = SerializationHelper.IsSerializablePrimitive(info.Members[i].Type.SpecialType);
             isEnum[i] = info.Members[i].Type.TypeKind == TypeKind.Enum;
@@ -84,7 +84,7 @@ namespace {info.Namespace};
     {
 """);
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 
@@ -119,7 +119,7 @@ namespace {info.Namespace};
     {
 """);
 
-        for (var i = 0; i < info.Members.Length; i++)
+        for (var i = 0; i < info.Members.Count; i++)
         {
             var field = info.Members[i];
 

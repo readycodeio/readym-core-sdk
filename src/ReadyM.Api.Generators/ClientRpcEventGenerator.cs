@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public class ClientRpcEventGenerator : IIncrementalGenerator
+internal class ClientRpcEventGenerator : IIncrementalGenerator
 {
     private const string PlayerIdTypeName = "PlayerId";
     private const string SenderParameterName = "__sender";

@@ -1,5 +1,4 @@
 ﻿using Microsoft.CodeAnalysis;
-using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
 namespace ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 

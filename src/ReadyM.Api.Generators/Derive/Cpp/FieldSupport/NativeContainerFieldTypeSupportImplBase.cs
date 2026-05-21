@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
-internal abstract class NativeContainerFieldTypeSupportImplBase : CppFieldTypeSupportImplBase
+internal abstract class NativeContainerFieldTypeSupportImplBase : CppNonOverrideFieldTypeSupportImplBase
 {
     protected override void EmitEqualCheck(ITypeSymbol symbol, CppEmitFieldSupportContext context)
         => context.Append($"{context.State.CurrentVar} == value");

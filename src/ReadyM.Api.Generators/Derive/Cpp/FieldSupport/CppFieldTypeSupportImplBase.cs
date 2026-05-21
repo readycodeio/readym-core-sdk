@@ -7,11 +7,11 @@ namespace ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 
 internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 {
-    public abstract bool Supports(ITypeSymbol type);
+    public abstract bool Supports(DeriveMemberModel type);
 
     protected virtual void EmitGetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
         {
             context.Append("bool");
         }
@@ -25,7 +25,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 
     protected virtual void EmitSetterType(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
         {
             context.Append("bool");
         }
@@ -82,7 +82,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.AppendLine($"{context.State.CurrentVar} = value ? 1 : 0;");
         else
             context.AppendLine($"{context.State.CurrentVar} = value;");
@@ -111,7 +111,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
     {
         if (emitPublic)
         {
-            if (context.Member.Settings.SkipAccessors)
+            if (context.Member.AccessorSettings.SkipAccessors)
                 return;
             
             EmitGetterMethod(symbol, context, true);
@@ -125,7 +125,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
         }
         else // emitPrivate
         {
-            if (!context.Member.Settings.SkipAccessors)
+            if (!context.Member.AccessorSettings.SkipAccessors)
                 return;
             
             EmitGetterMethod(symbol, context, false);
@@ -169,7 +169,7 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
 
     public virtual void EmitGetterBody(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.AppendLine($"return {context.State.CurrentVar} != 0;");
         else
             context.AppendLine($"return {context.State.CurrentVar};");
@@ -210,8 +210,16 @@ internal abstract class CppFieldTypeSupportImplBase : ICppFieldTypeSupportImpl
         }
     }
 
+    public virtual bool HasAssignComponent(ITypeSymbol sourceType, CppEmitFieldSupportContext context)
+        => true;
+
     public virtual void EmitAssignComponentBody(ITypeSymbol symbol, CppEmitFieldSupportContext context)
     {
         context.AppendLine($"Set{context.Member.GeneratedPropertyName}(value.{context.Member.GeneratedPropertyName}());");
+    }
+
+    public virtual void EmitBackingField(ITypeSymbol symbol, CppEmitFieldSupportContext context)
+    {
+        context.AppendLine($"{CppTypeName(symbol)} {context.Member.Source.Name} = {GetCppDefaultValue(symbol)};");
     }
 }

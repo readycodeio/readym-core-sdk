@@ -60,7 +60,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.AppendLine($"{context.State.CurrentVar} = (byte)(value ? 1 : 0);");
         else
             context.AppendLine($"{context.State.CurrentVar} = value;");
@@ -89,7 +89,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.SkipAccessors)
+        if (context.Member.AccessorSettings.SkipAccessors)
         {
             context.AppendLine($"private {FullyQualifiedTypeName(symbol)} {context.Member.GeneratedPropertyName}");
             using (context.WithCodeBlock())
@@ -105,7 +105,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
 
         var accessorType = FullyQualifiedTypeName(symbol);
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
         {
             accessorType = "bool";
         }
@@ -126,7 +126,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             }
         }
 
-        var paramType = context.Member.Settings.BoolAccessors ? "bool" : FullyQualifiedTypeName(symbol);
+        var paramType = context.Member.AccessorSettings.BoolAccessors ? "bool" : FullyQualifiedTypeName(symbol);
         context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value)");
         using (context.WithCodeBlock())
         {
@@ -136,7 +136,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     protected virtual void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.BoolAccessors)
+        if (context.Member.AccessorSettings.BoolAccessors)
             context.AppendLine($"return {context.State.CurrentVar} != 0;");
         else
             context.AppendLine($"return {context.State.CurrentVar};");
@@ -155,13 +155,12 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-
     public virtual void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
         var name = member.GeneratedPropertyName;
-        var type = context.Member.Settings.BoolAccessors ? "bool" : member.Source.Type.ToString();
+        var type = context.Member.AccessorSettings.BoolAccessors ? "bool" : member.Source.Type.ToString();
         var typeName = context.Model.Source.Name;
 
         using (context.WithIndent())
@@ -185,7 +184,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"{FullyQualifiedTypeName(symbol)} {tempVar} = default;");
             context.EmitDeserializeVar(context.State.CurrentVar, symbol);
 
-            if (context.Member.Settings.BoolAccessors)
+            if (context.Member.AccessorSettings.BoolAccessors)
                 context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar} != 0;");
             else
                 context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");

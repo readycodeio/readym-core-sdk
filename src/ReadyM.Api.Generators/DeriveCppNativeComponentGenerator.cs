@@ -1,10 +1,11 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ReadyM.Api.Generators.Derive.Cpp;
 using ReadyM.Api.Generators.Derive.Cpp.FieldSupport;
 using static ReadyM.Api.Generators.DeriveCppUtils;
@@ -12,8 +13,25 @@ using static ReadyM.Api.Generators.DeriveCppUtils;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
+[SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1035")]
+internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 {
+    private sealed class NativeComponentCandidate(
+        bool isExternal,
+        INamedTypeSymbol symbol,
+        AttributeData? nativeComponentAttribute,
+        Location? location,
+        GeneratorSyntaxContext? context,
+        IReadOnlyList<AttributeData>? fieldAttributes)
+    {
+        public bool IsExternal { get; } = isExternal;
+        public INamedTypeSymbol Symbol { get; } = symbol;
+        public AttributeData? NativeComponentAttribute { get; } = nativeComponentAttribute;
+        public Location? Location { get; } = location;
+        public GeneratorSyntaxContext? Context { get; } = context;
+        public IReadOnlyList<AttributeData>? FieldAttributes { get; } = fieldAttributes;
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var outputPathProvider =
@@ -31,7 +49,19 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                     (string? GenCppPath, bool GenCppEnabled) opts = (genCppPath, genCppEnabled);
                     return opts;
                 });
-        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
+        var typeLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, TransformTypeLevel);
+        var assemblyLevelProvider = context.SyntaxProvider.CreateSyntaxProvider(AssemblyPredicate, TransformAssemblyLevel);
+        var assemblyFieldAttributeProvider = context.SyntaxProvider.CreateSyntaxProvider(AssemblyFieldAttributePredicate, TransformAssemblyFieldAttribute);
+        var codeProvider =
+            typeLevelProvider
+                .Collect()
+                .Combine(assemblyLevelProvider.Collect())
+                .SelectMany((result, _) => result.Left.Concat(result.Right))
+                .Collect()
+                .Combine(assemblyFieldAttributeProvider.Collect())
+                .SelectMany((result, _) => result.Left.Select(component => AttachFieldAttributes(component, result.Right)))
+                .Where(static x => x != null)
+                .Select(Transform);
         var combined = codeProvider.Combine(outputPathProvider);
         
         context.RegisterSourceOutput(
@@ -74,7 +104,7 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                         title: "Cpp generator output",
                         messageFormat: "Generated file = '{0}'",
                         category: "Generator",
-                        defaultSeverity: DiagnosticSeverity.Warning,
+                        defaultSeverity: DiagnosticSeverity.Info,
                         isEnabledByDefault: true),
                     Location.None,
                     fullFileName));
@@ -85,26 +115,113 @@ public sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             });
     }
 
-    private bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+    private static bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.TypePredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
+
+    private static bool AssemblyPredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.AssemblyPredicate(
+            syntaxNode,
+            cancellationToken,
+            "NativeComponentAttribute",
+            "NativeComponentForAttribute");
+    
+    private static bool AssemblyFieldAttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
+        => DeriveDiscoverUtils.AssemblyFieldAttributePredicate(syntaxNode, cancellationToken);
+
+    private static NativeComponentCandidate? TransformTypeLevel(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        if (cancellationToken.IsCancellationRequested)
-            return false;
+        var candidate = DeriveDiscoverUtils.TransformTypeLevel(
+            context,
+            ct,
+            "NativeComponentAttribute");
 
-        var structDecl = syntaxNode as StructDeclarationSyntax;
-        if (structDecl == null || structDecl.AttributeLists.Count == 0)
-            return false;
+        if (candidate == null)
+            return null;
 
-        var attributes = structDecl.AttributeLists.SelectMany(static x => x.Attributes).ToList();
-        return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "NativeComponent" });
+        return new NativeComponentCandidate(
+            false,
+            candidate.Symbol,
+            candidate.Attribute,
+            candidate.Location,
+            candidate.Context,
+            null);
     }
 
-    private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
+    private static NativeComponentCandidate? TransformAssemblyLevel(GeneratorSyntaxContext context, CancellationToken ct)
     {
-        if (ct.IsCancellationRequested)
+        var candidate = DeriveDiscoverUtils.TransformAssemblyLevel(
+            context,
+            ct,
+            "NativeComponentForAttribute",
+            "skipCpp");
+
+        if (candidate == null)
+            return null;
+
+        return new NativeComponentCandidate(
+            true,
+            candidate.Symbol,
+            candidate.Attribute,
+            candidate.Location,
+            candidate.Context,
+            null);
+    }
+    
+    private static DeriveDiscoverUtils.AssemblyFieldAttributeCandidate? TransformAssemblyFieldAttribute(GeneratorSyntaxContext context, CancellationToken ct)
+        => DeriveDiscoverUtils.TransformAssemblyFieldAttribute(context, ct);
+    
+    private static NativeComponentCandidate? AttachFieldAttributes(
+        NativeComponentCandidate? component,
+        IEnumerable<DeriveDiscoverUtils.AssemblyFieldAttributeCandidate?> fieldAttributes)
+    {
+        if (component == null)
+            return null;
+
+        var matchingFieldAttributes = DeriveDiscoverUtils.GetAssemblyFieldAttributesFor(
+            component.Symbol,
+            fieldAttributes);
+
+        if (matchingFieldAttributes.Count == 0)
+            return component;
+
+        return new NativeComponentCandidate(
+            component.IsExternal,
+            component.Symbol,
+            component.NativeComponentAttribute,
+            component.Location,
+            component.Context,
+            matchingFieldAttributes);
+    }
+
+    private (string Name, string Code) Transform(NativeComponentCandidate? candidate, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested || candidate == null)
             return (string.Empty, string.Empty);
 
-        var symbol = DeriveUtils.GetAttributedSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(symbol, context);
+        var symbol = candidate.Symbol;
+        DeriveTargetModel targetModel;
+
+        if (candidate.Context != null)
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
+                symbol,
+                candidate.Context.Value,
+                candidate.FieldAttributes);
+        }
+        else
+        {
+            targetModel = DeriveComponentUtils.GetTargetModel(
+                candidate.IsExternal,
+                symbol,
+                candidate.NativeComponentAttribute,
+                candidate.FieldAttributes);
+        }
+
         var code = GenerateCppFragment(targetModel);
         var genName = DeriveUtils.GetGeneratedFileName(symbol) + "GeneratedBase";
 
@@ -161,10 +278,13 @@ namespace {ns}
 ");
         }
 
+        var hasAssign = HasAssignComponent(sb, model, moduleState);
         var hasCreate = HasCreate(sb, model, moduleState);
         var hasDispose = HasDispose(sb, model, moduleState);
         
         sb.AppendLine($@"
+    struct {model.Source.Name};
+
     struct {model.Source.Name}GeneratedBase
     {{
 ");
@@ -193,7 +313,10 @@ namespace {ns}
 
         EmitDirtyMaskAccessMethods(sb, model);
 
-        EmitAssign(sb, model, moduleState);
+        if (hasAssign)
+        {
+            EmitAssign(sb, model, moduleState);
+        }
 
         if (hasCreate)
         {
@@ -213,7 +336,7 @@ namespace {ns}
 
         foreach (var member in members)
         {
-            EmitBackingField(sb, member, model);
+            EmitBackingField(sb, member, model, moduleState);
         }
 
         sb.AppendLine("""
@@ -225,6 +348,14 @@ namespace {ns}
             EmitAccessorMethods(sb, member, model, moduleState, false);
         }
 
+        sb.AppendLine("""
+    protected:
+""");
+        if (info.EmitBindDelete)
+        {
+            EmitNativeEntityDeleteImpl(sb, model);
+        }
+        
         sb.AppendLine($@"
     }}; // struct {model.Source.Name}GeneratedBase
 ");
@@ -260,17 +391,27 @@ namespace {ns}
             ("Native/Container/NativeDictionary.h", false),
             ("Native/Container/IntHash.h", false),
             ("Native/Container/NativeList.h", false),
+            ("ECS/Values/RawEntity.h", false),
         ]);
 
         foreach (var member in model.Members)
         {
-            AddDefaultIncludes(moduleState, member.Source.Type);
+            AddDefaultIncludes(moduleState, member);
         }
     }
     
-    private void AddDefaultIncludes(CppModuleState moduleState, ITypeSymbol symbol)
+    private void AddDefaultIncludes(CppModuleState moduleState, DeriveMemberModel model)
     {
-        var includes = CppPaths(symbol);
+        var attrIncludes = AttributeUtils.GetArrayAttribute<string>(model.Source.Symbol, "CppNativeFieldTypeAttribute", "includes");
+        if (attrIncludes != null)
+        {
+            foreach (var path in attrIncludes)
+            {
+                moduleState.AddInclude(path, false);
+            }
+        }
+
+        var includes = CppPaths(model.Source.Type);
         foreach (var path in includes)
         {
             moduleState.AddInclude(path, false);
@@ -331,7 +472,7 @@ namespace {ns}
         CppModuleState moduleState)
     {
         sb.Append($@"
-        void Assign(const {CppTypeName(model.Source.Symbol)}GeneratedBase& value)
+        void Assign(const {model.Source.Name}GeneratedBase& value)
 ");
         sb.AppendLine("""
         {
@@ -349,6 +490,23 @@ namespace {ns}
         sb.AppendLine("""
         }
 """);
+    }
+    
+    private bool HasAssignComponent(
+        StringBuilder sb,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
+    {
+        var result = true;
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, moduleState);
+        
+            result = result && impl.HasAssignComponent(member.Source.Type, context);
+        }
+
+        return result;
     }
 
     private bool HasCreate(
@@ -477,7 +635,10 @@ namespace {ns}
         }
     }
 
-    private void EmitBackingField(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model)
+    private void EmitBackingField(StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CppModuleState moduleState)
     {
         if (member.Source.HasErrors)
         {
@@ -489,16 +650,66 @@ namespace {ns}
             }
         }
         
-        sb.AppendLine($"""
-        {CppTypeName(member.Source.Type)} {member.Source.Name} = {GetCppDefaultValue(member.Source.Type)};
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, moduleState);
+        
+        context.State.ResetIndent("        ");
+        impl.EmitBackingField(member.Source.Type, context);
+    }
+    
+    private void EmitNativeEntityDeleteImpl(StringBuilder sb, DeriveTargetModel model)
+    {
+        sb.AppendLine($$"""
+        class NativeEntityDeleteImplGeneratedBase
+        {
+        public:
+            struct NativeBinding
+            {
+                void* Target = nullptr;
+                void (*OnEntityDeleteHandler)(
+                    void* target,
+                    Friflo::Engine::ECS::RawEntity entity,
+                    {{model.Source.Name}}* comp) = nullptr;
+
+                bool IsValid() const
+                {
+                    return Target != nullptr && OnEntityDeleteHandler != nullptr;
+                }
+            };
+            
+            NativeEntityDeleteImplGeneratedBase() = default;
+            NativeEntityDeleteImplGeneratedBase(const NativeEntityDeleteImplGeneratedBase&) = delete;
+            NativeEntityDeleteImplGeneratedBase(NativeEntityDeleteImplGeneratedBase&&) = delete;
+            NativeEntityDeleteImplGeneratedBase& operator=(const NativeEntityDeleteImplGeneratedBase&) = delete;
+            NativeEntityDeleteImplGeneratedBase& operator=(NativeEntityDeleteImplGeneratedBase&&) = delete;
+            virtual ~NativeEntityDeleteImplGeneratedBase() = default;
+            
+            NativeBinding GetNativeBinding()
+            {
+                return NativeBinding
+                {
+                    .Target = this,
+                    .OnEntityDeleteHandler = [](
+                        void* target,
+                        Friflo::Engine::ECS::RawEntity entity,
+                        {{model.Source.Name}}* comp)
+                    {
+                        static_cast<NativeEntityDeleteImplGeneratedBase*>(target)->HandleEntityDelete(entity, *comp);
+                    }
+                };
+            }
+
+        protected:
+            virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, {{model.Source.Name}}& comp) = 0;
+        };
 """);
     }
     
     private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member.Source.Type, fallback, out _);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member, fallback, out _);
 
     private static ICppFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
-        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member.Source.Type, fallback);
+        => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member, fallback);
     
     private static CppEmitFieldSupportContext CreateEmitContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
         => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member, model, moduleState);

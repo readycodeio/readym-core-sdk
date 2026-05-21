@@ -6,7 +6,7 @@ using ReadyM.Api.Generators.TypeTranslation.Rules;
 
 namespace ReadyM.Api.Generators.TypeTranslation;
 
-public sealed class TypeTranslationPipeline(
+internal sealed class TypeTranslationPipeline(
     ITypeNameParser parser,
     TypeNameTranslator translator,
     ITypeRenderer renderer)

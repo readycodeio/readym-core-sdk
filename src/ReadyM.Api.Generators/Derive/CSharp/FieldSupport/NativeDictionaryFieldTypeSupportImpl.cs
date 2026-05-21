@@ -26,7 +26,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
 
     public override void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        if (context.Member.Settings.SkipAccessors)
+        if (context.Member.AccessorSettings.SkipAccessors)
             return;
 
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))

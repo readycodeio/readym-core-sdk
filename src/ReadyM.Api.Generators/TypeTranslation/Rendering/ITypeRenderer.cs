@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rendering;
 
-public interface ITypeRenderer
+internal interface ITypeRenderer
 {
     string Render(ITypeName typeName);
 }

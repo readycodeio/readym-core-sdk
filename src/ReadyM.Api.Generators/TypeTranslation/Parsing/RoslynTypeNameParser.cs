@@ -6,7 +6,7 @@ using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Parsing;
 
-public sealed class RoslynTypeNameParser : ITypeNameParser
+internal sealed class RoslynTypeNameParser : ITypeNameParser
 {
     public ITypeName Parse(ITypeSymbol typeSymbol) => typeSymbol switch
     {
