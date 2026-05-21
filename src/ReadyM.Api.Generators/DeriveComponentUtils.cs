@@ -110,9 +110,11 @@ internal static class DeriveComponentUtils
         if (fieldAttributes == null)
             return;
         
-        var newMembers = new List<MemberInfo>();
         foreach (var fieldAttribute in fieldAttributes)
         {
+            if (fieldAttribute.AttributeClass?.Name != "CppNativeFieldTypeFor" && fieldAttribute.AttributeClass?.Name != "CppNativeFieldTypeForAttribute")
+                continue;
+            
             var forField = AttributeUtils.GetAttributeValue<string?>(fieldAttribute, "forField", null);
             if (string.IsNullOrEmpty(forField))
                 continue;
@@ -123,7 +125,7 @@ internal static class DeriveComponentUtils
                     goto end;
             }
             
-            var fieldType = AttributeUtils.GetAttributeValue<INamedTypeSymbol?>(fieldAttribute, "fieldType", null);
+            var fieldType = AttributeUtils.GetAttributeValue<ITypeSymbol?>(fieldAttribute, "fieldType", null);
             if (fieldType == null)
             {
                 targetInfo.AddError($"Field attribute '{fieldAttribute.AttributeClass?.Name}' is missing the required 'fieldType' argument.");
