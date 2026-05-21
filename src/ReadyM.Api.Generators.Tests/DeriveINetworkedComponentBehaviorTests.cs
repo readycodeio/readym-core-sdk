@@ -1323,6 +1323,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 [DeriveINetworkedComponent(emitDirtyMask: false, mode: SerializableMode.MapFields | SerializableMode.MapPrivate | SerializableMode.MapPublic)]
 public partial struct EmitDirtyMaskFalseComponent : INetworkedComponent
 {
+    private byte _apiMask;
     private byte _dirtyMask;
 
     private int _value;

@@ -116,12 +116,6 @@ internal static class DeriveComponentUtils
             var forField = AttributeUtils.GetAttributeValue<string?>(fieldAttribute, "forField", null);
             if (string.IsNullOrEmpty(forField))
                 continue;
-
-            if (forField == null)
-            {
-                targetInfo.AddError($"Field attribute '{fieldAttribute.AttributeClass?.Name}' is missing the required 'forField' argument.");
-                continue;   
-            }
             
             foreach (var member in targetInfo.Members)
             {

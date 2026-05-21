@@ -99,8 +99,8 @@ namespace {info.Namespace};
             foreach (var error in info.Errors)
             {
                 sb.AppendLine($"""
-                                   #error {error}
-                               """);
+    #error {error}
+""");
             }
 
             sb.AppendLine();
@@ -110,6 +110,11 @@ namespace {info.Namespace};
 
         foreach (var member in members)
         {
+            if (member.Source.ReadOnly)
+                sb.AppendLine($"""
+    #error Field {member.Source.Name} cannot be read-only
+""");
+            
             if (member.Source.Type.ContainingNamespace is { } ns)
             {
                 moduleState.AddUsing(ns.ToDisplayString());

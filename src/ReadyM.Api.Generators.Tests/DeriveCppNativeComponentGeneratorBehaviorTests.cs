@@ -807,25 +807,44 @@ public partial struct MappingComponent<T> : IComponent
     [Fact]
     public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetInAnotherModule()
     {
+        const string externalModuleSource = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.ECS.Components;
+
+namespace ReadyM.Api.Generators.Tests.ExternalModuleTypes;
+
+[StructLayout(LayoutKind.Sequential)]
+public partial struct ExternalInScopeComponent : IComponent
+{
+    private Entity _entity;
+}
+""";
+
         const string source = """
 using System;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
-using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Generators.Tests.ExternalModuleTypes;
 
 [assembly: CppNativeFieldTypeFor(
-    forType: typeof(ReadyM.Api.Multiplayer.ECS.Components.InScopeComponent),
+    forType: typeof(ExternalInScopeComponent),
     forField: "_entity",
     cppTypeName: "RM::ECS::Values::RawEntity",
     getterTypeName: "const RM::ECS::Values::RawEntity&",
     useMove: true,
     fieldType: typeof(Friflo.Engine.ECS.Entity),
     includes: "Unreal/GCPinnedPtr.h")]
-[assembly: NativeComponentFor(forType: typeof(ReadyM.Api.Multiplayer.ECS.Components.InScopeComponent), bindDelete: true)]
+[assembly: NativeComponentFor(forType: typeof(ExternalInScopeComponent), bindDelete: true)]
 """;
 
-        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(
+            [
+                ("ExternalModule.cs", externalModuleSource),
+                ("TestInput.cs", source),
+            ],
+            output);
 
         var outputErrors = result.OutputDiagnostics
             .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
@@ -839,7 +858,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
         Assert.NotEmpty(generatedText);
 
-        Assert.Contains("struct InScopeComponentGeneratedBase", generatedText);
+        Assert.Contains("struct ExternalInScopeComponentGeneratedBase", generatedText);
 
         Assert.Contains("const RM::ECS::Values::RawEntity& Entity() const", generatedText);
         Assert.Contains("void SetEntity(RM::ECS::Values::RawEntity value)", generatedText);
@@ -854,7 +873,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
         Assert.Contains("class NativeEntityDeleteImplGeneratedBase", generatedText);
         Assert.Contains("struct NativeBinding", generatedText);
         Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
-        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, InScopeComponent& comp) = 0;", generatedText);
+        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, ExternalInScopeComponent& comp) = 0;", generatedText);
     }
     
     private static void AssertContainerMember(
