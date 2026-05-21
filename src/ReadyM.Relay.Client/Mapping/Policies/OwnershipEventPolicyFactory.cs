@@ -17,14 +17,14 @@ internal class OwnershipEventPolicyFactory(
 
     public IMappingEventPolicyBase CreatePolicy(Type eventType, Type contextType)
     {
-        Debug.Assert(contextType == typeof(Entity), "contextType == typeof(Entity)");
+        Debug.Assert(contextType == typeof(Entity));
         var policyType = typeof(OwnershipEventPolicy<>).MakeGenericType(eventType);
         return (IMappingEventPolicyBase)Activator.CreateInstance(policyType, ownership, sideChannel);
     }
 
     public IMappingEventPolicy<TContext> CreatePolicy<TContext>(Type eventType)
     {
-        Debug.Assert(typeof(TContext) == typeof(Entity), "typeof(TContext) == typeof(Entity)");
+        Debug.Assert(typeof(TContext) == typeof(Entity));
         return (IMappingEventPolicy<TContext>)CreatePolicy(eventType, typeof(TContext));
     }
 }

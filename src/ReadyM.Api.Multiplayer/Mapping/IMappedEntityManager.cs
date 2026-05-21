@@ -4,7 +4,6 @@ using Friflo.Engine.ECS;
 namespace ReadyM.Api.Multiplayer.Mapping;
 
 internal interface IMappedEntityManager<TGameObject>
-    where TGameObject : class
 {
     // Is the mapping system aware of the entity / game object. If not, the game object should not be managed
     // i.e. the game code should function as in the vanilla base game. 

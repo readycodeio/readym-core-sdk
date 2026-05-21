@@ -50,7 +50,7 @@ internal class EventQueue(ILogger logger)
             }
         }
     }
-    
+
     private class OpaqueEntry<TArg>(ILogger logger) : EntryBase
     {
         private readonly List<(Action<object, TArg>, TArg)> _handlers = new();
@@ -173,7 +173,7 @@ internal class EventQueue(ILogger logger)
 
         if (!_entriesByEventType.TryGetValue(eventType, out var entryList))
         {
-            entryList = new List<EntryBase>();
+            entryList = [];
             _entriesByEventType[eventType] = entryList;
         }
 
@@ -225,14 +225,25 @@ internal class EventQueue(ILogger logger)
         if (_handlersArg0.TryGetValue(typeof(TEvent), out var handlers))
         {
             var typedHandlers = (Action<TEvent>)handlers;
-            typedHandlers?.Invoke(ev);
+            typedHandlers.Invoke(ev);
         }
 
         if (_entriesByEventType.TryGetValue(typeof(TEvent), out var entryList))
         {
             foreach (var entry in entryList)
             {
-                ((EntryBase<TEvent>)entry).Invoke(ev);
+                entry.Invoke(ev!);
+            }
+        }
+    }
+
+    public void Invoke(in object ev, Type eventType)
+    {
+        if (_entriesByEventType.TryGetValue(eventType, out var entryList))
+        {
+            foreach (var entry in entryList)
+            {
+                entry.Invoke(ev);
             }
         }
     }

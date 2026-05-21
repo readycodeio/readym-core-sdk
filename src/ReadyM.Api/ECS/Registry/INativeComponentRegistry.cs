@@ -7,4 +7,5 @@ internal interface INativeComponentRegistry : IComponentRegistryBase<INativeComp
 {
     List<Type> ComponentTypes { get; }
     INativeComponentRegistry RegisterComponent<T>(T defaultValue = default) where T : struct;
+    Type? GetComponentType(int componentId);
 }

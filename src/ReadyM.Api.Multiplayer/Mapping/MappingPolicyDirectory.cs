@@ -133,6 +133,33 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         where TEvent : struct, IMappingContext<Entity>
         => ForEvent<TEvent, Entity>();
 
+    public IMappingEventPolicy<TContext> ForEventOpaque<TContext>(Type eventType)
+    {
+        lock (_eventLock)
+        {
+            var key = (eventType, typeof(TContext));
+
+            if (!_eventPolicies.TryGetValue(key, out var untypedPolicy))
+            {
+                foreach (var factory in _eventPolicyFactories)
+                {
+                    if (!factory.Supports(eventType, typeof(TContext)))
+                        continue;
+
+                    untypedPolicy = factory.CreatePolicy<TContext>(eventType);
+                    break;
+                }
+
+                if (untypedPolicy == null)
+                    throw new ArgumentException($"No event policy registered for event type {eventType}");
+
+                _eventPolicies.Add(key, untypedPolicy);
+            }
+
+            return (IMappingEventPolicy<TContext>)untypedPolicy;
+        }
+    }
+
     // ---
 
     public void RegisterDefaultCreateDelete(IMappingCreateDeletePolicyFactory factory)

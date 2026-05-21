@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace ReadyM.Api.Multiplayer.Compat;
+namespace ReadyM.Api.Compat;
 
 #if !NETSTANDARD2_1_OR_GREATER
 

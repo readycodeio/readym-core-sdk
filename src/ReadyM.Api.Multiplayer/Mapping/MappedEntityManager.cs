@@ -9,7 +9,6 @@ using ReadyM.Api.Multiplayer.ECS.Managers;
 namespace ReadyM.Api.Multiplayer.Mapping;
 
 internal class MappedEntityManager<TGameObject>(Store world) : IMappedEntityManager<TGameObject>
-    where TGameObject : class
 {
     private readonly ComponentIndex<MappingComponent<TGameObject>, TGameObject?> _ix = world.ComponentIndex<MappingComponent<TGameObject>, TGameObject?>();
 
@@ -20,7 +19,7 @@ internal class MappedEntityManager<TGameObject>(Store world) : IMappedEntityMana
     {
         if (!entity.TryGetComponent<MappingComponent<TGameObject>>(out var mappingComp))
         {
-            gameObj = null;
+            gameObj = default;
             return false;
         }
         
