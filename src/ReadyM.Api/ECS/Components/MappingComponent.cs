@@ -1,9 +1,7 @@
 ﻿using Friflo.Engine.ECS;
-using ReadyM.Api.Attributes;
 
 namespace ReadyM.Api.ECS.Components;
 
-[NativeComponent]
 internal readonly struct MappingComponent<TGameObject>(TGameObject? gameObject)
     : IIndexedComponent<TGameObject?>
 {
