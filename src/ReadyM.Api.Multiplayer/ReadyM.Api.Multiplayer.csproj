@@ -7,6 +7,7 @@
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <Platforms>AnyCPU</Platforms>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     
     <ItemGroup>
@@ -31,5 +32,9 @@
     <ItemGroup>
         <CompilerVisibleProperty Include="GeneratedCppPath" />
         <CompilerVisibleProperty Include="GeneratedCppEnabled" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Mapping\" />
     </ItemGroup>
 </Project>

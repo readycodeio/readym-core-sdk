@@ -194,7 +194,7 @@ namespace {info.Namespace};
             "LiteNetLib.Utils",
             "ReadyM.Api.Generators",
             "ReadyM.Api.Multiplayer",
-            "ReadyM.Api.Multiplayer.Mapping.Data",
+            "ReadyM.Api.Mapping.Data",
             "ReadyM.Api.Multiplayer.Extensions",
             "ReadyM.Api.Multiplayer.ECS.Components",
             "ReadyM.Relay.Common"

@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Multiplayer.Mapping.Policies.Event;
-using ReadyM.Api.Multiplayer.Mapping.Tags;
+using ReadyM.Api.Mapping.Policies.Event;
+using ReadyM.Api.Mapping.Tags;
 using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;

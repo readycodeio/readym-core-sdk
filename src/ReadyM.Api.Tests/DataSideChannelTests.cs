@@ -1,32 +1,11 @@
-﻿using System.Runtime.InteropServices;
-using ReadyM.Api.Helpers;
-using ReadyM.Api.Interop.Registry;
+﻿using ReadyM.Api.Helpers;
 using ReadyM.Api.Mapping;
+using ReadyM.Api.Tests.TestEvents;
 
 namespace ReadyM.Api.Tests;
 
-[InteropType]
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public partial struct NativeEvent
-{
-    public int IntValue { get; init; }
-    public float FloatValue { get; init; }
-}
-
 public class DataSideChannelTests
 {
-    private struct ManagedEvent
-    {
-        public int IntValue { get; init; }
-        public float FloatValue { get; init; }
-    }
-
-    private struct AnotherManagedEvent
-    {
-        public int IntValue { get; init; }
-        public float FloatValue { get; init; }
-    }
-
     [Fact]
     public void HandlesPushingManagedEcsEventScope()
     {

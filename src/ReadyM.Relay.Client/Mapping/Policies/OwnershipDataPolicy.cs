@@ -1,6 +1,6 @@
 ﻿using Friflo.Engine.ECS;
 using ReadyM.Api.Helpers;
-using ReadyM.Api.Multiplayer.Mapping.Policies.Data;
+using ReadyM.Api.Mapping.Policies.Data;
 using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
