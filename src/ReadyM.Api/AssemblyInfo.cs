@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("ReadyM.Api.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Multiplayer")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]

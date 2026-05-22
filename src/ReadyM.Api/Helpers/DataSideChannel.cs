@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Threading;
 using ReadyM.Api.Interop.Registry;
@@ -14,10 +15,12 @@ public sealed class DataSideChannel
     // without further reflection at the call site.
     private static class ScopeInfo<TScope> where TScope : struct, IPropagationScope
     {
+        // ReSharper disable StaticMemberInGenericType
         public static readonly PropagationDirection Direction;
         public static readonly bool IsInterop;
         public static readonly int InteropEventId; // valid only if IsInterop
         public static readonly Type EventType;
+        // ReSharper restore StaticMemberInGenericType
 
         static ScopeInfo()
         {
@@ -28,7 +31,7 @@ public sealed class DataSideChannel
             if (typeof(IInteropType).IsAssignableFrom(EventType))
             {
                 IsInterop = true;
-                // Boxing once here is fine; it's a one-shot per TScope.
+                // Boxing here is fine, it's done once per TScope.
                 InteropEventId = ((IInteropType)Activator.CreateInstance(EventType)!).GetClassId();
             }
             else
@@ -63,8 +66,7 @@ public sealed class DataSideChannel
             }
 
             if (entry.IsSet)
-                throw new InvalidOperationException(
-                    $"Data of direction {direction} and event type {eventType} is already set in the side channel.");
+                throw new InvalidOperationException($"Data of direction {direction} and event type {eventType} is already set in the side channel.");
 
             entry.IsSet = true;
         }
@@ -73,8 +75,7 @@ public sealed class DataSideChannel
         {
             var key = (direction, eventType);
             if (!_managedEntries.TryGetValue(key, out var entry) || !entry.IsSet)
-                throw new InvalidOperationException(
-                    $"Data of direction {direction} and event type {eventType} is not set in the side channel.");
+                throw new InvalidOperationException($"Data of direction {direction} and event type {eventType} is not set in the side channel.");
 
             entry.IsSet = false;
         }
@@ -92,8 +93,7 @@ public sealed class DataSideChannel
             }
 
             if (entry.IsSet)
-                throw new InvalidOperationException(
-                    $"Data of direction {direction} and eventId {eventId} is already set in the side channel.");
+                throw new InvalidOperationException($"Data of direction {direction} and eventId {eventId} is already set in the side channel.");
 
             entry.IsSet = true;
         }
@@ -102,8 +102,7 @@ public sealed class DataSideChannel
         {
             var key = (direction, eventId);
             if (!_interopEntries.TryGetValue(key, out var entry) || !entry.IsSet)
-                throw new InvalidOperationException(
-                    $"Data of direction {direction} and eventId {eventId} is not set in the side channel.");
+                throw new InvalidOperationException($"Data of direction {direction} and eventId {eventId} is not set in the side channel.");
 
             entry.IsSet = false;
         }
@@ -112,7 +111,7 @@ public sealed class DataSideChannel
             => _interopEntries.TryGetValue((direction, eventId), out var entry) && entry.IsSet;
     }
 
-    internal readonly struct Scope<TScope> : IDisposable
+    internal readonly ref struct Scope<TScope> : IDisposable
         where TScope : struct, IPropagationScope
     {
         private readonly ThreadEntry _threadEntry;
@@ -139,8 +138,7 @@ public sealed class DataSideChannel
 
     // ----- Managed API -----
 
-    internal Scope<TScope> PushScope<TScope>() where TScope : struct, IPropagationScope
-        => new(_threadEntries.Value!);
+    internal Scope<TScope> PushScope<TScope>() where TScope : struct, IPropagationScope => new(_threadEntries.Value!);
 
     internal bool HasData<TScope>() where TScope : struct, IPropagationScope
     {
@@ -154,12 +152,30 @@ public sealed class DataSideChannel
     // Only interop events are addressable from here; managed-only events live
     // in a separate keyspace the native side cannot reach.
 
-    internal void PushDataInterop(PropagationDirection direction, int eventId)
-        => _threadEntries.Value!.PushInterop(direction, eventId);
+    internal readonly struct NativeScope : IDisposable
+    {
+        private readonly DataSideChannel channel;
+        private readonly PropagationDirection direction;
+        private readonly int eventId;
 
-    internal void PopDataInterop(PropagationDirection direction, int eventId)
-        => _threadEntries.Value!.PopInterop(direction, eventId);
+        internal NativeScope(DataSideChannel channel, PropagationDirection direction, int eventId)
+        {
+            this.channel = channel;
+            this.direction = direction;
+            this.eventId = eventId;
 
-    internal bool HasDataInterop(PropagationDirection direction, int eventId)
+            channel._threadEntries.Value!.PushInterop(direction, eventId);
+        }
+
+        public void Dispose()
+        {
+            channel._threadEntries.Value!.PopInterop(direction, eventId);
+        }
+    }
+
+    internal NativeScope PushScope(PropagationDirection direction, int eventId) 
+        => new(this, direction, eventId);
+
+    internal bool HasData(PropagationDirection direction, int eventId)
         => _threadEntries.Value!.HasInterop(direction, eventId);
 }
