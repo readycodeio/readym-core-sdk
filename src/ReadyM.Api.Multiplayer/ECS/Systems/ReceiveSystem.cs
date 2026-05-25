@@ -3,4 +3,4 @@ using ReadyM.Api.ECS.Systems;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-internal class ReceiveSchedulerSystem(ILogger logger) : SchedulerSystemBase(logger);
+internal class ReceiveSystem(ILogger logger) : SchedulerSystemBase(logger);
