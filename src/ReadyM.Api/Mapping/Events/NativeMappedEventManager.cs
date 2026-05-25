@@ -28,7 +28,7 @@ internal class NativeMappedEventManager(
         ManagedTarget = GCHandle.ToIntPtr(GCHandle.Alloc(this))
     };
 
-    public unsafe void RegisterNativeGameEventHandler(int eventId, NativeEventCallback callback)
+    public void RegisterNativeGameEventHandler(int eventId, NativeEventCallback callback)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
 
@@ -49,7 +49,7 @@ internal class NativeMappedEventManager(
             var handle = GCHandle.Alloc(ev, GCHandleType.Pinned);
             try
             {
-                cb.Callback(cb.Target, handle.AddrOfPinnedObject());
+                cb.Invoke(handle.AddrOfPinnedObject());
             }
             finally
             {
@@ -58,7 +58,7 @@ internal class NativeMappedEventManager(
         }, callback);
     }
 
-    public unsafe void RegisterNativeEcsEventHandler(int eventId, NativeEventCallback callback)
+    public void RegisterNativeEcsEventHandler(int eventId, NativeEventCallback callback)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
 
@@ -79,7 +79,7 @@ internal class NativeMappedEventManager(
             var handle = GCHandle.Alloc(ev, GCHandleType.Pinned);
             try
             {
-                cb.Callback(cb.Target, handle.AddrOfPinnedObject());
+                cb.Invoke(handle.AddrOfPinnedObject());
             }
             finally
             {
