@@ -44,7 +44,7 @@ internal class NetworkedComponentRegistry(EntityStore world, IEnumerable<INetwor
     }
 
     public NetworkedComponentId GetNetworkedComponentId(Type type)
-        => _componentIds[type].Id;
+        => _componentIds[type.FullName].Id;
 
     private unsafe void RunQuery<T>(EmbedQueryDelegate1 callback) where T : struct, IComponent
     {

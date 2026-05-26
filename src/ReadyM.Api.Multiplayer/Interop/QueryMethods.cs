@@ -3,7 +3,7 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
-public delegate NetworkedComponentId GetComponentIdByNameDelegate(UnmanagedString256 typeName);
+public delegate NetworkedComponentId GetComponentIdByNameDelegate(NativeString256 typeName);
 
 public delegate void EmbedForEach<T1>(ref T1 component1)
     where T1 : struct;
