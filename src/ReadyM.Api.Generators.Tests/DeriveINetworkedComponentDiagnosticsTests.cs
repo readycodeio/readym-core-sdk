@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Globalization;
+using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace ReadyM.Api.Generators.Tests;
@@ -33,10 +34,7 @@ public partial struct UnsupportedComponent
 
         Assert.NotEmpty(errors);
 
-        Assert.Contains(
-            errors,
-            diagnostic =>
-                diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -67,7 +65,7 @@ public partial struct UnsupportedPropertyComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -92,7 +90,7 @@ public partial struct ReadonlyFieldComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -133,7 +131,7 @@ public partial struct ReadonlyCustomSerializableFieldComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -159,7 +157,7 @@ public partial struct InitOnlyPropertyComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -185,7 +183,7 @@ public partial struct GetterOnlyPropertyComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -214,7 +212,7 @@ public partial struct TooManyFieldsComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -244,7 +242,7 @@ public partial struct TooManyPropertiesComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -279,7 +277,7 @@ public partial struct TooManyMixedMembersComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("more than 64", StringComparison.OrdinalIgnoreCase) || diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -315,7 +313,7 @@ public partial struct MissingDeserializeComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 
     [Fact]
@@ -353,7 +351,7 @@ public partial struct ExplicitByteDirtyMaskTooSmallComponent
 
         Assert.Contains(
             errors,
-            diagnostic => diagnostic.ToString().Contains("#error"));
+            diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
     
     [Fact]
@@ -389,6 +387,6 @@ public partial struct MissingSerializeComponent
             .ToArray();
 
         Assert.NotEmpty(errors);
-        Assert.Contains(errors, diagnostic => diagnostic.ToString().Contains("#error"));
+        Assert.Contains(errors, diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
 }

@@ -11,7 +11,7 @@ public class CppNativeFieldTypeAttribute(
     string? setterTypeName = null,
     bool useMove = false,
     bool readOnly = false,
-    params string[] includes) : System.Attribute
+    params string[] includes) : Attribute
 {
     public readonly string CppTypeName = cppTypeName;
     public readonly string? GetterName = getterTypeName;

@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Struct, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Struct)]
 public class DeriveNativeBindingAttribute : Attribute
 {
     // empty
