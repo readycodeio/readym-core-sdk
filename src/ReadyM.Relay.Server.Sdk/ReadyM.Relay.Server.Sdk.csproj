@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />
+      <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />
+    </ItemGroup>
+
+</Project>

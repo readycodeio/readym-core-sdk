@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Linq;
 using DryIoc;
-using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Worlds;
 
 namespace ReadyM.Api.DI;
 
@@ -19,9 +17,6 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
     {
         Container.RegisterInstance<IDependencyContainer>(this);
         Container.Register(typeof(ILogger<>), typeof(Logger<>), ifAlreadyRegistered: IfAlreadyRegistered.Replace);
-        
-        Container.RegisterInstance(new EntityStore());
-        Container.Register<Store>();
     }
 
     public virtual void Dispose()
