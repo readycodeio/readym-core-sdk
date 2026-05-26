@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace ReadyM.Api.Multiplayer.Interop;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct HostPointers
+public struct EcsApiPointers
 {
     public IntPtr GetComponentIdByName;
     public IntPtr EmbedQuery1;

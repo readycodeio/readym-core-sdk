@@ -1,4 +1,5 @@
-﻿using ReadyM.Api.Multiplayer.ECS.Registry;
+﻿using System.Runtime.InteropServices;
+using ReadyM.Api.Multiplayer.ECS.Registry;
 using Yooni.Native.Container;
 
 namespace ReadyM.Api.Multiplayer.Interop;
