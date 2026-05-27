@@ -112,7 +112,7 @@ internal class NativeMappedEventManager(
         return true;
     }
 
-    // TODO: For now, we hard-code IntPtr as context, for IOwnershipManaged events
+    // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool NotifyEcsIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
@@ -122,9 +122,9 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!typeof(IOwnershipManaged).IsAssignableFrom(eventType))
+        if (!typeof(IOwnershipBased).IsAssignableFrom(eventType))
         {
-            logger.LogError("Attempted to notify ECS of event with id {EventId} and type {EventType} which does not implement IOwnershipManaged", eventId, eventType.FullName);
+            logger.LogError("Attempted to notify ECS of event with id {EventId} and type {EventType} which does not implement IOwnershipBased", eventId, eventType.FullName);
             return false;
         }
 
@@ -189,7 +189,7 @@ internal class NativeMappedEventManager(
         return true;
     }
 
-    // TODO: For now, we hard-code IntPtr as context, for IOwnershipManaged events
+    // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool InvokeInGameIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
@@ -199,9 +199,9 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!typeof(IOwnershipManaged).IsAssignableFrom(eventType))
+        if (!typeof(IOwnershipBased).IsAssignableFrom(eventType))
         {
-            logger.LogError("Attempted to invoke in Game an event with id {EventId} and type {EventType} which does not implement IOwnershipManaged", eventId, eventType.FullName);
+            logger.LogError("Attempted to invoke in Game an event with id {EventId} and type {EventType} which does not implement IOwnershipBased", eventId, eventType.FullName);
             return false;
         }
 
