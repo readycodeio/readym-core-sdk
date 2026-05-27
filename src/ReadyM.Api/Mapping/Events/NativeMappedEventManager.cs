@@ -92,7 +92,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<EmptyContext>(eventType).CanGameEventNotifyEcs(default))
+        if (!policyDir.ForEvent<EmptyContext>(eventType).CanGameEventNotifyEcs(default))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
@@ -134,7 +134,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<Entity>(eventType).CanGameEventNotifyEcs(entity.Value))
+        if (!policyDir.ForEvent<Entity>(eventType).CanGameEventNotifyEcs(entity.Value))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
@@ -169,7 +169,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<EmptyContext>(eventType).CanEcsInvokeGameEvent(default))
+        if (!policyDir.ForEvent<EmptyContext>(eventType).CanEcsInvokeGameEvent(default))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToGame, eventId))
@@ -211,7 +211,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<Entity>(eventType).CanEcsInvokeGameEvent(entity.Value))
+        if (!policyDir.ForEvent<Entity>(eventType).CanEcsInvokeGameEvent(entity.Value))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToGame, eventId))

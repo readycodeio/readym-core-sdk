@@ -1,3 +1,4 @@
+using System;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Mapping.CreateDestroy;
@@ -20,7 +21,11 @@ internal interface IMappingPolicyDirectory
 
     IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>;
+    
+    IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType);
 
     IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>;
+
+    IMappingEventPolicy<Entity> ForEvent(Type eventType);
 }

@@ -101,26 +101,25 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         where TComponent : struct, IMappingContext<Entity>
         => ForData<TComponent, Entity>();
 
-    public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
-        where TEvent : struct, IMappingContext<TContext>
+    public IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType)
     {
         lock (eventLock)
         {
-            var key = (typeof(TEvent), typeof(TContext));
+            var key = (eventType, typeof(TContext));
 
             if (!eventPolicies.TryGetValue(key, out var untypedPolicy))
             {
                 foreach (var factory in eventPolicyFactories)
                 {
-                    if (!factory.Supports(typeof(TEvent), typeof(TContext)))
+                    if (!factory.Supports(eventType, typeof(TContext)))
                         continue;
 
-                    untypedPolicy = factory.CreatePolicy<TContext>(typeof(TEvent));
+                    untypedPolicy = factory.CreatePolicy<TContext>(eventType);
                     break;
                 }
 
                 if (untypedPolicy == null)
-                    throw new ArgumentException($"No event policy registered for event type {typeof(TEvent)}");
+                    throw new ArgumentException($"No event policy registered for event type {eventType}");
 
                 eventPolicies.Add(key, untypedPolicy);
             }
@@ -129,9 +128,18 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         }
     }
 
+    public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
+        where TEvent : struct, IMappingContext<TContext>
+    {
+        return ForEvent<TContext>(typeof(TEvent));
+    }
+
     public IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>
         => ForEvent<TEvent, Entity>();
+    
+    public IMappingEventPolicy<Entity> ForEvent(Type eventType)
+        => ForEvent<Entity>(eventType);
 
     // ---
 
