@@ -12,7 +12,7 @@ namespace ReadyM.Api.Mapping.Events;
 
 internal class NativeMappedEventManager(
     DataSideChannel sideChannel,
-    IMappingPolicyDirectory policyDir,
+    INativeMappingPolicyDirectory policyDir,
     INativeComponentRegistry nativeRegistry,
     IMappedEntityManager<IntPtr> entityMapper,
     ILogger logger

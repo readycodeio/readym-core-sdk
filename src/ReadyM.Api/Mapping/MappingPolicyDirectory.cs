@@ -23,9 +23,9 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
     private readonly Dictionary<(Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
     private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = [];
 
-    private readonly object _eventLock = new();
-    private readonly Dictionary<(Type, Type), IMappingEventPolicyBase> _eventPolicies = new();
-    private readonly List<IMappingEventPolicyFactory> _eventPolicyFactories = [];
+    protected readonly object eventLock = new();
+    protected readonly Dictionary<(Type, Type), IMappingEventPolicyBase> eventPolicies = new();
+    protected readonly List<IMappingEventPolicyFactory> eventPolicyFactories = [];
 
     public IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
         where TGameObject : class
@@ -104,13 +104,13 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
     public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>
     {
-        lock (_eventLock)
+        lock (eventLock)
         {
             var key = (typeof(TEvent), typeof(TContext));
 
-            if (!_eventPolicies.TryGetValue(key, out var untypedPolicy))
+            if (!eventPolicies.TryGetValue(key, out var untypedPolicy))
             {
-                foreach (var factory in _eventPolicyFactories)
+                foreach (var factory in eventPolicyFactories)
                 {
                     if (!factory.Supports(typeof(TEvent), typeof(TContext)))
                         continue;
@@ -122,7 +122,7 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
                 if (untypedPolicy == null)
                     throw new ArgumentException($"No event policy registered for event type {typeof(TEvent)}");
 
-                _eventPolicies.Add(key, untypedPolicy);
+                eventPolicies.Add(key, untypedPolicy);
             }
 
             return (IMappingEventPolicy<TContext>)untypedPolicy;
@@ -132,33 +132,6 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
     public IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>
         => ForEvent<TEvent, Entity>();
-
-    public IMappingEventPolicy<TContext> ForEventOpaque<TContext>(Type eventType)
-    {
-        lock (_eventLock)
-        {
-            var key = (eventType, typeof(TContext));
-
-            if (!_eventPolicies.TryGetValue(key, out var untypedPolicy))
-            {
-                foreach (var factory in _eventPolicyFactories)
-                {
-                    if (!factory.Supports(eventType, typeof(TContext)))
-                        continue;
-
-                    untypedPolicy = factory.CreatePolicy<TContext>(eventType);
-                    break;
-                }
-
-                if (untypedPolicy == null)
-                    throw new ArgumentException($"No event policy registered for event type {eventType}");
-
-                _eventPolicies.Add(key, untypedPolicy);
-            }
-
-            return (IMappingEventPolicy<TContext>)untypedPolicy;
-        }
-    }
 
     // ---
 
@@ -247,7 +220,7 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
 
     public void RegisterDefaultEvent(IMappingEventPolicyFactory factory)
     {
-        _eventPolicyFactories.Add(factory);
+        eventPolicyFactories.Add(factory);
     }
 
     public void RegisterDefaultEvent<TContext>(
@@ -266,7 +239,7 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         where TEvent : struct, IEquatable<TEvent>
         where TContext : struct
     {
-        _eventPolicies.Add((typeof(TEvent), typeof(TContext)), policy);
+        eventPolicies.Add((typeof(TEvent), typeof(TContext)), policy);
     }
 
     public void RegisterEvent<TEvent, TContext>(
