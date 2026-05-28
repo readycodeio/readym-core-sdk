@@ -21,7 +21,7 @@ internal class JobRegistry
         {
             var id = registry.GetNetworkedComponentId<T>();
 
-            owner.Logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
+            owner.Logger.LogTrace("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
             owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner.NetEntity, owner.PlayerIdProvider));
             owner.RegisterApplySnapshotJob(id, new ApplySnapshotJob<T>(owner.NetEntity));
             owner.RegisterWriteSnapshotJob(id, new WriteSnapshotJob<T>(id), new WriteSnapshotJob<T>(id));

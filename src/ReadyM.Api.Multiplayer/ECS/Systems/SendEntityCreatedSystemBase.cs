@@ -58,7 +58,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
         if (queryCount == 0)
             return;
 
-        _writer.Put(queryCount);
+        _writer.Put((uint)queryCount);
         query.ForEachEntity((ref meta, entity) =>
         {
             MetadataComponent.Serialize(meta, _writer);

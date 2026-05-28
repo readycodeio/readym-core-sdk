@@ -33,7 +33,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             var id = registry.GetNetworkedComponentId<T>();
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
-            owner.Logger.LogDebug("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
+            owner.Logger.LogTrace("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
             owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
             owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
@@ -184,7 +184,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 {
                     var meta = MetadataComponent.Deserialize(readerCopy);
 
-                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
+                    if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var _))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
                     }

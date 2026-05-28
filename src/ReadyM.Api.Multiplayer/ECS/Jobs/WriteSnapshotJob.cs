@@ -21,7 +21,7 @@ internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
         var begin = writer.Length;
         writer.Put(componentId);
 
-        var position = writer.Length;
+        var countPosition = writer.Length;
         writer.Put((uint)0);
 
         uint counter = 0;
@@ -40,7 +40,7 @@ internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
 
         _counter = counter;
         _writer = writer;
-        query.ForEachEntity((ref meta, ref comp, _) =>
+        query.ForEachEntity(static (ref meta, ref comp, _) =>
         {
             _counter++;
             _writer.Put(meta.NetId);
@@ -55,7 +55,7 @@ internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
         }
 
         var finalPosition = writer.Length;
-        writer.SetPosition(position);
+        writer.SetPosition(countPosition);
         writer.Put(counter);
 
         // Reset position to the end of the data
