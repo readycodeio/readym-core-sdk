@@ -4,7 +4,7 @@ using ReadyM.Api.Interop;
 
 namespace ReadyM.Api.Mapping.Events;
 
-public static class NativeMappedEventManagerBindings
+internal static class NativeMappedEventManagerBindings
 {
     public delegate void RegisterNativeGameEventHandlerDelegate(IntPtr managerPtr, int eventId, ClosureTrampoline1 callback);
 
