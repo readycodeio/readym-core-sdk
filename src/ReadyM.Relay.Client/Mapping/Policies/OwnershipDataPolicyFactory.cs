@@ -11,7 +11,7 @@ namespace ReadyM.Relay.Client.Mapping.Policies;
 internal class OwnershipDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel) : IMappingDataPolicyFactory
 {
     public bool Supports(Type dataType, Type contextType)
-        => contextType == typeof(Entity) && typeof(IOwnershipManaged).IsAssignableFrom(dataType);
+        => contextType == typeof(Entity) && typeof(IOwnershipBased).IsAssignableFrom(dataType);
 
     public IMappingDataPolicyBase CreatePolicy(Type componentType, Type contextType)
     {

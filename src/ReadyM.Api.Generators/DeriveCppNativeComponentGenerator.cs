@@ -671,7 +671,7 @@ namespace {ns}
                     Friflo::Engine::ECS::RawEntity entity,
                     {{model.Source.Name}}* comp) = nullptr;
 
-                bool IsValid() const
+                [[nodiscard]] bool IsValid() const
                 {
                     return Target != nullptr && OnEntityDeleteHandler != nullptr;
                 }

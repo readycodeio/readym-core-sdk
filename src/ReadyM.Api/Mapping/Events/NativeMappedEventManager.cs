@@ -12,7 +12,7 @@ namespace ReadyM.Api.Mapping.Events;
 
 internal class NativeMappedEventManager(
     DataSideChannel sideChannel,
-    IMappingPolicyDirectory policyDir,
+    INativeMappingPolicyDirectory policyDir,
     INativeComponentRegistry nativeRegistry,
     IMappedEntityManager<IntPtr> entityMapper,
     ILogger logger
@@ -92,7 +92,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<EmptyContext>(eventType).CanGameEventNotifyEcs(default))
+        if (!policyDir.ForEvent<EmptyContext>(eventType).CanGameEventNotifyEcs(default))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
@@ -112,7 +112,7 @@ internal class NativeMappedEventManager(
         return true;
     }
 
-    // TODO: For now, we hard-code IntPtr as context, for IOwnershipManaged events
+    // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool NotifyEcsIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
@@ -122,9 +122,9 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!typeof(IOwnershipManaged).IsAssignableFrom(eventType))
+        if (!typeof(IOwnershipBased).IsAssignableFrom(eventType))
         {
-            logger.LogError("Attempted to notify ECS of event with id {EventId} and type {EventType} which does not implement IOwnershipManaged", eventId, eventType.FullName);
+            logger.LogError("Attempted to notify ECS of event with id {EventId} and type {EventType} which does not implement IOwnershipBased", eventId, eventType.FullName);
             return false;
         }
 
@@ -134,7 +134,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<Entity>(eventType).CanGameEventNotifyEcs(entity.Value))
+        if (!policyDir.ForEvent<Entity>(eventType).CanGameEventNotifyEcs(entity.Value))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
@@ -169,7 +169,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<EmptyContext>(eventType).CanEcsInvokeGameEvent(default))
+        if (!policyDir.ForEvent<EmptyContext>(eventType).CanEcsInvokeGameEvent(default))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToGame, eventId))
@@ -189,7 +189,7 @@ internal class NativeMappedEventManager(
         return true;
     }
 
-    // TODO: For now, we hard-code IntPtr as context, for IOwnershipManaged events
+    // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool InvokeInGameIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
         var eventType = nativeRegistry.GetComponentType(eventId);
@@ -199,9 +199,9 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!typeof(IOwnershipManaged).IsAssignableFrom(eventType))
+        if (!typeof(IOwnershipBased).IsAssignableFrom(eventType))
         {
-            logger.LogError("Attempted to invoke in Game an event with id {EventId} and type {EventType} which does not implement IOwnershipManaged", eventId, eventType.FullName);
+            logger.LogError("Attempted to invoke in Game an event with id {EventId} and type {EventType} which does not implement IOwnershipBased", eventId, eventType.FullName);
             return false;
         }
 
@@ -211,7 +211,7 @@ internal class NativeMappedEventManager(
             return false;
         }
 
-        if (!policyDir.ForEventOpaque<Entity>(eventType).CanEcsInvokeGameEvent(entity.Value))
+        if (!policyDir.ForEvent<Entity>(eventType).CanEcsInvokeGameEvent(entity.Value))
             return false;
 
         using (sideChannel.PushScope(PropagationDirection.ToGame, eventId))

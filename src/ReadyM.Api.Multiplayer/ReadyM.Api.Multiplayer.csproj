@@ -33,8 +33,4 @@
         <CompilerVisibleProperty Include="GeneratedCppPath" />
         <CompilerVisibleProperty Include="GeneratedCppEnabled" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Mapping\" />
-    </ItemGroup>
 </Project>

@@ -3,7 +3,7 @@
 namespace ReadyM.Api.Mapping.Tags;
 
 /// <exclude />
-public interface IOwnershipManaged : IMappingContext<Entity>
+public interface IOwnershipBased : IMappingContext<Entity>
 {
     // empty
 }

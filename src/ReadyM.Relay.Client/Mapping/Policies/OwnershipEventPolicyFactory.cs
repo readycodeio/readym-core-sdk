@@ -13,7 +13,7 @@ internal class OwnershipEventPolicyFactory(
     DataSideChannel sideChannel) : IMappingEventPolicyFactory
 {
     public bool Supports(Type eventType, Type contextType)
-        => contextType == typeof(Entity) && typeof(IOwnershipManaged).IsAssignableFrom(eventType);
+        => contextType == typeof(Entity) && typeof(IOwnershipBased).IsAssignableFrom(eventType);
 
     public IMappingEventPolicyBase CreatePolicy(Type eventType, Type contextType)
     {

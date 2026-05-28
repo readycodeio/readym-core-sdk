@@ -21,9 +21,11 @@ internal interface IMappingPolicyDirectory
 
     IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>;
+    
+    IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType);
 
     IMappingEventPolicy<Entity> ForEvent<TEvent>()
         where TEvent : struct, IMappingContext<Entity>;
 
-    IMappingEventPolicy<TContext> ForEventOpaque<TContext>(Type eventType);
+    IMappingEventPolicy<Entity> ForEvent(Type eventType);
 }
