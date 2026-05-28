@@ -36,7 +36,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         if (context.Node is not MethodDeclarationSyntax methodSyntax)
             return null;
 
-        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax) as IMethodSymbol;
+        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax);
 
         var rpcAttr = methodSymbol?.GetAttributes()
             .FirstOrDefault(attr => attr.AttributeClass?.Name is
@@ -132,7 +132,6 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
                 }
                 
                 var eventCode = $"(RelayMessageCode.MinServerRpcEvent + {baseEventCode})";
-                var eventCodeByte = $"(byte){eventCode}";
 
                 var parameters = methodSymbol.Parameters;
 

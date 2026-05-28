@@ -1,7 +1,6 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace ReadyM.Api.Multiplayer.Interop;
+namespace ReadyM.Relay.Server.Sdk.Interop;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct EcsApiPointers

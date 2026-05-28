@@ -7,7 +7,7 @@ namespace ReadyM.Api.DI;
 
 public abstract class DependencyContainerBase : IDependencyContainer, IDisposable
 {
-    protected IContainer Container { get; private set; } = new Container(rules =>
+    protected internal IContainer Container { get; private set; } = new Container(rules =>
         rules.With(FactoryMethod.ConstructorWithResolvableArguments)
             .WithDefaultReuse(Reuse.Singleton)
             .WithUseInterpretation()

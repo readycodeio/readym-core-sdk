@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -10,9 +11,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 [Generator]
-internal class ServerRpcHandlerGenerator : IIncrementalGenerator
+[Obsolete]
+internal class LegacyServerRpcHandlerGenerator : IIncrementalGenerator
 {
+    private const string ContextTypeName = "IRelayServerNetworkThreadContext";
     private const string PlayerIdTypeName = "PlayerId";
+    private const string ContextParameterName = "__context";
     private const string SenderParameterName = "__sender";
     private const string EventCodeTypeName = "RelayMessageCode";
     private const string EventCodeParameterName = "__eventCode";
@@ -40,8 +44,8 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
         var rpcAttr = methodSymbol?.GetAttributes()
             .FirstOrDefault(attr => attr.AttributeClass?.Name is
-            "ServerRpcHandlerAttribute" or
-            "ServerRpcHandler"
+            "LegacyServerRpcHandlerAttribute" or
+            "LegacyServerRpcHandler"
             );
 
         if (rpcAttr == null)
@@ -105,6 +109,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                                          using ReadyM.Api.Multiplayer.Protocol;
                                          using ReadyM.Api.Multiplayer.Protocol.Enums;
                                          using ReadyM.Relay;
+                                         using ReadyM.Relay.Server.Rpc;
                                          
                                          namespace {{ns}};
                                          
@@ -142,7 +147,18 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 for (var i = 0; i < parameters.Length; i++)
                 {
                     var param = parameters[i];
-                    if (param.Name == SenderParameterName)
+                    if (param.Name == ContextParameterName)
+                    {
+                        if (param.Type.Name != ContextTypeName)
+                        {
+                            valid = false;
+                            break;
+                        }
+                        // IRelayServerNetworkThreadContext __context
+                        contextIndex = i;
+                        paramTypes.Add((null, false, false));
+                    }
+                    else if (param.Name == SenderParameterName)
                     {
                         if (param.Type.Name != PlayerIdTypeName)
                         {
@@ -261,10 +277,10 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 eventCodes.Append($"    public readonly RelayMessageCode {eventName}Code = {eventCode};");
                 if (initCalls.Length > 0)
                     initCalls.AppendLine();
-                initCalls.Append($"        RpcApi.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
+                initCalls.Append($"        RelayServer.AddServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
                 if (deinitCalls.Length > 0)
                     deinitCalls.AppendLine();
-                deinitCalls.Append($"        RpcApi.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
+                deinitCalls.Append($"        RelayServer.RemoveServerRpcMessageHandler({eventCode}, OnServerRpcEventHandler);");
                 
                 baseEventCode++;
             }
@@ -273,7 +289,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             sb.AppendLine($$"""
                             {{eventCodes}}
                                     
-                                private void OnServerRpcEventHandler(ServerEventHeader header, NetDataReader reader)
+                                private void OnServerRpcEventHandler(IRelayServerNetworkThreadContext context, ServerEventHeader header, NetDataReader reader)
                                 {
                                     switch (header.EventCode)
                                     {
@@ -283,14 +299,16 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                                     }
                                 }
                                    
-                                protected override void InitRpc()
+                                public override void InitRpc(RpcRelayServer rpc)
                                 {
+                                    base.InitRpc(rpc);
                             {{initCalls}}
                                 }
                                     
-                                protected override void DeInitRpc()
+                                public override void DeInitRpc()
                                 {
                             {{deinitCalls}}
+                                    base.DeInitRpc();
                                 }
                             """);
 
