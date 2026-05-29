@@ -44,12 +44,10 @@ public static class NetSerializationExtensions
     public static unsafe void Serialize(this in NativeString256 str, NetDataWriter writer)
     {
         writer.EnsureFit(4 + 1 + str.Length);
-        
-        checked
-        {
-            writer.Put(str.Length);
-        }
+
+        writer.Put(str.Length);
         writer.Put(str.IsWide);
+
         fixed (byte* ptr = writer.Data)
         {
             str.CopyTo(ptr + writer.Length);

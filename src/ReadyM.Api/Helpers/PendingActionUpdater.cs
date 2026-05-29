@@ -15,6 +15,8 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
     {
         if (_insideUpdate)
             return false;
+        
+        EnsureThread();
 
         try
         {

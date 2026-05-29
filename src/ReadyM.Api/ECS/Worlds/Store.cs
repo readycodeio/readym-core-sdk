@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.ECS.Registry;
@@ -25,6 +27,7 @@ internal sealed partial class Store
         public Action<Entity>? LateInit;
     }
 
+    private Thread _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
@@ -45,6 +48,24 @@ internal sealed partial class Store
         {
             registration.Register(this);
         }
+        
+        OnEntityDelete += _ =>
+        {
+            AssertThreadId();
+        };
+    }
+    
+    public void SetThread(Thread newThread)
+    {
+        _thread = newThread;
+    }
+
+    private void AssertThreadId()
+    {
+        if (Thread.CurrentThread != _thread)
+        {
+            throw new InvalidOperationException("Store can only be accessed from the thread it was created on.");
+        }
     }
 
     internal ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
@@ -61,6 +82,8 @@ internal sealed partial class Store
 
     internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
+        AssertThreadId();
+        
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
@@ -77,6 +100,8 @@ internal sealed partial class Store
 
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
     {
+        AssertThreadId();
+        
         var batch = _wrapped.Batch();
         var builder = new EntityBuilder(batch);
         setComponents?.Invoke(builder);
