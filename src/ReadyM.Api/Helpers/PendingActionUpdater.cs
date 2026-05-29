@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Runtime.CompilerServices;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Helpers;
@@ -41,8 +42,9 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
         }
     }
 
-    public void SetThread(Thread? newThread)
+    public void SetThread(Thread? newThread, [CallerFilePath] string callerFile = "", [CallerLineNumber] int callerLine = 0)
     {
+        logger.LogDebug("Setting thread to {ThreadName} (ID: {ThreadId}) at {Class}:{Line} ", newThread?.Name ?? "null", newThread?.ManagedThreadId ?? -1, callerFile, callerLine);
         thread = newThread;
     }
 }
