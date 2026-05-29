@@ -8,8 +8,12 @@ namespace ReadyM.Api.Generators;
 internal static class DeriveCSharpUtils
 {
     public static string FullyQualifiedTypeName(ITypeSymbol type)
-        => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    
+    {
+        var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var questionMark = type.NullableAnnotation == NullableAnnotation.Annotated ? "?" : "";
+        return $"{typeName}{questionMark}".Replace("global::", "");
+    }
+
     public static string GetTypeModifiers(TypeDeclarationSyntax declaration, bool forceUnsafe)
     {
         var modifiers = declaration.Modifiers

@@ -89,10 +89,9 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public virtual void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
-        var questionMark = symbol.NullableAnnotation == NullableAnnotation.Annotated ? "?" : "";
         if (context.Member.AccessorSettings.SkipAccessors)
         {
-            context.AppendLine($"private {FullyQualifiedTypeName(symbol)}{questionMark} {context.Member.GeneratedPropertyName}");
+            context.AppendLine($"private {FullyQualifiedTypeName(symbol)} {context.Member.GeneratedPropertyName}");
             using (context.WithCodeBlock())
             {
                 context.AppendLine("set");
@@ -111,7 +110,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             accessorType = "bool";
         }
 
-        context.AppendLine($"public {accessorType}{questionMark} {context.Member.GeneratedPropertyName}");
+        context.AppendLine($"public {accessorType} {context.Member.GeneratedPropertyName}");
         using (context.WithCodeBlock())
         {
             context.AppendLine("get");

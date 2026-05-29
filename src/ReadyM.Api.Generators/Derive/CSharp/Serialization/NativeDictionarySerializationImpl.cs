@@ -18,13 +18,17 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
         var keyVar = context.MethodState.NewVarName("key");
         var valueVar = context.MethodState.NewVarName("value");
         context.AppendLine($"writer.Put({context.State.CurrentVar}.Count);");
-        context.AppendLine($"foreach (var {itemVar} in {context.State.CurrentVar})");
+        context.AppendLine($"if({context.State.CurrentVar}.Count > 0)");
         using (context.WithCodeBlock())
         {
-            context.AppendLine($"var {keyVar} = {itemVar}.Key;");
-            context.AppendLine($"var {valueVar} = {itemVar}.Value;");
-            context.EmitSerializeVar(keyVar, keyType);
-            context.EmitSerializeVar(valueVar, valueType);
+            context.AppendLine($"foreach (var {itemVar} in {context.State.CurrentVar})");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine($"var {keyVar} = {itemVar}.Key;");
+                context.AppendLine($"var {valueVar} = {itemVar}.Value;");
+                context.EmitSerializeVar(keyVar, keyType);
+                context.EmitSerializeVar(valueVar, valueType);
+            }
         }
     }
 
@@ -32,7 +36,7 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
     {
         if (!SerializationHelper.IsNativeDictionary(symbol, out var keyType, out var valueType, out _))
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native dictionary type");
-        
+
         var indexVar = context.MethodState.NewVarName("index");
         var countVar = context.MethodState.NewVarName("count");
         context.AppendLine($"var {countVar} = reader.GetInt();");
