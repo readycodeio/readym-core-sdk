@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -12,6 +13,7 @@ public class RpcApi(RpcApiPointers pointers)
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
     private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers.RemoveServerRpcMessageHandler);
 
+    private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
 
     public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
@@ -24,12 +26,20 @@ public class RpcApi(RpcApiPointers pointers)
             handler(header, reader);
         };
 
+        _pinnedDelegates.Add(handler, realHandler);
         _pinnedDelegateStore.PinDelegate(realHandler);
+
         _addServerRpcMessageHandler(eventCode, realHandler);
     }
 
     public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
-        throw new NotImplementedException();
+        if (!_pinnedDelegates.Remove(handler, out var realHandler))
+        {
+            throw new InvalidOperationException("Handler not found. Make sure to only remove handlers that were added.");
+        }
+        
+        _removeServerRpcMessageHandler(eventCode, realHandler);
+        _pinnedDelegateStore.UnpinDelegate(realHandler);
     }
 }

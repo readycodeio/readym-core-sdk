@@ -17,6 +17,16 @@ internal class PinnedDelegateStore : IDisposable
 
         return Marshal.GetFunctionPointerForDelegate(del);
     }
+    
+    public void UnpinDelegate<TDelegate>(TDelegate del)
+        where TDelegate : Delegate
+    {
+        if (_pinnedDelegates.TryGetValue(del, out var handle))
+        {
+            handle.Free();
+            _pinnedDelegates.Remove(del);
+        }
+    }
 
     public void Dispose()
     {

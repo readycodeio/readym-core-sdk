@@ -11,6 +11,7 @@ public abstract class ServerModBase
     public void Initialize(IDependencyContainer services)
     {
         Services = services;
+        Init();
     }
 
     protected abstract void Init();
