@@ -12,371 +12,305 @@ namespace ReadyM.Api.Generators;
 [Generator]
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 {
-    private const string PlayerIdTypeName = "PlayerId";
-    private const string SenderParameterName = "__sender";
-    private const string EventCodeTypeName = "RelayMessageCode";
-    private const string EventCodeParameterName = "__eventCode";
-
-    // Name of the per-plugin manifest generated alongside the per-class files.
-    // Referenced directly in generated InitRpc / DeInitRpc / SendX / {Name}Code.
-    private const string ManifestClassName = "ServerRpcHandlerManifest";
+    private const string BaseClassName = "ServerRpcHandlersBase";
+    private const string ManifestClassName = "ServerRpcManifest";
+    private const string RpcContextFqn = "global::ReadyM.Relay.Server.Sdk.RpcContext";
+    private const string PlayerIdFqn = "global::ReadyM.Api.Idents.PlayerId";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var serverRpcMethods = context.SyntaxProvider
+        var handlerClasses = context.SyntaxProvider
             .CreateSyntaxProvider(Predicate, Transform)
-            .Where(m => m is not null)
+            .Where(x => x is not null)
             .Collect();
 
-        context.RegisterSourceOutput(serverRpcMethods, GenerateSources);
+        var manifest = context.CompilationProvider
+            .Select(static (compilation, _) => FindManifestType(compilation));
+
+        context.RegisterSourceOutput(
+            handlerClasses.Combine(manifest),
+            static (ctx, pair) => GenerateSources(ctx, pair.Left, pair.Right));
     }
 
     private static bool Predicate(SyntaxNode node, CancellationToken _) =>
-        node is MethodDeclarationSyntax method &&
-        method.AttributeLists.Count > 0;
+        node is ClassDeclarationSyntax cls &&
+        cls.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)) &&
+        cls.BaseList is not null;
 
-    private static ServerRpcMethodInfo? Transform(GeneratorSyntaxContext context, CancellationToken _)
+    private static INamedTypeSymbol? Transform(GeneratorSyntaxContext context, CancellationToken _)
     {
-        if (context.Node is not MethodDeclarationSyntax methodSyntax)
+        if (context.Node is not ClassDeclarationSyntax)
             return null;
 
-        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodSyntax);
-
-        var rpcAttr = methodSymbol?.GetAttributes()
-            .FirstOrDefault(attr => attr.AttributeClass?.Name is
-            "ServerRpcHandlerAttribute" or
-            "ServerRpcHandler"
-            );
-
-        if (rpcAttr == null)
+        var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol;
+        if (classSymbol is null || classSymbol.IsAbstract)
             return null;
 
-        var attributeSyntax = rpcAttr.ApplicationSyntaxReference?.GetSyntax() as AttributeSyntax;
-        var args = attributeSyntax!.ArgumentList!.Arguments;
-
-        var constants = args
-            .Select(arg => context.SemanticModel.GetOperation(arg.Expression)?.ConstantValue.Value)
-            .Where(val => val is not null)
-            .Select(x => x!.ToString())
-            .ToArray();
-
-        return new ServerRpcMethodInfo(methodSymbol!, constants);
+        return DerivesFrom(classSymbol, BaseClassName) ? classSymbol : null;
     }
 
-    private static void GenerateSources(SourceProductionContext context, ImmutableArray<ServerRpcMethodInfo?> rawMethods)
+    private static bool DerivesFrom(INamedTypeSymbol symbol, string baseName)
     {
-        var methods = rawMethods
-            .Where(m => m is not null)
-            .Select(m => m!)
-            .OrderBy(m => m.EventName) // global alphabetical sort - this is the ID assignment
-            .ToList();
+        var current = symbol.BaseType;
+        while (current is not null)
+        {
+            if (current.Name == baseName) return true;
+            current = current.BaseType;
+        }
 
-        if (methods.Count == 0)
+        return false;
+    }
+
+    private static INamedTypeSymbol? FindManifestType(Compilation compilation)
+    {
+        var local = FindTypeNamed(compilation.GlobalNamespace, ManifestClassName);
+        if (local != null) return local;
+
+        foreach (var reference in compilation.References)
+        {
+            if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol asm)
+            {
+                var type = FindTypeNamed(asm.GlobalNamespace, ManifestClassName);
+                if (type != null) return type;
+            }
+        }
+
+        return null;
+    }
+
+    private static INamedTypeSymbol? FindTypeNamed(INamespaceSymbol ns, string name)
+    {
+        var direct = ns.GetTypeMembers(name).FirstOrDefault();
+        if (direct != null) return direct;
+        foreach (var child in ns.GetNamespaceMembers())
+        {
+            var found = FindTypeNamed(child, name);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    private static INamedTypeSymbol? FindContractClass(INamespaceSymbol ns)
+    {
+        foreach (var type in ns.GetTypeMembers())
+        {
+            if (type.GetAttributes().Any(a =>
+                    a.AttributeClass?.Name is "ServerRpcContractsAttribute" or "ServerRpcContracts"))
+                return type;
+        }
+
+        foreach (var child in ns.GetNamespaceMembers())
+        {
+            var found = FindContractClass(child);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    private static void GenerateSources(
+        SourceProductionContext context,
+        ImmutableArray<INamedTypeSymbol?> rawClasses,
+        INamedTypeSymbol? manifest)
+    {
+        var classes = rawClasses.Where(c => c is not null).Select(c => c!).ToList();
+        if (classes.Count == 0)
             return;
 
-        // Duplicate check across all classes - with global assignment, any duplicate name
-        // collides regardless of which class it lives in.
-        var duplicates = methods.GroupBy(x => x.EventName)
-            .Where(g => g.Count() > 1)
-            .SelectMany(y => y)
-            .ToList();
-
-        foreach (var dup in duplicates)
+        if (manifest is null)
         {
             context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor("ERROR", "Error", "Handler: {0} has a duplicate event name", "Error", DiagnosticSeverity.Error, true),
-                dup.Symbol.Locations[0],
-                dup.EventName));
+                new DiagnosticDescriptor(
+                    "SRPC002", "Missing manifest",
+                    $"No {ManifestClassName} found. Add a reference to the Common project containing [ServerRpcContracts].",
+                    "ServerRpc", DiagnosticSeverity.Error, true),
+                classes[0].Locations.FirstOrDefault()));
+            return;
         }
 
-        // Global code table: alphabetical rank of each unique event name = its code offset.
-        // Both this generator and ServerRpcEventGenerator produce the same table for the same
-        // set of names, giving stable codes regardless of how many classes each name appears in.
-        var codeByName = methods
-            .Select(m => m.EventName)
-            .Distinct()                       // already in sorted order (methods sorted above)
-            .Select((name, i) => (name, code: i))
-            .ToDictionary(x => x.name, x => x.code);
+        var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
+        var contractClass = FindContractClass(manifest.ContainingNamespace);
 
-        // One manifest per plugin compilation: holds TotalEventCount (const) and Offset (set at startup).
-        // The caller sets Offset once before any OnScopeStart() is invoked.
-        GenerateManifest(context, methods, codeByName);
+        // Contract methods in the order the manifest defines them (alphabetical).
+        // The contract class is in a compiled referenced assembly - compiled methods
+        // carry no IsPartialDefinition metadata, so no filter is needed.
+        var contractMethods = manifest.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
+            .Select(p => p.Name.Substring(0, p.Name.Length - 4))
+            .Select(name => (
+                Name: name,
+                Symbol: contractClass?.GetMembers(name).OfType<IMethodSymbol>().FirstOrDefault()
+            ))
+            .ToList();
 
-        ProcessHandlers(context, methods, codeByName);
-    }
-
-    private static void GenerateManifest(
-        SourceProductionContext context,
-        List<ServerRpcMethodInfo> methods,
-        Dictionary<string, int> codeByName)
-    {
-        // Use the namespace of the alphabetically-first event's class as the manifest namespace.
-        // All handler classes in a plugin should share the same root namespace; if not,
-        // the generated per-class files need a using for this namespace.
-        var ns = methods[0].Symbol.ContainingType.ContainingNamespace.ToDisplayString();
-
-        var src = $$"""
-            // <auto-generated/>
-            namespace {{ns}};
-
-            /// <summary>
-            /// Plugin-level server RPC manifest, generated from all [ServerRpcHandler] attributes
-            /// in this compilation. Set <see cref="Offset"/> exactly once at plugin startup, before
-            /// calling <c>OnScopeStart()</c> on any handler class:
-            /// <code>
-            ///   {{ManifestClassName}}.Offset = offsetProvider.GetNextOffset({{ManifestClassName}}.TotalEventCount);
-            /// </code>
-            /// </summary>
-            internal static class {{ManifestClassName}}
-            {
-                /// <summary>
-                /// Total distinct server RPC event names in this plugin, assigned at compile time.
-                /// This is the number of event-code slots to reserve from the offset provider.
-                /// </summary>
-                public const byte TotalEventCount = {{codeByName.Count}};
-
-                /// <summary>
-                /// Base offset within <c>RelayMessageCode.MinServerRpcEvent</c>, set once at startup.
-                /// </summary>
-                public static byte Offset { get; set; }
-            }
-            """;
-
-        context.AddSource($"{ManifestClassName}.g.cs", src);
-    }
-
-    private static void ProcessHandlers(
-        SourceProductionContext context,
-        List<ServerRpcMethodInfo> methods,
-        Dictionary<string, int> codeByName)
-    {
-        var groupsByClass = methods.GroupBy(m => m.Symbol.ContainingType, SymbolEqualityComparer.Default);
-
-        // Group enumeration order is intentionally irrelevant now: each method carries its
-        // globally-assigned code from codeByName, so the class structure does not affect IDs.
-        foreach (var group in groupsByClass)
+        foreach (var classSymbol in classes)
         {
-            var classSymbol = group.Key;
-            var ns = classSymbol.ContainingNamespace.ToDisplayString();
-            var className = classSymbol.Name;
-            var fullClassName = classSymbol.ToDisplayString();
-            var access = classSymbol.DeclaredAccessibility.ToString().ToLower();
+            GenerateHandlerClass(context, classSymbol, contractMethods, manifestFqn);
+        }
+    }
 
-            var sb = new StringBuilder($$"""
-                                         // <auto-generated/>
-                                         using System;
-                                         using LiteNetLib;
-                                         using LiteNetLib.Utils;
-                                         using ReadyM.Api.Multiplayer.Protocol;
-                                         using ReadyM.Api.Multiplayer.Protocol.Enums;
-                                         using ReadyM.Relay;
-                                         
-                                         namespace {{ns}};
-                                         
-                                         {{access}} partial class {{className}}
-                                         {
+    private static void GenerateHandlerClass(
+        SourceProductionContext context,
+        INamedTypeSymbol classSymbol,
+        List<(string Name, IMethodSymbol? Symbol)> contractMethods,
+        string manifestFqn)
+    {
+        var ns = classSymbol.ContainingNamespace.ToDisplayString();
+        var className = classSymbol.Name;
+        var fullClassName = classSymbol.ToDisplayString();
+        var access = classSymbol.DeclaredAccessibility.ToString().ToLower();
 
-                                         """);
+        var sb = new StringBuilder($$"""
+                                     // <auto-generated/>
+                                     using System;
+                                     using LiteNetLib;
+                                     using LiteNetLib.Utils;
+                                     using ReadyM.Api.Multiplayer.Protocol;
+                                     using ReadyM.Api.Multiplayer.Protocol.Enums;
+                                     using ReadyM.Relay;
 
-            var dispatchCases = new StringBuilder();
-            var eventCodes = new StringBuilder();
-            var initCalls = new StringBuilder();
-            var deinitCalls = new StringBuilder();
+                                     namespace {{ns}};
 
-            foreach (var method in group)
-            {
-                var methodSymbol = method.Symbol;
-                var methodName = methodSymbol.Name;
+                                     {{access}} partial class {{className}}
+                                     {
 
-                var eventName = method.AttributeParams.FirstOrDefault();
-                if (eventName is null)
-                {
-                    sb.AppendLine($"""#error "EventName must be specified in ServerRpcHandler attribute for method '{methodName}'" """);
-                    break;
-                }
+                                     """);
 
-                if (!codeByName.TryGetValue(eventName, out var globalCode))
-                    continue; // duplicate, already reported
+        var dispatchBranches = new StringBuilder();
+        var initCalls = new StringBuilder();
+        var deinitCalls = new StringBuilder();
 
-                var parameters = methodSymbol.Parameters;
+        var isFirst = true;
+        foreach (var (eventName, contractMethodSymbol) in contractMethods)
+        {
+            var codeRef = $"{manifestFqn}.{eventName}Code";
 
-                var valid = true;
-                int? contextIndex = null;
-                int? senderIndex = null;
-                int? eventCodeIndex = null;
-                ITypeSymbol? senderType = null;
-                List<(ITypeSymbol? Type, bool IsSerializablePrimitive, bool IsNetSerializable)> paramTypes = [];
+            var payloadParams = contractMethodSymbol?.Parameters
+                                    .Select(p => new PayloadParam(
+                                        p.Type,
+                                        p.Name,
+                                        SerializationHelper.IsSerializablePrimitive(p.Type.SpecialType),
+                                        p.Type.AllInterfaces.Any(i => i.Name == "INetSerializable")))
+                                    .ToList()
+                                ?? new List<PayloadParam>();
 
-                for (var i = 0; i < parameters.Length; i++)
-                {
-                    var param = parameters[i];
-                    if (param.Name == SenderParameterName)
-                    {
-                        if (param.Type.Name != PlayerIdTypeName) { valid = false; break; }
-                        senderType = param.Type;
-                        senderIndex = i;
-                        paramTypes.Add((null, false, false));
-                    }
-                    else if (param.Name == EventCodeParameterName)
-                    {
-                        if (param.Type.Name != EventCodeTypeName) { valid = false; break; }
-                        eventCodeIndex = i;
-                        paramTypes.Add((null, false, false));
-                    }
-                    else if (param.Type.AllInterfaces.Any(x => x.Name == "INetSerializable"))
-                    {
-                        paramTypes.Add((param.Type, false, true));
-                    }
-                    else if (SerializationHelper.IsSerializablePrimitive(param.Type.SpecialType))
-                    {
-                        paramTypes.Add((param.Type, true, false));
-                    }
-                    else
-                    {
-                        paramTypes.Add((param.Type, false, false));
-                    }
-                }
+            var payloadParamList = string.Join(", ", payloadParams.Select(p =>
+                $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
 
-                if (!valid)
-                {
-                    sb.AppendLine($"""#error "Invalid server RPC handler '{methodName}'. Supported signatures: void HandleX([PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
-                    continue;
-                }
+            // Partial declaration stub: RpcContext always first, then payload params from contract.
+            // The user provides the implementing half; unimplemented stubs are silently dropped
+            // by the compiler so a class may implement any subset of contract methods.
+            var stubParams = payloadParams.Count > 0
+                ? $"{RpcContextFqn} context, {payloadParamList}"
+                : $"{RpcContextFqn} context";
+            sb.AppendLine($"    partial void On{eventName}({stubParams});");
+            sb.AppendLine();
 
-                // Inline event code expression used throughout. globalCode is a compile-time
-                // constant; Offset resolves at runtime from the manifest.
-                var codeExpr = $"(RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {ManifestClassName}.Offset + {globalCode})";
-
-                // --- SendX (server → client response) ---
-                var recipientTypeDisplay = senderType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                    ?? "global::ReadyM.Api.Idents.PlayerId";
-
-                var sendParamList = new StringBuilder($"{recipientTypeDisplay} recipient");
-                var sendPayloadCount = 0;
-                for (var i = 0; i < paramTypes.Count; i++)
-                {
-                    if (i == senderIndex || i == eventCodeIndex || i == contextIndex)
-                        continue;
-                    sendParamList.Append($", {paramTypes[i].Type!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} payload{sendPayloadCount}");
-                    sendPayloadCount++;
-                }
-
-                sb.AppendLine($$"""
-                                    public void Send{{eventName}}({{sendParamList}})
-                                    {
-                                        var writer = new NetDataWriter();
-                                        writer.Put((byte){{eventName}}Code);
-                                """);
-
-                sendPayloadCount = 0;
-                for (var i = 0; i < paramTypes.Count; i++)
-                {
-                    if (i == senderIndex || i == eventCodeIndex || i == contextIndex) continue;
-                    var (_, isSP, isNS) = paramTypes[i];
-                    if (isSP)      sb.AppendLine($"        writer.Put(payload{sendPayloadCount});");
-                    else if (isNS) sb.AppendLine($"        payload{sendPayloadCount}.Serialize(writer);");
-                    else           sb.AppendLine($"        Serializer.SerializeObject(writer, payload{sendPayloadCount});");
-                    sendPayloadCount++;
-                }
-
-                sb.AppendLine("""
-                                      RpcApi.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
-                                  }
-
-                              """);
-
-                // --- Dispatch case ---
-                // Switch subtracts (MinServerRpcEvent + Offset), so cases are the bare global codes.
-                // globalCode is a compile-time constant, so this remains a proper constant case label.
-                dispatchCases.AppendLine($"            case {globalCode}:\n            {{");
-
-                var payloadCount = 0;
-                for (var i = 0; i < paramTypes.Count; i++)
-                {
-                    var (payloadType, isSP, isNS) = paramTypes[i];
-                    if (i == contextIndex || i == senderIndex || i == eventCodeIndex) continue;
-
-                    if (isSP)
-                    {
-                        var getter = SerializationHelper.GetDeserializationMethod(payloadType!.SpecialType);
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = reader.{getter}();");
-                    }
-                    else if (isNS)
-                    {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = new {payloadType}();");
-                        dispatchCases.AppendLine($"                payload{payloadCount}.Deserialize(reader);");
-                    }
-                    else
-                    {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = Serializer.DeserializeObject<{payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(reader);");
-                    }
-                    payloadCount++;
-                }
-
-                dispatchCases.Append("                ");
-                dispatchCases.Append(methodName);
-                dispatchCases.Append('(');
-                payloadCount = 0;
-                for (var i = 0; i < paramTypes.Count; i++)
-                {
-                    if (i > 0) dispatchCases.Append(", ");
-                    if (i == senderIndex)    { dispatchCases.Append("header.Sender");    continue; }
-                    if (i == eventCodeIndex) { dispatchCases.Append("header.EventCode"); continue; }
-                    if (i == contextIndex)   { dispatchCases.Append("context");          continue; }
-                    dispatchCases.Append($"payload{payloadCount}");
-                    payloadCount++;
-                }
-                dispatchCases.AppendLine(");");
-                dispatchCases.AppendLine("                break;");
-                dispatchCases.AppendLine("            }");
-
-                // {eventName}Code: property (not field) because Offset is a runtime value.
-                if (eventCodes.Length > 0) eventCodes.AppendLine();
-                eventCodes.Append($"    public RelayMessageCode {eventName}Code => {codeExpr};");
-
-                // Per-method registration: codes within a class are not necessarily contiguous
-                // (other classes' events interleave alphabetically), so we can't use a range.
-                if (initCalls.Length > 0) initCalls.AppendLine();
-                initCalls.Append($"        RpcApi.AddServerRpcMessageHandler({codeExpr}, OnServerRpcEventHandler);");
-                if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-                deinitCalls.Append($"        RpcApi.RemoveServerRpcMessageHandler({codeExpr}, OnServerRpcEventHandler);");
-            }
+            // SendX: server → one client
+            var sendParamList = payloadParams.Count > 0
+                ? $"{PlayerIdFqn} recipient, {payloadParamList}"
+                : $"{PlayerIdFqn} recipient";
 
             sb.AppendLine($$"""
-                            {{eventCodes}}
-                                    
-                                private void OnServerRpcEventHandler(ServerEventHeader header, NetDataReader reader)
+                                public void Send{{eventName}}({{sendParamList}})
                                 {
-                                    switch ((int)header.EventCode - (int)RelayMessageCode.MinServerRpcEvent - {{ManifestClassName}}.Offset)
-                                    {
-                            {{dispatchCases}}
-                                        default:
-                                            throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
-                                    }
-                                }
-                                   
-                                protected override void InitRpc()
-                                {
-                            {{initCalls}}
-                                }
-                                    
-                                protected override void DeInitRpc()
-                                {
-                            {{deinitCalls}}
-                                }
+                                    var writer = new NetDataWriter();
+                                    writer.Put((byte){{codeRef}});
                             """);
 
-            sb.AppendLine("}");
+            for (var i = 0; i < payloadParams.Count; i++)
+            {
+                var p = payloadParams[i];
+                if (p.IsSerializablePrimitive)
+                    sb.AppendLine($"        writer.Put({p.Name});");
+                else if (p.IsNetSerializable)
+                    sb.AppendLine($"        {p.Name}.Serialize(writer);");
+                else
+                    sb.AppendLine($"        Serializer.SerializeObject(writer, {p.Name});");
+            }
 
-            var hintName = $"{fullClassName.Replace('.', '_')}_RpcHandlers.g.cs";
-            context.AddSource(hintName, sb.ToString());
+            sb.AppendLine("""
+                                  RpcApi.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
+                              }
+
+                          """);
+
+            // Dispatch branch
+            var branch = isFirst ? "if" : "else if";
+            dispatchBranches.AppendLine($"            {branch} (header.EventCode == {codeRef})");
+            dispatchBranches.AppendLine("            {");
+
+            for (var i = 0; i < payloadParams.Count; i++)
+            {
+                var p = payloadParams[i];
+                var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (p.IsSerializablePrimitive)
+                {
+                    var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
+                    dispatchBranches.AppendLine($"                var {p.Name} = reader.{getter}();");
+                }
+                else if (p.IsNetSerializable)
+                {
+                    dispatchBranches.AppendLine($"                var {p.Name} = new {typeFqn}();");
+                    dispatchBranches.AppendLine($"                {p.Name}.Deserialize(reader);");
+                }
+                else
+                {
+                    dispatchBranches.AppendLine($"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);");
+                }
+            }
+
+            var contextArg = $"new {RpcContextFqn}(header.Sender)";
+            var dispatchArgs = payloadParams.Count > 0
+                ? $"{contextArg}, {string.Join(", ", payloadParams.Select(p => p.Name))}"
+                : contextArg;
+
+            dispatchBranches.AppendLine($"                On{eventName}({dispatchArgs});");
+            dispatchBranches.AppendLine("            }");
+
+            if (initCalls.Length > 0) initCalls.AppendLine();
+            initCalls.Append($"        RpcApi.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+            if (deinitCalls.Length > 0) deinitCalls.AppendLine();
+            deinitCalls.Append($"        RpcApi.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+
+            isFirst = false;
         }
+
+        sb.AppendLine($$"""
+                            private void OnServerRpcEventHandler(ServerEventHeader header, NetDataReader reader)
+                            {
+                        {{dispatchBranches}}
+                                else
+                                {
+                                    throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                                }
+                            }
+
+                            protected override void InitRpc()
+                            {
+                        {{initCalls}}
+                            }
+
+                            protected override void DeInitRpc()
+                            {
+                        {{deinitCalls}}
+                            }
+                        """);
+
+        sb.AppendLine("}");
+
+        context.AddSource(
+            $"{fullClassName.Replace('.', '_')}_RpcHandlers.g.cs",
+            sb.ToString());
     }
 
-    private sealed class ServerRpcMethodInfo(IMethodSymbol symbol, string[] attr)
+    private sealed class PayloadParam(ITypeSymbol type, string name, bool isSerializablePrimitive, bool isNetSerializable)
     {
-        public IMethodSymbol Symbol { get; } = symbol;
-        public string[] AttributeParams { get; } = attr;
-        public string EventName => AttributeParams.FirstOrDefault() ?? string.Empty;
+        public ITypeSymbol Type { get; } = type;
+        public string Name { get; } = name;
+        public bool IsSerializablePrimitive { get; } = isSerializablePrimitive;
+        public bool IsNetSerializable { get; } = isNetSerializable;
     }
 }

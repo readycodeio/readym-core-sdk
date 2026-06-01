@@ -6,14 +6,10 @@ namespace ReadyM.Api.Multiplayer;
 
 /// <exclude />
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class ServerRpcEventAttribute(string name) : Attribute;
-
-/// <exclude />
-[AttributeUsage(AttributeTargets.Method)]
 [Obsolete]
 public sealed class LegacyServerRpcHandlerAttribute(string name) : Attribute;
 
 /// <exclude />
-[AttributeUsage(AttributeTargets.Method)]
-public sealed class ServerRpcHandlerAttribute(string name) : Attribute;
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class ServerRpcContractsAttribute : Attribute;
 #pragma warning restore CS9113 // Parameter is unread.
