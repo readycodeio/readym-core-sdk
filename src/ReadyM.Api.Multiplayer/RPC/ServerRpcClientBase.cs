@@ -1,11 +1,10 @@
-﻿using ReadyM.Api.DI;
+using System;
+using ReadyM.Api.DI;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Api.Multiplayer.RPC;
 
-public abstract class ServerRpcHandlersBase(RpcApi rpc) : IHostedService
+public abstract class ServerRpcClientBase : IHostedService
 {
-    protected RpcApi RpcApi { get; } = rpc;
-
     protected abstract void InitRpc();
     protected abstract void DeInitRpc();
 
