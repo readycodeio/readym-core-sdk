@@ -4,7 +4,7 @@ namespace ReadyM.Relay.Server.Sdk.Interop;
 
 public struct HostInitParams
 {
-    public EcsApiPointers EcsApiPointers;
-    public RpcApiPointers RpcApiPointers;
-    public NativeString256 ModDirectory;
+    public required EcsApiPointers EcsApiPointers;
+    public required RpcApiPointers RpcApiPointers;
+    public required NativeString256 ModDirectory;
 }

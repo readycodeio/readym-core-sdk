@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
+using LiteNetLib;
 using LiteNetLib.Utils;
-using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -12,17 +13,17 @@ public class RpcApi(RpcApiPointers pointers)
 {
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
     private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers.RemoveServerRpcMessageHandler);
+    private readonly SendToOneDelegate _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
 
     private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
 
-    public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+    public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
-        ServerRpcHandlerDelegate realHandler = (header, data, length) =>
+        ServerRpcHandlerDelegate realHandler = (header, data) =>
         {
             // convert to NetDataReader
-            var dataSpan = new Span<byte>(data, length);
-            var reader = new NetDataReader(dataSpan.ToArray());
+            var reader = new NetDataReader(data.ToArray());
             handler(header, reader);
         };
 
@@ -38,8 +39,14 @@ public class RpcApi(RpcApiPointers pointers)
         {
             throw new InvalidOperationException("Handler not found. Make sure to only remove handlers that were added.");
         }
-        
+
         _removeServerRpcMessageHandler(eventCode, realHandler);
         _pinnedDelegateStore.UnpinDelegate(realHandler);
+    }
+
+    public void SendToOne(PlayerId player, NetDataWriter data, DeliveryMethod deliveryMethod)
+    {
+        var span = new Span<byte>(data.Data, 0, data.Length);
+        _sendToOne(player, span, deliveryMethod);
     }
 }
