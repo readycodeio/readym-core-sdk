@@ -196,8 +196,7 @@ namespace {info.Namespace};
             "ReadyM.Api.Multiplayer",
             "ReadyM.Api.Mapping.Data",
             "ReadyM.Api.Multiplayer.Extensions",
-            "ReadyM.Api.Multiplayer.ECS.Components",
-            "ReadyM.Relay.Common"
+            "ReadyM.Api.Multiplayer.ECS.Components"
         ]);
     }
 

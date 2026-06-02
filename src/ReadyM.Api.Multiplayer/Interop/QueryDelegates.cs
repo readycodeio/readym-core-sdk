@@ -6,7 +6,7 @@ using System;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using Yooni.Native.Container;
 
-public delegate NetworkedComponentId GetComponentIdByNameDelegate(NativeString256 typeName);
+public delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
 
 // Plugin query chunk callbacks: (data ptr, entity count, stride per element).
 // Same format for both AOT and plugin components on the plugin (CoreCLR) side.

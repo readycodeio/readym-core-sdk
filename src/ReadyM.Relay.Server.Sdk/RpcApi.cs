@@ -9,21 +9,25 @@ using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk;
 
-public class RpcApi(RpcApiPointers pointers)
+public class RpcApi
 {
-    private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler =
-        Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
+    private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler;
 
-    private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler =
-        Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers
-            .RemoveServerRpcMessageHandler);
+    private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler;
 
-    private readonly SendToOneDelegate _sendToOne =
-        Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
+    private readonly SendToOneDelegate _sendToOne;
 
     private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
     private readonly Dictionary<Delegate, HashSet<RelayMessageCode>> _toCode = new();
+
+    internal RpcApi(RpcApiPointers pointers)
+    {
+        _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
+        _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers
+            .RemoveServerRpcMessageHandler);
+        _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
+    }
 
     public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {

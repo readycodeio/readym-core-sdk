@@ -1,7 +1,7 @@
 ﻿using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.Multiplayer.ECS.Components;
 
-namespace ReadyM.Relay.Common.ECS.Systems;
+namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
 public class ClearDirtySystem<T> : QuerySystem<T>
     where T : struct, INetworkedComponent
