@@ -8,7 +8,7 @@ public abstract class ServerRpcClientBase : IHostedService
     protected abstract void InitRpc();
     protected abstract void DeInitRpc();
 
-    public void OnScopeStart()
+    public virtual void OnScopeStart()
     {
         InitRpc();
     }

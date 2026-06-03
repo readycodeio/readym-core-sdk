@@ -29,14 +29,14 @@ public class RpcApi
         _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
     }
 
-    public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+    public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (!_pinnedDelegates.TryGetValue(handler, out var realHandler))
         {
-            realHandler = (header, data) =>
+            realHandler = (header, data, size) =>
             {
                 // convert to NetDataReader
-                var reader = new NetDataReader(data.ToArray());
+                var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
                 handler(header, reader);
             };
             _pinnedDelegates.Add(handler, realHandler);
@@ -79,9 +79,11 @@ public class RpcApi
         }
     }
 
-    public void SendToOne(PlayerId player, NetDataWriter data, DeliveryMethod deliveryMethod)
+    public unsafe void SendToOne(PlayerId player, NetDataWriter data, DeliveryMethod deliveryMethod)
     {
-        var span = new Span<byte>(data.Data, 0, data.Length);
-        _sendToOne(player, span, deliveryMethod);
+        fixed (byte* ptr = data.Data)
+        {
+            _sendToOne(player, ptr, data.Length, deliveryMethod);
+        }
     }
 }
