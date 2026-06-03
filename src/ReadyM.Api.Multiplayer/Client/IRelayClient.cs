@@ -5,7 +5,6 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
@@ -163,10 +162,8 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
-
-    void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    
     void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
-    void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
 
     /// <summary>
