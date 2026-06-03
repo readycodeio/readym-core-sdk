@@ -27,7 +27,7 @@ internal sealed partial class Store
         public Action<Entity>? LateInit;
     }
 
-    private Thread _thread;
+    private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 

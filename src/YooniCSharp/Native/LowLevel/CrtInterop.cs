@@ -2,36 +2,35 @@
 
 namespace Yooni.Native.LowLevel;
 
-#if NET8_0_OR_GREATER
-internal static unsafe partial class CrtInterop
-{
-#if WINDOWS || _WINDOWS
-    private const string CLib = "ucrtbase";
-#else
-    private const string CLib = "libc";
-#endif
-
-    [LibraryImport(CLib, EntryPoint = "malloc")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static partial void* Malloc(nuint size);
-
-    [LibraryImport(CLib, EntryPoint = "free")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static partial void Free(void* ptr);
-}
-#else
 internal static unsafe class CrtInterop
 {
-#if WINDOWS || _WINDOWS
-    private const string CLib = "ucrtbase";
-#else
-    private const string CLib = "libc";
-#endif
+    private static readonly bool _isWindows =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-    [DllImport(CLib, EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void* Malloc(nuint size);
+    internal static void* Malloc(nuint size) =>
+        _isWindows ? Windows.Malloc(size) : Unix.Malloc(size);
 
-    [DllImport(CLib, EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void Free(void* ptr);
+    internal static void Free(void* ptr)
+    {
+        if (_isWindows) Windows.Free(ptr);
+        else Unix.Free(ptr);
+    }
+
+    private static class Windows
+    {
+        [DllImport("ucrtbase", EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void* Malloc(nuint size);
+
+        [DllImport("ucrtbase", EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void Free(void* ptr);
+    }
+
+    private static class Unix
+    {
+        [DllImport("libc", EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void* Malloc(nuint size);
+
+        [DllImport("libc", EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void Free(void* ptr);
+    }
 }
-#endif
