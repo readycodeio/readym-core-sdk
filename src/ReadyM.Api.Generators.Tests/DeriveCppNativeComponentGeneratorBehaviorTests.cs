@@ -27,6 +27,7 @@ public enum CharacterSex : byte
 public partial struct AppearanceComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private CharacterSex _sex;
     private int _senescenceLevel;
@@ -104,6 +105,7 @@ public struct Pair
 public partial struct AppearanceComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private NativeList<int> _intList;
     private NativeList<CharacterSex> _sexList;
@@ -188,6 +190,7 @@ public struct Pair
 public partial struct FixedComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private NativeFixed<int, Storage8<int>> _intFixed;
     private NativeFixed<CharacterSex, Storage16<CharacterSex>> _sexFixed;
@@ -284,6 +287,7 @@ public struct PairHash : IHashFunction<Pair>
 public partial struct DictionaryComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private NativeDictionary<int, CharacterSex, MemoryHash<int>> _intToSex;
     private NativeDictionary<CharacterSex, Pair, CharacterSexHash> _sexToPair;
@@ -365,6 +369,7 @@ public struct Pair
 public partial struct RingBufferComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private NativeRingBuffer<int, Storage8<int>> _intHistory;
     private NativeRingBuffer<CharacterSex, Storage16<CharacterSex>> _sexHistory;
@@ -432,6 +437,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct StringComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private NativeString64 _displayName;
     private NativeString64 _title;
@@ -481,7 +487,7 @@ public partial struct StringComponent : IComponent
             backingField: "Yooni::Native::Container::NativeString256 _biography = {};",
             maskType: "uint32_t");
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_ForNativeComponentWithoutNetworkComponentSkipsDirtyFlag()
     {
@@ -518,7 +524,7 @@ public partial struct StringComponent : IComponent
         Assert.NotEmpty(generatedText);
         Assert.DoesNotContain("_dirtyMask", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_ForNativeComponentSkipAccessMethodsActuallySkipsAccessMethods()
     {
@@ -556,7 +562,7 @@ public partial struct StringComponent : IComponent
             result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
 
         Assert.NotEmpty(generatedText);
-        
+
         Assert.Contains("Yooni::Native::Container::NativeString64 _displayName = {};", generatedText);
         Assert.DoesNotContain(" const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
         Assert.DoesNotContain(" void SetDisplayName(", generatedText);
@@ -572,14 +578,14 @@ public partial struct StringComponent : IComponent
             dirtyMaskBit: 1,
             backingField: "Yooni::Native::Container::NativeString64 _title = {};",
             maskType: "uint8_t");
-        
+
         Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
         Assert.DoesNotContain(" const Yooni::Native::Container::NativeString256& Biography(", generatedText);
         Assert.DoesNotContain(" void SetBiography(", generatedText);
         Assert.Contains("(* private *)const Yooni::Native::Container::NativeString256& Biography(", generatedText);
         Assert.Contains("(* private *)void SetBiography(", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_SkipAccessorsWorksInCpp()
     {
@@ -619,14 +625,14 @@ public struct LocalAppearanceComponent : IComponent
             result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
 
         Assert.NotEmpty(generatedText);
-        
+
         Assert.Contains("uint8_t _isAppearanceSynced = 0;", generatedText);
         Assert.DoesNotContain(" uint8_t IsAppearanceSynced(", generatedText);
         Assert.DoesNotContain(" void SetIsAppearanceSynced(", generatedText);
         Assert.Contains("(* private *)uint8_t IsAppearanceSynced(", generatedText);
         Assert.Contains("(* private *)void SetIsAppearanceSynced(", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_ForNativeComponentWithIntPtrField_TransformsIntPtrIntoVoidPointer()
     {
@@ -644,6 +650,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct PointerComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private IntPtr _nativeHandle;
 }
@@ -688,6 +695,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct LocalAnimationComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     [CppNativeFieldType("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>", includes: "Unreal/GCPinnedPtr.h")]
     private IntPtr _localMontage;
@@ -744,7 +752,7 @@ public partial struct LocalAnimationComponent : IComponent
         Assert.DoesNotContain("void* AnimInstance() const", generatedText);
         Assert.DoesNotContain("void* _animInstance = nullptr;", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetTypeAndUsesAttributeSettings()
     {
@@ -803,7 +811,7 @@ public partial struct MappingComponent<T> : IComponent
         Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
         Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, MappingComponent& comp) = 0;", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetInAnotherModule()
     {
@@ -875,7 +883,7 @@ using ReadyM.Api.Generators.Tests.ExternalModuleTypes;
         Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
         Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, ExternalInScopeComponent& comp) = 0;", generatedText);
     }
-    
+
     private static void AssertContainerMember(
         string generatedText,
         string getterSignature,
