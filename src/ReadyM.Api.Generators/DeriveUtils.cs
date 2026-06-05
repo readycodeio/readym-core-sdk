@@ -18,7 +18,7 @@ internal static class DeriveUtils
 
         return symbol;
     }
-    
+
     internal static DeriveMapSettings GetMapSettings(byte mode)
         => new(
             mapFields: (mode & (1 << 0)) != 0,
@@ -51,7 +51,7 @@ internal static class DeriveUtils
             var canUseMember = true;
             var canUseMemberFailReasons = new List<string>();
 
-            if (member.Name == "_dirtyMask")
+            if (member.Name == "_dirtyMask" || member.Name == "_apiMask")
             {
                 requestedDirtyMaskType = member switch
                 {
@@ -117,7 +117,7 @@ internal static class DeriveUtils
                     canUseMember = false;
                     canUseMemberFailReasons.Add("Static properties are not supported");
                 }
-                
+
                 if (p is not { GetMethod: not null })
                 {
                     canUseMember = false;
@@ -196,7 +196,7 @@ internal static class DeriveUtils
                 errors.Add($"Properties that are setter-only are not supported: {p.Name}");
             else if (p.GetMethod?.IsInitOnly == true || p.SetMethod?.IsInitOnly == true)
                 errors.Add($"Properties that are init-only are not supported: {p.Name}");
-            
+
             return new DeriveMemberInfo(
                 symbol: symbol,
                 name: p.Name,
@@ -204,7 +204,7 @@ internal static class DeriveUtils
                 order: p.DeclaringSyntaxReferences[0].Span.Start,
                 readOnly: p.SetMethod == null,
                 errors: errors);
-            
+
         }
         else
             throw new InvalidOperationException($"Unsupported symbol type: {symbol.GetType().Name}");

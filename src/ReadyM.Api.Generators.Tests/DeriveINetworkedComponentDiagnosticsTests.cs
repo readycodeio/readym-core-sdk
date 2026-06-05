@@ -328,6 +328,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct ExplicitByteDirtyMaskTooSmallComponent
 {
   private byte _dirtyMask;
+  private byte _apiMask;
 
   private int _value0;
   private int _value1;
@@ -353,7 +354,7 @@ public partial struct ExplicitByteDirtyMaskTooSmallComponent
             errors,
             diagnostic => diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("#error"));
     }
-    
+
     [Fact]
     public void FieldWithoutSerializeMethodEmitsCompilationError()
     {

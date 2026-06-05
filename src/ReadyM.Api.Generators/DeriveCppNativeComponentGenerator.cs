@@ -63,7 +63,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                 .Where(static x => x != null)
                 .Select(Transform);
         var combined = codeProvider.Combine(outputPathProvider);
-        
+
         context.RegisterSourceOutput(
             combined,
             (spc, result) =>
@@ -73,12 +73,12 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                 // Replace /* with (* and */ with *)
                 source = System.Text.RegularExpressions.Regex.Replace(source, @"/\*", "(*");
                 source = System.Text.RegularExpressions.Regex.Replace(source, @"\*/", "*)");
-                
+
                 spc.AddSource(result.Left.Name + ".g.h", $"/*\n{source}\n*/");
 
                 if (!result.Right.GenCppEnabled)
                     return;
-                
+
                 if (result.Right.GenCppPath == null)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
@@ -93,11 +93,11 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
 
                     return;
                 }
-                
+
                 var cppGenPath = Path.GetFullPath(result.Right.GenCppPath);
                 var fileName = result.Left.Name + ".g.h";
                 var fullFileName = Path.Combine(cppGenPath, fileName);
-                
+
                 spc.ReportDiagnostic(Diagnostic.Create(
                     new DiagnosticDescriptor(
                         id: "CPP001",
@@ -108,7 +108,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                         isEnabledByDefault: true),
                     Location.None,
                     fullFileName));
-                
+
                 Directory.CreateDirectory(cppGenPath);
                 using var file = File.CreateText(fullFileName);
                 file.Write(result.Left.Code);
@@ -128,7 +128,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             cancellationToken,
             "NativeComponentAttribute",
             "NativeComponentForAttribute");
-    
+
     private static bool AssemblyFieldAttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
         => DeriveDiscoverUtils.AssemblyFieldAttributePredicate(syntaxNode, cancellationToken);
 
@@ -170,10 +170,10 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
             candidate.Context,
             null);
     }
-    
+
     private static DeriveDiscoverUtils.AssemblyFieldAttributeCandidate? TransformAssemblyFieldAttribute(GeneratorSyntaxContext context, CancellationToken ct)
         => DeriveDiscoverUtils.TransformAssemblyFieldAttribute(context, ct);
-    
+
     private static NativeComponentCandidate? AttachFieldAttributes(
         NativeComponentCandidate? component,
         IEnumerable<DeriveDiscoverUtils.AssemblyFieldAttributeCandidate?> fieldAttributes)
@@ -254,7 +254,7 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                 }
             }
         }
-        
+
         foreach (var member in members)
         {
             if (!HasGetEmitFieldSupportImpl(member, false))
@@ -262,12 +262,12 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                 member.Source.AddError($"Unsupported type '{member.Source.Type.ToDisplayString()}' for networked member '{member.Source.Name}'.");
             }
         }
-        
+
         var sb = new StringBuilder();
         var moduleState = new CppModuleState();
 
         AddDefaultIncludes(moduleState, model);
-        
+
         var ns = CppTypeNamespace(model.Source.Symbol);
 
         if (!string.IsNullOrEmpty(ns))
@@ -281,7 +281,7 @@ namespace {ns}
         var hasAssign = HasAssignComponent(sb, model, moduleState);
         var hasCreate = HasCreate(sb, model, moduleState);
         var hasDispose = HasDispose(sb, model, moduleState);
-        
+
         sb.AppendLine($@"
     struct {model.Source.Name};
 
@@ -327,7 +327,7 @@ namespace {ns}
         {
             EmitDispose(sb, model, moduleState);
         }
-        
+
         sb.AppendLine("""
     protected:
 """);
@@ -355,7 +355,7 @@ namespace {ns}
         {
             EmitNativeEntityDeleteImpl(sb, model);
         }
-        
+
         sb.AppendLine($@"
     }}; // struct {model.Source.Name}GeneratedBase
 ");
@@ -373,14 +373,14 @@ namespace {ns}
 #pragma once
 
 """);
-        
+
         EmitIncludes(includesSb, moduleState);
 
         sb.Insert(0, includesSb.ToString());
 
         return sb.ToString();
     }
-    
+
     private void AddDefaultIncludes(CppModuleState moduleState, DeriveTargetModel model)
     {
         moduleState.AddIncludeList([
@@ -399,7 +399,7 @@ namespace {ns}
             AddDefaultIncludes(moduleState, member);
         }
     }
-    
+
     private void AddDefaultIncludes(CppModuleState moduleState, DeriveMemberModel model)
     {
         var attrIncludes = AttributeUtils.GetArrayAttribute<string>(model.Source.Symbol, "CppNativeFieldTypeAttribute", "includes");
@@ -422,7 +422,7 @@ namespace {ns}
     {
         var includes = moduleState.Includes.Distinct().ToList();
         includes.Sort();
-        
+
         foreach (var ns in includes)
         {
             if (ns.AngleBrackets)
@@ -435,7 +435,7 @@ namespace {ns}
 """);
         }
     }
-    
+
     private void EmitDirtyMethods(
         StringBuilder sb,
         DeriveMemberModel member,
@@ -447,11 +447,11 @@ namespace {ns}
 
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
         context.State.ResetIndent("        ");
         impl.EmitDirtyMethods(member.Source.Type, context);
     }
-    
+
     private void EmitAccessorMethods(
         StringBuilder sb,
         DeriveMemberModel member,
@@ -465,7 +465,7 @@ namespace {ns}
         context.State.ResetIndent("        ");
         impl.EmitAccessorMethods(member.Source.Type, context, emitPublic);
     }
-    
+
     private void EmitAssign(
         StringBuilder sb,
         DeriveTargetModel model,
@@ -477,21 +477,21 @@ namespace {ns}
         sb.AppendLine("""
         {
 """);
-        
+
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, moduleState);
-    
+
             context.State.ResetIndent("            ");
             impl.EmitAssignComponentBody(member.Source.Type, context);
         }
-            
+
         sb.AppendLine("""
         }
 """);
     }
-    
+
     private bool HasAssignComponent(
         StringBuilder sb,
         DeriveTargetModel model,
@@ -502,7 +502,7 @@ namespace {ns}
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
             result = result && impl.HasAssignComponent(member.Source.Type, context);
         }
 
@@ -519,7 +519,7 @@ namespace {ns}
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
             result = result || impl.HasCreate(member.Source.Type, context);
         }
 
@@ -535,16 +535,16 @@ namespace {ns}
         void TryCreate(Yooni::Native::LowLevel::AllocatorKind allocatorKind)
         {
 """);
-        
+
             foreach (var member in model.Members)
             {
                 var impl = GetEmitFieldSupportImpl(member, true);
                 var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
                 context.State.ResetIndent("            ");
                 impl.EmitTryCreateBody(member.Source.Type, context);
             }
-            
+
             sb.AppendLine("""
         }
 
@@ -561,7 +561,7 @@ namespace {ns}
         {
             var impl = GetEmitFieldSupportImpl(member, true);
             var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
             result = result || impl.HasDispose(member.Source.Type, context);
         }
 
@@ -577,16 +577,16 @@ namespace {ns}
         void Dispose()
         {
 """);
-        
+
             foreach (var member in model.Members)
             {
                 var impl = GetEmitFieldSupportImpl(member, true);
                 var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
                 context.State.ResetIndent("            ");
                 impl.EmitDisposeBody(member.Source.Type, context);
             }
-            
+
             sb.AppendLine("""
         }
 
@@ -597,7 +597,7 @@ namespace {ns}
     {
         if (model.MaskInfo == null)
             return;
-        
+
         sb.AppendLine("""
     public:
         void ClearDirty()
@@ -618,11 +618,12 @@ namespace {ns}
         var maskInfo = model.MaskInfo;
         if (maskInfo == null)
             return;
-        
+
         if (model.Source.EmitDirtyMask)
         {
             sb.AppendLine($"""
         {CppTypeName(maskInfo.Type)} _dirtyMask = 0;
+        {CppTypeName(maskInfo.Type)} _apiMask = 0;
 
 """);
         }
@@ -630,6 +631,7 @@ namespace {ns}
         {
             sb.AppendLine($"""
         {CppTypeName(maskInfo.Type)} _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.
+        {CppTypeName(maskInfo.Type)} _apiMask = 0; // NOTE: Respecting the user-defined dirty mask size.
 
 """);
         }
@@ -649,14 +651,14 @@ namespace {ns}
 """);
             }
         }
-        
+
         var impl = GetEmitFieldSupportImpl(member, true);
         var context = CreateEmitContext(sb, member, model, moduleState);
-        
+
         context.State.ResetIndent("        ");
         impl.EmitBackingField(member.Source.Type, context);
     }
-    
+
     private void EmitNativeEntityDeleteImpl(StringBuilder sb, DeriveTargetModel model)
     {
         sb.AppendLine($$"""
@@ -704,13 +706,13 @@ namespace {ns}
         };
 """);
     }
-    
+
     private static bool HasGetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
         => CppFieldSupportRegistry.FieldTypeSupportVisitor.TryGetImpl(member, fallback, out _);
 
     private static ICppFieldTypeSupportImpl GetEmitFieldSupportImpl(DeriveMemberModel member, bool fallback)
         => CppFieldSupportRegistry.FieldTypeSupportVisitor.GetImpl(member, fallback);
-    
+
     private static CppEmitFieldSupportContext CreateEmitContext(StringBuilder sb, DeriveMemberModel member, DeriveTargetModel model, CppModuleState moduleState)
         => CppFieldSupportRegistry.CreateEmitFieldSupportContext(sb, member, model, moduleState);
 }

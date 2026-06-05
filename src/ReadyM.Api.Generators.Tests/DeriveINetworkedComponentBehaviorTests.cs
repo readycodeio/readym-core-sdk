@@ -468,7 +468,7 @@ public partial struct ComplexCoverageComponent : INetworkedComponent
         InvokeDeserialize(deltaReceiver, serializedBytes);
         Invoke(deltaReceiver, "ClearDirty");
         Invoke(instance, "ClearDirty");
-        
+
         var originalFirst = GetProperty<int>(instance, "Value0");
         var originalLast = GetProperty<int>(instance, "Value" + (fieldCount - 1));
 
@@ -633,7 +633,7 @@ public partial struct ZeroFieldComponent : INetworkedComponent
         InvokeSkipDelta(skippedReceiver, deltaBytes);
         Assert.False(GetProperty<bool>(skippedReceiver, "IsDirty"));
     }
-    
+
     [Fact]
     public void SingleFieldComponent_AllGeneratedMethods_BehaveAsExpected()
     {
@@ -705,7 +705,7 @@ public partial struct SingleFieldComponent : INetworkedComponent
         InvokeSkipDelta(skippedReceiver, deltaBytes);
         AssertPropertyValue(skippedReceiver, "Value", 123);
     }
-    
+
     [Fact]
     public void TwoFieldComponent_PartialDeltas_MergeIntoZeroedTargetAsExpected()
     {
@@ -786,7 +786,7 @@ public partial struct TwoFieldComponent : INetworkedComponent
         AssertPropertyValue(untouchedTarget, "Left", 0);
         AssertPropertyValue(untouchedTarget, "Right", 0);
     }
-    
+
     [Fact]
     public void MaxSupportedFieldCount_ComponentWithSixtyFourFields_BehavesAsExpected()
     {
@@ -859,7 +859,7 @@ public partial struct TwoFieldComponent : INetworkedComponent
         AssertPropertyValue(skippedReceiver, "Value0", 1000);
         AssertPropertyValue(skippedReceiver, "Value63", 1063);
     }
-    
+
     [Fact]
     public void StringField_NullTransitions_AndDeltaBehaveAsExpected()
     {
@@ -917,7 +917,7 @@ public partial struct NullableStringComponent : INetworkedComponent
 
         AssertNullPropertyValue(deserialized, "Name");
         InvokeDeserialize(deserialized, serializedBytes);
-        
+
         // NOTE: This is the current behavior as string null values are treated the same as empty strings
         // This test is checking that this behavior doesn't change unintentionally
         // Feel free to update the test to reflect the changes if this behavior is changed in the future
@@ -945,7 +945,7 @@ public partial struct NullableStringComponent : INetworkedComponent
         InvokeDeserialize(deltaReceiver, baselineBytes);
         AssertNotNullPropertyValue(deltaReceiver, "Name");
         InvokeReadDelta(deltaReceiver, deltaBytes);
-        
+
         AssertNotNullPropertyValue(deltaReceiver, "Name");
         AssertPropertyValue(deltaReceiver, "Name", "");
 
@@ -956,7 +956,7 @@ public partial struct NullableStringComponent : INetworkedComponent
         InvokeSkipDelta(skippedReceiver, deltaBytes);
         AssertPropertyValue(skippedReceiver, "Name", "Start");
     }
-    
+
     [Fact]
     public void ZeroDirtyMask_OnPopulatedComponent_WriteReadAndSkipDeltaBehaveAsExpected()
     {
@@ -1019,7 +1019,7 @@ public partial struct ZeroDeltaComponent : INetworkedComponent
         AssertPropertyValue(skippedReceiver, "Value", 888);
         AssertPropertyValue(skippedReceiver, "Name", "AlsoKeep");
     }
-    
+
     [Fact]
     public void DeltaEquatableField_SmallAndLargeChanges_BehaveAsExpected()
     {
@@ -1093,7 +1093,7 @@ public partial struct DeltaEquatableComponent : INetworkedComponent
         InvokeDeserialize(deserialized, serializedBytes);
         AssertSingleFloatFieldStructValue(valueType, GetProperty<object>(deserialized, "Value"), "Amount", 1.20f);
     }
-    
+
     [Fact]
     public void EquatableField_UsesEqualsForDirtyTracking()
     {
@@ -1224,7 +1224,7 @@ public partial struct NonPrivateMappedFieldsComponent : INetworkedComponent
         AssertPropertyValue(deserialized, "PublicValue", 10);
         AssertPropertyValue(deserialized, "InternalValue", 20);
     }
-    
+
     [Fact]
     public void PropertyMappingMode_AutoProperties_AreSerializedAndDeltaApplied()
     {
@@ -1308,7 +1308,7 @@ public partial struct PropertyMappedComponent : INetworkedComponent
         AssertPropertyValue(deltaReceiver, "PublicOtherValue", 300);
         AssertPropertyValue(deltaReceiver, "InternalOtherValue", 400);
     }
-    
+
     [Fact]
     public void EmitDirtyMaskFalse_DirtyMaskIsNotMappedAndGeneratedShapeMatchesExpectation()
     {
@@ -1323,8 +1323,8 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 [DeriveINetworkedComponent(emitDirtyMask: false, mode: SerializableMode.MapFields | SerializableMode.MapPrivate | SerializableMode.MapPublic)]
 public partial struct EmitDirtyMaskFalseComponent : INetworkedComponent
 {
-    private byte _apiMask;
     private byte _dirtyMask;
+    private byte _apiMask;
 
     private int _value;
     public int _otherValue;
@@ -1342,7 +1342,7 @@ public partial struct EmitDirtyMaskFalseComponent : INetworkedComponent
             .ToArray();
 
         Assert.Empty(outputErrors);
-        
+
         Assert.DoesNotContain("byte _dirtyMask;", generatedText);
         Assert.DoesNotContain("ushort _dirtyMask;", generatedText);
         Assert.DoesNotContain("uint _dirtyMask;", generatedText);
@@ -1352,7 +1352,7 @@ public partial struct EmitDirtyMaskFalseComponent : INetworkedComponent
         Assert.DoesNotContain("uint DirtyMask", generatedText);
         Assert.DoesNotContain("ulong DirtyMask", generatedText);
     }
-    
+
     [Fact]
     public void EmitDirtyMaskTrue_DirtyMaskIsNotMappedAndGeneratedShapeMatchesExpectation()
     {
@@ -1383,14 +1383,14 @@ public partial struct EmitDirtyMaskTrueComponent : INetworkedComponent
             .ToArray();
 
         Assert.Empty(outputErrors);
-        
+
         Assert.Contains("byte _dirtyMask;", generatedText);
         Assert.DoesNotContain("byte DirtyMask", generatedText);
         Assert.DoesNotContain("ushort DirtyMask", generatedText);
         Assert.DoesNotContain("uint DirtyMask", generatedText);
         Assert.DoesNotContain("ulong DirtyMask", generatedText);
     }
-    
+
     [Fact]
     public void GeneratedShape_ForRepresentativeComponent_UsesExpectedMaskAndReaderWriterMethods()
     {
@@ -1441,7 +1441,7 @@ public partial struct GeneratedShapeComponent : INetworkedComponent
         Assert.Contains("State =", generatedText);
         Assert.Contains("var mask = reader.GetByte();", generatedText);
     }
-    
+
     [Fact]
     public void NativeContainerCoverageComponent_NativeStringsAndNativeDictionaries_BehaveAsExpected()
     {
@@ -1611,7 +1611,7 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
 
         var deserialized = Activator.CreateInstance(componentType, AllocatorKind.Marshal);
         Assert.NotNull(deserialized);
-        
+
         InvokeDeserialize(deserialized, serializedBytes);
 
         AssertNativeStringValue(GetProperty<object>(deserialized, "Name256"), "Alpha");
@@ -1767,7 +1767,7 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         AssertNativeDictionaryValue(skippedIntToDouble, 7, 10.5d);
         AssertNativeDictionaryValue(skippedIntToDouble, 9, 20.25d);
     }
-    
+
     [Fact]
     public void NativeDictionaryCoverageComponent_DictionaryContentEqualityAndDeltaBehaveAsExpected()
     {
@@ -1968,7 +1968,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
         AssertNativeDictionaryValue(skippedLabelToCount, one, 10);
         AssertNativeDictionaryValue(skippedLabelToCount, two, 20);
     }
-    
+
     [Fact]
     public void NativeListComponent_SerializeDeserializeAndDelta_CopyIntoExistingAllocations_AndRespectDirtyMask()
     {
@@ -2389,7 +2389,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
         AssertNativeDictionaryValue(skippedWeights, alpha, 1.5f);
         AssertNativeDictionaryValue(skippedWeights, beta, 2.5f);
     }
-    
+
     // ---
 
     private static object CreateNativeString(Type nativeStringType, string value)
@@ -2423,7 +2423,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
 
         return dictionary;
     }
-    
+
     private static object CreateNativeList(Type listType, params object[] items)
     {
         var ctor = listType.GetConstructors()
@@ -2568,7 +2568,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
     }
 
     // ---
-    
+
     private static object CreateSingleFloatFieldStruct(Type valueType, string fieldName, float value)
     {
         var instance = Activator.CreateInstance(valueType);
@@ -2592,7 +2592,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
         field.SetValue(instance, value);
         return instance;
     }
-    
+
     private static string GenerateMultiFieldMaskComponentSource(string typeName, string fieldName, int fieldCount)
     {
         var fields = string.Join(
