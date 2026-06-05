@@ -20,6 +20,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct AppearanceComponent : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private int _a;
     private byte _b;
@@ -39,7 +40,7 @@ public partial struct AppearanceComponent : IComponent
             result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
 
     }
-    
+
     [Fact]
     public void GeneratedCSharpFragment_Works_ForGenericStructWithoutConstraints()
     {
@@ -56,6 +57,7 @@ namespace ReadyM.Api.Generators.Tests.TestTypes;
 public partial struct AppearanceComponent<T> : IComponent
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private T _value;
 }
@@ -110,6 +112,7 @@ public partial struct AppearanceComponent<TPayload> : IComponent
     where TPayload : unmanaged, IAppearancePayload
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private TPayload _payload;
 }
@@ -161,6 +164,7 @@ public partial struct ExternalAppearanceComponent<TPayload> : IComponent
     where TPayload : unmanaged, IAppearancePayload
 {
     private uint _dirtyMask;
+    private uint _apiMask;
 
     private TPayload _payload;
 }
