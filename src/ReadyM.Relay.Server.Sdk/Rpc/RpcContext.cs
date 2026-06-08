@@ -1,6 +1,6 @@
 using ReadyM.Api.Idents;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Rpc;
 
 /// <summary>
 /// Contextual information passed to every generated <c>HandleX</c> server RPC stub.

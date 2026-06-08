@@ -7,7 +7,7 @@ using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Server.Sdk.Interop;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Rpc;
 
 public class RpcApi
 {

@@ -1,6 +1,6 @@
 ﻿using ReadyM.Api.DI;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Rpc;
 
 public abstract class ServerRpcHandlersBase(RpcApi rpc) : IHostedService
 {

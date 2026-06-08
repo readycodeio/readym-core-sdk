@@ -3,7 +3,7 @@
 [assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Sdk")]
-[assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginBootstrapper")]
+[assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Wukong")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Oblivion")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]

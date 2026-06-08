@@ -17,7 +17,7 @@ internal class PinnedDelegateStore : IDisposable
 
         return Marshal.GetFunctionPointerForDelegate(del);
     }
-    
+
     public void UnpinDelegate<TDelegate>(TDelegate del)
         where TDelegate : Delegate
     {
@@ -30,11 +30,19 @@ internal class PinnedDelegateStore : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
+
         foreach (var handle in _pinnedDelegates)
         {
             handle.Value.Free();
         }
 
         _pinnedDelegates.Clear();
+    }
+
+    ~PinnedDelegateStore()
+    {
+        Console.WriteLine("Warning: PinnedDelegateStore was not disposed properly. This may lead to memory leaks.");
+        Dispose();
     }
 }

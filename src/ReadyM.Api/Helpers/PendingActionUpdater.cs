@@ -46,7 +46,6 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
 
     public void SetThread(Thread? newThread)
     {
-        logger.LogDebug("Setting thread to {ThreadName} (ID: {ThreadId})", newThread?.Name ?? "null", newThread?.ManagedThreadId ?? -1);
         thread = newThread;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DryIoc;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
         => Container.RegisterInstance<TService>(instance);
 
     public T Resolve<T>() => Container.Resolve<T>();
+    public IEnumerable<T> ResolveAll<T>() => Container.ResolveMany<T>();
 
     public void RegisterSingleton<T>() => Container.Register<T>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
     public void RegisterSingleton<T>(T instance) => Container.RegisterInstance(instance, ifAlreadyRegistered: IfAlreadyRegistered.Replace);

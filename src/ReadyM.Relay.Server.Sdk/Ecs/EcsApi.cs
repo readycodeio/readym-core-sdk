@@ -1,8 +1,9 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Ecs;
 
 /// <summary>
 /// Plugin-side ECS API. Wraps the function pointers exposed by the AOT server.

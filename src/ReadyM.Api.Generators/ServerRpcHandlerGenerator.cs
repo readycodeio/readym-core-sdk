@@ -14,7 +14,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 {
     private const string BaseClassName = "ServerRpcHandlersBase";
     private const string ManifestClassName = "ServerRpcManifest";
-    private const string RpcContextFqn = "global::ReadyM.Relay.Server.Sdk.RpcContext";
+    private const string RpcContextFqn = "global::ReadyM.Relay.Server.Sdk.Rpc.RpcContext";
     private const string PlayerIdFqn = "global::ReadyM.Api.Idents.PlayerId";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)

@@ -1,4 +1,4 @@
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 public interface IComponentRegistry
 {

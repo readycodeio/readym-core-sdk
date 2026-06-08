@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
 
-namespace ReadyM.Relay.Server.Sdk;
+namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 internal class ComponentRegistry(AotPointers aotPointers) : IComponentRegistry
 {
