@@ -32,7 +32,9 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
     protected abstract QueryFilter SetupFilter(QueryFilter filter, SendContext context);
 
     protected QueryFilter SetupBaseFilter(QueryFilter filter)
-        => filter.AllTags(Friflo.Engine.ECS.Tags.Get<LocallyCreatedEntityTag>());
+        => filter
+            .AllComponents(ComponentTypes.Get<MetadataComponent>())
+            .AllTags(Friflo.Engine.ECS.Tags.Get<LocallyCreatedEntityTag>());
 
     protected abstract void CreatePacketHeader(NetDataWriter writer, SendContext context);
 
@@ -47,18 +49,17 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
 
     protected void OnUpdate(SendContext context)
     {
-        _writer ??= new NetDataWriter();
-
-        _writer.Reset();
-        CreatePacketHeader(_writer, context);
-
         var query = _queryCache.GetQuery(context);
         var queryCount = query.Count;
 
         if (queryCount == 0)
             return;
 
+        _writer ??= new NetDataWriter();
+        _writer.Reset();
+        CreatePacketHeader(_writer, context);
         _writer.Put((uint)queryCount);
+
         query.ForEachEntity((ref meta, entity) =>
         {
             MetadataComponent.Serialize(meta, _writer);
