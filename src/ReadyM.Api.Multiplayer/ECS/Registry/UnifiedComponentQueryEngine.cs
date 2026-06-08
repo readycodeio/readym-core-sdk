@@ -23,8 +23,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         }
 
         // Plugin single-component: archetype scan.
-        ScanArchetypes(stackalloc int[] { e.StructIndex },
-            stackalloc int[] { e.Stride },
+        ScanArchetypes([e.StructIndex],
+            [e.Stride],
             (ptrs, count, strides) => callback(ptrs[0], count, strides[0]));
     }
 
@@ -35,8 +35,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         var e2 = registry.GetEntryById(c2);
 
         ScanArchetypes(
-            stackalloc int[] { e1.StructIndex, e2.StructIndex },
-            stackalloc int[] { e1.Stride, e2.Stride },
+            [e1.StructIndex, e2.StructIndex],
+            [e1.Stride, e2.Stride],
             (ptrs, count, strides) => callback(ptrs[0], ptrs[1], count, strides[0], strides[1]));
     }
 
@@ -48,8 +48,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         var e3 = registry.GetEntryById(c3);
 
         ScanArchetypes(
-            stackalloc int[] { e1.StructIndex, e2.StructIndex, e3.StructIndex },
-            stackalloc int[] { e1.Stride, e2.Stride, e3.Stride },
+            [e1.StructIndex, e2.StructIndex, e3.StructIndex],
+            [e1.Stride, e2.Stride, e3.Stride],
             (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], count, strides[0], strides[1], strides[2]));
     }
 
@@ -61,8 +61,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         var e3 = registry.GetEntryById(c3);
         var e4 = registry.GetEntryById(c4);
         ScanArchetypes(
-            stackalloc int[] { e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex },
-            stackalloc int[] { e1.Stride, e2.Stride, e3.Stride, e4.Stride },
+            [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex],
+            [e1.Stride, e2.Stride, e3.Stride, e4.Stride],
             (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3],
                 count, strides[0], strides[1], strides[2], strides[3]));
     }
@@ -76,8 +76,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         var e4 = registry.GetEntryById(c4);
         var e5 = registry.GetEntryById(c5);
         ScanArchetypes(
-            stackalloc int[] { e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex },
-            stackalloc int[] { e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride },
+            [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex],
+            [e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride],
             (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4],
                 count, strides[0], strides[1], strides[2], strides[3], strides[4]));
     }
@@ -92,8 +92,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         var e5 = registry.GetEntryById(c5);
         var e6 = registry.GetEntryById(c6);
         ScanArchetypes(
-            stackalloc int[] { e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex, e6.StructIndex },
-            stackalloc int[] { e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride, e6.Stride },
+            [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex, e6.StructIndex],
+            [e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride, e6.Stride],
             (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4], ptrs[5],
                 count, strides[0], strides[1], strides[2], strides[3], strides[4], strides[5]));
     }

@@ -3,6 +3,7 @@
 // -------------------------------------------------------------------------
 
 using System;
+using Friflo.Engine.ECS;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using Yooni.Native.Container;
 
@@ -18,7 +19,7 @@ public delegate void ChunkCallback5(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4, 
 public delegate void ChunkCallback6(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4, IntPtr d5, IntPtr d6, int count, int s1, int s2, int s3, int s4, int s5, int s6);
 
 // Server-side function pointer types
-public delegate int  RegisterPluginComponentDelegate(int stride);
+public delegate int  RegisterPluginComponentDelegate(PluginComponentRegistration registration);
 public delegate void Query1Delegate(int c1, ChunkCallback1 cb);
 public delegate void Query2Delegate(int c1, int c2, ChunkCallback2 cb);
 public delegate void Query3Delegate(int c1, int c2, int c3, ChunkCallback3 cb);

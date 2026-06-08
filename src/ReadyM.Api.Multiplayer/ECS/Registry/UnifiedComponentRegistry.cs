@@ -106,12 +106,12 @@ internal sealed class UnifiedComponentRegistry(NativeAOT aot)
     /// Call during plugin load, before <c>NativeAOT.CreateSchema()</c>.
     /// Returns the component ID the plugin must use in all subsequent query calls.
     /// </summary>
-    public int RegisterPluginComponent(int stride, DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable)
+    public int RegisterPluginComponent(PluginComponentRegistration registration, DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable)
     {
         var id = _nextId++;
-        var structIndex = aot.RegisterPluginComponent(stride);
+        var structIndex = aot.RegisterPluginComponent(registration);
 
-        var entry = new Entry(id, true, null, structIndex, stride, deliveryMethod, null);
+        var entry = new Entry(id, true, null, structIndex, registration.Stride, deliveryMethod, null);
         _byId[id] = entry;
         return id;
     }

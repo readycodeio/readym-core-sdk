@@ -5,7 +5,7 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal class ComponentRegistry(AotPointers aotPointers) : IComponentRegistry
+internal class ComponentRegistry(AotPointers aotPointers, PluginComponentManager heapManager) : IComponentRegistry
 {
     private readonly RegisterPluginComponentDelegate _registerPluginComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterPluginComponentDelegate>(aotPointers.RegisterPluginComponent);
@@ -35,7 +35,7 @@ internal class ComponentRegistry(AotPointers aotPointers) : IComponentRegistry
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterComponent<T>() where T : unmanaged
+    public int RegisterComponent<T>() where T : struct
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -47,7 +47,8 @@ internal class ComponentRegistry(AotPointers aotPointers) : IComponentRegistry
             throw new ArgumentException(
                 $"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
-        var id = _registerPluginComponent(stride);
+        var registration = heapManager.RegisterComponent<T>();
+        var id = _registerPluginComponent(registration);
 
         if (id < 0)
             throw new InvalidOperationException(
