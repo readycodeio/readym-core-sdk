@@ -4,4 +4,5 @@ public struct HostInitParams
 {
     public required EcsApiPointers EcsApiPointers;
     public required RpcApiPointers RpcApiPointers;
+    public required ArchetypePointers ArchetypePointers;
 }

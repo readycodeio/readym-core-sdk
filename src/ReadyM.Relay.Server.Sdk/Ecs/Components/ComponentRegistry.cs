@@ -5,11 +5,11 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal class ComponentRegistry(AotPointers aotPointers, PluginComponentManager heapManager) : IComponentRegistry
+internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponentManager heapManager) : IComponentRegistry
 {
     private readonly RegisterPluginComponentDelegate _registerPluginComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterPluginComponentDelegate>(aotPointers.RegisterPluginComponent);
-    
+
     private readonly GetComponentIdByNameDelegate _getComponentIdByName =
         Marshal.GetDelegateForFunctionPointer<GetComponentIdByNameDelegate>(aotPointers.GetComponentIdByName);
 

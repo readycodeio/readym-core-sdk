@@ -4,10 +4,13 @@
 
 using System;
 using Friflo.Engine.ECS;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using Yooni.Native.Container;
 
 public delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
+public delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componentsSerialized);
+public delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 
 // Plugin query chunk callbacks: (data ptr, entity count, stride per element).
 // Same format for both AOT and plugin components on the plugin (CoreCLR) side.

@@ -32,7 +32,6 @@ public unsafe struct NativeString256 : IEquatable<NativeString256>, INativeStrin
         }
     }
 
-    [Pure]
     public void CopyTo(byte* dest)
     {
         fixed (byte* p = _bytes)

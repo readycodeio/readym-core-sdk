@@ -2,7 +2,6 @@
 using DryIoc;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Helpers;
@@ -65,7 +64,7 @@ public class MappedEventManagerTests
         container.Register<NativeMappedEventManager>();
 
         container.RegisterInstance(new EntityStore());
-        container.Register<Store>();
+        container.RegisterMany<Store>(nonPublicServiceTypes: true);
 
         container.Register<IMappedEntityManager<IntPtr>, MappedEntityManager<IntPtr>>();
         return container.Resolve<NativeMappedEventManager>();

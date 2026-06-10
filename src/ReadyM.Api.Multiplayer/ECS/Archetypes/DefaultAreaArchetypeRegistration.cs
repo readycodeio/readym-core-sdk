@@ -9,7 +9,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
 internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry areaComponentRegistry) : IArchetypeRegistration
 {
-    private class RegisterAreaComponentsCallback(EntityBuilder builder) : IAreaComponentRegistryCallback
+    private class RegisterAreaComponentsCallback(EntityBuilderBase builder) : IAreaComponentRegistryCallback
     {
         public void AcceptComponent<T>(IAreaComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
@@ -20,9 +20,9 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
     
     public ArchetypeId AreaArchetype { get; private set; }
 
-    public void Register(Store world)
+    public void Register(IArchetypeRegistry registry)
     {
-        AreaArchetype = world.RegisterArchetype(
+        AreaArchetype = registry.RegisterArchetype(
             b =>
             {
                 b.Add<MetadataComponent>();
