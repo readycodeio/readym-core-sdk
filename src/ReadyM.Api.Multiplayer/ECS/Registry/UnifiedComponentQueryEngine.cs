@@ -157,7 +157,7 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
             try
             {
                 for (var i = 0; i < n; i++)
-                    ptrs[i] = archetype.GetHeap(structIndices[i])!.ReadyMGetPtrToFirst();
+                    ptrs[i] = archetype.GetHeap(structIndices[i])!.ReadyMGetPtrTo(0);
 
                 callback(new ReadOnlySpan<IntPtr>(ptrs, n), entityCount, strides);
             }
@@ -170,4 +170,12 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
 
     // Delegate for the inner callback used by ScanArchetypes.
     private delegate void SpanCallback(ReadOnlySpan<IntPtr> ptrs, int count, ReadOnlySpan<int> strides);
+
+    // TODO: GC is active while this is being returned
+    public IntPtr GetComponentPointer(int entityId, int componentType)
+    {
+        var entry = registry.GetEntryById(componentType);
+        var entity = world.GetEntityById(entityId);
+        return entity.GetComponent(entry.StructIndex);
+    }
 }

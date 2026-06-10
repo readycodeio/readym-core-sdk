@@ -1,5 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
@@ -19,6 +21,8 @@ public class EcsApi
     private readonly Query4Delegate _query4;
     private readonly Query5Delegate _query5;
     private readonly Query6Delegate _query6;
+    private readonly CreateNetworkedEntityDelegate _createNetworkedEntity;
+    private readonly GetComponentPointerDelegate _getComponentPointer;
     private readonly ComponentRegistry _registry;
 
     /// <summary>
@@ -35,6 +39,13 @@ public class EcsApi
         _query4 = Marshal.GetDelegateForFunctionPointer<Query4Delegate>(pointers.Query4);
         _query5 = Marshal.GetDelegateForFunctionPointer<Query5Delegate>(pointers.Query5);
         _query6 = Marshal.GetDelegateForFunctionPointer<Query6Delegate>(pointers.Query6);
+        _createNetworkedEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedEntityDelegate>(pointers.CreateNetworkedEntity);
+        _getComponentPointer = Marshal.GetDelegateForFunctionPointer<GetComponentPointerDelegate>(pointers.GetComponentPointer);
+    }
+
+    public Entity CreateEntity(ArchetypeId archetypeId)
+    {
+        return new Entity(_createNetworkedEntity(archetypeId), _getComponentPointer, _registry);
     }
 
     public void Query<T>(EmbedForEach<T> callback) where T : struct

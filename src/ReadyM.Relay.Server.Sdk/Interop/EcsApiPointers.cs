@@ -11,4 +11,6 @@ public  struct EcsApiPointers
     public required IntPtr Query4;
     public required IntPtr Query5;
     public required IntPtr Query6;
+    public required IntPtr CreateNetworkedEntity;
+    public required IntPtr GetComponentPointer;
 }
