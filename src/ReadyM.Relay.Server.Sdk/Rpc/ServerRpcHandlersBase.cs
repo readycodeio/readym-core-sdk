@@ -3,10 +3,10 @@ using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Relay.Server.Sdk.Rpc;
 
-public abstract class ServerRpcHandlersBase(RpcApi rpc, IRelaySerializer serializer) : IHostedService
+public abstract class ServerRpcHandlersBase : IHostedService
 {
-    protected RpcApi RpcApi { get; } = rpc;
-    protected IRelaySerializer Serializer { get; } = serializer;
+    public RpcApi Rpc { protected get; set; }
+    public IRelaySerializer Serializer { protected get; set; }
 
     protected abstract void InitRpc();
     protected abstract void DeInitRpc();

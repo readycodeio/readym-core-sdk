@@ -11,7 +11,7 @@ namespace ReadyM.Api.Generators;
 [Generator]
 internal class ServerRpcEventGenerator : IIncrementalGenerator
 {
-    private const string BaseClassName = "ServerRpcClientBase";
+    private const string BaseClassName = "ServerRpcClient";
     private const string ManifestClassName = "ServerRpcManifest";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)

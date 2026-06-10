@@ -1,5 +1,6 @@
 ﻿using System;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Api.Multiplayer.RPC;
 
 namespace ReadyM.Api.Multiplayer.Generators;
 
@@ -7,7 +8,7 @@ namespace ReadyM.Api.Multiplayer.Generators;
 
 /// <summary>
 /// Marks a method as an RPC event handler.
-/// Use this in partial classes extending from <see cref="ReadyM.Api.Multiplayer.RPC.RpcClassBase"/>.
+/// Use this in partial classes extending from <see cref="ClientRpcHandler"/>.
 /// </summary>
 /// <param name="relayMode">Determines how the event is relayed to other clients.</param>
 [AttributeUsage(AttributeTargets.Method)]

@@ -232,7 +232,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             }
 
             sb.AppendLine("""
-                                  RpcApi.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
+                                  Rpc.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
                               }
 
                           """);
@@ -271,9 +271,9 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             dispatchBranches.AppendLine("            }");
 
             if (initCalls.Length > 0) initCalls.AppendLine();
-            initCalls.Append($"        RpcApi.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+            initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
             if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-            deinitCalls.Append($"        RpcApi.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+            deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
 
             isFirst = false;
         }
