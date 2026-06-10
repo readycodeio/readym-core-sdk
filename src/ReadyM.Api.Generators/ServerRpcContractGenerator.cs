@@ -169,9 +169,8 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         for (var i = 0; i < methods.Count; i++)
         {
             var name = methods[i].Name;
-            sb.AppendLine($"    // Alphabetical rank {i} - code is stable as long as this name is not renamed or removed.");
-            sb.AppendLine($"    public static RelayMessageCode {name}Code =>");
-            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + Offset + {i});");
+            sb.AppendLine($"    public const RelayMessageCode {name}Code =");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {i});");
             sb.AppendLine();
         }
 

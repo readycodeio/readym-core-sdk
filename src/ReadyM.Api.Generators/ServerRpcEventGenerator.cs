@@ -128,7 +128,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         // The contract class is in a compiled referenced assembly - compiled methods
         // carry no IsPartialDefinition metadata, so no filter is needed.
         var contractMethods = manifest.GetMembers()
-            .OfType<IPropertySymbol>()
+            .OfType<IFieldSymbol>()
             .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
             .Select(p => p.Name.Substring(0, p.Name.Length - 4))
             .Select(name => (
@@ -176,7 +176,6 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         var initCalls = new StringBuilder();
         var deinitCalls = new StringBuilder();
 
-        var isFirst = true;
         foreach (var (eventName, contractMethodSymbol) in contractMethods)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
@@ -225,8 +224,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
                           """);
 
             // Dispatch branch (server → client receive path)
-            var branch = isFirst ? "if" : "else if";
-            dispatchBranches.AppendLine($"            {branch} (header.EventCode == {codeRef})");
+            dispatchBranches.AppendLine($"            case {codeRef}:");
             dispatchBranches.AppendLine("            {");
 
             for (var i = 0; i < payloadParams.Count; i++)
@@ -250,24 +248,24 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             }
 
             var dispatchArgs = string.Join(", ", payloadParams.Select(p => p.Name));
-            dispatchBranches.AppendLine($"                On{eventName}({dispatchArgs});");
+            dispatchBranches.AppendLine($"                RunOnGameThread(() => {{ On{eventName}({dispatchArgs}); }});");
+            dispatchBranches.AppendLine("                break;");
             dispatchBranches.AppendLine("            }");
 
             if (initCalls.Length > 0) initCalls.AppendLine();
             initCalls.Append($"        RelayClient.AddServerRpcMessageHandler({codeRef}, OnServerEvent);");
             if (deinitCalls.Length > 0) deinitCalls.AppendLine();
             deinitCalls.Append($"        RelayClient.RemoveServerRpcMessageHandler({codeRef}, OnServerEvent);");
-
-            isFirst = false;
         }
 
         sb.AppendLine($$"""
                             protected void OnServerEvent(ServerEventHeader header, NetDataReader reader)
                             {
-                        {{dispatchBranches}}
-                                else
+                                switch ((RelayMessageCode)(header.EventCode - {{manifestFqn}}.Offset))
                                 {
-                                    throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                                {{dispatchBranches}}
+                                    default:
+                                        throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
                                 }
                             }
 

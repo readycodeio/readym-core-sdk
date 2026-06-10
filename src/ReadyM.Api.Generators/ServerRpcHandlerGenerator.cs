@@ -136,7 +136,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         // The contract class is in a compiled referenced assembly - compiled methods
         // carry no IsPartialDefinition metadata, so no filter is needed.
         var contractMethods = manifest.GetMembers()
-            .OfType<IPropertySymbol>()
+            .OfType<IFieldSymbol>()
             .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
             .Select(p => p.Name.Substring(0, p.Name.Length - 4))
             .Select(name => (
@@ -178,11 +178,10 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
                                      """);
 
-        var dispatchBranches = new StringBuilder();
+        var dispatchCases = new StringBuilder();
         var initCalls = new StringBuilder();
         var deinitCalls = new StringBuilder();
 
-        var isFirst = true;
         foreach (var (eventName, contractMethodSymbol) in contractMethods)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
@@ -238,9 +237,8 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                           """);
 
             // Dispatch branch
-            var branch = isFirst ? "if" : "else if";
-            dispatchBranches.AppendLine($"            {branch} (header.EventCode == {codeRef})");
-            dispatchBranches.AppendLine("            {");
+            dispatchCases.AppendLine($"            case {codeRef}:");
+            dispatchCases.AppendLine("            {");
 
             for (var i = 0; i < payloadParams.Count; i++)
             {
@@ -249,16 +247,16 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 if (p.IsSerializablePrimitive)
                 {
                     var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
-                    dispatchBranches.AppendLine($"                var {p.Name} = reader.{getter}();");
+                    dispatchCases.AppendLine($"                var {p.Name} = reader.{getter}();");
                 }
                 else if (p.IsNetSerializable)
                 {
-                    dispatchBranches.AppendLine($"                var {p.Name} = new {typeFqn}();");
-                    dispatchBranches.AppendLine($"                {p.Name}.Deserialize(reader);");
+                    dispatchCases.AppendLine($"                var {p.Name} = new {typeFqn}();");
+                    dispatchCases.AppendLine($"                {p.Name}.Deserialize(reader);");
                 }
                 else
                 {
-                    dispatchBranches.AppendLine($"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);");
+                    dispatchCases.AppendLine($"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);");
                 }
             }
 
@@ -267,24 +265,24 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 ? $"{contextArg}, {string.Join(", ", payloadParams.Select(p => p.Name))}"
                 : contextArg;
 
-            dispatchBranches.AppendLine($"                On{eventName}({dispatchArgs});");
-            dispatchBranches.AppendLine("            }");
+            dispatchCases.AppendLine($"                On{eventName}({dispatchArgs});");
+            dispatchCases.AppendLine("                break;");
+            dispatchCases.AppendLine("            }");
 
             if (initCalls.Length > 0) initCalls.AppendLine();
             initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
             if (deinitCalls.Length > 0) deinitCalls.AppendLine();
             deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
-
-            isFirst = false;
         }
 
         sb.AppendLine($$"""
                             private void OnServerRpcEventHandler(ServerEventHeader header, NetDataReader reader)
                             {
-                        {{dispatchBranches}}
-                                else
+                                switch ((RelayMessageCode)(header.EventCode - {{manifestFqn}}.Offset))
                                 {
-                                    throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                            {{dispatchCases}}
+                                    default:
+                                        throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
                                 }
                             }
 
