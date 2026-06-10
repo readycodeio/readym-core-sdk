@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;

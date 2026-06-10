@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using LiteNetLib;
+using ReadyM.Api.Multiplayer.Interop;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 

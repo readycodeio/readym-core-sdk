@@ -2,6 +2,7 @@
 
 using System;
 using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.Interop;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
