@@ -4,6 +4,7 @@ using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
+using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
@@ -45,7 +46,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
 
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
-    private static NetDataWriter? _writer;
+    private static SpanDataWriter? _writer;
 
     protected void OnUpdate(SendContext context)
     {
@@ -55,7 +56,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
         if (queryCount == 0)
             return;
 
-        _writer ??= new NetDataWriter();
+        _writer ??= new SpanDataWriter();
         _writer.Reset();
         CreatePacketHeader(_writer, context);
         _writer.Put((uint)queryCount);

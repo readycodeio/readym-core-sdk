@@ -14,6 +14,8 @@ public delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> components
 public delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 public delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype);
 public delegate IntPtr GetComponentPointerDelegate(int entityId, int componentType);
+public unsafe delegate void WriteSnapshotDelegate(IntPtr componentPtr, IntPtr buffer, int bufferSize, int* written);
+
 
 // Plugin query chunk callbacks: (data ptr, entity count, stride per element).
 // Same format for both AOT and plugin components on the plugin (CoreCLR) side.

@@ -1,6 +1,11 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
+using LiteNetLib.Utils;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Multiplayer.ECS.Jobs;
+using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs;
@@ -36,7 +41,7 @@ public sealed class PluginComponentManager : IDisposable
     /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public PluginComponentRegistration RegisterComponent<T>() where T : struct
+    public PluginComponentRegistration RegisterLocalComponent<T>() where T : struct
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -46,10 +51,54 @@ public sealed class PluginComponentManager : IDisposable
 
         return new PluginComponentRegistration
         {
-            Stride      = Unsafe.SizeOf<T>(),
+            Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
-            AllocHeap   = Marshal.GetFunctionPointerForDelegate(factory),
+            AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
+            WriteSnapshot = IntPtr.Zero
         };
+    }
+
+    /// <summary>
+    /// Registers component type T. Returns a PluginComponentRegistration to hand to the
+    /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
+    /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
+    /// </summary>
+    public PluginComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
+    {
+        // Bind the factory to this T at registration time. Capturing via method group
+        // means each call to RegisterComponent<T> creates an independent delegate instance
+        // correctly specialized for that T.
+        var factory = new AllocHeapDelegate(AllocHeapImpl<T>);
+        _delegateStore.PinDelegate(factory);
+
+        // If T is a networked component, also provide a pointer to the WriteSnapshotJob<T>.Execute method.
+        // This allows the AOT side to call back into managed code to write snapshots of plugin components.
+        unsafe
+        {
+            var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize, written) =>
+            {
+                var writer = new NetDataWriter();
+                var data = Unsafe.AsRef<T>((void*)ptr);
+                data.Serialize(writer);
+                var bytes = writer.Data;
+                *written = writer.Length;
+                
+                if (bytes.Length > bufferSize)
+                    throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
+                
+                Marshal.Copy(bytes, 0, buffer, bytes.Length);
+            });
+
+            _delegateStore.PinDelegate(writeDelegate);
+
+            return new PluginComponentRegistration
+            {
+                Stride = Unsafe.SizeOf<T>(),
+                IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
+                AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
+                WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate)
+            };
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -82,7 +131,10 @@ public sealed class PluginComponentManager : IDisposable
             h.Free();
             return true;
         }
-        catch { return false; }
+        catch
+        {
+            return false;
+        }
     }
 
     // -------------------------------------------------------------------------

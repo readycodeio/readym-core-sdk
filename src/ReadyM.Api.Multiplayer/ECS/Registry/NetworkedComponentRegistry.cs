@@ -9,36 +9,31 @@ namespace ReadyM.Api.Multiplayer.ECS.Registry;
 internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
     : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
-    private byte _nextComponentId;
-    private readonly Dictionary<string, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> _componentIds = new();
-    private readonly Dictionary<NetworkedComponentId, Type> _componentTypes = new();
-
-    public new INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
-        where T : struct, INetworkedComponent
-        => RegisterComponent(DeliveryMethod.Unreliable, defaultValue);
+    protected readonly Dictionary<string, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> componentIds = new();
+    protected readonly Dictionary<NetworkedComponentId, Type> componentTypes = new();
 
     public INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable, T defaultValue = default)
         where T : struct, INetworkedComponent
     {
-        var id = new NetworkedComponentId(_nextComponentId++);
-        _componentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
-        _componentTypes.Add(id, typeof(T));
+        var id = new NetworkedComponentId(GetNextComponentId());
+        componentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
+        componentTypes.Add(id, typeof(T));
 
         return base.RegisterComponent(defaultValue);
     }
 
     public NetworkedComponentId GetNetworkedComponentId(Type type)
-        => _componentIds[type.FullName].Id;
+        => componentIds[type.FullName!].Id;
 
     public NetworkedComponentId GetNetworkedComponentId<T>()
-        => _componentIds[typeof(T).FullName!].Id;
+        => componentIds[typeof(T).FullName!].Id;
 
     public NetworkedComponentId GetNetworkedComponentId(string typeFullName)
-        => _componentIds[typeFullName].Id;
+        => componentIds[typeFullName].Id;
 
     public Type GetComponentType(NetworkedComponentId componentId)
-        => _componentTypes[componentId];
+        => componentTypes[componentId];
 
     public DeliveryMethod GetNetworkedComponentDeliveryMethod<T>()
-        => _componentIds[typeof(T).FullName!].DeliveryMethod;
+        => componentIds[typeof(T).FullName!].DeliveryMethod;
 }

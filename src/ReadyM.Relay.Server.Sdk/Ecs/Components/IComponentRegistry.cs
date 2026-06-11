@@ -1,6 +1,9 @@
+using ReadyM.Api.Multiplayer.ECS.Components;
+
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 public interface IComponentRegistry
 {
-    int RegisterComponent<T>() where T : struct;
+    int RegisterLocalComponent<T>() where T : struct;
+    int RegisterComponent<T>() where T : struct, INetworkedComponent;
 }

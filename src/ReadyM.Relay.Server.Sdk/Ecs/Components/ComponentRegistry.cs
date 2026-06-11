@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
@@ -36,7 +37,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponent
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterComponent<T>() where T : struct
+    public int RegisterLocalComponent<T>() where T : struct
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -45,8 +46,34 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponent
             throw new InvalidOperationException($"{type.FullName} is already registered.");
 
         if (stride > 256)
-            throw new ArgumentException(
-                $"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
+            throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
+
+        var registration = heapManager.RegisterLocalComponent<T>();
+        var id = _registerPluginComponent(registration);
+
+        if (id < 0)
+            throw new InvalidOperationException(
+                $"Server refused to register {type.Name}: component slot limit reached.");
+
+        _registered[type] = (id, stride);
+        return id;
+    }
+    
+    /// <summary>
+    /// Registers a plugin-defined component type with the server ECS.
+    /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
+    /// Returns the component ID to use in all subsequent <c>Query</c> calls.
+    /// </summary>
+    public int RegisterComponent<T>() where T : struct, INetworkedComponent
+    {
+        var type = typeof(T);
+        var stride = Unsafe.SizeOf<T>();
+
+        if (_registered.ContainsKey(type))
+            throw new InvalidOperationException($"{type.FullName} is already registered.");
+
+        if (stride > 256)
+            throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterComponent<T>();
         var id = _registerPluginComponent(registration);

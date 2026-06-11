@@ -8,7 +8,7 @@ public class ClearDirtySystem<T> : QuerySystem<T>
 {
     protected override void OnUpdate()
     {
-        Query.ForEachEntity((ref comp, entity) =>
+        Query.ForEachEntity((ref comp, _) =>
         {
             comp.ClearDirty();
         });
