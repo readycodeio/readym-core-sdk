@@ -24,9 +24,11 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         }
 
         // Plugin single-component: archetype scan.
-        ScanArchetypes([e.StructIndex],
+        ScanArchetypes(
+            [e.StructIndex],
             [e.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], count, strides[0]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], count, strides[0]),
+            callback);
     }
 
     /// <summary>Runs a query for two components. Both may be AOT, both plugin, or mixed.</summary>
@@ -38,7 +40,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         ScanArchetypes(
             [e1.StructIndex, e2.StructIndex],
             [e1.Stride, e2.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], ptrs[1], count, strides[0], strides[1]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], ptrs[1], count, strides[0], strides[1]),
+            callback);
     }
 
     /// <summary>Runs a query for three components.</summary>
@@ -51,7 +54,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         ScanArchetypes(
             [e1.StructIndex, e2.StructIndex, e3.StructIndex],
             [e1.Stride, e2.Stride, e3.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], count, strides[0], strides[1], strides[2]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], count, strides[0], strides[1], strides[2]),
+            callback);
     }
 
     /// <summary>Runs a query for four components.</summary>
@@ -64,8 +68,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         ScanArchetypes(
             [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex],
             [e1.Stride, e2.Stride, e3.Stride, e4.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3],
-                count, strides[0], strides[1], strides[2], strides[3]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], count, strides[0], strides[1], strides[2], strides[3]),
+            callback);
     }
 
     /// <summary>Runs a query for five components.</summary>
@@ -79,8 +83,8 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         ScanArchetypes(
             [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex],
             [e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4],
-                count, strides[0], strides[1], strides[2], strides[3], strides[4]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4], count, strides[0], strides[1], strides[2], strides[3], strides[4]),
+            callback);
     }
 
     /// <summary>Runs a query for six components.</summary>
@@ -95,27 +99,15 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
         ScanArchetypes(
             [e1.StructIndex, e2.StructIndex, e3.StructIndex, e4.StructIndex, e5.StructIndex, e6.StructIndex],
             [e1.Stride, e2.Stride, e3.Stride, e4.Stride, e5.Stride, e6.Stride],
-            (ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4], ptrs[5],
-                count, strides[0], strides[1], strides[2], strides[3], strides[4], strides[5]));
+            static (callback, ptrs, count, strides) => callback(ptrs[0], ptrs[1], ptrs[2], ptrs[3], ptrs[4], ptrs[5], count, strides[0], strides[1], strides[2], strides[3], strides[4], strides[5]),
+            callback);
     }
 
-    // -------------------------------------------------------------------------
-    // Core archetype scan - the unified dispatch path for N components.
-    //
-    // Works for any combination of AOT and plugin components because
-    // StructHeap.ReadyMGetPtrToFirst() is virtual and correct for both
-    // StructHeap<T> and PluginStructHeap. The stride stored in the entry
-    // accounts for the per-element size in either case.
-    //
-    // For single AOT queries we skip this in favour of world.Query<T>().ForEach()
-    // which is faster (Friflo pre-filters archetypes). For multi-component queries
-    // the archetype scan is equivalent to what the existing RunQuery2 did.
-    // -------------------------------------------------------------------------
-
-    private unsafe void ScanArchetypes(
+    private unsafe void ScanArchetypes<T>(
         ReadOnlySpan<int> structIndices,
         ReadOnlySpan<int> strides,
-        SpanCallback callback)
+        SpanCallback<T> callback,
+        T callbackParam)
     {
         var archetypes = world.GetArchetypes();
         var archetypeCount = world.GetArchetypeCount();
@@ -129,7 +121,7 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
             var archetype = archetypes[a];
             if (archetype == null) continue;
 
-            var entityCount = archetype.EntityCount;
+            var entityCount = archetype.Count;
             if (entityCount == 0) continue;
 
             // Check that all required components are present in this archetype.
@@ -159,7 +151,7 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
                 for (var i = 0; i < n; i++)
                     ptrs[i] = archetype.GetHeap(structIndices[i])!.ReadyMGetPtrTo(0);
 
-                callback(new ReadOnlySpan<IntPtr>(ptrs, n), entityCount, strides);
+                callback(callbackParam, new ReadOnlySpan<IntPtr>(ptrs, n), entityCount, strides);
             }
             finally
             {
@@ -169,7 +161,7 @@ internal sealed class UnifiedComponentQueryEngine(UnifiedComponentRegistry regis
     }
 
     // Delegate for the inner callback used by ScanArchetypes.
-    private delegate void SpanCallback(ReadOnlySpan<IntPtr> ptrs, int count, ReadOnlySpan<int> strides);
+    private delegate void SpanCallback<in T>(T callback, ReadOnlySpan<IntPtr> ptrs, int count, ReadOnlySpan<int> strides);
 
     // TODO: GC is active while this is being returned
     public IntPtr GetComponentPointer(int entityId, int componentType)

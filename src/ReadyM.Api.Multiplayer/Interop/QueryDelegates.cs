@@ -32,22 +32,3 @@ public delegate void Query3Delegate(int c1, int c2, int c3, ChunkCallback3 cb);
 public delegate void Query4Delegate(int c1, int c2, int c3, int c4, ChunkCallback4 cb);
 public delegate void Query5Delegate(int c1, int c2, int c3, int c4, int c5, ChunkCallback5 cb);
 public delegate void Query6Delegate(int c1, int c2, int c3, int c4, int c5, int c6, ChunkCallback6 cb);
-
-// Plugin-side query callbacks - the typed ref-based API the plugin author writes against
-public delegate void EmbedForEach<T1>(ref T1 c1)
-    where T1 : struct;
-
-public delegate void EmbedForEach<T1, T2>(ref T1 c1, ref T2 c2)
-    where T1 : struct where T2 : struct;
-
-public delegate void EmbedForEach<T1, T2, T3>(ref T1 c1, ref T2 c2, ref T3 c3)
-    where T1 : struct where T2 : struct where T3 : struct;
-
-public delegate void EmbedForEach<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4)
-    where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
-
-public delegate void EmbedForEach<T1, T2, T3, T4, T5>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5)
-    where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct;
-
-public delegate void EmbedForEach<T1, T2, T3, T4, T5, T6>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, ref T6 c6)
-    where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct;

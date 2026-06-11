@@ -176,6 +176,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         var initCalls = new StringBuilder();
         var deinitCalls = new StringBuilder();
 
+        var offsetRef = $"{manifestFqn}.Offset";
         foreach (var (eventName, contractMethodSymbol) in contractMethods)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
@@ -202,7 +203,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             sb.AppendLine($$"""
                                 public void Send{{eventName}}({{payloadParamList}})
                                 {
-                                    var message = RelayMessage.ToServer({{codeRef}}, DeliveryMethod.ReliableOrdered);
+                                    var message = RelayMessage.ToServer({{codeRef}} + {{offsetRef}}, DeliveryMethod.ReliableOrdered);
                                     var writer = message.Writer;
                             """);
 
@@ -253,19 +254,19 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             dispatchBranches.AppendLine("            }");
 
             if (initCalls.Length > 0) initCalls.AppendLine();
-            initCalls.Append($"        RelayClient.AddServerRpcMessageHandler({codeRef}, OnServerEvent);");
+            initCalls.Append($"        RelayClient.AddServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
             if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-            deinitCalls.Append($"        RelayClient.RemoveServerRpcMessageHandler({codeRef}, OnServerEvent);");
+            deinitCalls.Append($"        RelayClient.RemoveServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
         }
 
         sb.AppendLine($$"""
                             protected void OnServerEvent(ServerEventHeader header, NetDataReader reader)
                             {
-                                switch ((RelayMessageCode)(header.EventCode - {{manifestFqn}}.Offset))
+                                switch ((RelayMessageCode)(header.EventCode - {{offsetRef}}))
                                 {
                                 {{dispatchBranches}}
                                     default:
-                                        throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                                        break;
                                 }
                             }
 

@@ -282,7 +282,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                                 {
                             {{dispatchCases}}
                                     default:
-                                        throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                                        break;
                                 }
                             }
 

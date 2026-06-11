@@ -30,7 +30,10 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
 
         public override EntityBuilderBase Add<T>(in T component)
         {
-            throw new NotImplementedException();
+            // TODO: Default values not set
+            var componentId = registry.ResolveComponentId<T>();
+            ComponentIds.Add(componentId);
+            return this;
         }
     }
 
