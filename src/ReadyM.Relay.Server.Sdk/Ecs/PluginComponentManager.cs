@@ -75,9 +75,10 @@ public sealed class PluginComponentManager : IDisposable
         // This allows the AOT side to call back into managed code to write snapshots of plugin components.
         unsafe
         {
+            var writer = new NetDataWriter();
             var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize, written) =>
             {
-                var writer = new NetDataWriter();
+                writer.Reset();
                 var data = Unsafe.AsRef<T>((void*)ptr);
                 data.Serialize(writer);
                 var bytes = writer.Data;
