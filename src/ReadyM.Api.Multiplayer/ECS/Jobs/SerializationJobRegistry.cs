@@ -48,7 +48,7 @@ internal sealed class SerializationJobRegistry
         registry.Accept(new RegisterJobsCallback(this));
     }
 
-    private void RegisterApplyDeltaJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
+    internal void RegisterApplyDeltaJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
     {
         _applyDeltaJobs.Add(componentId, job);
     }

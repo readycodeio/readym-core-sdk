@@ -102,9 +102,28 @@ public sealed class PluginComponentManager : IDisposable
             Marshal.Copy((IntPtr)buffer, readBuffer, 0, bufferSize);
             reader.SetPosition(0);
             var data = reader.Get<T>();
-            var read = reader.Position;
             Unsafe.Write((void*)comp, data);
-            return read;
+            return reader.Position;
+        });
+        _delegateStore.PinDelegate(readDelegate);
+
+        var readDeltaDelegate = new ReadDeltaDelegate((comp, buffer, bufferSize, clearDirty) =>
+        {
+            // TODO: Replace with a span
+            if (bufferSize > readBuffer.Length)
+                throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bufferSize} bytes, have {readBuffer.Length} bytes");
+
+            Marshal.Copy((IntPtr)buffer, readBuffer, 0, bufferSize);
+            reader.SetPosition(0);
+            ref var data = ref Unsafe.AsRef<T>((void*)comp);
+            data.ReadDelta(reader);
+
+            if (clearDirty == 1)
+            {
+                data.ClearDirty();
+            }
+
+            return reader.Position;
         });
         _delegateStore.PinDelegate(readDelegate);
 
@@ -114,7 +133,8 @@ public sealed class PluginComponentManager : IDisposable
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
             AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
             WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate),
-            ReadSnapshot = Marshal.GetFunctionPointerForDelegate(readDelegate)
+            ReadSnapshot = Marshal.GetFunctionPointerForDelegate(readDelegate),
+            ReadDelta = Marshal.GetFunctionPointerForDelegate(readDeltaDelegate)
         };
     }
 

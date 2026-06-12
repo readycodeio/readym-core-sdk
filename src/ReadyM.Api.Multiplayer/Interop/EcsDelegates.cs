@@ -16,6 +16,7 @@ public delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype);
 public delegate IntPtr GetComponentPointerDelegate(int entityId, int componentType);
 public unsafe delegate void WriteSnapshotDelegate(IntPtr componentPtr, byte* buffer, int bufferSize, int* written);
 public unsafe delegate int ReadSnapshotDelegate(IntPtr componentPtr, byte* buffer, int size);
+public unsafe delegate int ReadDeltaDelegate(IntPtr componentPtr, byte* buffer, int size, byte clearDirty);
 
 
 // Plugin query chunk callbacks: (data ptr, entity count, stride per element).

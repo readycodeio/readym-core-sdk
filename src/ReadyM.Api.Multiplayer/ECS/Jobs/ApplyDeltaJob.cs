@@ -24,7 +24,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
             {
                 // entity is dead or unknown, skip
-                default(T).SkipDelta(reader);
+                default(T).ReadDelta(reader);
                 continue;
             }
 
@@ -37,7 +37,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 // This means that a client will receive deltas from the same entities that it SENDS deltas for.
                 // In order to avoid ping-ponging delta messages back and forth, we skip deltas for entities that are 
                 // owned by this client.
-                default(T).SkipDelta(reader);
+                default(T).ReadDelta(reader);
                 continue;
             }
 
