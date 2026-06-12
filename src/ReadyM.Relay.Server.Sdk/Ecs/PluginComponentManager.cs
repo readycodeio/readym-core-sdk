@@ -76,23 +76,24 @@ public sealed class PluginComponentManager : IDisposable
         // This allows the AOT side to call back into managed code to write snapshots of plugin components.
 
         var writer = new NetDataWriter();
-        var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize, written) =>
+        var readBuffer = new byte[1024 * 1024];
+        var reader = new NetDataReader(readBuffer);
+
+        var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize) =>
         {
             writer.Reset();
             var data = Unsafe.AsRef<T>((void*)ptr);
-            data.Serialize(writer);
+            writer.Put(data);
             var bytes = writer.Data;
-            *written = writer.Length;
 
             if (bytes.Length > bufferSize)
                 throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
 
             Marshal.Copy(bytes, 0, (IntPtr)buffer, bytes.Length);
+            return writer.Length;
         });
         _delegateStore.PinDelegate(writeDelegate);
-
-        var readBuffer = new byte[1024 * 1024];
-        var reader = new NetDataReader(readBuffer);
+        
         var readDelegate = new ReadSnapshotDelegate((comp, buffer, bufferSize) =>
         {
             // TODO: Replace with a span
@@ -106,6 +107,27 @@ public sealed class PluginComponentManager : IDisposable
             return reader.Position;
         });
         _delegateStore.PinDelegate(readDelegate);
+        
+        var writeDeltaDelegate = new WriteDeltaDelegate((ptr, buffer, bufferSize) =>
+        {
+            var data = Unsafe.AsRef<T>((void*)ptr);
+            
+            if (!data.IsDirty)
+                return 0;
+            
+            writer.Reset();
+            data.WriteDelta(writer);
+            data.ClearDirty();
+            
+            var bytes = writer.Data;
+
+            if (bytes.Length > bufferSize)
+                throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
+
+            Marshal.Copy(bytes, 0, (IntPtr)buffer, bytes.Length);
+            return writer.Length;
+        });
+        _delegateStore.PinDelegate(writeDeltaDelegate);
 
         var readDeltaDelegate = new ReadDeltaDelegate((comp, buffer, bufferSize, clearDirty) =>
         {
@@ -134,6 +156,7 @@ public sealed class PluginComponentManager : IDisposable
             AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
             WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate),
             ReadSnapshot = Marshal.GetFunctionPointerForDelegate(readDelegate),
+            WriteDelta = Marshal.GetFunctionPointerForDelegate(writeDeltaDelegate),
             ReadDelta = Marshal.GetFunctionPointerForDelegate(readDeltaDelegate)
         };
     }

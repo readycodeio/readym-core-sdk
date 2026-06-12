@@ -33,8 +33,6 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
         );
     }
 
-    protected abstract DeliveryMethod DeliveryMethod { get; }
-    
     /// <returns>null if unbound, otherwise the max packet size in bytes</returns>
     protected abstract int? GetMaxPacketSize();
 
