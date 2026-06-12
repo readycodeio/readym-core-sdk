@@ -67,6 +67,7 @@ internal sealed class SerializationJobRegistry
 
     public void WriteSnapshot(EntityStore world, QueryFilter filter, Entity? scopeEntity, SpanDataWriter writer)
     {
+        filter = filter.FreezeFilter();
         foreach (var job in _writeSnapshotJobs.Values)
         {
             job.Execute(world, filter, scopeEntity, writer);
