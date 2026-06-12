@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
@@ -7,7 +8,7 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponentManager heapManager) : IComponentRegistry
+internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponentManager heapManager, ILogger logger) : IComponentRegistry
 {
     private readonly RegisterPluginComponentDelegate _registerPluginComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterPluginComponentDelegate>(aotPointers.RegisterPluginComponent);
@@ -78,10 +79,11 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, PluginComponent
         var registration = heapManager.RegisterComponent<T>();
         var id = _registerPluginComponent(registration);
 
-        if (id < 0)
-            throw new InvalidOperationException(
-                $"Server refused to register {type.Name}: component slot limit reached.");
+        if (id < 0) 
+            throw new InvalidOperationException($"Server refused to register {type.Name}: component slot limit reached.");
 
+        logger.LogDebug("Registered component {Component} with ID {Id}", type.FullName, id);
+        
         _registered[type] = (id, stride);
         return id;
     }

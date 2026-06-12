@@ -1,6 +1,7 @@
 namespace ReadyM.Api.ECS.Registry;
 
-internal interface IComponentRegistryBase<out TRegistry, out TComponent>
+// TODO: Not public
+public interface IComponentRegistryBase<out TRegistry, out TComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
     // NOTE: Visitor pattern to handle generics without reflection.

@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using DryIoc;
 using LiteNetLib;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations)
+internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations, ILogger logger)
     : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
     protected readonly Dictionary<string, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> componentIds = new();
@@ -19,6 +21,7 @@ internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistr
         componentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
         componentTypes.Add(id, typeof(T));
 
+        logger.LogDebug("Registered networked component: {ComponentType} with ID {Id} and delivery method {DeliveryMethod}", typeof(T).Name, id, deliveryMethod);
         return base.RegisterComponent(defaultValue);
     }
 

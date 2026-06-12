@@ -10,12 +10,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
 internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataComponent>
 {
-    private readonly JobRegistry _jobRegistry;
+    private readonly SerializationJobRegistry serializationJobRegistry;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent>> _queryCache;
 
-    protected SendEntityCreatedSystemBase(JobRegistry jobRegistry)
+    protected SendEntityCreatedSystemBase(SerializationJobRegistry serializationJobRegistry)
     {
-        _jobRegistry = jobRegistry;
+        this.serializationJobRegistry = serializationJobRegistry;
         _queryCache = new(
             context => context.ScopeEntity,
             context =>
@@ -67,7 +67,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
             CommandBuffer.RemoveTag<LocallyCreatedEntityTag>(entity.Id);
         });
 
-        _jobRegistry.WriteSnapshot(query.Store, query.Filter, null, _writer);
+        serializationJobRegistry.WriteSnapshot(query.Store, query.Filter, null, _writer);
 
         if (queryCount > 0)
         {

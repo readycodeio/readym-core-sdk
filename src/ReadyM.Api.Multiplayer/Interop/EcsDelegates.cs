@@ -14,7 +14,8 @@ public delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> components
 public delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 public delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype);
 public delegate IntPtr GetComponentPointerDelegate(int entityId, int componentType);
-public unsafe delegate void WriteSnapshotDelegate(IntPtr componentPtr, IntPtr buffer, int bufferSize, int* written);
+public unsafe delegate void WriteSnapshotDelegate(IntPtr componentPtr, byte* buffer, int bufferSize, int* written);
+public unsafe delegate int ReadSnapshotDelegate(IntPtr componentPtr, byte* buffer, int size);
 
 
 // Plugin query chunk callbacks: (data ptr, entity count, stride per element).

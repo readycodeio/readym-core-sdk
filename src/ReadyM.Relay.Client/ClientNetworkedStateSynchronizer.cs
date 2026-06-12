@@ -43,7 +43,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     protected readonly IRelayClient RelayClient;
     protected readonly ILogger Logger;
 
-    protected readonly JobRegistry JobRegistry;
+    protected readonly SerializationJobRegistry serializationJobRegistry;
     private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
     private readonly ReceiveSystem _receiveSystem;
@@ -59,7 +59,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
     public ClientNetworkedStateSynchronizer(INetworkedEntityManager netEntity,
         ClientState state,
-        JobRegistry jobRegistry,
+        SerializationJobRegistry serializationJobRegistry,
         INetworkedComponentRegistry netComponentRegistry,
         IRelayClient relayClient,
         ReceiveSystem receiveSystem,
@@ -75,7 +75,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         NetEntity = netEntity;
         RelayClient = relayClient;
         Logger = logger;
-        JobRegistry = jobRegistry;
+        this.serializationJobRegistry = serializationJobRegistry;
         
         // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
@@ -131,7 +131,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
         ReceiveSystemGroup.Add(_receiveSystem);
         SyncSystemGroup.Add(State.System);
-        SendSystemGroup.Add(new ClientSendEntityCreatedSystem(JobRegistry, State, RelayClient));
+        SendSystemGroup.Add(new ClientSendEntityCreatedSystem(serializationJobRegistry, State, RelayClient));
 
         // NOTE: iterates over all network components with generics without reflection
         _netComponentRegistry.Accept(new RegisterSystemCallback(this));
@@ -202,7 +202,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                 }
 
-                self.JobRegistry.ApplySnapshot(readerCopy);
+                self.serializationJobRegistry.ApplySnapshot(readerCopy);
             }
             finally
             {
@@ -247,7 +247,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             try
             {
                 _skipEcsEventMessages++;
-                self.JobRegistry.ApplyDelta(readerCopy);
+                self.serializationJobRegistry.ApplyDelta(readerCopy);
             }
             finally
             {
@@ -287,7 +287,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                 }
 
-                self.JobRegistry.ApplySnapshot(readerCopy);
+                self.serializationJobRegistry.ApplySnapshot(readerCopy);
             }
             finally
             {

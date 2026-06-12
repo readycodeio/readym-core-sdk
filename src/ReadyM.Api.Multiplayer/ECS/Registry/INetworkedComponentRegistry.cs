@@ -5,7 +5,8 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
+// TODO: Not public
+public interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
 {
     INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.ReliableUnordered, T defaultValue = default)
         where T : struct, INetworkedComponent;

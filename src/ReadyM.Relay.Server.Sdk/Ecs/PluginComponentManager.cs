@@ -54,7 +54,8 @@ public sealed class PluginComponentManager : IDisposable
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
             AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
-            WriteSnapshot = IntPtr.Zero
+            WriteSnapshot = IntPtr.Zero,
+            ReadSnapshot = IntPtr.Zero
         };
     }
 
@@ -63,7 +64,7 @@ public sealed class PluginComponentManager : IDisposable
     /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public PluginComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
+    public unsafe PluginComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -73,33 +74,48 @@ public sealed class PluginComponentManager : IDisposable
 
         // If T is a networked component, also provide a pointer to the WriteSnapshotJob<T>.Execute method.
         // This allows the AOT side to call back into managed code to write snapshots of plugin components.
-        unsafe
+
+        var writer = new NetDataWriter();
+        var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize, written) =>
         {
-            var writer = new NetDataWriter();
-            var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize, written) =>
-            {
-                writer.Reset();
-                var data = Unsafe.AsRef<T>((void*)ptr);
-                data.Serialize(writer);
-                var bytes = writer.Data;
-                *written = writer.Length;
-                
-                if (bytes.Length > bufferSize)
-                    throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
-                
-                Marshal.Copy(bytes, 0, buffer, bytes.Length);
-            });
+            writer.Reset();
+            var data = Unsafe.AsRef<T>((void*)ptr);
+            data.Serialize(writer);
+            var bytes = writer.Data;
+            *written = writer.Length;
 
-            _delegateStore.PinDelegate(writeDelegate);
+            if (bytes.Length > bufferSize)
+                throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
 
-            return new PluginComponentRegistration
-            {
-                Stride = Unsafe.SizeOf<T>(),
-                IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
-                AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
-                WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate)
-            };
-        }
+            Marshal.Copy(bytes, 0, (IntPtr)buffer, bytes.Length);
+        });
+        _delegateStore.PinDelegate(writeDelegate);
+
+        var readBuffer = new byte[1024 * 1024];
+        var reader = new NetDataReader(readBuffer);
+        var readDelegate = new ReadSnapshotDelegate((comp, buffer, bufferSize) =>
+        {
+            // TODO: Replace with a span
+            if (bufferSize > readBuffer.Length)
+                throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bufferSize} bytes, have {readBuffer.Length} bytes");
+
+            Marshal.Copy((IntPtr)buffer, readBuffer, 0, bufferSize);
+            reader.SetPosition(0);
+            var data = reader.Get<T>();
+            var read = reader.Position;
+            Unsafe.Write((void*)comp, data);
+            return read;
+        });
+        _delegateStore.PinDelegate(readDelegate);
+
+        return new PluginComponentRegistration
+        {
+            Stride = Unsafe.SizeOf<T>(),
+            IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
+            AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
+            WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate),
+            ReadSnapshot = Marshal.GetFunctionPointerForDelegate(readDelegate)
+        };
     }
 
     // -------------------------------------------------------------------------
