@@ -9,3 +9,6 @@ src/ReadyM.Relay/publish
 src/ReadyM.Relay.Server.Wukong/wwwroot
 publish
 /src/test-docker
+
+Claude.ReadyM.Relay.sln
+src/Claude.ReadyM.Relay.sln.DotSettings.user
