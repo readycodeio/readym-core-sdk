@@ -110,7 +110,7 @@ public sealed class PluginComponentManager : IDisposable
         
         var writeDeltaDelegate = new WriteDeltaDelegate((ptr, buffer, bufferSize) =>
         {
-            var data = Unsafe.AsRef<T>((void*)ptr);
+            ref var data = ref Unsafe.AsRef<T>((void*)ptr);
             
             if (!data.IsDirty)
                 return 0;
@@ -121,10 +121,10 @@ public sealed class PluginComponentManager : IDisposable
             
             var bytes = writer.Data;
 
-            if (bytes.Length > bufferSize)
+            if (writer.Length > bufferSize)
                 throw new InvalidOperationException($"Buffer too small for snapshot of {typeof(T).Name}: need {bytes.Length} bytes, have {bufferSize} bytes");
 
-            Marshal.Copy(bytes, 0, (IntPtr)buffer, bytes.Length);
+            Marshal.Copy(bytes, 0, (IntPtr)buffer, writer.Length);
             return writer.Length;
         });
         _delegateStore.PinDelegate(writeDeltaDelegate);
