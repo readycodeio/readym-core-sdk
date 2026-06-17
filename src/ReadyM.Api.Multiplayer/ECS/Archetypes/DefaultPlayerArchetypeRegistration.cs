@@ -9,7 +9,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
 internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistry playerComponentRegistry) : IArchetypeRegistration
 {
-    private class RegisterPlayerComponentsCallback(EntityBuilder builder) : IPlayerComponentRegistryCallback
+    private class RegisterPlayerComponentsCallback(EntityBuilderBase builder) : IPlayerComponentRegistryCallback
     {
         public void AcceptComponent<T>(IPlayerComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
@@ -20,9 +20,9 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
     
     public ArchetypeId PlayerArchetype { get; private set; }
 
-    public void Register(Store world)
+    public void Register(IArchetypeRegistry registry)
     {
-        PlayerArchetype = world.RegisterArchetype(
+        PlayerArchetype = registry.RegisterArchetype(
             b =>
             {
                 b.Add<MetadataComponent>();

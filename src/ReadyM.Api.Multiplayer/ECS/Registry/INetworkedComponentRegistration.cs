@@ -3,7 +3,4 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-internal interface INetworkedComponentRegistration : IComponentRegistrationBase<INetworkedComponentRegistry, INetworkedComponent>
-{
-    // empty    
-}
+internal interface INetworkedComponentRegistration : IComponentRegistrationBase<INetworkedComponentRegistry, INetworkedComponent>;

@@ -5,7 +5,7 @@ using LiteNetLib.Utils;
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal struct NetworkedComponentId(byte id) : IEquatable<NetworkedComponentId>, INetSerializable
+public struct NetworkedComponentId(byte id) : IEquatable<NetworkedComponentId>, INetSerializable
 {
     public static NetworkedComponentId None => new(0);
     

@@ -28,7 +28,7 @@ public struct RelayMessage
         DeliveryMethod = deliveryMethod;
     }
 
-    internal static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
+    public static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.Put((byte)eventCode);

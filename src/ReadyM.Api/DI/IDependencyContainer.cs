@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ReadyM.Api.DI;
 
@@ -13,4 +14,5 @@ public interface IDependencyContainer
     void RegisterSingleton<TService, TImplementation>() where TImplementation : TService;
     void RegisterSingleton<TService, TImplementation>(TImplementation instance) where TImplementation : TService;   
     T Resolve<T>();
+    IEnumerable<T> ResolveAll<T>();
 }

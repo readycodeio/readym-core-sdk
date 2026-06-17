@@ -171,6 +171,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         if (skipSync)
             _skipNetSync++;
         // When we disconnect all networked entities get deleted
+        
         _world.Query<MetadataComponent>()
             .ForEachEntity((ref _, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();

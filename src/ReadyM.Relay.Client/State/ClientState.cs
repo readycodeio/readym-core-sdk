@@ -28,7 +28,7 @@ internal class ClientState : IDisposable
             owner.ProcessPendingEvents();
         }
     }
-    
+
     private enum PendingEventKind
     {
         Connected,
@@ -71,8 +71,6 @@ internal class ClientState : IDisposable
     private readonly Store _world;
     private readonly INetworkedEntityManager _netEntity;
     private readonly IRelayClient _relayClient;
-    private readonly ClientEcsUpdateLoop _ecsLoop;
-    private readonly JobRegistry _jobRegistry;
     private readonly ILogger _logger;
 
     private readonly List<PlayerId> _allPlayers = [];
@@ -83,9 +81,11 @@ internal class ClientState : IDisposable
 
     private AreaEntry? _currentAreaEntry;
 
+    // ReSharper disable once ChangeFieldTypeToSystemThreadingLock
     private readonly object _lock = new();
+
     private readonly List<PendingEvent> _pendingEvents = [];
-    
+
     private readonly ProcessPendingEventsSystem _system;
 
     public bool IsConnected
@@ -99,8 +99,8 @@ internal class ClientState : IDisposable
 
     public Entity? LocalPlayerEntity
         => _localPlayerEntry?.PlayerEntity;
-    
-    public BaseSystem System 
+
+    public BaseSystem System
         => _system;
 
     public Api.Helpers.ReadOnlyList<PlayerId> AllPlayers => new(_allPlayers);
@@ -133,22 +133,18 @@ internal class ClientState : IDisposable
 
     public ArchetypeId AreaArchetype { get; }
     public ArchetypeId PlayerArchetype { get; }
-    
+
     public ClientState(
         Store world,
         INetworkedEntityManager netEntity,
         IRelayClient relayClient,
-        ClientEcsUpdateLoop ecsLoop,
         DefaultAreaArchetypeRegistration areaArchetype,
         DefaultPlayerArchetypeRegistration playerArchetype,
-        JobRegistry jobRegistry,
         ILogger logger)
     {
         _world = world;
         _netEntity = netEntity;
         _relayClient = relayClient;
-        _ecsLoop = ecsLoop;
-        _jobRegistry = jobRegistry;
         _logger = logger;
 
         AreaArchetype = areaArchetype.AreaArchetype;
@@ -207,7 +203,8 @@ internal class ClientState : IDisposable
     {
         lock (_lock)
         {
-            _pendingEvents.Add(new PendingEvent()
+            _logger.LogDebug("Scheduling PendingEventKind.Disconnected with reason {DisconnectReason}", disconnectReason);
+            _pendingEvents.Add(new PendingEvent
             {
                 Kind = PendingEventKind.Disconnected,
                 PlayerId = context.PlayerId ?? PlayerId.Invalid,
@@ -220,12 +217,13 @@ internal class ClientState : IDisposable
     {
         lock (_lock)
         {
-            _pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent
             {
                 Kind = PendingEventKind.JoinedArea,
                 AreaId = areaId,
                 PlayerId = context.PlayerId!.Value,
             });
+
             foreach (var otherPlayerId in context.AreaPlayers)
             {
                 if (otherPlayerId == context.PlayerId)

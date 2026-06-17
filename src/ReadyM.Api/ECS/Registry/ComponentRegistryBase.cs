@@ -6,10 +6,8 @@ namespace ReadyM.Api.ECS.Registry;
 internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentRegistryBase<TRegistry, TComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
-    private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = new();
-    private readonly List<Type> _componentTypes = [];
-    
-    public List<Type> ComponentTypes => _componentTypes;
+    private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
+    private byte _componentTypes;
 
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
@@ -19,21 +17,42 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
             registration.Register(registry);
         }
     }
-    
-    protected int GetNextComponentId()
+
+    protected byte GetNextComponentId()
     {
-        return _componentTypes.Count;
+        return _componentTypes;
     }
 
     public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
         where T : struct, TComponent
     {
-        _componentTypes.Add(typeof(T));
+        if (_componentTypes == byte.MaxValue)
+        {
+            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
+        }
+
+        _componentTypes++;
         _acceptCallbacks.Add(callback =>
         {
             callback.AcceptComponent((TRegistry)(object)this, defaultValue);
         });
-        
+
+        return (TRegistry)(object)this;
+    }
+    
+    protected TRegistry RegisterWithoutCallbacks()
+    {
+        if (_componentTypes == byte.MaxValue)
+        {
+            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
+        }
+
+        _componentTypes++;
+        _acceptCallbacks.Add(callback =>
+        {
+            // do nothing
+        });
+
         return (TRegistry)(object)this;
     }
 

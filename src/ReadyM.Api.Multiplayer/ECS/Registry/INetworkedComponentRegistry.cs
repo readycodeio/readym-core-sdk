@@ -7,13 +7,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
 internal interface INetworkedComponentRegistry : IComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>
 {
-    INetworkedComponentRegistry RegisterComponent<T>(T defaultValue = default)
-        where T : struct, INetworkedComponent;
-    INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod, T defaultValue = default)
+    INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.ReliableUnordered, T defaultValue = default)
         where T : struct, INetworkedComponent;
 
     NetworkedComponentId GetNetworkedComponentId(Type type);
     NetworkedComponentId GetNetworkedComponentId<T>();
+    NetworkedComponentId GetNetworkedComponentId(string typeFullName);
     Type GetComponentType(NetworkedComponentId componentId);
     DeliveryMethod GetNetworkedComponentDeliveryMethod<T>();
 }

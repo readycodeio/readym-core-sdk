@@ -1,17 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DryIoc;
-using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
-using ReadyM.Api.ECS.Worlds;
 
 namespace ReadyM.Api.DI;
 
 public abstract class DependencyContainerBase : IDependencyContainer, IDisposable
 {
-    protected IContainer Container { get; private set; } = new Container(rules =>
+    protected internal IContainer Container { get; private set; } = new Container(rules =>
         rules.With(FactoryMethod.ConstructorWithResolvableArguments)
             .WithDefaultReuse(Reuse.Singleton)
+            .WithDefaultIfAlreadyRegistered(IfAlreadyRegistered.AppendNewImplementation)
             .WithUseInterpretation()
     );
 
@@ -19,9 +19,6 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
     {
         Container.RegisterInstance<IDependencyContainer>(this);
         Container.Register(typeof(ILogger<>), typeof(Logger<>), ifAlreadyRegistered: IfAlreadyRegistered.Replace);
-        
-        Container.RegisterInstance(new EntityStore());
-        Container.Register<Store>();
     }
 
     public virtual void Dispose()
@@ -34,14 +31,15 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
         => Container.RegisterInstance<TService>(instance);
 
     public T Resolve<T>() => Container.Resolve<T>();
+    public IEnumerable<T> ResolveAll<T>() => Container.ResolveMany<T>();
 
-    public void RegisterSingleton<T>() => Container.Register<T>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
-    public void RegisterSingleton<T>(T instance) => Container.RegisterInstance(instance, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+    public void RegisterSingleton<T>() => Container.Register<T>();
+    public void RegisterSingleton<T>(T instance) => Container.RegisterInstance(instance);
 
-    public void RegisterSingleton<TService>(Type type) => Container.Register(typeof(TService), type, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+    public void RegisterSingleton<TService>(Type type) => Container.Register(typeof(TService), type);
 
     public void RegisterSingleton<TService, TImplementation>() where TImplementation : TService
-        => Container.Register<TService, TImplementation>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+        => Container.Register<TService, TImplementation>();
 
     public void StartHostedServices()
     {

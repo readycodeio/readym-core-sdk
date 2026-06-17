@@ -10,7 +10,8 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T> where T : struct, INetworkedComponent
+internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T> 
+    where T : struct, INetworkedComponent
 {
     private readonly NetworkedComponentId _componentId;
     private readonly bool _clearDirty;
@@ -32,8 +33,6 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
         );
     }
 
-    protected abstract DeliveryMethod DeliveryMethod { get; }
-    
     /// <returns>null if unbound, otherwise the max packet size in bytes</returns>
     protected abstract int? GetMaxPacketSize();
 

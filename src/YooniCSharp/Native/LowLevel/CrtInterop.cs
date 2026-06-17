@@ -2,24 +2,35 @@
 
 namespace Yooni.Native.LowLevel;
 
-#if NET8_0_OR_GREATER
-internal static unsafe partial class CrtInterop
-{
-    [LibraryImport("ucrtbase", EntryPoint = "malloc")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static partial void* Malloc(nuint size);
-
-    [LibraryImport("ucrtbase", EntryPoint = "free")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static partial void Free(void* ptr);
-}
-#else
 internal static unsafe class CrtInterop
 {
-    [DllImport("ucrtbase", EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void* Malloc(nuint size);
+    private static readonly bool _isWindows =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-    [DllImport("ucrtbase", EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void Free(void* ptr);
+    internal static void* Malloc(nuint size) =>
+        _isWindows ? Windows.Malloc(size) : Unix.Malloc(size);
+
+    internal static void Free(void* ptr)
+    {
+        if (_isWindows) Windows.Free(ptr);
+        else Unix.Free(ptr);
+    }
+
+    private static class Windows
+    {
+        [DllImport("ucrtbase", EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void* Malloc(nuint size);
+
+        [DllImport("ucrtbase", EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void Free(void* ptr);
+    }
+
+    private static class Unix
+    {
+        [DllImport("libc", EntryPoint = "malloc", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void* Malloc(nuint size);
+
+        [DllImport("libc", EntryPoint = "free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void Free(void* ptr);
+    }
 }
-#endif

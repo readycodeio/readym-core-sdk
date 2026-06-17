@@ -7,7 +7,6 @@ internal class DefaultNetworkedComponentRegistration : INetworkedComponentRegist
 {
     public void Register(INetworkedComponentRegistry registry)
     {
-        // Scope
         registry.RegisterComponent<PlayerScopeComponent>(DeliveryMethod.ReliableOrdered);
         registry.RegisterComponent<AreaScopeComponent>(DeliveryMethod.ReliableOrdered);
     }

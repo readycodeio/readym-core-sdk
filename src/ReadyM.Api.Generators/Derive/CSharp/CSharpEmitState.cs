@@ -82,29 +82,27 @@ internal class CSharpEmitState(StringBuilder sb, CSharpMethodState methodState)
     private bool _atNewLine = true;
     private readonly List<IndentEntry> _indentStack = [];
     private readonly List<CurrentVarEntry> _currentVarStack = [];
-    private string? _generatedPropertyName;
-    private readonly StringBuilder _sb = sb;
-    
+
     public void Append(string s)
     {
         if (_atNewLine)
         {
-            _sb.Append(_prefix);
+            sb.Append(_prefix);
             _atNewLine = false;
         }
         
-        _sb.Append(s);
+        sb.Append(s);
     }
 
     public void AppendLine(string s)
     {
         if (_atNewLine)
         {
-            _sb.Append(_prefix);
+            sb.Append(_prefix);
             _atNewLine = false;
         }
 
-        _sb.AppendLine(s);
+        sb.AppendLine(s);
         _atNewLine = true;
     }
     
@@ -131,11 +129,7 @@ internal class CSharpEmitState(StringBuilder sb, CSharpMethodState methodState)
         
         if (prevEntry is { EmitBlock: false })
         {
-            prevEntry = new IndentEntry()
-            {
-                EmitBlock = prevEntry.Value.EmitBlock,
-                Indent = false,
-            };
+            prevEntry = prevEntry.Value with { Indent = false };
             _indentStack[_indentStack.Count - 1] = prevEntry.Value;
             
             _prefix = _prefix.Substring(0, _prefix.Length - 4);

@@ -10,5 +10,4 @@ public interface INetworkedComponent : IComponent, INetSerializable
     bool IsDirty { get; }
     void WriteDelta(NetDataWriter writer);
     void ReadDelta(NetDataReader reader);
-    void SkipDelta(NetDataReader reader);
 }

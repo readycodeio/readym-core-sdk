@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.ECS.Registry;
 
-internal interface IArchetypeRegistration
+public interface IArchetypeRegistration
 {
-    void Register(Store world);
+    void Register(IArchetypeRegistry registry);
 }

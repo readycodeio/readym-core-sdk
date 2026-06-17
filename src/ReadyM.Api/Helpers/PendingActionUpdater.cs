@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Runtime.CompilerServices;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Helpers;
@@ -14,6 +15,8 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
     {
         if (_insideUpdate)
             return false;
+        
+        EnsureThread();
 
         try
         {

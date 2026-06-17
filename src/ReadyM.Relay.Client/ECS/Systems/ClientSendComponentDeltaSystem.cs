@@ -1,6 +1,7 @@
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -15,12 +16,9 @@ internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentI
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
         => filter;
-    
-    protected override DeliveryMethod DeliveryMethod
-        => deliveryMethod;
 
-    protected override int?  GetMaxPacketSize()
-        => DeliveryMethod == DeliveryMethod.ReliableOrdered ? null : relay.GetMaxPacketSize(DeliveryMethod);
+    protected override int? GetMaxPacketSize()
+        => deliveryMethod == DeliveryMethod.ReliableOrdered ? null : relay.GetMaxPacketSize(deliveryMethod);
 
     protected override uint SentOwners()
     {
@@ -34,6 +32,6 @@ internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentI
 
     protected override void Send(PlayerId _, NetDataWriter data, SendContext context)
     {
-        relay.SendRawMessage(data, DeliveryMethod);
+        relay.SendRawMessage(data, deliveryMethod);
     }
 }

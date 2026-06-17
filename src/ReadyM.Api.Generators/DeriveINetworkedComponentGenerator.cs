@@ -131,7 +131,6 @@ namespace {info.Namespace};
         EmitDeserialize(sb, model, classState);
         EmitWriteDelta(sb, model, classState);
         EmitReadDelta(sb, model, classState);
-        EmitSkipDelta(sb, model, classState);
 
         sb.AppendLine("""
     public void ClearDirty() => _dirtyMask = 0;
@@ -196,8 +195,7 @@ namespace {info.Namespace};
             "ReadyM.Api.Multiplayer",
             "ReadyM.Api.Mapping.Data",
             "ReadyM.Api.Multiplayer.Extensions",
-            "ReadyM.Api.Multiplayer.ECS.Components",
-            "ReadyM.Relay.Common"
+            "ReadyM.Api.Multiplayer.ECS.Components"
         ]);
     }
 
@@ -405,36 +403,6 @@ using {ns};
 
             context.State.ResetIndent("        ");
             impl.EmitReadDeltaBody(member.Source.Type, context);
-        }
-
-        sb.AppendLine("""
-    }
-
-""");
-    }
-
-    private void EmitSkipDelta(
-        StringBuilder sb,
-        DeriveTargetModel model,
-        CSharpClassState classState)
-    {
-        sb.AppendLine("""
-    public void SkipDelta(NetDataReader reader)
-    {
-""");
-        sb.AppendLine($"""
-        var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
-""");
-
-        var methodContext = new CSharpMethodState(classState);
-        foreach (var member in model.Members)
-        {
-            var impl = GetEmitFieldSupportImpl(member, true);
-            var context = CreateEmitContext(sb, member, model, methodContext);
-            context.SetCurrentMaskVarName("mask");
-
-            context.State.ResetIndent("        ");
-            impl.EmitSkipDeltaBody(member.Source.Type, context);
         }
 
         sb.AppendLine("""

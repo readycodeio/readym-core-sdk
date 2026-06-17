@@ -225,19 +225,13 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                     if (i == eventCodeIndex)
                         continue;
-
-                    if (isSerializablePrimitive)
+                    
+                    sb.AppendLine((isSerializablePrimitive, isNetSerializable) switch
                     {
-                        sb.AppendLine($"        writer.Put(payload{payloadCount});");
-                    }
-                    else if (isNetSerializable)
-                    {
-                        sb.AppendLine($"        payload{payloadCount}.Serialize(writer);");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"        Serializer.SerializeObject(writer, payload{payloadCount});");
-                    }
+                        (true, _) => $"        writer.Put(payload{payloadCount});",
+                        (_, true) => $"        payload{payloadCount}.Serialize(writer);",
+                        _         => $"        Serializer.SerializeObject(writer, payload{payloadCount});"
+                    });
                     
                     payloadCount++;
                 }
@@ -259,25 +253,25 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                     if (i == senderIndex || i == eventCodeIndex)
                         continue;
                     
-                    if (isSerializablePrimitive)
+                    switch (isSerializablePrimitive, isNetSerializable)
                     {
-                        var getMethod = SerializationHelper.GetDeserializationMethod(payloadType!.SpecialType);
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = reader.{getMethod}();");
-                    }
-                    else if (isNetSerializable)
-                    {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = new {payloadType}();");
-                        dispatchCases.AppendLine($"                payload{payloadCount}.Deserialize(reader);");
-                    }
-                    else
-                    {
-                        dispatchCases.AppendLine($"                var payload{payloadCount} = Serializer.DeserializeObject<{payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(reader);");
+                        case (true, _):
+                            var getMethod = SerializationHelper.GetDeserializationMethod(payloadType!.SpecialType);
+                            dispatchCases.AppendLine($"                var payload{payloadCount} = reader.{getMethod}();");
+                            break;
+                        case (_, true):
+                            dispatchCases.AppendLine($"                var payload{payloadCount} = new {payloadType}();");
+                            dispatchCases.AppendLine($"                payload{payloadCount}.Deserialize(reader);");
+                            break;
+                        default:
+                            dispatchCases.AppendLine($"                var payload{payloadCount} = Serializer.DeserializeObject<{payloadType!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(reader);");
+                            break;
                     }
 
                     payloadCount++;
                 }
 
-                dispatchCases.Append("                ");
+                dispatchCases.Append("                RunOnGameThread(() => { ");
                 dispatchCases.Append(methodName);
                 dispatchCases.Append('(');
 
@@ -303,7 +297,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                     payloadCount++;
                 }
 
-                dispatchCases.AppendLine(");");
+                dispatchCases.AppendLine("); });");
                 dispatchCases.AppendLine("                break;");
                 dispatchCases.AppendLine("            }");
 
@@ -319,7 +313,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                                     {
                             {{dispatchCases}}
                                         default:
-                                            throw new InvalidOperationException($"Unknown event code: {header.EventCode}");
+                                            break;
                                     }
                                 }
                                     
