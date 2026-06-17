@@ -21,7 +21,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// needed from the plugin after registration. All allocated heaps are tracked here and
 /// disposed in bulk on shutdown.
 /// </summary>
-public sealed class PluginComponentManager : IDisposable
+public sealed class ModComponentManager : IDisposable
 {
     // Keeps factory delegates alive - their IntPtrs live in AOT memory.
     private readonly PinnedDelegateStore _delegateStore = new();
@@ -37,11 +37,11 @@ public sealed class PluginComponentManager : IDisposable
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Registers component type T. Returns a PluginComponentRegistration to hand to the
-    /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
+    /// Registers component type T. Returns a ModComponentRegistration to hand to the
+    /// AOT relay's RegisterModComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public PluginComponentRegistration RegisterLocalComponent<T>() where T : struct
+    public ModComponentRegistration RegisterLocalComponent<T>() where T : struct
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -49,7 +49,7 @@ public sealed class PluginComponentManager : IDisposable
         var factory = new AllocHeapDelegate(AllocHeapImpl<T>);
         _delegateStore.PinDelegate(factory);
 
-        return new PluginComponentRegistration
+        return new ModComponentRegistration
         {
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
@@ -64,7 +64,7 @@ public sealed class PluginComponentManager : IDisposable
     /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public unsafe PluginComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
+    public unsafe ModComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -149,7 +149,7 @@ public sealed class PluginComponentManager : IDisposable
         });
         _delegateStore.PinDelegate(readDelegate);
 
-        return new PluginComponentRegistration
+        return new ModComponentRegistration
         {
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
@@ -217,5 +217,5 @@ public sealed class PluginComponentManager : IDisposable
         }
     }
 
-    ~PluginComponentManager() => Dispose();
+    ~ModComponentManager() => Dispose();
 }

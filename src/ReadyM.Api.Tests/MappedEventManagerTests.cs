@@ -36,7 +36,7 @@ public class MappedEventManagerTests
         container.Register<DataSideChannel>();
         container.Register<IMappingEventPolicyFactory, AlwaysPropagatesEventPolicyFactory>();
 
-        container.RegisterMany<MappingPolicyDirectory>(serviceTypeCondition: type => type.IsInterface, nonPublicServiceTypes: true);
+        container.RegisterMany<NativeMappingPolicyDirectory>(serviceTypeCondition: type => type.IsInterface, nonPublicServiceTypes: true);
         container.RegisterInitializer<IMappingPolicyDirectory>((iface, s) =>
         {
             var mapping = (MappingPolicyDirectory)iface;

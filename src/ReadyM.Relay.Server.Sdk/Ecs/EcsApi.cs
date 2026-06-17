@@ -9,8 +9,8 @@ using ReadyM.Relay.Server.Sdk.Interop;
 namespace ReadyM.Relay.Server.Sdk.Ecs;
 
 /// <summary>
-/// Plugin-side ECS API. Wraps the function pointers exposed by the AOT server.
-/// All component types - whether defined in the server binary or in this plugin - are
+/// Mod-side ECS API. Wraps the function pointers exposed by the AOT server.
+/// All component types - whether defined in the server binary or in this mod - are
 /// identified by <c>int</c> component IDs assigned at registration time.
 /// </summary>
 public class EcsApi
@@ -24,12 +24,7 @@ public class EcsApi
     private readonly CreateNetworkedEntityDelegate _createNetworkedEntity;
     private readonly GetComponentPointerDelegate _getComponentPointer;
     private readonly ComponentRegistry _registry;
-
-    /// <summary>
-    /// Plugin-side ECS API. Wraps the function pointers exposed by the AOT server.
-    /// All component types - whether defined in the server binary or in this plugin - are
-    /// identified by <c>int</c> component IDs assigned at registration time.
-    /// </summary>
+    
     internal EcsApi(EcsApiPointers pointers, ComponentRegistry registry)
     {
         _registry = registry;

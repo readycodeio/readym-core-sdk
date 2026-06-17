@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Relay.Server.Sdk.Ecs.Systems;
 
-public abstract class PluginSystemBase
+public abstract class ModSystemBase
 {
     protected readonly struct UpdateTick(float deltaTime, float time)
     {

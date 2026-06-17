@@ -2,5 +2,5 @@
 
 public interface ISystemRegistry
 {
-    void RegisterSystem<T>() where T : PluginSystemBase;
+    void RegisterSystem<T>() where T : ModSystemBase;
 }

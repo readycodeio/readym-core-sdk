@@ -16,7 +16,7 @@ namespace ReadyM.Api.Generators;
 ///   1. Partial implementations (required by C# partial method rules).
 ///   2. ServerRpcManifest - the single source of truth for code assignment.
 ///
-/// Both the server plugin and the client mod reference the compiled Common assembly,
+/// Both the server mod and the client mod reference the compiled Common assembly,
 /// so they share this manifest without independently computing anything.
 /// </summary>
 [Generator]
@@ -97,7 +97,7 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         }
 
         // Use the namespace of the first contracts class as the manifest namespace.
-        // All [ServerRpcContracts] classes in a plugin should share the same root namespace.
+        // All [ServerRpcContracts] classes in a mod should share the same root namespace.
         var manifestNs = classes[0].Symbol.ContainingNamespace.ToDisplayString();
 
         // Partial implementations (required by C# for public/protected partial methods)
@@ -152,9 +152,9 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine($"namespace {ns};");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Single source of truth for server RPC code assignment in this plugin.");
+        sb.AppendLine("/// Single source of truth for server RPC code assignment in this mod.");
         sb.AppendLine("/// Referenced by both the server handler and client event generators.");
-        sb.AppendLine("/// Set <see cref=\"Offset\"/> once at plugin startup before any InitRpc() runs:");
+        sb.AppendLine("/// Set <see cref=\"Offset\"/> once at mod startup before any InitRpc() runs:");
         sb.AppendLine("/// <code>");
         sb.AppendLine($"///   {ManifestClassName}.Offset = offsetProvider.GetNextOffset({ManifestClassName}.TotalEventCount);");
         sb.AppendLine("/// </code>");
