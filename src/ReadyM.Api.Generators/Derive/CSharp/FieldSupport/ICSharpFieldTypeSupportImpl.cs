@@ -10,7 +10,6 @@ internal interface ICSharpFieldTypeSupportImpl : IDeriveSupportImplBase<ITypeSym
     void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitWriteDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
-    void EmitSkipDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context);
 
     bool HasDispose(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);

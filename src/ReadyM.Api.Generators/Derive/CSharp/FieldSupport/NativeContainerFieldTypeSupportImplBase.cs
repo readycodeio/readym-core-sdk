@@ -24,21 +24,6 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
         }
     }
     
-    public override void EmitSkipDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-    {
-        var tempVar = context.ClassState.AddTempThreadStatic(symbol);
-
-        context.Append("if ");
-        EmitDirtyCheck(symbol, context, forceParen: true);
-        context.AppendLine();
-        
-        using (context.WithCodeBlock())
-        {
-            context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
-            context.EmitDeserializeVar(tempVar, symbol);
-        }
-    }
-    
     public override void EmitAssignComponentBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         context.AppendLine($"Set{context.Member.GeneratedPropertyName}(value.{context.State.CurrentVar});");

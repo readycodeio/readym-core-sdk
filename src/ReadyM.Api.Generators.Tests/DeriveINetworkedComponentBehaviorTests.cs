@@ -214,7 +214,7 @@ public partial struct PrimitiveCoverageComponent : INetworkedComponent
         AssertPropertyValue(skippedReceiver, "Name", "Alpha");
         AssertEnumPropertyValue(assembly, skippedReceiver, "LargeState", "ReadyM.Api.Generators.Tests.TestTypes.LargeState", "Two");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Flag", true);
         AssertPropertyValue(skippedReceiver, "SignedByte", (sbyte)-12);
@@ -395,7 +395,7 @@ public partial struct ComplexCoverageComponent : INetworkedComponent
         AssertPropertyValue(skippedReceiver, "Position2", new Vector2(1.2f, 2.0f));
         AssertCustomValueValue(customValueType, GetProperty<object>(skippedReceiver, "Payload"), expectedId: 11, expectedAmount: 2.7f);
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Position2", new Vector2(1.2f, 2.0f));
         AssertPropertyValue(skippedReceiver, "Position3", new Vector3(3.2f, 4.0f, 5.0f));
@@ -495,7 +495,7 @@ public partial struct ComplexCoverageComponent : INetworkedComponent
         AssertPropertyValue(skippedReceiver, "Value0", originalFirst);
         AssertPropertyValue(skippedReceiver, "Value" + (fieldCount - 1), originalLast);
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Value0", originalFirst);
         AssertPropertyValue(skippedReceiver, "Value" + (fieldCount - 1), originalLast);
@@ -630,7 +630,7 @@ public partial struct ZeroFieldComponent : INetworkedComponent
         var skippedReceiver = Activator.CreateInstance(componentType);
         Assert.NotNull(skippedReceiver);
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
         Assert.False(GetProperty<bool>(skippedReceiver, "IsDirty"));
     }
 
@@ -702,7 +702,7 @@ public partial struct SingleFieldComponent : INetworkedComponent
         Invoke(skippedReceiver, "ClearDirty");
 
         AssertPropertyValue(skippedReceiver, "Value", 123);
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
         AssertPropertyValue(skippedReceiver, "Value", 123);
     }
 
@@ -782,7 +782,7 @@ public partial struct TwoFieldComponent : INetworkedComponent
         AssertPropertyValue(untouchedTarget, "Left", 0);
         AssertPropertyValue(untouchedTarget, "Right", 0);
 
-        InvokeSkipDelta(untouchedTarget, delta1);
+        SkipDeltaOfType(componentType, delta1);
         AssertPropertyValue(untouchedTarget, "Left", 0);
         AssertPropertyValue(untouchedTarget, "Right", 0);
     }
@@ -854,7 +854,7 @@ public partial struct TwoFieldComponent : INetworkedComponent
         InvokeDeserialize(skippedReceiver, serializedBytes);
         Invoke(skippedReceiver, "ClearDirty");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Value0", 1000);
         AssertPropertyValue(skippedReceiver, "Value63", 1063);
@@ -953,7 +953,7 @@ public partial struct NullableStringComponent : INetworkedComponent
         Assert.NotNull(skippedReceiver);
 
         InvokeDeserialize(skippedReceiver, baselineBytes);
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
         AssertPropertyValue(skippedReceiver, "Name", "Start");
     }
 
@@ -1014,7 +1014,7 @@ public partial struct ZeroDeltaComponent : INetworkedComponent
         SetProperty(skippedReceiver, "Value", 888);
         SetProperty(skippedReceiver, "Name", "AlsoKeep");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Value", 888);
         AssertPropertyValue(skippedReceiver, "Name", "AlsoKeep");
@@ -1437,7 +1437,7 @@ public partial struct GeneratedShapeComponent : INetworkedComponent
         Assert.Contains("Count =", generatedText);
         Assert.Contains("= reader.GetString();", generatedText);
         Assert.Contains("Name =", generatedText);
-        Assert.Contains("= (global::ReadyM.Api.Generators.Tests.TestTypes.TinyState)reader.GetByte();", generatedText);
+        Assert.Contains("= (ReadyM.Api.Generators.Tests.TestTypes.TinyState)reader.GetByte();", generatedText);
         Assert.Contains("State =", generatedText);
         Assert.Contains("var mask = reader.GetByte();", generatedText);
     }
@@ -1742,7 +1742,7 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
         InvokeDeserialize(skippedReceiver, baselineBytes);
         Invoke(skippedReceiver, "ClearDirty");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name256"), "Alpha");
         AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Name64"), "ShortA");
@@ -1954,7 +1954,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
 
         InvokeDeserialize(skippedReceiver, baselineBytes);
         Invoke(skippedReceiver, "ClearDirty");
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertNativeStringValue(GetProperty<object>(skippedReceiver, "Title"), "Base");
 
@@ -2161,7 +2161,7 @@ public partial struct NativeListCoverageComponent(AllocatorKind kind) : INetwork
         InvokeDeserialize(skippedReceiver, baselineBytes);
         Invoke(skippedReceiver, "ClearDirty");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         AssertPropertyValue(skippedReceiver, "Revision", 7);
         AssertNativeListSequence(numbersField.GetValue(skippedReceiver)!, 10, 20, 30);
@@ -2375,7 +2375,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
         InvokeDeserialize(skippedReceiver, baselineBytes);
         Invoke(skippedReceiver, "ClearDirty");
 
-        InvokeSkipDelta(skippedReceiver, deltaBytes);
+        SkipDeltaOfType(componentType, deltaBytes);
 
         var skippedStats = statsField.GetValue(skippedReceiver)!;
         var skippedWeights = weightsField.GetValue(skippedReceiver)!;

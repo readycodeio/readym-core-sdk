@@ -2,14 +2,12 @@
 
 public enum AllocatorKind : byte
 {
-    InternalCall = 0,
+    Cpp = 0,
     Marshal = 1,
     NativeUnity = 2,
-    Cpp = 3,
+    InternalCall = 3,
 #if UNITY_EDITOR || UNITY_STANDALONE
     Default = NativeUnity,
-#elif UNREAL_ENGINE
-    Default = Delegated,
 #else
     Default = Cpp,
 #endif

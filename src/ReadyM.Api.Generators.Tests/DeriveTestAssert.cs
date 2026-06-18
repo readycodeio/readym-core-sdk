@@ -214,10 +214,11 @@ public static class DeriveTestAssert
         Invoke(instance, "ReadDelta", reader);
     }
 
-    public static void InvokeSkipDelta(object instance, byte[] bytes)
+    public static void SkipDeltaOfType(Type componentType, byte[] bytes)
     {
+        var instance = Activator.CreateInstance(componentType)!;
         var reader = new NetDataReader(bytes);
-        Invoke(instance, "SkipDelta", reader);
+        Invoke(instance, "ReadDelta", reader);
         Assert.True(reader.EndOfData);
     }
 

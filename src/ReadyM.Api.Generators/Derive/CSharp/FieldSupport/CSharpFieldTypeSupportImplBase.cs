@@ -215,20 +215,6 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitSkipDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
-    {
-        context.Append("if ");
-        EmitDirtyCheck(symbol, context, forceParen: true);
-        context.AppendLine();
-
-        using (context.WithCodeBlock())
-        {
-            var dummyVar = context.MethodState.NewVarName("dummy");
-            context.AppendLine($"var {dummyVar} = default({FullyQualifiedTypeName(context.State.CurrentType)});");
-            context.EmitDeserializeVar(dummyVar, context.State.CurrentType);
-        }
-    }
-
     public virtual bool HasDispose(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         return symbol.AllInterfaces.Any(i => i.ContainingNamespace.ToDisplayString() == "System" && i.Name == "IDisposable");

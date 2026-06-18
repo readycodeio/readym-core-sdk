@@ -14,14 +14,14 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     where TValue : unmanaged
 {
     private static readonly EqualityComparer<TKey> _keyComparer = EqualityComparer<TKey>.Default;
-    
+
     internal enum EntryState : uint
     {
         None = 0,
         Free = 1,
         Used = 2,
     }
-    
+
     public struct Entry
     {
         public TypedPtr<Entry> Next;
@@ -74,9 +74,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
             _current = default;
         }
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() { }
     }
 
     private static readonly int[] _primes =
@@ -123,7 +121,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
 
     public bool IsCreated
         => !_buckets.IsNull;
-    
+
     public AllocatorKind Allocator
         => _allocator;
 
@@ -161,7 +159,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         _buckets.ZeroMemory(_count);
         _entries.ZeroMemory(_count);
 
-        _freeHead = TypedPtr<Entry>.Null; 
+        _freeHead = TypedPtr<Entry>.Null;
         _freeCount = 0;
         _usedCount = 0;
 
@@ -174,14 +172,17 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         _entries.Free(_allocator);
     }
 
-    public int Count
-        => _usedCount - _freeCount;
+    public int Count => _usedCount - _freeCount;
 
-    public int Capacity
-        => _count;
+    public int Capacity => _count;
 
     public readonly TypedPtr<Entry> Find(TKey key, uint valueHash)
     {
+        if (_count == 0)
+        {
+            return default;
+        }
+
         var bucketHeadPtr = _buckets[(int)(valueHash % _count)];
 
         while (!bucketHeadPtr.IsNull)
@@ -196,12 +197,17 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
                 bucketHeadPtr = bucketHead.Next;
             }
         }
-        
+
         return default;
     }
 
     public bool Remove(TKey key, uint valueHash)
     {
+        if (_count == 0)
+        {
+            return false;
+        }
+
         var bucketHash = (int)(valueHash % _count);
         var bucketHeadPtr = _buckets[bucketHash];
         var bucketPrevPtr = default(TypedPtr<Entry>);
@@ -233,6 +239,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
                 bucketHeadPtr = bucketHead.Next;
             }
         }
+
         return false;
     }
 
@@ -276,9 +283,8 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
             entry.Value = value;
 
             _buckets[bucketHash] = entryPtr;
+            return entryPtr;
         }
-
-        return entryPtr;
     }
 
     public void Clear()
@@ -297,7 +303,7 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
 
         var newBuckets = TypedArrayPtr<TypedPtr<Entry>>.Alloc(capacity, _allocator);
         newBuckets.ZeroMemory(capacity);
-        
+
         var newEntries = TypedArrayPtr<Entry>.Alloc(capacity, _allocator);
         newEntries.ZeroMemory(capacity);
         newEntries.CopyMemory(_entries, _count);
