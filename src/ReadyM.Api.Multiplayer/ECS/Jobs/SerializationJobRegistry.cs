@@ -92,12 +92,25 @@ internal sealed class SerializationJobRegistry
         }
 
         job.Execute(reader);
+
+        if (_onApplyDeltaByComponentId.TryGetValue(componentId, out var callback))
+        {
+            callback?.Invoke();
+        }
     }
+
+    [ThreadStatic]
+    private static List<NetworkedComponentId>? _componentIds;
 
     public void ApplySnapshot(NetDataReader reader)
     {
+        _componentIds ??= [];
+        _componentIds.Clear();
+
         while (reader.TryGetNetworkedComponentId(out var componentId))
         {
+            _componentIds.Add(componentId);
+
             if (!_applySnapshotJobs.TryGetValue(componentId, out var readerJob))
             {
                 _logger.LogError("No snapshot reader job registered for component ID: {Id}", componentId);
@@ -105,6 +118,16 @@ internal sealed class SerializationJobRegistry
             }
 
             readerJob.Execute(reader);
+        }
+
+        OnApplySnapshot?.Invoke();
+
+        foreach (var componentId in _componentIds)
+        {
+            if (_onApplySnapshotByComponentId.TryGetValue(componentId, out var callback))
+            {
+                callback?.Invoke();
+            }
         }
     }
 
