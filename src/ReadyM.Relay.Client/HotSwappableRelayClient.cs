@@ -318,14 +318,6 @@ internal class HotSwappableRelayClient : IRelayClient
         where T : INetSerializable
         => _client!.SendMessageToServer(eventCode, data, deliveryMethod);
 
-    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-        => _client!.SendMessageToPeers(eventCode, data, peers, deliveryMethod);
-
-    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-        => _client!.SendMessageRelayMode(eventCode, data, mode, deliveryMethod);
-
     public void LogEventStats() => _client?.LogEventStats();
 
     #region Event handlers

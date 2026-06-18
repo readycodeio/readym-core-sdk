@@ -894,7 +894,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                     return false;
                 
                 var clientHeader = responseItem.ClientHeader;
-                if (clientHeader.RelayMode == RelayMode.AreaOfInterestOthers || clientHeader.RelayMode == RelayMode.AreaOfInterestAll)
+                if (clientHeader.RelayMode is RelayMode.AreaOfInterestOthers or RelayMode.AreaOfInterestAll)
                 {
                     if (_netThreadContext.CurrentAreaId == null)
                         return false;

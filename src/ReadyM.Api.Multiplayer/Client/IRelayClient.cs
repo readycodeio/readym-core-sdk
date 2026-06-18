@@ -198,11 +198,5 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
 
-    void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable;
-
-    void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
-        where T : INetSerializable;
-
     void LogEventStats();
 }

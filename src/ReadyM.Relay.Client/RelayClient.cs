@@ -536,35 +536,6 @@ internal class RelayClient : IRelayClient
         SendMessage(message);
     }
 
-    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
-        data.Serialize(message.Writer);
-        SendMessage(message);
-    }
-
-    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
-        SendMessage(message);
-    }
-
     private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsSent = new();
     private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsRecv = new();
 
