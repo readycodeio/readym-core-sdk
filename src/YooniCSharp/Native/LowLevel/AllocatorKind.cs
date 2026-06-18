@@ -2,8 +2,8 @@
 
 public enum AllocatorKind : byte
 {
-    Cpp = 0,
-    Marshal = 1,
+    Marshal = 0,
+    Cpp = 1,
     NativeUnity = 2,
     InternalCall = 3,
 #if UNITY_EDITOR || UNITY_STANDALONE
