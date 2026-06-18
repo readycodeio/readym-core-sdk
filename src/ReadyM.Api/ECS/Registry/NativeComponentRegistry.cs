@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using ReadyM.Api.Compat;
 
@@ -9,6 +10,8 @@ internal class NativeComponentRegistry(IEnumerable<INativeComponentRegistration>
     : ComponentRegistryBase<INativeComponentRegistry, ValueType>(registrations), INativeComponentRegistry
 {
     private readonly Dictionary<int, Type> _componentTypes = new();
+
+    public List<Type> ComponentTypes => _componentTypes.Values.ToList();
 
     public override INativeComponentRegistry RegisterComponent<T>(T defaultValue = default) where T : struct
     {

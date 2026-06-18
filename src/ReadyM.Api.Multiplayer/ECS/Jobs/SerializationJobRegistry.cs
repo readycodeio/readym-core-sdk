@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.Compat;
 using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
@@ -27,6 +29,7 @@ internal sealed class SerializationJobRegistry
         }
     }
 
+    private readonly INetworkedComponentRegistry _registry;
     private readonly INetworkedEntityManager _netEntity;
     private readonly IPlayerIdProvider _playerIdProvider;
     private readonly ILogger _logger;
@@ -35,12 +38,17 @@ internal sealed class SerializationJobRegistry
     private readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> _applySnapshotJobs = [];
     private readonly Dictionary<NetworkedComponentId, IJob<EntityStore, QueryFilter, Entity?, SpanDataWriter>> _writeSnapshotJobs = [];
 
+    public event Action? OnApplySnapshot;
+    private readonly Dictionary<NetworkedComponentId, Action?> _onApplySnapshotByComponentId = [];
+    private readonly Dictionary<NetworkedComponentId, Action?> _onApplyDeltaByComponentId = [];
+
     public SerializationJobRegistry(
         INetworkedComponentRegistry registry,
         INetworkedEntityManager netEntity,
         IPlayerIdProvider playerIdProvider,
         ILogger logger)
     {
+        _registry = registry;
         _netEntity = netEntity;
         _playerIdProvider = playerIdProvider;
         _logger = logger;
@@ -98,5 +106,69 @@ internal sealed class SerializationJobRegistry
 
             readerJob.Execute(reader);
         }
+    }
+
+    public void AddApplySnapshotCallback(NetworkedComponentId componentId, Action? callback)
+        => _onApplySnapshotByComponentId[componentId] = (Action?)Delegate.Combine(_onApplySnapshotByComponentId.GetValueOrDefault(componentId), callback);
+
+    public void AddApplySnapshotCallback(Type type, Action? callback)
+    {
+        var componentId = _registry.GetNetworkedComponentId(type);
+        AddApplySnapshotCallback(componentId, callback);
+    }
+
+    public void AddApplySnapshotCallback<T>(Action? callback)
+        where T : IComponent
+    {
+        var componentId = _registry.GetNetworkedComponentId<T>();
+        AddApplySnapshotCallback(componentId, callback);
+    }
+
+    public void RemoveApplySnapshotCallback(NetworkedComponentId componentId, Action? callback)
+        => _onApplySnapshotByComponentId[componentId] = (Action?)Delegate.Remove(_onApplySnapshotByComponentId.GetValueOrDefault(componentId), callback);
+
+    public void RemoveApplySnapshotCallback(Type type, Action? callback)
+    {
+        var componentId = _registry.GetNetworkedComponentId(type);
+        RemoveApplySnapshotCallback(componentId, callback);
+    }
+
+    public void RemoveApplySnapshotCallback<T>(Action? callback)
+        where T : IComponent
+    {
+        var componentId = _registry.GetNetworkedComponentId<T>();
+        RemoveApplySnapshotCallback(componentId, callback);
+    }
+
+    public void AddApplyDeltaCallback(NetworkedComponentId componentId, Action? callback)
+        => _onApplyDeltaByComponentId[componentId] = (Action?)Delegate.Combine(_onApplyDeltaByComponentId.GetValueOrDefault(componentId), callback);
+
+    public void AddApplyDeltaCallback(Type type, Action? callback)
+    {
+        var componentId = _registry.GetNetworkedComponentId(type);
+        AddApplyDeltaCallback(componentId, callback);
+    }
+
+    public void AddApplyDeltaCallback<T>(Action? callback)
+        where T : IComponent
+    {
+        var componentId = _registry.GetNetworkedComponentId<T>();
+        AddApplyDeltaCallback(componentId, callback);
+    }
+
+    public void RemoveApplyDeltaCallback(NetworkedComponentId componentId, Action? callback)
+        => _onApplyDeltaByComponentId[componentId] = (Action?)Delegate.Remove(_onApplyDeltaByComponentId.GetValueOrDefault(componentId), callback);
+
+    public void RemoveApplyDeltaCallback(Type type, Action? callback)
+    {
+        var componentId = _registry.GetNetworkedComponentId(type);
+        RemoveApplyDeltaCallback(componentId, callback);
+    }
+
+    public void RemoveApplyDeltaCallback<T>(Action? callback)
+        where T : IComponent
+    {
+        var componentId = _registry.GetNetworkedComponentId<T>();
+        RemoveApplyDeltaCallback(componentId, callback);
     }
 }
