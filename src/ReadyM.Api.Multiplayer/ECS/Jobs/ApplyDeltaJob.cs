@@ -1,4 +1,5 @@
-﻿using Friflo.Engine.ECS;
+﻿using System;
+using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.Idents;
@@ -12,7 +13,10 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent = typeof(IForceSetComponent).IsAssignableFrom(typeof(T));
-    
+
+    [ThreadStatic]
+    private static T _skipinstance;
+
     public void Execute(NetDataReader reader)
     {
         var playerId = playerIdProvider.PlayerId;
@@ -24,7 +28,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
             {
                 // entity is dead or unknown, skip
-                default(T).ReadDelta(reader);
+                _skipinstance.ReadDelta(reader);
                 continue;
             }
 
@@ -37,7 +41,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 // This means that a client will receive deltas from the same entities that it SENDS deltas for.
                 // In order to avoid ping-ponging delta messages back and forth, we skip deltas for entities that are 
                 // owned by this client.
-                default(T).ReadDelta(reader);
+                _skipinstance.ReadDelta(reader);
                 continue;
             }
 
@@ -48,23 +52,24 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
             {
                 var component = default(T);
                 component.ReadDelta(reader);
-                entity.Value.Set(component);
 
                 if (playerId == owner)
                 {
                     component.ClearDirty();
                 }
+
+                entity.Value.Set(component);
             }
             else
             {
                 ref var component = ref entity.Value.GetComponent<T>();
                 component.ReadDelta(reader);
 
-				// FIXME: This should be simplified to playerId == PlayerId.Server
+                // FIXME: This should be simplified to playerId == PlayerId.Server
                 if (playerId == owner)
                 {
-                	// NOTE: Currently, dirty flags do not need to be set during server logic. Therefore we can clear them
-                	// right away, unlike on the client
+                    // NOTE: Currently, dirty flags do not need to be set during server logic. Therefore we can clear them
+                    // right away, unlike on the client
                     component.ClearDirty();
                 }
             }
