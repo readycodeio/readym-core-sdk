@@ -8,6 +8,7 @@ internal struct ShimRequestItem
 {
     public ShimRequestKind Kind;
     public AreaId AreaId;
+    public CellId[] CellIds;
     
     public ServerEventHeader ServerHeader;
     public CustomRelayEventHeader ClientHeader;

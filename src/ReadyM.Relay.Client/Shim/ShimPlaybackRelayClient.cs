@@ -22,13 +22,17 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         public readonly List<PlayerId> AllPlayers = new();
         public readonly List<PlayerId> AreaPlayers = new();
+        public readonly List<CellId> ActiveCells = new();
 
         public bool IsConnected { get; set; }
         public DisconnectedReason LastDisconnectedReason => DisconnectedReason.Unknown; // unused in Shimming
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
-        
-        ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
+
+        ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
+
+
+        ReadOnlyList <PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
         
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AreaPlayers
@@ -61,6 +65,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
+    public CellId[]? RequestedActiveCells { get; private set; }
 
     public PlayerId? PlayerId
     {
@@ -86,9 +91,11 @@ internal class ShimPlaybackRelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
+    public event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
     public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
     public event Action? OnRequestedLeaveArea;
     public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
+    public event Action<IRelayClientNetworkThreadContext>? OnActiveCellsSet;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
     public event Action<int>? OnPingUpdated;
@@ -522,6 +529,35 @@ internal class ShimPlaybackRelayClient : IRelayClient
         });
         
         OnRequestedJoinArea?.Invoke(areaId);
+    }
+
+    public void RequestSetActiveCells(CellId[] cellIds)
+    {
+        if (!_isRunning)
+        {
+            _logger.LogError("Relay client is not running");
+            return;
+        }
+
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+
+        if (RequestedActiveCells != null)
+        {
+            _logger.LogError("Already requested to set active cells.");
+            return;
+        }
+
+        AddRequest(new ShimRequestItem()
+        {
+            Kind = ShimRequestKind.RequestedSetActiveCells,
+            CellIds = cellIds,
+        });
+
+        OnRequestedSetActiveCells?.Invoke(new ReadOnlyArray<CellId>(cellIds));
     }
 
     public void RequestLeaveArea()

@@ -39,7 +39,8 @@ internal class ClientState : IDisposable
         OtherPlayerCreated,
         OtherPlayerDeleted,
         OtherPlayerInsideArea,
-        OtherPlayerOutsideArea
+        OtherPlayerOutsideArea,
+        SetActiveCells
     }
 
     private struct PendingEvent
@@ -50,6 +51,7 @@ internal class ClientState : IDisposable
         public PlayerId PlayerId;
         public bool IsNotify;
         public DisconnectedReason disconnectedReason;
+        public CellId[]? CellIds;
     }
 
     public struct AreaEntry
@@ -59,6 +61,17 @@ internal class ClientState : IDisposable
         public NetworkId AreaNetworkId { get; internal set; }
 
         public List<PlayerId> AreaPlayers { get; internal set; }
+    }
+
+    public struct CellEntry
+    {
+        public CellId CellId { get; internal set; }
+        public AreaId ParentAreaId { get; internal set; }
+        public Entity CellEntity { get; internal set; }
+        public NetworkId CellNetworkId { get; internal set; }
+
+        /// <summary>Players for whom this cell is considered active.</summary>
+        public List<PlayerId> CellPlayers { get; internal set; }
     }
 
     public struct PlayerEntry
@@ -81,6 +94,8 @@ internal class ClientState : IDisposable
     private PlayerEntry? _localPlayerEntry;
 
     private AreaEntry? _currentAreaEntry;
+
+    private readonly List<CellEntry> _currentCellEntries = new();
 
     // ReSharper disable once ChangeFieldTypeToSystemThreadingLock
     private readonly object _lock = new();
@@ -115,6 +130,9 @@ internal class ClientState : IDisposable
 
     public AreaId? CurrentAreaId
         => _currentAreaEntry?.AreaId;
+
+    public Api.Helpers.ReadOnlyList<CellId> ActiveCells
+        => _currentCellEntries.Select(entry => entry.CellId).ToList().WrapReadOnly();
 
     public AreaEntry? CurrentAreaEntry
         => _currentAreaEntry;
@@ -161,10 +179,12 @@ internal class ClientState : IDisposable
         _relayClient.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
         _relayClient.OnOtherPlayerJoinedArea += OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerLeftArea += OnOtherPlayerLeftAreaHandler;
+        _relayClient.OnActiveCellsSet += OnActiveCellsSetHandler;
     }
 
     public void Dispose()
     {
+        _relayClient.OnActiveCellsSet -= OnActiveCellsSetHandler;
         _relayClient.OnOtherPlayerLeftArea -= OnOtherPlayerLeftAreaHandler;
         _relayClient.OnOtherPlayerJoinedArea -= OnOtherPlayerJoinedAreaHandler;
         _relayClient.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
@@ -286,6 +306,24 @@ internal class ClientState : IDisposable
             {
                 Kind = PendingEventKind.OtherPlayerDeleted,
                 PlayerId = playerId,
+            });
+        }
+    }
+
+    private void OnActiveCellsSetHandler(IRelayClientNetworkThreadContext context)
+    {
+        lock (_lock)
+        {
+            var cellIds = context.ActiveCells;
+            var ids = new CellId[cellIds.Count];
+            for (var i = 0; i < cellIds.Count; i++)
+                ids[i] = cellIds[i];
+
+            _pendingEvents.Add(new PendingEvent
+            {
+                Kind = PendingEventKind.SetActiveCells,
+                PlayerId = context.PlayerId!.Value,
+                CellIds = ids,
             });
         }
     }
@@ -547,6 +585,8 @@ internal class ClientState : IDisposable
                     areaPlayers.Remove(pendingEvent.PlayerId);
                     break;
                 }
+                case PendingEventKind.SetActiveCells:
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -874,6 +914,37 @@ internal class ClientState : IDisposable
                     _currentAreaEntry!.Value.AreaPlayers.Remove(playerId);
                 }
 
+                break;
+            }
+            case PendingEventKind.SetActiveCells:
+            {
+                if (_localPlayerEntry == null)
+                {
+                    _logger.LogError("SetActiveCells event received, but no local player entry found. This should not happen.");
+                    break;
+                }
+
+                if (_currentAreaEntry == null)
+                {
+                    _logger.LogError("SetActiveCells event received, but local player is not in any area. This should not happen.");
+                    break;
+                }
+
+                _currentCellEntries.Clear();
+                if (pendingEvent.CellIds != null)
+                {
+                    foreach (var cellId in pendingEvent.CellIds)
+                    {
+                        _currentCellEntries.Add(new CellEntry
+                        {
+                            CellId = cellId,
+                            ParentAreaId = _currentAreaEntry.Value.AreaId,
+                            CellPlayers = [],
+                        });
+                    }
+                }
+
+                _logger.LogInformation("ECS SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _currentCellEntries.Count, pendingEvent.PlayerId);
                 break;
             }
             case PendingEventKind.OtherPlayerInsideArea:

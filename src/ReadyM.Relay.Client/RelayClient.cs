@@ -23,10 +23,13 @@ internal class RelayClient : IRelayClient
     {
         public readonly List<PlayerId> AllPlayers = [];
         public readonly List<PlayerId> AreaPlayers = [];
+        public readonly List<CellId> ActiveCells = [];
 
         public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
+
+        ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
 
         public DisconnectedReason LastDisconnectedReason { get; set; }
 
@@ -82,6 +85,7 @@ internal class RelayClient : IRelayClient
 
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
+    public CellId[]? RequestedActiveCells { get; private set; }
 
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
@@ -98,9 +102,11 @@ internal class RelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
+    public event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
     public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
     public event Action? OnRequestedLeaveArea;
     public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
+    public event Action<IRelayClientNetworkThreadContext>? OnActiveCellsSet;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
 
@@ -486,6 +492,38 @@ internal class RelayClient : IRelayClient
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestSetActiveCells(CellId[] cellIds)
+    {
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+
+        if (RequestedActiveCells != null)
+        {
+            _logger.LogError("Already requested to set active cells.");
+            return;
+        }
+
+        var newCellIds = new CellId[cellIds.Length];
+        cellIds.CopyTo(newCellIds, 0);
+        RequestedActiveCells = newCellIds;
+
+        var playerId = PlayerId;
+        if (playerId == null)
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
+
+        var writer = new NetDataWriter();
+        writer.Put((byte)RelayMessageCode.RequestSetActiveCellsEvent);
+        writer.Put(playerId.Value);
+        writer.PutArray(cellIds);
+        SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLeaveArea()
     {
         if (!RequestedConnect)
@@ -739,6 +777,36 @@ internal class RelayClient : IRelayClient
                     }
                 }
 
+                break;
+            }
+            case RelayMessageCode.RequestSetActiveCellsEvent:
+            {
+                var playerId = reader.Get<PlayerId>();
+
+                if (_netThreadContext.PlayerId == null)
+                {
+                    _logger.LogError("Received RequestSetActiveCellsEvent but PlayerId is not set");
+                    break;
+                }
+
+                if (playerId != PlayerId)
+                {
+                    _logger.LogError("Received RequestSetActiveCellsEvent for player {PlayerId} but expected {ExpectedPlayerId}", playerId, PlayerId);
+                    break;
+                }
+
+                var cellIds = reader.GetArray<CellId>();
+
+                _netThreadContext.ActiveCells.Clear();
+                if (cellIds != null)
+                {
+                    foreach (var cellId in cellIds)
+                        _netThreadContext.ActiveCells.Add(cellId);
+                }
+
+                _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
+
+                OnActiveCellsSet?.Invoke(_netThreadContext);
                 break;
             }
             default:

@@ -10,4 +10,5 @@ internal enum ShimRequestKind
     SentBuiltInMessage = 5,
     SentServerRpcMessage = 6,
     SentClientRpcMessage = 7,
+    RequestedSetActiveCells = 8,
 }

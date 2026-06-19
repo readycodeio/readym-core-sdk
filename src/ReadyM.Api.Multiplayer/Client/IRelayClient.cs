@@ -96,6 +96,13 @@ internal interface IRelayClient : IRpcClient, IDisposable
     event Action<AreaId>? OnRequestedJoinArea;
 
     /// <summary>
+    /// Fired immediately after the client requests to set active cells.
+    /// The cells are not yet active fot the client when this is fired.
+    /// Always called from the MAIN thread.
+    /// </summary>
+    event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
+
+    /// <summary>
     /// Fired when the client has successfully joined an area of interest. Before this event is fired, the client
     /// will not receive any messages addressed to the area of interest. The client will always leave an area of
     /// interest before joining a new one. It is currently impossible to be in multiple areas of interest at the same
@@ -103,6 +110,12 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, AreaId> OnJoinedArea;
+
+    /// <summary>
+    /// Fired when the server has confirmed setting the active cells.
+    /// Always called from the same NETWORK thread.
+    /// </summary>
+    event Action<IRelayClientNetworkThreadContext>? OnActiveCellsSet;
 
     /// <summary>
     /// Fired immediately after the client requests to leave an area of interest. The client has not yet left the
@@ -188,6 +201,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void RequestReconnect();
 
     void RequestJoinArea(AreaId areaId);
+    void RequestSetActiveCells(CellId[] cellIds);
     void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);
