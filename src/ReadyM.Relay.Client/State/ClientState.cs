@@ -824,6 +824,7 @@ internal class ClientState : IDisposable
                 // server. Scope entities are managed from the server and clients independently.
                 _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true, true);
                 _currentAreaEntry = null;
+                _currentCellEntries.Clear();
                 var localPlayer = _playerEntries[playerId];
                 localPlayer.CurrentAreaId = null;
                 _playerEntries[playerId] = localPlayer;

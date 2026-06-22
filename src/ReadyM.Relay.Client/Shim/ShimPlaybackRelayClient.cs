@@ -826,6 +826,8 @@ internal class ShimPlaybackRelayClient : IRelayClient
                 
                 _netThreadContext.CurrentAreaId = null;
                 _netThreadContext.AreaPlayers.Remove(playerId);
+                _netThreadContext.ActiveCells.Clear();
+                RequestedActiveCells = null;
                 OnLeftArea?.Invoke(_netThreadContext);
                 break;
             }
