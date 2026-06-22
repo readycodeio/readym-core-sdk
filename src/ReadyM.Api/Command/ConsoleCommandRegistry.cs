@@ -34,7 +34,7 @@ internal sealed class ConsoleCommandRegistry
     {
         if (!_parser.IsCommandNameValid(commandName, out var errorMessage))
         {
-            throw new Exception($"Invalid command name: '{commandName}'. {errorMessage}");
+            throw new ArgumentException($"Invalid command name: '{commandName}'. {errorMessage}", nameof(commandName));
         }
 
         if (!_commands.TryAdd(commandName, command))
