@@ -4,6 +4,7 @@ using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Mapping.Policies.Data;
 using ReadyM.Api.Mapping.Policies.Event;
 using ReadyM.Api.Mapping.Tags;
 
@@ -27,13 +28,37 @@ internal class NativeMappingPolicyDirectory(
         ManagedTarget = GCHandle.ToIntPtr(GCHandle.Alloc(this))
     };
     
-    // TODO: Bindings for these methods
-    // bool ShouldGameCopyToEcs(in TContext context);
-    // bool ShouldEcsCopyToGame(in TContext context);
-    // bool CanSetFromApi(in TContext context);
-    // bool CanGameSetLocally(in TContext context);\
+    public bool ShouldGameCopyToEcs(int componentId, IntPtr context)
+        => TryResolveData(componentId, context, out var policy, out var entity) && policy.ShouldGameCopyToEcs(entity);
 
-    // TODO: (Kamil) implement ComponentFieldMappingRegistry in C++, calling these in place of "policyDir.ForData<TComponent, Entity>().XXX"
+    public bool ShouldEcsCopyToGame(int componentId, IntPtr context)
+        => TryResolveData(componentId, context, out var policy, out var entity) && policy.ShouldEcsCopyToGame(entity);
+
+    public bool CanSetFromApi(int componentId, IntPtr context)
+        => TryResolveData(componentId, context, out var policy, out var entity) && policy.CanSetFromApi(entity);
+
+    public bool CanGameSetLocally(int componentId, IntPtr context)
+        => TryResolveData(componentId, context, out var policy, out var entity) && policy.CanGameSetLocally(entity);
+
+    private bool TryResolveData(int componentId, IntPtr context, out IMappingDataPolicy<Entity> policy, out Entity entity)
+    {
+        policy = null!;
+        entity = default;
+
+        var type = registry.GetComponentType(componentId);
+        if (type == null)
+            throw new ArgumentException($"No component type found for component ID {componentId}");
+
+        if (!entityMapper.IsMapped(context, out var mapped))
+        {
+            logger.LogError("Failed to map entity context {Context} for native data policy of component id {ComponentId} type {Type}", context, componentId, type.FullName);
+            return false;
+        }
+
+        policy = ForData(type);
+        entity = mapped.Value;
+        return true;
+    }
 
     public bool CanGameEventNotifyEcs(int eventId)
     {

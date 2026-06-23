@@ -612,8 +612,6 @@ namespace {ns}
 
 """);
 
-        // API-dirty accessors, mirroring the C# side. MarkChangedFromApi treats the
-        // currently-dirty fields as set-from-API so the sync layer pushes them to the game.
         var maskType = CppTypeName(model.MaskInfo.Type);
         sb.AppendLine($$"""
     public:

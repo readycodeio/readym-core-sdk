@@ -69,26 +69,25 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         }
     }
 
-    public IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
-        where TComponent : struct, IMappingContext<TContext>
+    private IMappingDataPolicy<TContext> ForData<TContext>(Type componentType)
     {
         lock (_dataLock)
         {
-            var key = (typeof(TComponent), typeof(TContext));
+            var key = (componentType, typeof(TContext));
 
             if (!_dataPolicies.TryGetValue(key, out var untypedPolicy))
             {
                 foreach (var factory in _dataPolicyFactories)
                 {
-                    if (!factory.Supports(typeof(TComponent), typeof(TContext)))
+                    if (!factory.Supports(componentType, typeof(TContext)))
                         continue;
 
-                    untypedPolicy = factory.CreatePolicy<TContext>(typeof(TComponent));
+                    untypedPolicy = factory.CreatePolicy<TContext>(componentType);
                     break;
                 }
 
                 if (untypedPolicy == null)
-                    throw new ArgumentException($"No data policy registered for data type {typeof(TComponent)}");
+                    throw new ArgumentException($"No data policy registered for data type {componentType}");
 
                 _dataPolicies.Add(key, untypedPolicy);
             }
@@ -97,9 +96,16 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
         }
     }
 
+    public IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
+        where TComponent : struct, IMappingContext<TContext>
+        => ForData<TContext>(typeof(TComponent));
+
     public IMappingDataPolicy<Entity> ForData<TComponent>()
         where TComponent : struct, IMappingContext<Entity>
         => ForData<TComponent, Entity>();
+
+    public IMappingDataPolicy<Entity> ForData(Type componentType)
+        => ForData<Entity>(componentType);
 
     public IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType)
     {

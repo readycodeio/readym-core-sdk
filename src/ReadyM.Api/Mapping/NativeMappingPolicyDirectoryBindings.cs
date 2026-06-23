@@ -54,4 +54,36 @@ public static class NativeMappingPolicyDirectoryBindings
         var manager = (NativeMappingPolicyDirectory)GCHandle.FromIntPtr(objectPtr).Target!;
         return manager.CanGameEventRunLocally(eventId) ? (byte)1 : (byte)0;
     }
+
+    public delegate byte ShouldGameCopyToEcsDelegate(IntPtr objectPtr, int componentId, IntPtr context);
+
+    public static byte ShouldGameCopyToEcs(IntPtr objectPtr, int componentId, IntPtr context)
+    {
+        var manager = (NativeMappingPolicyDirectory)GCHandle.FromIntPtr(objectPtr).Target!;
+        return manager.ShouldGameCopyToEcs(componentId, context) ? (byte)1 : (byte)0;
+    }
+
+    public delegate byte ShouldEcsCopyToGameDelegate(IntPtr objectPtr, int componentId, IntPtr context);
+
+    public static byte ShouldEcsCopyToGame(IntPtr objectPtr, int componentId, IntPtr context)
+    {
+        var manager = (NativeMappingPolicyDirectory)GCHandle.FromIntPtr(objectPtr).Target!;
+        return manager.ShouldEcsCopyToGame(componentId, context) ? (byte)1 : (byte)0;
+    }
+
+    public delegate byte CanSetFromApiDelegate(IntPtr objectPtr, int componentId, IntPtr context);
+
+    public static byte CanSetFromApi(IntPtr objectPtr, int componentId, IntPtr context)
+    {
+        var manager = (NativeMappingPolicyDirectory)GCHandle.FromIntPtr(objectPtr).Target!;
+        return manager.CanSetFromApi(componentId, context) ? (byte)1 : (byte)0;
+    }
+
+    public delegate byte CanGameSetLocallyDelegate(IntPtr objectPtr, int componentId, IntPtr context);
+
+    public static byte CanGameSetLocally(IntPtr objectPtr, int componentId, IntPtr context)
+    {
+        var manager = (NativeMappingPolicyDirectory)GCHandle.FromIntPtr(objectPtr).Target!;
+        return manager.CanGameSetLocally(componentId, context) ? (byte)1 : (byte)0;
+    }
 }
