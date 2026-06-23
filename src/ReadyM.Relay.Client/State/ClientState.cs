@@ -14,6 +14,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
+using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client.State;
 
@@ -38,7 +39,7 @@ internal class ClientState : IDisposable
         public AreaId AreaId;
         public PlayerId PlayerId;
         public bool IsNotify;
-        public DisconnectReason DisconnectReason;
+        public DisconnectedReason disconnectedReason;
     }
 
     public struct AreaEntry
@@ -107,7 +108,7 @@ internal class ClientState : IDisposable
         => _currentAreaEntry?.AreaEntity;
 
     public event Action<PlayerId, Entity>? OnConnected;
-    public event Action<PlayerId, Entity?, DisconnectReason>? OnDisconnected;
+    public event Action<PlayerId, Entity?, DisconnectedReason>? OnDisconnected;
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -188,15 +189,15 @@ internal class ClientState : IDisposable
         _ecsLoop.Scheduler.Schedule(static (_, self) => { self.ProcessPendingEvents(); }, this);
     }
 
-    private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
+    private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context)
     {
         lock (_lock)
         {
-            _pendingEvents.Add(new PendingEvent()
+            _pendingEvents.Add(new PendingEvent
             {
                 Kind = PendingEventKind.Disconnected,
                 PlayerId = context.PlayerId ?? PlayerId.Invalid,
-                DisconnectReason = disconnectReason,
+                disconnectedReason = context.LastDisconnectedReason,
             });
         }
 
@@ -687,7 +688,7 @@ internal class ClientState : IDisposable
                     _playerEntries.Remove(otherPlayerId);
                 }
 
-                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry?.PlayerEntity, pendingEvent.DisconnectReason);
+                OnDisconnected?.Invoke(pendingEvent.PlayerId, _localPlayerEntry?.PlayerEntity, pendingEvent.disconnectedReason);
 
                 _allPlayers.Clear();
                 _playerEntries.Clear();

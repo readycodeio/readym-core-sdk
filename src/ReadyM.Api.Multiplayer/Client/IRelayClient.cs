@@ -5,7 +5,6 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
@@ -71,7 +70,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// attempting to send messages in the disconnected state will result in an exception.
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    event Action<IRelayClientNetworkThreadContext>? OnDisconnected;
 
     /// <summary>
     /// Fired when another player has connected to the server. This will fire for all players regardless
