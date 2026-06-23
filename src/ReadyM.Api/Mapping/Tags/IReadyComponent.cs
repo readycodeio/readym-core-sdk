@@ -8,4 +8,5 @@ public interface IReadyComponent : IComponent
     bool ChangedFromApi { get; }
     void ClearApiFlag();
     void ClearApiFlag(int field);
+    void MarkChangedFromApi();
 }

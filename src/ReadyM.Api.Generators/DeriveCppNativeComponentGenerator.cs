@@ -604,12 +604,39 @@ namespace {ns}
         {
             _dirtyMask = 0;
         }
-        
+
         bool IsDirty()
         {
             return _dirtyMask != 0;
         }
-        
+
+""");
+
+        // API-dirty accessors, mirroring the C# side. MarkChangedFromApi treats the
+        // currently-dirty fields as set-from-API so the sync layer pushes them to the game.
+        var maskType = CppTypeName(model.MaskInfo.Type);
+        sb.AppendLine($$"""
+    public:
+        void ClearApiFlag()
+        {
+            _apiMask = 0;
+        }
+
+        void ClearApiFlag(int field)
+        {
+            _apiMask = static_cast<{{maskType}}>(_apiMask & ~(static_cast<{{maskType}}>(1) << field));
+        }
+
+        bool ChangedFromApi() const
+        {
+            return _apiMask != 0;
+        }
+
+        void MarkChangedFromApi()
+        {
+            _apiMask = _dirtyMask;
+        }
+
 """);
     }
 
