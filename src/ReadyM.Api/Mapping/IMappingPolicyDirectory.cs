@@ -18,6 +18,8 @@ internal interface IMappingPolicyDirectory
 
     IMappingDataPolicy<Entity> ForData<TComponent>()
         where TComponent : struct, IMappingContext<Entity>;
+    
+    IMappingDataPolicy<Entity> ForData(Type componentType); // TODO: Kamil, TContext is always Entity here
 
     IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
         where TEvent : struct, IMappingContext<TContext>;

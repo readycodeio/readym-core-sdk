@@ -155,7 +155,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
+    public virtual void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)  // TODO: Kamil - reference for how to generate Fields for C++ interop components
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;

@@ -279,7 +279,7 @@ using {ns};
         DeriveTargetModel model,
         CSharpClassState classState)
     {
-        sb.AppendLine("    public static class Fields\n        {");
+        sb.AppendLine("    public static class Fields\n        {");  // TODO: Kamil - reference for how to generate these in C++ interop components
         foreach (var member in model.Members)
         {
             var impl = GetEmitFieldSupportImpl(member, true);

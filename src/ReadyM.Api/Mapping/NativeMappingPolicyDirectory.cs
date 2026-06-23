@@ -26,6 +26,14 @@ internal class NativeMappingPolicyDirectory(
     {
         ManagedTarget = GCHandle.ToIntPtr(GCHandle.Alloc(this))
     };
+    
+    // TODO: Bindings for these methods
+    // bool ShouldGameCopyToEcs(in TContext context);
+    // bool ShouldEcsCopyToGame(in TContext context);
+    // bool CanSetFromApi(in TContext context);
+    // bool CanGameSetLocally(in TContext context);\
+
+    // TODO: (Kamil) implement ComponentFieldMappingRegistry in C++, calling these in place of "policyDir.ForData<TComponent, Entity>().XXX"
 
     public bool CanGameEventNotifyEcs(int eventId)
     {
