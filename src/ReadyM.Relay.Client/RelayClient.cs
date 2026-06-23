@@ -858,10 +858,14 @@ internal class RelayClient : IRelayClient
         _netThreadContext.AreaPlayers.Clear();
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
-        
-        if (info.Reason == LiteNetLib.DisconnectReason.DisconnectPeerCalled)
+
+        if (info.Reason == DisconnectReason.DisconnectPeerCalled)
         {
             _netThreadContext.LastDisconnectedReason = DisconnectedReason.ClientDisconnected;
+        }
+        else if (info.Reason == DisconnectReason.Timeout)
+        {
+            _netThreadContext.LastDisconnectedReason = DisconnectedReason.Timeout;
         }
         else if (info.AdditionalData.TryGetByte(out var b))
         {
