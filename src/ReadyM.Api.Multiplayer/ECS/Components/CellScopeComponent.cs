@@ -14,6 +14,7 @@ internal partial struct CellScopeComponent : IIndexedComponent<CellId>
     private byte _apiMask;
 
     private CellId _cellId;
+    private AreaId _parentAreaId;
     private PlayerId _masterClient;
 
     public CellId GetIndexedValue()

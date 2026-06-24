@@ -968,18 +968,32 @@ internal class ClientState : IDisposable
                     if (cellQuery.Count == 0)
                         return false;
 
-                    var cellEntity = cellQuery.Entities.First();
+                    // Cells are area-scoped: the same cell id can exist in different areas, and cell scope
+                    // entities are networked globally, so the query can match cells from other areas too.
+                    // Pick the cell scope entity that belongs to the player's current area.
+                    Entity? cellEntity = null;
+                    foreach (var candidate in cellQuery.Entities)
+                    {
+                        if (candidate.GetComponent<CellScopeComponent>().ParentAreaId == _currentAreaEntry.Value.AreaId)
+                        {
+                            cellEntity = candidate;
+                            break;
+                        }
+                    }
 
-                    if (cellEntity.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
+                        if (cellEntity == null)
+                            return false;
+
+                    if (cellEntity.Value.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
                         return false;
 
-                    var meta = cellEntity.GetComponent<MetadataComponent>();
+                    var meta = cellEntity.Value.GetComponent<MetadataComponent>();
 
                     _currentCellEntries.Add(new CellEntry
                     {
                         CellId = cellId,
                         ParentAreaId = _currentAreaEntry.Value.AreaId,
-                        CellEntity = cellEntity,
+                        CellEntity = cellEntity.Value,
                         CellNetworkId = meta.NetId,
                         CellPlayers = [],
                     });
