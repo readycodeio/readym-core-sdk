@@ -8,7 +8,8 @@ using ReadyM.Api.Multiplayer.Mapping.Tags;
 
 namespace ReadyM.Api.Multiplayer.Mapping.Data;
 
-internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel, ILogger logger) : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
+internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory policyDir, DataSideChannel sideChannel, ILogger logger)
+    : IComponentFieldMappingRegistry, IComponentFieldMappingRegistryConfig
 {
     private DataSideChannel SideChannel => sideChannel;
     private ILogger Logger => logger;
@@ -209,8 +210,17 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
         }
     }
 
-    public bool CanLoadFromGame<TComponent>(Entity entity, out LoadFromGameHelper<TComponent> fromGameHelper) where TComponent : struct, IComponent, IMappingContext<Entity>
+    public bool CanLoadFromGame<TComponent>(Entity entity, out LoadFromGameHelper<TComponent> fromGameHelper)
+        where TComponent : struct, IReadyComponent, IMappingContext<Entity>
     {
+        var component = entity.GetComponent<TComponent>();
+
+        if (policyDir.ForData<TComponent, Entity>().CanSetFromApi(entity) && component.ChangedFromApi)
+        {
+            fromGameHelper = default;
+            return false;
+        }
+
         if (policyDir.ForData<TComponent, Entity>().ShouldGameCopyToEcs(entity))
         {
             fromGameHelper = new LoadFromGameHelper<TComponent>(this, entity);
@@ -238,7 +248,8 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
         }
     }
 
-    public bool CanSetFromApi<TComponent>(Entity entity, out SetFromApiHelper<TComponent> fromApiHelper) where TComponent : struct, IComponent, IMappingContext<Entity>
+    public bool CanSetFromApi<TComponent>(Entity entity, out SetFromApiHelper<TComponent> fromApiHelper)
+        where TComponent : struct, IReadyComponent, IMappingContext<Entity>
     {
         if (policyDir.ForData<TComponent, Entity>().CanSetFromApi(entity))
         {

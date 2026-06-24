@@ -11,10 +11,9 @@ namespace ReadyM.Api.Command;
 
 internal class ConsoleCommandParser
 {
-    private static readonly Tokenizer<CommandToken> Tokenizer =
+    private readonly Tokenizer<CommandToken> tokenizer =
         new TokenizerBuilder<CommandToken>()
             .Ignore(Span.WhiteSpace)
-
             .Match(Character.EqualTo('('), CommandToken.LeftParen)
             .Match(Character.EqualTo(')'), CommandToken.RightParen)
             .Match(Character.EqualTo('['), CommandToken.LeftBracket)
@@ -30,7 +29,7 @@ internal class ConsoleCommandParser
 
             // numbers incl exponent
             .Match(Numerics.Decimal, CommandToken.Decimal)
-            
+
             // boolean literals
             .Match(Span.EqualToIgnoreCase("true"), CommandToken.True)
             .Match(Span.EqualToIgnoreCase("false"), CommandToken.False)
@@ -38,11 +37,11 @@ internal class ConsoleCommandParser
             // identifiers (command name, bare words, etc.)
             .Match(Identifier.CStyle, CommandToken.Identifier)
             .Build();
-    
-    private static TokenListParser<CommandToken, string> CommandName { get; } =
+
+    private TokenListParser<CommandToken, string> CommandName { get; } =
         from name in Token.EqualTo(CommandToken.Identifier).Select(t => t.ToStringValue())
         select name;
-    
+
     private readonly List<(string ParserName, TokenListParser<CommandToken, object?> Parser)> _argParsers = new();
     private bool _argParsersDirty;
     private TokenListParser<CommandToken, ParsedCommandCall>? _cachedParser;
@@ -62,7 +61,7 @@ internal class ConsoleCommandParser
         _argParsers.Add((parserName, parser));
         _argParsersDirty = true;
     }
-    
+
     public void AddArgParser<T>(string parserName, TokenListParser<CommandToken, T> parser)
     {
         if (parser == null)
@@ -70,12 +69,12 @@ internal class ConsoleCommandParser
         _argParsers.Add((parserName, parser.Select(x => (object?)x)));
         _argParsersDirty = true;
     }
-    
+
     private TokenListParser<CommandToken, ParsedCommandCall> Build()
     {
         if (!_argParsersDirty && _cachedParser != null)
             return _cachedParser;
-        
+
         if (_argParsers.Count == 0)
             throw new InvalidOperationException("No argument parsers registered.");
 
@@ -93,14 +92,29 @@ internal class ConsoleCommandParser
         _argParsersDirty = false;
         return _cachedParser;
     }
-    
+
+    public bool IsCommandNameValid(string commandName, [NotNullWhen(false)] out string? error)
+    {
+        var tokenList = tokenizer.Tokenize(commandName);
+        var result = CommandName.TryParse(tokenList);
+
+        if (result is { HasValue: true, Remainder.IsAtEnd: true })
+        {
+            error = null;
+            return true;
+        }
+
+        error = result.FormatErrorMessageFragment();
+        return false;
+    }
+
     public bool TryParse(string input, [NotNullWhen(true)] out ParsedCommandCall? parsedCommandCall, [NotNullWhen(false)] out CommandError? error)
     {
         TokenList<CommandToken> tokenList;
 
         try
         {
-            tokenList = Tokenizer.Tokenize(input);
+            tokenList = tokenizer.Tokenize(input);
         }
         catch (ParseException ex)
         {
@@ -108,7 +122,7 @@ internal class ConsoleCommandParser
             error = new CommandError.InvalidCommandFormat(input, ex);
             return false;
         }
-        
+
         var commandName = CommandName.TryParse(tokenList);
         if (!commandName.HasValue)
         {
@@ -116,7 +130,7 @@ internal class ConsoleCommandParser
             error = new CommandError.InvalidCommandFormat(input, null);
             return false;
         }
-        
+
         var argList = new List<object>();
         tokenList = commandName.Remainder;
 
@@ -125,7 +139,7 @@ internal class ConsoleCommandParser
             object? arg = null;
 
             TokenListParserResult<CommandToken, object?> r = default;
-            
+
             foreach (var p in _argParsers)
             {
                 r = p.Parser.TryParse(tokenList);
@@ -142,11 +156,11 @@ internal class ConsoleCommandParser
                 error = new CommandError.InvalidArgumentFormat(input, argList.Count, tokenList.First().Position);
                 return false;
             }
-            
+
             argList.Add(arg);
             tokenList = r.Remainder;
         }
-        
+
         parsedCommandCall = new ParsedCommandCall(commandName.Value, argList);
         error = null;
         return true;

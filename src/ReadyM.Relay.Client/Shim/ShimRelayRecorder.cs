@@ -122,12 +122,12 @@ internal class ShimRelayRecorder : IDisposable
         AddResponseItem(responseItem);
     }
 
-    private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context, DisconnectReason disconnectReason)
+    private void OnDisconnectedHandler(IRelayClientNetworkThreadContext context)
     {
-        var responseItem = new ShimResponseItem()
+        var responseItem = new ShimResponseItem
         {
             Kind = ShimResponseKind.Disconnected,
-            DisconnectReason = disconnectReason,
+            DisconnectedReason = context.LastDisconnectedReason,
         };
         AddResponseItem(responseItem);
     }

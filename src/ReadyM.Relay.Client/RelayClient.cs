@@ -28,7 +28,7 @@ internal class RelayClient : IRelayClient
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
 
-        public DisconnectReason LastDisconnectReason { get; set; }
+        public DisconnectedReason LastDisconnectedReason { get; set; }
 
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
@@ -93,7 +93,7 @@ internal class RelayClient : IRelayClient
     public event Action? OnRequestedConnect;
     public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
-    public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    public event Action<IRelayClientNetworkThreadContext>? OnDisconnected;
 
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
@@ -389,9 +389,9 @@ internal class RelayClient : IRelayClient
 
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
         // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
-        if (_netThreadContext.LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
+        if (_netThreadContext.LastDisconnectedReason != DisconnectedReason.ClientDisconnected)
         {
-            _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectReason);
+            _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectedReason);
         }
 
         _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
@@ -420,7 +420,7 @@ internal class RelayClient : IRelayClient
         if (_netThreadContext.PlayerId == null)
         {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
-            OnDisconnected?.Invoke(_netThreadContext, _netThreadContext.LastDisconnectReason);
+            OnDisconnected?.Invoke(_netThreadContext);
         }
     }
 
@@ -533,35 +533,6 @@ internal class RelayClient : IRelayClient
     {
         var message = RelayMessage.ToServer(eventCode, deliveryMethod);
         data.Serialize(message.Writer);
-        SendMessage(message);
-    }
-
-    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
-        data.Serialize(message.Writer);
-        SendMessage(message);
-    }
-
-    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
         SendMessage(message);
     }
 
@@ -885,25 +856,24 @@ internal class RelayClient : IRelayClient
         _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
-        _netThreadContext.LastDisconnectReason = info.Reason;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
 
-        // TODO: Cannot change the API on OnDisconnected since we're making 0.2.1 a non-breaking update
-        // We should update this in the next version
-        var liteNetLibReason = info.Reason;
-        if (info.AdditionalData.TryGetByte(out var b))
+        if (info.Reason == DisconnectReason.DisconnectPeerCalled)
         {
-            var reason = (KickReason)b;
-            _logger.LogWarning("Disconnected from server with kick reason: {KickReason}", reason);
-
-            if (reason is KickReason.Kicked or KickReason.Banned)
-            {
-                liteNetLibReason = DisconnectReason.ConnectionRejected;
-            }
+            _netThreadContext.LastDisconnectedReason = DisconnectedReason.ClientDisconnected;
+        }
+        else if (info.Reason == DisconnectReason.Timeout)
+        {
+            _netThreadContext.LastDisconnectedReason = DisconnectedReason.Timeout;
+        }
+        else if (info.AdditionalData.TryGetByte(out var b))
+        {
+            _netThreadContext.LastDisconnectedReason = (DisconnectedReason)b;
+            _logger.LogWarning("Disconnected from server with reason: {Reason}", _netThreadContext.LastDisconnectedReason);
         }
 
-        OnDisconnected?.Invoke(_netThreadContext, liteNetLibReason);
+        OnDisconnected?.Invoke(_netThreadContext);
     }
 
     public void LogEventStats()
