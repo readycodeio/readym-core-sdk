@@ -39,7 +39,22 @@ internal class ClientNetworkedEntityState(
         var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents);
         return entity;
     }
-    
+
+    public Entity CreateCellEntity(
+        CellId cellId,
+        ArchetypeId archetypeId,
+        Action<EntityBuilder>? setComponents = null,
+        PlayerId? ownerOverride = null)
+    {
+        var cellEntry = state.GetActiveCellEntry(cellId);
+        if (!cellEntry.HasValue)
+            throw new InvalidOperationException($"Attempted to create a networked entity in cell {cellId} but that cell is not active.");
+
+        var scopeEntity = cellEntry.Value.CellEntity;
+        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents);
+        return entity;
+    }
+
     public Entity CreatePlayerEntity(
         ArchetypeId archetypeId,
         Action<EntityBuilder>? setComponents = null)

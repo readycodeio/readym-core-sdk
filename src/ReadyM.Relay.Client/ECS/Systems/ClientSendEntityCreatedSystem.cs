@@ -64,6 +64,13 @@ internal class ClientSendEntityCreatedSystem(SerializationJobRegistry serializat
                 var context = SendContext.FromArea(state.CurrentAreaEntry.Value.AreaId, scopeEntity);
                 base.OnUpdate(context);
             }
+
+            // Send cell scoped updates
+            foreach (var cellEntry in state.ActiveCellEntries)
+            {
+                var context = SendContext.FromCell(cellEntry.CellId, cellEntry.CellEntity);
+                base.OnUpdate(context);
+            }
         }
     }
 }

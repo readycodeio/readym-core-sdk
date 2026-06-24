@@ -134,6 +134,12 @@ internal class ClientState : IDisposable
     public Api.Helpers.ReadOnlyList<CellId> ActiveCells
         => _currentCellEntries.Select(entry => entry.CellId).ToList().WrapReadOnly();
 
+    public Api.Helpers.ReadOnlyList<CellEntry> ActiveCellEntries
+        => _currentCellEntries.WrapReadOnly();
+
+    public CellEntry? GetActiveCellEntry(CellId cellId)
+        => _currentCellEntries.FirstOrDefault(e => e.CellId == cellId) is var entry && entry.CellId == cellId ? entry : (CellEntry?)null;
+
     public AreaEntry? CurrentAreaEntry
         => _currentAreaEntry;
 
@@ -152,6 +158,7 @@ internal class ClientState : IDisposable
 
     public ArchetypeId AreaArchetype { get; }
     public ArchetypeId PlayerArchetype { get; }
+    public ArchetypeId CellArchetype { get; }
 
     public ClientState(
         Store world,
@@ -159,6 +166,7 @@ internal class ClientState : IDisposable
         IRelayClient relayClient,
         DefaultAreaArchetypeRegistration areaArchetype,
         DefaultPlayerArchetypeRegistration playerArchetype,
+        DefaultCellArchetypeRegistration cellArchetype,
         ILogger logger)
     {
         _world = world;
@@ -168,6 +176,7 @@ internal class ClientState : IDisposable
 
         AreaArchetype = areaArchetype.AreaArchetype;
         PlayerArchetype = playerArchetype.PlayerArchetype;
+        CellArchetype = cellArchetype.CellArchetype;
 
         _system = new ProcessPendingEventsSystem(this);
 
@@ -820,11 +829,18 @@ internal class ClientState : IDisposable
 
                 _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
 
+                // Destroy all active cell scope entities before clearing them
+                foreach (var cellEntry in _currentCellEntries)
+                {
+                    if (cellEntry.CellEntity != default)
+                        _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
+                }
+                _currentCellEntries.Clear();
+
                 // NOTE: The entity for the area scope gets deleted, however the ECS deletion message is NOT sent to the
                 // server. Scope entities are managed from the server and clients independently.
                 _netEntity.DeleteEntitiesInScope(_currentAreaEntry.Value.AreaEntity, true, true);
                 _currentAreaEntry = null;
-                _currentCellEntries.Clear();
                 var localPlayer = _playerEntries[playerId];
                 localPlayer.CurrentAreaId = null;
                 _playerEntries[playerId] = localPlayer;
@@ -931,18 +947,42 @@ internal class ClientState : IDisposable
                     break;
                 }
 
-                _currentCellEntries.Clear();
-                if (pendingEvent.CellIds != null)
+                var newCellIds = pendingEvent.CellIds ?? [];
+
+                // Destroy entities in cells that are no longer active
+                foreach (var existing in _currentCellEntries)
                 {
-                    foreach (var cellId in pendingEvent.CellIds)
+                    if (!newCellIds.Contains(existing.CellId) && existing.CellEntity != default)
                     {
-                        _currentCellEntries.Add(new CellEntry
-                        {
-                            CellId = cellId,
-                            ParentAreaId = _currentAreaEntry.Value.AreaId,
-                            CellPlayers = [],
-                        });
+                        _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
                     }
+                }
+
+                _currentCellEntries.Clear();
+
+                foreach (var cellId in newCellIds)
+                {
+                    var cellQuery = _world.Query<CellScopeComponent, MetadataComponent>()
+                        .HasValue<CellScopeComponent, CellId>(cellId);
+
+                    if (cellQuery.Count == 0)
+                        return false;
+
+                    var cellEntity = cellQuery.Entities.First();
+
+                    if (cellEntity.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
+                        return false;
+
+                    var meta = cellEntity.GetComponent<MetadataComponent>();
+
+                    _currentCellEntries.Add(new CellEntry
+                    {
+                        CellId = cellId,
+                        ParentAreaId = _currentAreaEntry.Value.AreaId,
+                        CellEntity = cellEntity,
+                        CellNetworkId = meta.NetId,
+                        CellPlayers = [],
+                    });
                 }
 
                 _logger.LogInformation("ECS SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _currentCellEntries.Count, pendingEvent.PlayerId);

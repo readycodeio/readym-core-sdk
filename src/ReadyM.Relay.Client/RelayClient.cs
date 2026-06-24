@@ -806,6 +806,8 @@ internal class RelayClient : IRelayClient
                         _netThreadContext.ActiveCells.Add(cellId);
                 }
 
+                RequestedActiveCells = null;
+
                 _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
 
                 OnActiveCellsSet?.Invoke(_netThreadContext);

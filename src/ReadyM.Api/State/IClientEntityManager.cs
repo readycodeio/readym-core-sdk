@@ -23,6 +23,12 @@ internal interface IClientEntityManager
         Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
+    Entity CreateCellEntity(
+        CellId cellId,
+        ArchetypeId archetypeId,
+        Action<EntityBuilder>? setComponents = null,
+        PlayerId? ownerOverride = null);
+
     Entity CreatePlayerEntity(
         ArchetypeId archetypeId,
         Action<EntityBuilder>? setComponents = null);
