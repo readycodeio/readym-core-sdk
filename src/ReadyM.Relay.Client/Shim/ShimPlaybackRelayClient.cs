@@ -24,7 +24,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         public readonly List<PlayerId> AreaPlayers = new();
 
         public bool IsConnected { get; set; }
-        public DisconnectReason LastDisconnectReason => DisconnectReason.Timeout; // unused in Shimming
+        public DisconnectedReason LastDisconnectedReason => DisconnectedReason.Unknown; // unused in Shimming
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
         
@@ -75,14 +75,14 @@ internal class ShimPlaybackRelayClient : IRelayClient
         }
     }
 
-    private DisconnectReason _lastDisconnectReason;
+    private DisconnectedReason lastDisconnectedReason;
 
     public event Action? OnStart;
     public event Action? OnRequestedStop;
     public event Action? OnRequestedConnect;
     public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
-    public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    public event Action<IRelayClientNetworkThreadContext>? OnDisconnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
@@ -427,9 +427,9 @@ internal class ShimPlaybackRelayClient : IRelayClient
 
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
         // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
-        if (_lastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
+        if (lastDisconnectedReason != DisconnectedReason.ClientDisconnected)
         {
-            _logger.LogWarning("Shim relay client already disconnected: {Reason}", _lastDisconnectReason);
+            _logger.LogWarning("Shim relay client already disconnected: {Reason}", lastDisconnectedReason);
         }
 
         _logger.LogDebug("Stopped shim relay client");
@@ -675,10 +675,10 @@ internal class ShimPlaybackRelayClient : IRelayClient
             case ShimResponseKind.Disconnected:
             {
                 // Assumes RequestedStop first
-                _logger.LogInformation("Disconnected from server: {Reason}", responseItem.DisconnectReason);
+                _logger.LogInformation("Disconnected from server: {Reason}", responseItem.DisconnectedReason);
                 _netThreadContext.IsConnected = false;
-                _lastDisconnectReason = responseItem.DisconnectReason;
-                OnDisconnected?.Invoke(_netThreadContext, responseItem.DisconnectReason);
+                lastDisconnectedReason = responseItem.DisconnectedReason;
+                OnDisconnected?.Invoke(_netThreadContext);
                 break;
             }
             case ShimResponseKind.OtherPlayerConnected:
@@ -894,7 +894,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                     return false;
                 
                 var clientHeader = responseItem.ClientHeader;
-                if (clientHeader.RelayMode == RelayMode.AreaOfInterestOthers || clientHeader.RelayMode == RelayMode.AreaOfInterestAll)
+                if (clientHeader.RelayMode is RelayMode.AreaOfInterestOthers or RelayMode.AreaOfInterestAll)
                 {
                     if (_netThreadContext.CurrentAreaId == null)
                         return false;

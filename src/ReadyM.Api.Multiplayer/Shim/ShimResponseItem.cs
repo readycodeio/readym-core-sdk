@@ -16,7 +16,7 @@ internal struct ShimResponseItem
     public ShimResponseKind Kind { get; set; } 
     
     [JsonPropertyName("disconnectReason")]
-    public DisconnectReason DisconnectReason { get; set; }
+    public DisconnectedReason DisconnectedReason { get; set; }
 
     [JsonPropertyName("playerId")]
     public PlayerId PlayerId { get; set; }

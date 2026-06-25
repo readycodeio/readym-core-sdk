@@ -13,8 +13,6 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 {
     private const string PlayerIdTypeName = "PlayerId";
     private const string SenderParameterName = "__sender";
-    private const string EventCodeTypeName = "RelayMessageCode";
-    private const string EventCodeParameterName = "__eventCode";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -66,12 +64,11 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
         var groupsByClass = methods.GroupBy(m => m.Symbol.ContainingType, SymbolEqualityComparer.Default);
 
-
         foreach (var group in groupsByClass)
         {
             var eventCodeByte = 0;
             var maxEventCode = eventCodeByte;
-            
+
             var classSymbol = group.Key;
             var ns = classSymbol!.ContainingNamespace.ToDisplayString();
             var className = classSymbol.Name;
@@ -93,7 +90,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                                          {{access}} partial class {{className}}
                                          {
-                                         
+
                                          """);
 
             var dispatchCases = new StringBuilder();
@@ -126,19 +123,9 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                             valid = false;
                             break;
                         }
+
                         // PlayerId __sender
                         senderIndex = i;
-                        paramTypes.Add((null, false, false));
-                    }
-                    else if (param.Name == EventCodeParameterName)
-                    {
-                        if (param.Type.Name != EventCodeTypeName)
-                        {
-                            valid = false;
-                            break;
-                        }
-                        // RelayMessageCode __eventCode
-                        eventCodeIndex = i;
                         paramTypes.Add((null, false, false));
                     }
                     else if (SerializationHelper.IsINetSerializable(param.Type))
@@ -165,7 +152,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                 if (!valid)
                 {
-                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([PlayerId __sender], [RelayMessageCode __eventCode], [T arg...]) where T is either INetSerializable, or primitive" """);
+                    sb.AppendLine($"""#error "Invalid client RPC handler '{methodName}'. Supported signatures: void OnX([PlayerId __sender], [T arg...]) where T is either INetSerializable, or primitive" """);
                     continue;
                 }
 
@@ -173,7 +160,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                 var sendMethod = $"Send{shortName}";
                 var sendParamList = new StringBuilder();
-                
+
                 var payloadCount = 0;
                 for (var i = 0; i < paramTypes.Count; i++)
                 {
@@ -191,7 +178,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                     sendParamList.Append($" payload{payloadCount}");
                     payloadCount++;
                 }
-                
+
                 var relayMode = method.AttributeParams.FirstOrDefault(); // enum
 
                 if (relayMode is null)
@@ -202,9 +189,14 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                 if (relayMode == "4" && !paramTypes.First(x => x.Type != null).Type!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Contains("NetworkId"))
                 {
-                    sb.AppendLine($"""#error "RelayMode.EntityOwner requires the first parameter to be NetworkId in method '{methodName}'" """);
+                    sb.AppendLine("""#error "RelayMode.EntityOwner is not part of public API" """);
                 }
 
+                if (relayMode == "5")
+                {
+                    sb.AppendLine("""#error "RelayMode.Peers is not part of public API" """);
+                }
+                
                 sb.AppendLine($$"""
                                     public void {{sendMethod}}({{sendParamList}})
                                     {
@@ -235,7 +227,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                     
                     payloadCount++;
                 }
-                
+
 
                 sb.AppendLine("""
                                       RelayClient.SendMessage(message);
@@ -292,7 +284,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                         dispatchCases.Append("header.EventCode");
                         continue;
                     }
-                    
+
                     dispatchCases.Append($"payload{payloadCount}");
                     payloadCount++;
                 }

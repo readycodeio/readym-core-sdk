@@ -1,16 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Command;
 
 internal sealed class ConsoleCommandRegistry
 {
+    private readonly ConsoleCommandParser _parser;
     private readonly Dictionary<string, ConsoleCommand> _commands = new();
-    private readonly Dictionary<string, IEnumerable<string>> _commandsParams = new();
+    private readonly Dictionary<string, Func<IEnumerable<string>>> _commandsParams = new();
 
-    public ConsoleCommandRegistry(IEnumerable<IConsoleCommandRegistration> registrations)
+    public ConsoleCommandRegistry(ConsoleCommandParser parser, IEnumerable<IConsoleCommandRegistration> registrations)
     {
+        _parser = parser;
         AddCommands(registrations);
     }
 
@@ -27,11 +30,16 @@ internal sealed class ConsoleCommandRegistry
         registration.RegisterCommands(this);
     }
 
-    public void AddCommand(string commandName, ConsoleCommand command, IEnumerable<string>? availableFirstParams = null)
+    public void AddCommand(string commandName, ConsoleCommand command, Func<IEnumerable<string>>? availableFirstParams = null)
     {
+        if (!_parser.IsCommandNameValid(commandName, out var errorMessage))
+        {
+            throw new ArgumentException($"Invalid command name: '{commandName}'. {errorMessage}", nameof(commandName));
+        }
+
         if (!_commands.TryAdd(commandName, command))
         {
-            throw new InvalidOperationException($"Command {commandName} is already registered");
+            throw new InvalidOperationException($"Command '{commandName}' is already registered");
         }
 
         if (availableFirstParams != null)
@@ -47,7 +55,7 @@ internal sealed class ConsoleCommandRegistry
         => _commands[commandName];
 
     public List<string> GetCommandAvailableFirstParams(string commandName)
-        => _commandsParams.TryGetValue(commandName, out var paramsList) ? paramsList.ToList() : [];
+        => _commandsParams.TryGetValue(commandName, out var paramsList) ? paramsList().ToList() : [];
 
     public IEnumerable<string> GetCommandNames(bool includeDebug)
         => _commands.Where(x => includeDebug || !x.Value.IsDebugOnly).Select(x => x.Key);

@@ -1,4 +1,7 @@
-﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
+﻿using System;
+using System.ComponentModel;
+
+namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
 /// <summary>
 /// Indicates how an RPC message should be relayed to other players in the game.
@@ -31,10 +34,17 @@ public enum RelayMode : byte
     /// <remarks>
     /// Not part of stable API.
     /// </remarks>
+    [Obsolete("Not part of stable API.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     EntityOwner = 4,
 
     /// <summary>
     /// Sends the message to a specific list of players.
     /// </summary>
+    /// <remarks>
+    /// Not part of stable API.
+    /// </remarks>
+    [Obsolete("Not part of stable API.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     Peers = 5,
 }

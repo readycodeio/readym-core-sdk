@@ -43,7 +43,6 @@ public struct RelayMessage
 
     /// <summary>
     /// Send an event to a specific player or group of players.
-    /// This overload does not support event caching, as cached events must either be sent to all other players or all players.
     /// </summary>
     internal static RelayMessage ToPeers(RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers, DeliveryMethod deliveryMethod)
     {
@@ -59,7 +58,7 @@ public struct RelayMessage
     }
     
     /// <summary>
-    /// Send an event with a specific delivery method. This overload does not support event caching.
+    /// Send an event with a specific delivery method.
     /// </summary>
     public static RelayMessage ByRelayMode(RelayMessageCode eventCode, PlayerId playerId, RelayMode mode, DeliveryMethod deliveryMethod)
     {

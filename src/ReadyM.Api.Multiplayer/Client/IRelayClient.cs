@@ -70,7 +70,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// attempting to send messages in the disconnected state will result in an exception.
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    event Action<IRelayClientNetworkThreadContext>? OnDisconnected;
 
     /// <summary>
     /// Fired when another player has connected to the server. This will fire for all players regardless
@@ -193,12 +193,6 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);
 
     void SendMessageToServer<T>(RelayMessageCode eventCode, T data, DeliveryMethod deliveryMethod)
-        where T : INetSerializable;
-
-    void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable;
-
-    void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
         where T : INetSerializable;
 
     void LogEventStats();
