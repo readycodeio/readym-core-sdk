@@ -66,7 +66,6 @@ internal class ClientState : IDisposable
     public struct CellEntry
     {
         public CellId CellId { get; internal set; }
-        public AreaId ParentAreaId { get; internal set; }
         public Entity CellEntity { get; internal set; }
         public NetworkId CellNetworkId { get; internal set; }
 
@@ -992,7 +991,6 @@ internal class ClientState : IDisposable
                     _currentCellEntries.Add(new CellEntry
                     {
                         CellId = cellId,
-                        ParentAreaId = _currentAreaEntry.Value.AreaId,
                         CellEntity = cellEntity.Value,
                         CellNetworkId = meta.NetId,
                         CellPlayers = [],

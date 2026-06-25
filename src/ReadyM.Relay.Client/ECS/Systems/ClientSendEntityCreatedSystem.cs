@@ -1,6 +1,7 @@
 ﻿using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -68,7 +69,7 @@ internal class ClientSendEntityCreatedSystem(SerializationJobRegistry serializat
             // Send cell scoped updates
             foreach (var cellEntry in state.ActiveCellEntries)
             {
-                var context = SendContext.FromCell(cellEntry.CellId, cellEntry.CellEntity);
+                var context = SendContext.FromCell(new FullCellId(state.CurrentAreaId!.Value, cellEntry.CellId), cellEntry.CellEntity);
                 base.OnUpdate(context);
             }
         }

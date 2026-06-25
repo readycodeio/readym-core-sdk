@@ -3,11 +3,11 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-internal readonly struct SendContext(AreaId? areaId, PlayerId? playerId, CellId? cellId, Entity? scopeEntity)
+internal readonly struct SendContext(AreaId? areaId, PlayerId? playerId, FullCellId? cellId, Entity? scopeEntity)
 {
     public readonly AreaId? AreaId = areaId;
     public readonly PlayerId? PlayerId = playerId;
-    public readonly CellId? CellId = cellId;
+    public readonly FullCellId? CellId = cellId;
     public readonly Entity? ScopeEntity = scopeEntity;
 
     public bool IsArea => AreaId != null;
@@ -21,7 +21,7 @@ internal readonly struct SendContext(AreaId? areaId, PlayerId? playerId, CellId?
     public static SendContext FromPlayer(PlayerId playerId, Entity scopeEntity)
         => new SendContext(null, playerId, null, scopeEntity);
 
-    public static SendContext FromCell(CellId cellId, Entity scopeEntity)
+    public static SendContext FromCell(FullCellId cellId, Entity scopeEntity)
         => new SendContext(null, null, cellId, scopeEntity);
 
     public static SendContext Global
