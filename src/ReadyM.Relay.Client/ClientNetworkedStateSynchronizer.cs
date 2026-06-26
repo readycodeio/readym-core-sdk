@@ -178,14 +178,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 var scopeNetId = readerCopy.Get<NetworkId>();
                 Entity? scopeEntity = null;
 
-                // NOTE: Cell and player scope entities are replicated globally, so they already exist on
-                // the client before the scoped snapshot arrives. Area scope entities are NOT replicated
-                // globally; instead they are sent as the very first entity of the area snapshot. So if the
-                // scope entity already exists, use it up-front for every entity; otherwise fall back to the
-                // convention where the scope entity is the first entity in the list.
-                var scopePreExists = scopeNetId != default
-                    && self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity);
-
                 var entityCount = readerCopy.GetUInt();
                 for (var i = 0; i < entityCount; i++)
                 {
@@ -200,10 +192,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                         self.Logger.LogError("Received snapshot create event for already existing entity: {Id} scope: {Scope}", meta.NetId, scopeNetId);
                     }
 
-                    if (i == 0 && scopeNetId != default && !scopePreExists)
+                    if (i == 0 && scopeNetId != default)
                     {
-                        // NOTE: The scope entity is always the first being created (area snapshot convention)
-
+                        // NOTE: The scope entity is always the first being created
                         self.Logger.LogInformation("Looking up scope entity with NetId {ScopeNetId}", scopeNetId);
                         if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
                             throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");

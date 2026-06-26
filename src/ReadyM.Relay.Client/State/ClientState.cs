@@ -961,37 +961,28 @@ internal class ClientState : IDisposable
 
                 foreach (var cellId in newCellIds)
                 {
+                    // Cells are area-scoped: the same cell id can exist in different areas. The indexed
+                    // FullCellId pairs the cell with its parent area, so this query only matches the cell
+                    // scope entity that belongs to the player's current area.
+                    var fullCellId = new FullCellId(_currentAreaEntry.Value.AreaId, cellId);
+
                     var cellQuery = _world.Query<CellScopeComponent, MetadataComponent>()
-                        .HasValue<CellScopeComponent, CellId>(cellId);
+                        .HasValue<CellScopeComponent, FullCellId>(fullCellId);
 
                     if (cellQuery.Count == 0)
                         return false;
 
-                    // Cells are area-scoped: the same cell id can exist in different areas, and cell scope
-                    // entities are networked globally, so the query can match cells from other areas too.
-                    // Pick the cell scope entity that belongs to the player's current area.
-                    Entity? cellEntity = null;
-                    foreach (var candidate in cellQuery.Entities)
-                    {
-                        if (candidate.GetComponent<CellScopeComponent>().ParentAreaId == _currentAreaEntry.Value.AreaId)
-                        {
-                            cellEntity = candidate;
-                            break;
-                        }
-                    }
+                    Entity cellEntity = cellQuery.Entities.First();
 
-                        if (cellEntity == null)
-                            return false;
-
-                    if (cellEntity.Value.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
+                    if (cellEntity.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
                         return false;
 
-                    var meta = cellEntity.Value.GetComponent<MetadataComponent>();
+                    var meta = cellEntity.GetComponent<MetadataComponent>();
 
                     _currentCellEntries.Add(new CellEntry
                     {
                         CellId = cellId,
-                        CellEntity = cellEntity.Value,
+                        CellEntity = cellEntity,
                         CellNetworkId = meta.NetId,
                         CellPlayers = [],
                     });

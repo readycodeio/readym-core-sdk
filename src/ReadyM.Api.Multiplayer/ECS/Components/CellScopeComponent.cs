@@ -8,15 +8,14 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
-internal partial struct CellScopeComponent : IIndexedComponent<CellId>
+internal partial struct CellScopeComponent : IIndexedComponent<FullCellId>
 {
     private byte _dirtyMask;
     private byte _apiMask;
 
-    private CellId _cellId;
-    private AreaId _parentAreaId;
+    private FullCellId _fullCellId;
     private PlayerId _masterClient;
 
-    public CellId GetIndexedValue()
-        => _cellId;
+    public FullCellId GetIndexedValue()
+        => _fullCellId;
 }

@@ -1,4 +1,6 @@
 using System;
+using LiteNetLib.Utils;
+using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Idents;
 
@@ -11,19 +13,34 @@ namespace ReadyM.Api.Idents;
 /// This struct doesn't replace <see cref="CellId"/>, because most of the time 
 /// <see cref="AreaId"/> can be inferred from the context of which area is a given player in.
 /// </remarks>
-public readonly struct FullCellId : IEquatable<FullCellId>
+[DeriveJsonSerializable]
+public partial struct FullCellId : INetSerializable, IEquatable<FullCellId>
 {
-    public AreaId AreaId { get; }
+    private AreaId _areaId;
+    private CellId _cellId;
 
-    public CellId CellId { get; }
+    public AreaId AreaId => _areaId;
+    public CellId CellId => _cellId;
 
     public FullCellId(AreaId areaId, CellId cellId)
     {
-        AreaId = areaId;
-        CellId = cellId;
+        _areaId = areaId;
+        _cellId = cellId;
     }
 
-    public bool Equals(FullCellId other) => AreaId == other.AreaId && CellId == other.CellId;
+    public void Serialize(NetDataWriter writer)
+    {
+        _areaId.Serialize(writer);
+        _cellId.Serialize(writer);
+    }
+
+    public void Deserialize(NetDataReader reader)
+    {
+        _areaId.Deserialize(reader);
+        _cellId.Deserialize(reader);
+    }
+
+    public bool Equals(FullCellId other) => _areaId == other._areaId && _cellId == other._cellId;
 
     public override bool Equals(object? obj) => obj is FullCellId other && Equals(other);
 
@@ -32,7 +49,7 @@ public readonly struct FullCellId : IEquatable<FullCellId>
         //Can't use HashCode.Combine because it's not part of netstandard2.0
         unchecked
         {
-            return (AreaId.GetHashCode() * 397) ^ CellId.GetHashCode();
+            return (_areaId.GetHashCode() * 397) ^ _cellId.GetHashCode();
         }
     }
 
@@ -40,5 +57,5 @@ public readonly struct FullCellId : IEquatable<FullCellId>
 
     public static bool operator !=(FullCellId left, FullCellId right) => !left.Equals(right);
 
-    public override string ToString() => $"{nameof(FullCellId)}[{AreaId}, {CellId}]";
+    public override string ToString() => $"{nameof(FullCellId)}[{_areaId}, {_cellId}]";
 }
