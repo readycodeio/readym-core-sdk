@@ -604,12 +604,37 @@ namespace {ns}
         {
             _dirtyMask = 0;
         }
-        
+
         bool IsDirty()
         {
             return _dirtyMask != 0;
         }
-        
+
+""");
+
+        var maskType = CppTypeName(model.MaskInfo.Type);
+        sb.AppendLine($$"""
+    public:
+        void ClearApiFlag()
+        {
+            _apiMask = 0;
+        }
+
+        void ClearApiFlag(int field)
+        {
+            _apiMask = static_cast<{{maskType}}>(_apiMask & ~(static_cast<{{maskType}}>(1) << field));
+        }
+
+        bool ChangedFromApi() const
+        {
+            return _apiMask != 0;
+        }
+
+        void MarkChangedFromApi()
+        {
+            _apiMask = _dirtyMask;
+        }
+
 """);
     }
 
