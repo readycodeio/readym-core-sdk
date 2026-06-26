@@ -10,10 +10,10 @@ internal class IpcHelper(ILogger logger)
 {
     private static readonly HashSet<string> RedactedKeys = ["JWT_TOKEN"];
 
-    public Dictionary<string, string> ReadAndDeleteIpcHandshakeFile()
+    public Dictionary<string, string> ReadAndDeleteIpcHandshakeFile(string fileName)
     {
         var tempDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ReadyM.Launcher");
-        var filePath = Path.Combine(tempDir, "wukong_handshake.env");
+        var filePath = Path.Combine(tempDir, fileName);
 
         if (!File.Exists(filePath))
         {
