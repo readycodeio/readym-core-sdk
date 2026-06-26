@@ -16,7 +16,7 @@
         <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
-        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT;SELF_HOSTED</DefineConstants>
+        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <OutputPath>bin\NoDisconnect\</OutputPath>
         <DebugSymbols>true</DebugSymbols>
@@ -30,18 +30,8 @@
         <IntermediateOutputPath>obj\Testing\</IntermediateOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <DefineConstants>$(DefineConstants);SELF_HOSTED</DefineConstants>
+        <DefineConstants>$(DefineConstants)</DefineConstants>
         <DebugType>none</DebugType>
         <DebugSymbols>false</DebugSymbols>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(SelfHosted)' == 'true'">
-        <DefineConstants>$(DefineConstants);SELF_HOSTED</DefineConstants>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)' == 'DebugSelfHosted'">
-        <DefineConstants>$(DefineConstants);DEBUG;SELF_HOSTED</DefineConstants>
-        <PlatformTarget>AnyCPU</PlatformTarget>
-        <OutputPath>bin\DebugSelfHosted\</OutputPath>
-        <DebugSymbols>true</DebugSymbols>
-        <IntermediateOutputPath>obj\DebugSelfHosted\</IntermediateOutputPath>
     </PropertyGroup>
 </Project>

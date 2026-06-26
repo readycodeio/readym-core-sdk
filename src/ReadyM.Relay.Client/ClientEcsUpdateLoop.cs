@@ -66,6 +66,29 @@ internal class ClientEcsUpdateLoop(Store world, ILogger logger)
             Thread.Sleep(Constants.ClientEcsUpdateRateMs);
         }
     }
+    
+    public T? Wait<T>(Task<T> task)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        while (true)
+        {
+            if (task.IsCompleted)
+            {
+                return task.Result;
+            }
+            
+            if (task.IsFaulted || task.IsCanceled)
+                break;
+
+            Tick(stopwatch.ElapsedMilliseconds);
+            stopwatch.Restart();
+
+            // FIXME: This is very ugly
+            Thread.Sleep(Constants.ClientEcsUpdateRateMs);
+        }
+
+        return default;
+    }
 
     public void Stop()
     {
