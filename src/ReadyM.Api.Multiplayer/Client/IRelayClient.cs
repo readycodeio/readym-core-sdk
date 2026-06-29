@@ -97,7 +97,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
 
     /// <summary>
     /// Fired immediately after the client requests to set active cells.
-    /// The cells are not yet active fot the client when this is fired.
+    /// The cells are not yet active for the client when this is fired.
     /// Always called from the MAIN thread.
     /// </summary>
     event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;

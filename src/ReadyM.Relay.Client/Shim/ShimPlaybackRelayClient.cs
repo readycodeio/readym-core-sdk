@@ -32,7 +32,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
 
 
-        ReadOnlyList <PlayerId> IRelayClientNetworkThreadContext.AllPlayers
+        ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
         
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AreaPlayers

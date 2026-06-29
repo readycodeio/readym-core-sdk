@@ -62,7 +62,7 @@ internal class HotSwappableRelayClient : IRelayClient
         client.OnOtherPlayerConnected += OnOtherPlayerConnectedHandler;
         client.OnOtherPlayerDisconnected += OnOtherPlayerDisconnectedHandler;
         client.OnRequestedJoinArea += OnRequestedJoinAreaHandler;
-        client.OnRequestedSetActiveCells += OnRequestedSetActiveCellsEvent;
+        client.OnRequestedSetActiveCells += OnRequestedSetActiveCellsHandler;
         client.OnJoinedArea += OnJoinedAreaHandler;
         client.OnRequestedLeaveArea += OnRequestedLeaveAreaHandler;
         client.OnLeftArea += OnLeftAreaHandler;
@@ -88,7 +88,7 @@ internal class HotSwappableRelayClient : IRelayClient
         client.OnActiveCellsSet -= OnActiveCellsSetHandler;
         client.OnLeftArea -= OnLeftAreaHandler;
         client.OnRequestedLeaveArea -= OnRequestedLeaveAreaHandler;
-        client.OnRequestedSetActiveCells -= OnRequestedSetActiveCellsEvent;
+        client.OnRequestedSetActiveCells -= OnRequestedSetActiveCellsHandler;
         client.OnJoinedArea -= OnJoinedAreaHandler;
         client.OnRequestedJoinArea -= OnRequestedJoinAreaHandler;
         client.OnOtherPlayerDisconnected -= OnOtherPlayerDisconnectedHandler;
@@ -358,7 +358,7 @@ internal class HotSwappableRelayClient : IRelayClient
     private void OnRequestedJoinAreaHandler(AreaId areaId)
         => OnRequestedJoinArea?.Invoke(areaId);
 
-    private void OnRequestedSetActiveCellsEvent(ReadOnlyArray<CellId> cellIds)
+    private void OnRequestedSetActiveCellsHandler(ReadOnlyArray<CellId> cellIds)
         => OnRequestedSetActiveCells?.Invoke(cellIds);
 
     private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)

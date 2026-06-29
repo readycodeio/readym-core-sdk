@@ -195,6 +195,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     if (i == 0 && scopeNetId != default)
                     {
                         // NOTE: The scope entity is always the first being created
+
                         self.Logger.LogInformation("Looking up scope entity with NetId {ScopeNetId}", scopeNetId);
                         if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
                             throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");

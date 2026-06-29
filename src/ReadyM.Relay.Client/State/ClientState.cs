@@ -972,7 +972,7 @@ internal class ClientState : IDisposable
                     if (cellQuery.Count == 0)
                         return false;
 
-                    Entity cellEntity = cellQuery.Entities.First();
+                    var cellEntity = cellQuery.Entities.First();
 
                     if (cellEntity.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
                         return false;
