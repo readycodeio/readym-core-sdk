@@ -15,8 +15,15 @@
         <!-- silence CS1591 warning for missing XML comments -->
         <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)' == 'ProductionLocalMod'">
+        <DefineConstants>$(DefineConstants);DEBUG;LOCAL_MOD;PRODUCTION_MASTER_SERVER</DefineConstants>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <OutputPath>bin\ProductionLocalMod\</OutputPath>
+        <DebugSymbols>true</DebugSymbols>
+        <IntermediateOutputPath>obj\ProductionLocalMod\</IntermediateOutputPath>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
-        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
+        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT;LOCAL_MOD</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <OutputPath>bin\NoDisconnect\</OutputPath>
         <DebugSymbols>true</DebugSymbols>
