@@ -10,5 +10,7 @@
 [assembly: InternalsVisibleTo("ReadyM.Wukong.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Api")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
+[assembly: InternalsVisibleTo("ReadyM.Sdk.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
+[assembly: InternalsVisibleTo("OblivionMp.Sdk")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Common.Oblivion")] // TODO: Change name to ReadyM.Oblivion.Common

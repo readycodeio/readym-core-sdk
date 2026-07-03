@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("ReadyM.Sdk.Common")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Multiplayer")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
@@ -12,5 +13,6 @@
 [assembly: InternalsVisibleTo("WukongMp.Api")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
+[assembly: InternalsVisibleTo("OblivionMp.Sdk")]
 [assembly: InternalsVisibleTo("WukongMp.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Common.Oblivion")] // TODO: Change name to ReadyM.Oblivion.Common
