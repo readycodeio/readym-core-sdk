@@ -1,6 +1,8 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
-namespace ReadyM.Relay.Server.Sdk.Interop;
+namespace ReadyM.Api.Interop;
 
 internal class PinnedDelegateStore : IDisposable
 {

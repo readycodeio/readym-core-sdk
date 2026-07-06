@@ -25,6 +25,10 @@ internal class MappedEventManager(
     public void RegisterEcsEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct
         => incomingEcsEventQueue.RegisterHandler(handler, arg0, arg1);
+    
+    public void RegisterEcsEventHandler<TEvent, TArg0, TArg1, TArg2>(Action<TEvent, TArg0, TArg1, TArg2> handler, TArg0 arg0, TArg1 arg1, TArg2 arg2)
+        where TEvent : struct
+        => incomingEcsEventQueue.RegisterHandler(handler, arg0, arg1, arg2);
 
     public void RegisterGameEventHandler<TEvent>(Action<TEvent> handler)
         where TEvent : struct

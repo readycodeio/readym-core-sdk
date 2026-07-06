@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
+using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Registry;

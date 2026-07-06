@@ -13,6 +13,9 @@ internal interface IMappedEventManager
 
     void RegisterEcsEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct;
+    
+    void RegisterEcsEventHandler<TEvent, TArg0, TArg1, TArg2>(Action<TEvent, TArg0, TArg1, TArg2> handler, TArg0 arg0, TArg1 arg1, TArg2 arg2)
+        where TEvent : struct;
 
     void RegisterGameEventHandler<TEvent>(Action<TEvent> handler)
         where TEvent : struct;
