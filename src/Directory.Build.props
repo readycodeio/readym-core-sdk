@@ -22,6 +22,13 @@
         <DebugSymbols>true</DebugSymbols>
         <IntermediateOutputPath>obj\DebugProduction\</IntermediateOutputPath>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)' == 'ProductionLocalMod'">
+        <DefineConstants>$(DefineConstants);DEBUG;PRODUCTION_MASTER_SERVER</DefineConstants>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <OutputPath>bin\ProductionLocalMod\</OutputPath>
+        <DebugSymbols>true</DebugSymbols>
+        <IntermediateOutputPath>obj\ProductionLocalMod\</IntermediateOutputPath>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
         <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>
