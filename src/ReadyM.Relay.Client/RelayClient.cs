@@ -102,7 +102,7 @@ internal class RelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
-    public event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
+    public event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
     public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
     public event Action? OnRequestedLeaveArea;
     public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
@@ -492,7 +492,7 @@ internal class RelayClient : IRelayClient
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
-    public void RequestSetActiveCells(CellId[] cellIds)
+    public void RequestSetActiveCells(IEnumerable<CellId> cellIds)
     {
         if (!RequestedConnect)
         {
@@ -506,9 +506,7 @@ internal class RelayClient : IRelayClient
             return;
         }
 
-        var newCellIds = new CellId[cellIds.Length];
-        cellIds.CopyTo(newCellIds, 0);
-        RequestedActiveCells = newCellIds;
+        RequestedActiveCells = cellIds.ToArray();
 
         var playerId = PlayerId;
         if (playerId == null)
@@ -520,7 +518,7 @@ internal class RelayClient : IRelayClient
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestSetActiveCellsEvent);
         writer.Put(playerId.Value);
-        writer.PutArray(cellIds);
+        writer.PutArray(RequestedActiveCells);
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
@@ -931,10 +929,12 @@ internal class RelayClient : IRelayClient
     {
         _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
 
+        _netThreadContext.ActiveCells.Clear();
         _netThreadContext.CurrentAreaId = null;
         _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
+        RequestedActiveCells = null;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
 

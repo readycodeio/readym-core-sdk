@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+﻿using DryIoc;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
@@ -17,6 +14,10 @@ using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace ReadyM.Relay.Client.State;
 
@@ -369,6 +370,11 @@ internal class ClientState : IDisposable
         }
     }
 
+    /// <summary>
+    /// Invalidates all pending events that are no longer relevant.
+    /// For example if a player disconnects and reconnects, the <see cref="PendingEventKind.Disconnected"/> will be invalidated,
+    /// because what matters to us is the final state.
+    /// </summary>
     private void PrunePendingEvents()
     {
         void InvalidateRange(int fromIndex, int toIndex, Func<PendingEvent, bool>? predicate = null)
@@ -396,6 +402,7 @@ internal class ClientState : IDisposable
                     or PendingEventKind.OtherPlayerCreated
                     or PendingEventKind.OtherPlayerDeleted => false,
                 PendingEventKind.JoinedArea
+                    or PendingEventKind.SetActiveCells
                     or PendingEventKind.LeftArea
                     or PendingEventKind.OtherPlayerInsideArea
                     or PendingEventKind.OtherPlayerOutsideArea => true,
@@ -405,8 +412,10 @@ internal class ClientState : IDisposable
         int? lastConnectedIndex = null;
         var playerId = _localPlayerEntry?.PlayerId;
 
-        int? lastJoinedIndex = null;
+        int? lastJoinedAreaIndex = null;
         var areaId = _currentAreaEntry?.AreaId;
+        int? lastSetCellsIndex = null;
+        var activeCells = _currentCellEntries.Select(entry =>entry.CellId).ToList();
 
         Dictionary<PlayerId, int> connectedPlayers = new();
         Dictionary<PlayerId, int> areaPlayers = new();
@@ -457,8 +466,10 @@ internal class ClientState : IDisposable
                     lastConnectedIndex = null;
                     playerId = null;
 
-                    lastJoinedIndex = null;
+                    lastJoinedAreaIndex = null;
                     areaId = null;
+                    lastSetCellsIndex = null;
+                    activeCells = null;
 
                     connectedPlayers.Clear();
                     areaPlayers.Clear();
@@ -478,15 +489,17 @@ internal class ClientState : IDisposable
                         break;
                     }
 
-                    if (lastJoinedIndex != null)
+                    if (lastJoinedAreaIndex != null)
                     {
                         // NOTE: Assume the previous areaId should be assumed left. Remove all events
                         // from the previous areaId, but keep the current event.
-                        InvalidateRange(lastJoinedIndex.Value, i - 1, IsAreaEvent);
+                        InvalidateRange(lastJoinedAreaIndex.Value, i - 1, IsAreaEvent);
                     }
 
-                    lastJoinedIndex = i;
+                    lastJoinedAreaIndex = i;
                     areaId = pendingEvent.AreaId;
+                    lastSetCellsIndex = null;
+                    activeCells = null;
                     break;
                 }
                 case PendingEventKind.LeftArea:
@@ -497,16 +510,18 @@ internal class ClientState : IDisposable
                         break;
                     }
 
-                    if (lastJoinedIndex != null)
+                    if (lastJoinedAreaIndex != null)
                     {
                         // NOTE: Remove all events from the current areaId, including the current event.
-                        InvalidateRange(lastJoinedIndex.Value, i, IsAreaEvent);
+                        InvalidateRange(lastJoinedAreaIndex.Value, i, IsAreaEvent);
                         pendingEvent.Invalidated = true;
                     }
 
-                    lastJoinedIndex = null;
+                    lastJoinedAreaIndex = null;
                     areaId = null;
                     areaPlayers.Clear();
+                    lastSetCellsIndex = null;
+                    activeCells = null;
                     break;
                 }
                 case PendingEventKind.OtherPlayerCreated:
@@ -594,7 +609,53 @@ internal class ClientState : IDisposable
                     break;
                 }
                 case PendingEventKind.SetActiveCells:
+                {
+                    if (playerId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+
+                    if (areaId == null)
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+
+                    if ((activeCells == null || activeCells.Count <= 0) && (pendingEvent.CellIds == null || pendingEvent.CellIds.Length <= 0))
+                    {
+                        pendingEvent.Invalidated = true;
+                        break;
+                    }
+
+                    //Check if the set of active cells has actually changed
+                    if (activeCells != null && pendingEvent.CellIds != null && activeCells.Count == pendingEvent.CellIds.Length)
+                    {
+                        var cellsChanged = false;
+                        for (int j = 0; j < activeCells.Count; j++)
+                        {
+                            if (!pendingEvent.CellIds.Contains(activeCells[j]))
+                            {
+                                cellsChanged = true;
+                                break;
+                            }
+                        }
+
+                        if (!cellsChanged)
+                        {
+                            pendingEvent.Invalidated = true;
+                            break;
+                        }
+                    }
+
+                    if (lastSetCellsIndex != null)
+                        InvalidateOne(lastSetCellsIndex.Value);
+
+                    lastSetCellsIndex = i;
+                    activeCells = pendingEvent.CellIds?.ToList();
+
                     break;
+                }
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -672,6 +733,7 @@ internal class ClientState : IDisposable
                 _localPlayerEntry = playerEntry;
                 _allPlayers.Add(playerId);
                 _playerEntries.Add(playerId, playerEntry);
+                _currentCellEntries.Clear();
 
                 OnConnected?.Invoke(playerId, playerEntity);
                 break;
@@ -698,6 +760,8 @@ internal class ClientState : IDisposable
                         otherPlayerEntry.CurrentAreaId = null;
                         _playerEntries[otherPlayerId] = otherPlayerEntry;
                     }
+
+                    _currentCellEntries.Clear();
 
                     OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
@@ -785,6 +849,7 @@ internal class ClientState : IDisposable
                 playerEntry.CurrentAreaId = areaId;
                 _playerEntries[playerId] = playerEntry;
                 _localPlayerEntry = playerEntry;
+                _currentCellEntries.Clear();
 
                 _logger.LogInformation("ECS JOINING {AreaId} by player {PlayerId}", areaId, playerId);
 
@@ -824,8 +889,6 @@ internal class ClientState : IDisposable
                     _playerEntries[otherPlayerId] = otherPlayerEntry;
                 }
 
-                OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
-
                 _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
 
                 // Destroy all active cell scope entities before clearing them
@@ -835,6 +898,8 @@ internal class ClientState : IDisposable
                         _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
                 }
                 _currentCellEntries.Clear();
+
+                OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
                 // NOTE: The entity for the area scope gets deleted, however the ECS deletion message is NOT sent to the
                 // server. Scope entities are managed from the server and clients independently.
@@ -947,17 +1012,7 @@ internal class ClientState : IDisposable
                 }
 
                 var newCellIds = pendingEvent.CellIds ?? [];
-
-                // Destroy entities in cells that are no longer active
-                foreach (var existing in _currentCellEntries)
-                {
-                    if (!newCellIds.Contains(existing.CellId) && existing.CellEntity != default)
-                    {
-                        _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
-                    }
-                }
-
-                _currentCellEntries.Clear();
+                var newCellEntries = new List<CellEntry>(newCellIds.Length);
 
                 foreach (var cellId in newCellIds)
                 {
@@ -969,17 +1024,19 @@ internal class ClientState : IDisposable
                     var cellQuery = _world.Query<CellScopeComponent, MetadataComponent>()
                         .HasValue<CellScopeComponent, FullCellId>(fullCellId);
 
+                    // If cell entity doesn't exist yet, we need to wait for it to arrive in a network snapshot
                     if (cellQuery.Count == 0)
                         return false;
 
                     var cellEntity = cellQuery.Entities.First();
 
+                    // If the cell's master client isn't set yet, we need to wait for it to arrive in a network snapshot
                     if (cellEntity.GetComponent<CellScopeComponent>().MasterClient == PlayerId.Invalid)
                         return false;
 
                     var meta = cellEntity.GetComponent<MetadataComponent>();
 
-                    _currentCellEntries.Add(new CellEntry
+                    newCellEntries.Add(new CellEntry
                     {
                         CellId = cellId,
                         CellEntity = cellEntity,
@@ -987,6 +1044,18 @@ internal class ClientState : IDisposable
                         CellPlayers = [],
                     });
                 }
+
+                // Destroy entities in cells that are no longer active
+                foreach (var existing in _currentCellEntries)
+                {
+                    if (!newCellIds.Contains(existing.CellId) && existing.CellEntity != default)
+                    {
+                        _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
+                    }
+                }
+
+                _currentCellEntries.Clear();
+                _currentCellEntries.AddRange(newCellEntries);
 
                 _logger.LogInformation("ECS SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _currentCellEntries.Count, pendingEvent.PlayerId);
                 break;

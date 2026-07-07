@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LiteNetLib;
@@ -91,7 +92,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
-    public event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
+    public event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
     public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
     public event Action? OnRequestedLeaveArea;
     public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
@@ -531,7 +532,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         OnRequestedJoinArea?.Invoke(areaId);
     }
 
-    public void RequestSetActiveCells(CellId[] cellIds)
+    public void RequestSetActiveCells(IEnumerable<CellId> cellIds)
     {
         if (!_isRunning)
         {
@@ -554,10 +555,10 @@ internal class ShimPlaybackRelayClient : IRelayClient
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedSetActiveCells,
-            CellIds = cellIds,
+            CellIds = cellIds.ToList(),
         });
 
-        OnRequestedSetActiveCells?.Invoke(new ReadOnlyArray<CellId>(cellIds));
+        OnRequestedSetActiveCells?.Invoke(new ReadOnlyList<CellId>(cellIds.ToList()));
     }
 
     public void RequestLeaveArea()

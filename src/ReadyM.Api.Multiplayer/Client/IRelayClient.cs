@@ -1,12 +1,13 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using LiteNetLib;
+﻿using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
@@ -100,7 +101,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// The cells are not yet active for the client when this is fired.
     /// Always called from the MAIN thread.
     /// </summary>
-    event Action<ReadOnlyArray<CellId>>? OnRequestedSetActiveCells;
+    event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
 
     /// <summary>
     /// Fired when the client has successfully joined an area of interest. Before this event is fired, the client
@@ -201,7 +202,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void RequestReconnect();
 
     void RequestJoinArea(AreaId areaId);
-    void RequestSetActiveCells(CellId[] cellIds);
+    void RequestSetActiveCells(IEnumerable<CellId> cellIds);
     void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);

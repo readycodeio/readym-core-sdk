@@ -1,6 +1,7 @@
 ﻿using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using System.Collections.Generic;
 
 namespace ReadyM.Api.Multiplayer.Shim;
 
@@ -8,7 +9,7 @@ internal struct ShimRequestItem
 {
     public ShimRequestKind Kind;
     public AreaId AreaId;
-    public CellId[] CellIds;
+    public List<CellId> CellIds;
     
     public ServerEventHeader ServerHeader;
     public CustomRelayEventHeader ClientHeader;
