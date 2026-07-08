@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using ReadyM.Api.Generators.TypeTranslation.Model;
 
 namespace ReadyM.Api.Generators.TypeTranslation.Rendering;
@@ -47,6 +48,9 @@ internal sealed class CppPathRenderer : ITypeRenderer
         var parts = GetQualifiedParts(typeName);
         if (parts is null)
             return false;
+
+        if (parts.LastOrDefault() is "FormId")
+            return true;
 
         return parts.Count switch
         {
