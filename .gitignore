@@ -6,3 +6,4 @@ src/ReadyM.sln.DotSettings.user
 src/ReadyM.Relay.sln.DotSettings.user
 sdk-server.windows.amd64.exe
 src/ReadyM.Relay/publish
+k8s/cr-secret.yml
