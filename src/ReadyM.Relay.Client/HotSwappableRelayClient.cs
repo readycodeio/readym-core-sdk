@@ -115,7 +115,9 @@ internal class HotSwappableRelayClient : IRelayClient
     
     public AreaId? RequestedAreaId
         => _client?.RequestedAreaId;
-    
+
+    public ReadOnlyList<CellId>? RequestedActiveCells => _client?.RequestedActiveCells;
+
     public event Action? OnStart;
     public event Action? OnRequestedStop;
 

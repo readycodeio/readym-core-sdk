@@ -85,7 +85,8 @@ internal class RelayClient : IRelayClient
 
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
-    public CellId[]? RequestedActiveCells { get; private set; }
+    CellId[]? _requestedActiveCells;
+    public ReadOnlyList<CellId>? RequestedActiveCells => _requestedActiveCells == null ? null : new (_requestedActiveCells.ToList()); //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
 
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
@@ -500,13 +501,13 @@ internal class RelayClient : IRelayClient
             return;
         }
 
-        if (RequestedActiveCells != null)
+        if (_requestedActiveCells != null)
         {
             _logger.LogError("Already requested to set active cells.");
             return;
         }
 
-        RequestedActiveCells = cellIds.ToArray();
+        _requestedActiveCells = cellIds.ToArray();
 
         var playerId = PlayerId;
         if (playerId == null)
@@ -518,7 +519,7 @@ internal class RelayClient : IRelayClient
         var writer = new NetDataWriter();
         writer.Put((byte)RelayMessageCode.RequestSetActiveCellsEvent);
         writer.Put(playerId.Value);
-        writer.PutArray(RequestedActiveCells);
+        writer.PutArray(_requestedActiveCells);
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
@@ -700,7 +701,7 @@ internal class RelayClient : IRelayClient
                     _netThreadContext.CurrentAreaId = null;
                     _netThreadContext.AreaPlayers.Remove(playerId);
                     _netThreadContext.ActiveCells.Clear();
-                    RequestedActiveCells = null;
+                    _requestedActiveCells = null;
                 }
 
                 break;
@@ -804,7 +805,7 @@ internal class RelayClient : IRelayClient
                         _netThreadContext.ActiveCells.Add(cellId);
                 }
 
-                RequestedActiveCells = null;
+                _requestedActiveCells = null;
 
                 _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
 
@@ -934,7 +935,7 @@ internal class RelayClient : IRelayClient
         _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
-        RequestedActiveCells = null;
+        _requestedActiveCells = null;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
 

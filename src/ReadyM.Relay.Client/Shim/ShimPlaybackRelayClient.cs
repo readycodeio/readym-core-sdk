@@ -66,7 +66,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
-    public CellId[]? RequestedActiveCells { get; private set; }
+    public ReadOnlyList<CellId>? RequestedActiveCells { get; private set; }
 
     public PlayerId? PlayerId
     {

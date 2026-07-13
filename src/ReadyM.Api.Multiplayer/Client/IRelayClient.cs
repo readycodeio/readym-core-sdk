@@ -38,6 +38,10 @@ internal interface IRelayClient : IRpcClient, IDisposable
 
     AreaId? RequestedAreaId { get; }
 
+    /// <summary>List of cells that are requested to be set as active or a null if there is no request in progress.</summary>
+    /// <remarks>An empty list means that a request to deactivate all cells is in progress.</remarks>
+    ReadOnlyList<CellId>? RequestedActiveCells { get; }
+
     /// <summary>
     /// Fired immediately after the client requests connection to the server. The client is not yet connected when
     /// this is fired.
