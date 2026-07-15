@@ -2,7 +2,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Registry;
 
-public interface IPlayerComponentRegistration : IComponentRegistrationBase<IPlayerComponentRegistry, IComponent>
+internal interface IPlayerComponentRegistration : IComponentRegistrationBase<IPlayerComponentRegistry, IComponent>
 {
     // empty    
 }

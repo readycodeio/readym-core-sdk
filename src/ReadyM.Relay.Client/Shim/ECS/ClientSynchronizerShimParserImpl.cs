@@ -8,11 +8,10 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Common.ECS.Components;
 
-namespace ReadyM.Relay.Client.Shim;
+namespace ReadyM.Relay.Client.Shim.ECS;
 
-public class ClientSynchronizerShimParserImpl(NetworkedEntityManager netEntity, ILogger logger) : ShimBuiltInMessageParserImplBase<ShimEcsDependencyData>
+internal class ClientSynchronizerShimParserImpl(INetworkedEntityManager netEntity, ILogger logger) : ShimBuiltInMessageParserImplBase<ShimEcsDependencyData>
 {
     public override bool SupportsRequest(ServerEventHeader header)
         => false;

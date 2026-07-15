@@ -1,6 +1,7 @@
 ﻿namespace ReadyM.Api.Serialization;
 
+/// <exclude />
 public interface IDeltaEquatable<in T>
 {
-    public bool DeltaEquals(T other, float delta);
+    bool DeltaEquals(T other, float delta);
 }

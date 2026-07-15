@@ -7,11 +7,10 @@ using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Values;
-using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Api.Multiplayer.ECS.Managers;
 
-public sealed class NetworkedEntityManager : IDisposable
+internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposable
 {
     private readonly Store _world;
     private readonly CommandBuffer _commandBuffer;
@@ -26,16 +25,20 @@ public sealed class NetworkedEntityManager : IDisposable
     // NOTE: This event will be fired on the ECS thread.
     public event Action<NetworkId, Entity>? OnEntityDelete;
 
-    public NetworkedEntityManager(Store world, ILogger logger, IPlayerIdProvider playerIdProvider)
+    public NetworkedEntityManager(
+        Store world, 
+        IPlayerIdProvider playerIdProvider,
+        ILogger logger)
     {
         _world = world;
+        _playerIdProvider = playerIdProvider;
         _commandBuffer = world.GetCommandBuffer();
         _commandBuffer.ReuseBuffer = true;
         _logger = logger;
-        _playerIdProvider = playerIdProvider;
 
         _ix = _world.ComponentIndex<MetadataComponent, NetworkId>();
 
+        // it's fine to subscribe here, since this is the only class that can create entities with MetadataComponent, so we won't miss any events
         _world.OnEntityDelete += OnEntityDeleteHandler;
     }
 
@@ -153,7 +156,7 @@ public sealed class NetworkedEntityManager : IDisposable
         // InScopeComponent links.
         _world.Query<MetadataComponent>()
             .HasValue<InScopeComponent, Entity>(scopeEntity)
-            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+            .ForEachEntity((ref meta, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();
 
         if (deleteScopeEntity)
@@ -169,7 +172,7 @@ public sealed class NetworkedEntityManager : IDisposable
             _skipNetSync++;
         // When we disconnect all networked entities get deleted
         _world.Query<MetadataComponent>()
-            .ForEachEntity((ref MetadataComponent meta, Entity entity) => { _commandBuffer.DeleteEntity(entity.Id); });
+            .ForEachEntity((ref _, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();
 
         if (skipSync)

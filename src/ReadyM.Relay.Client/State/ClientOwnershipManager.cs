@@ -1,12 +1,11 @@
 ﻿using Friflo.Engine.ECS;
-using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
-using ReadyM.Api.Multiplayer.Idents;
 
 namespace ReadyM.Relay.Client.State;
 
-public class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager ownership)
+internal class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager ownership)
 {
     public bool TryGetOwner(NetworkId netId, out PlayerId ownerId)
         => ownership.TryGetOwner(netId, out ownerId);

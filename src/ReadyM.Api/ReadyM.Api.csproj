@@ -2,15 +2,21 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <LangVersion>default</LangVersion>
-        <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
+        <LangVersion>14</LangVersion>
+        <Configurations>Debug;Release;NoDisconnect;Testing;DebugSelfHosted</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+        <PackageReference Include="Nullable" Version="1.3.1">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Superpower" Version="3.1.0" />
         <PackageReference Include="System.Text.Encodings.Web" Version="10.0.0" />
         <PackageReference Include="System.Text.Json" Version="10.0.0" />
     </ItemGroup>

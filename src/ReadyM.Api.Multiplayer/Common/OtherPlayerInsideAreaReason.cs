@@ -1,6 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Common;
 
-public enum OtherPlayerInsideAreaReason
+internal enum OtherPlayerInsideAreaReason
 {
     OtherJoined,
     NotifyAfterSelfJoined,

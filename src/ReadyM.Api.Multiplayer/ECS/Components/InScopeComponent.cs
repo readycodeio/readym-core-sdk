@@ -5,7 +5,7 @@ using Friflo.Json.Fliox;
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [StructLayout(LayoutKind.Auto)]
-public struct InScopeComponent(Entity scopeEntity) : ILinkComponent
+internal struct InScopeComponent(Entity scopeEntity) : ILinkComponent
 {
     [Ignore]
     public Entity ScopeEntity = scopeEntity;

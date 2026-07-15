@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ReadyM.Api.Helpers;
 
-public abstract class PendingActionScheduler<TContext> : PendingActionSchedulerBase
+internal abstract class PendingActionScheduler<TContext> : PendingActionSchedulerBase
 {
     protected class PooledCompletionSource<T> : IValueTaskSource<T>
     {

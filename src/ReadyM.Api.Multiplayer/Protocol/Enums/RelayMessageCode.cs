@@ -1,5 +1,8 @@
 ﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
+/// <summary>
+/// A unique identifier of a single RPC message type.
+/// </summary>
 public enum RelayMessageCode : byte
 {
     HandshakeConnected = 255,

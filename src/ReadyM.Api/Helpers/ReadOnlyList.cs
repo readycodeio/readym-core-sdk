@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Helpers;
 
-public readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
+internal readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
 {
     public int Count
         => list.Count;
@@ -23,11 +23,9 @@ public readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
     public bool Contains(T item)
         => list.Contains(item);
     
-    private static readonly List<T> _emptyList = new List<T>();
+    public static readonly List<T> EmptyList = [];
     
-    public static ReadOnlyList<T> Empty
-        => new ReadOnlyList<T>(_emptyList);
+    public static ReadOnlyList<T> Empty => new(EmptyList);
 
-    public ReadOnlyList<T> Copy()
-        => new ReadOnlyList<T>(new List<T>(list));
+    public ReadOnlyList<T> Copy() => new([..list]);
 }

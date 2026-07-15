@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
-using ReadyM.Relay.Common.Serialization;
-using ReadyM.Relay.Common.Shim;
+using ReadyM.Api.Multiplayer.Serialization;
+using ReadyM.Api.Multiplayer.Shim;
 
 namespace ReadyM.Relay.Client.Shim;
 
-public class ShimController
+internal class ShimController
 {
     private readonly ShimRelayRecorder? _shimRecorder;
     private readonly TextRelaySerializer _textSerializer;

@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace ReadyM.Api.Serialization;
 
-public static class DebugJson
+internal static class DebugJson
 {
     public static void Assert([DoesNotReturnIf(false)] bool condition, string? message = null)
     {

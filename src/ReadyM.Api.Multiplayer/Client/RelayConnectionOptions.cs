@@ -1,34 +1,24 @@
-﻿using System;
-using System.Diagnostics.Contracts;
-using LiteNetLib.Utils;
-using ReadyM.Api.Multiplayer.Idents;
+﻿using LiteNetLib.Utils;
+using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public struct RelayConnectionOptions : INetSerializable
+internal struct RelayConnectionOptions : INetSerializable
 {
-    public Guid UserGuid { get; set; }
+    public ConnectionTicket Ticket { get; set; }
     public PlayerIdMode PlayerIdMode { get; set; }
     public PlayerId PlayerId { get; set; }
 
-    public RelayConnectionOptions(RelayConnectionOptions options)
+    public readonly void Serialize(NetDataWriter writer)
     {
-        UserGuid = options.UserGuid;
-        PlayerIdMode = options.PlayerIdMode;
-        PlayerId = options.PlayerId;
-    }
-
-    [Pure]
-    public void Serialize(NetDataWriter writer)
-    {
-        writer.Put(UserGuid.ToString());
+        writer.Put(Ticket);
         writer.Put((byte)PlayerIdMode);
         writer.Put(PlayerId);
     }
 
     public void Deserialize(NetDataReader reader)
     {
-        UserGuid = Guid.Parse(reader.GetString());
+        Ticket = reader.Get<ConnectionTicket>();
         PlayerIdMode = (PlayerIdMode)reader.GetByte();
         PlayerId = reader.Get<PlayerId>();
     }

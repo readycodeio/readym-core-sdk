@@ -3,9 +3,10 @@
     <PropertyGroup>
         <LangVersion>default</LangVersion>
         <Nullable>enable</Nullable>
-        <Configurations>Debug;Release;NoDisconnect;Testing</Configurations>
+        <Configurations>Debug;Release;NoDisconnect;Testing;DebugSelfHosted</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
     
     <ItemGroup>

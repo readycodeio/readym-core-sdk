@@ -1,26 +1,25 @@
 using System;
+using ReadyM.Api.DI;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public class NetworkPingMonitor : IDisposable
+internal class NetworkPingMonitor(IRelayClient relayClient) : IHostedService
 {
-    private readonly IRelayClient _relayClient;
     public event Action<int>? OnPingUpdated;
-    
+
     public int CurrentPing { get; private set; }
 
-    public NetworkPingMonitor(IRelayClient relayClient)
+    public void OnScopeStart()
     {
-        _relayClient = relayClient;
         relayClient.OnPingUpdated += HandlePingUpdated;
     }
 
     public void Dispose()
     {
-        _relayClient.OnPingUpdated -= HandlePingUpdated;
+        relayClient.OnPingUpdated -= HandlePingUpdated;
     }
 
-    private void HandlePingUpdated(IRelayClientNetworkThreadContext relayClientNetworkThreadContext, int ping)
+    private void HandlePingUpdated(int ping)
     {
         CurrentPing = ping;
         OnPingUpdated?.Invoke(ping);

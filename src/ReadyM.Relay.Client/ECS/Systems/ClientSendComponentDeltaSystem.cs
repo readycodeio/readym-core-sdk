@@ -1,15 +1,15 @@
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
-using ReadyM.Api.Multiplayer.Idents;
-using ReadyM.Relay.Common.ECS.Systems;
+using ReadyM.Api.Multiplayer.ECS.Systems;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
 
-public class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId, DeliveryMethod deliveryMethod, IRelayClient relay) : SendComponentDeltaSystemBase<T>(componentId)
+internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId, DeliveryMethod deliveryMethod, IRelayClient relay) : SendComponentDeltaSystemBase<T>(componentId)
     where T : struct, INetworkedComponent
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)

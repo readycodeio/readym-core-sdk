@@ -8,17 +8,16 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Utilities;
-using ReadyM.Relay.Common.Extensions;
 
 namespace ReadyM.Relay.Client;
 
-public class RelayClient : IRelayClient
+internal class RelayClient : IRelayClient
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
@@ -29,7 +28,7 @@ public class RelayClient : IRelayClient
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
 
-        public DisconnectReason LastDisconnectReason { get; set; }
+        public DisconnectedReason LastDisconnectedReason { get; set; }
 
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
@@ -51,9 +50,9 @@ public class RelayClient : IRelayClient
     private readonly EventBasedNetListener _listener;
 
     // Read-only value types, so thread safe
-    private readonly RelayConnectionOptions _options;
     private readonly string _host;
     private readonly int _port;
+    private RelayConnectionOptions _options; // should be safe
 
     // This isn't thread-safe, but we use it for some inconsequential things. DO NOT USE it for anything important,
     // it'll return an abnormal number of 0s when used in parallel. With the papal blessing nothing should break
@@ -94,7 +93,7 @@ public class RelayClient : IRelayClient
     public event Action? OnRequestedConnect;
     public event Action<IRelayClientNetworkThreadContext, PlayerId, uint>? OnConnected;
     public event Action? OnRequestedDisconnect;
-    public event Action<IRelayClientNetworkThreadContext, DisconnectReason>? OnDisconnected;
+    public event Action<IRelayClientNetworkThreadContext>? OnDisconnected;
 
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
@@ -105,40 +104,40 @@ public class RelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
 
-    public event Action<IRelayClientNetworkThreadContext, int>? OnPingUpdated;
+    public event Action<int>? OnPingUpdated;
 
-    public event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage
+    public event Action<ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage
     {
         add => AddBuiltInMessageHandler(RelayMessageCode.MinBuiltInEvent, RelayMessageCode.MaxBuiltInEvent, value!);
         remove => RemoveBuiltInMessageHandler(RelayMessageCode.MinBuiltInEvent, RelayMessageCode.MaxBuiltInEvent, value!);
     }
 
-    public event Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage
+    public event Action<ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage
     {
         add => AddServerRpcMessageHandler(RelayMessageCode.MinServerRpcEvent, RelayMessageCode.MaxServerRpcEvent, value!);
         remove => RemoveServerRpcMessageHandler(RelayMessageCode.MinServerRpcEvent, RelayMessageCode.MaxServerRpcEvent, value!);
     }
 
-    public event Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage
+    public event Action<CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage
     {
         add => AddClientRpcMessageHandler(RelayMessageCode.MinClientRpcEvent, RelayMessageCode.MaxClientRpcEvent, value!);
         remove => RemoveClientRpcMessageHandler(RelayMessageCode.MinClientRpcEvent, RelayMessageCode.MaxClientRpcEvent, value!);
     }
 
-    private readonly Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[] _serverMessageHandlers =
-        new Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxBuiltInEvent + 1];
+    private readonly Action<ServerEventHeader, NetDataReader>?[] _serverMessageHandlers =
+        new Action<ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxBuiltInEvent + 1];
 
-    private readonly Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[] _clientMessageHandlers =
-        new Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxClientRpcEvent + 1];
+    private readonly Action<CustomRelayEventHeader, NetDataReader>?[] _clientMessageHandlers =
+        new Action<CustomRelayEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxClientRpcEvent + 1];
 
-    public void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (minEventCode < RelayMessageCode.MinBuiltInEvent || minEventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
@@ -147,19 +146,19 @@ public class RelayClient : IRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
-    public void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
 
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (minEventCode < RelayMessageCode.MinBuiltInEvent || minEventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
@@ -168,19 +167,19 @@ public class RelayClient : IRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
-    public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
 
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (minEventCode < RelayMessageCode.MinServerRpcEvent || minEventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
@@ -189,19 +188,19 @@ public class RelayClient : IRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
-    public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
 
-        _serverMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
+        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader> handler)
+    public void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (minEventCode < RelayMessageCode.MinServerRpcEvent || minEventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
@@ -210,19 +209,19 @@ public class RelayClient : IRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _serverMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)i], handler);
+            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)i], handler);
         }
     }
 
-    public void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler)
+    public void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
     {
         if (eventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
 
-        _clientMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
+        _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void AddClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler)
+    public void AddClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
     {
         if (minEventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
@@ -231,26 +230,26 @@ public class RelayClient : IRelayClient
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _clientMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
+            _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
         }
     }
 
-    public void RemoveClientRpcMessageHandler(RelayMessageCode eventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler)
+    public void RemoveClientRpcMessageHandler(RelayMessageCode eventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
     {
         if (eventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
 
-        _clientMessageHandlers[(byte)eventCode] = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
+        _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
     }
 
-    public void RemoveClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader> handler)
+    public void RemoveClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
     {
         if (minEventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
 
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
-            _clientMessageHandlers[(byte)i] = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)i], handler);
+            _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)i], handler);
         }
     }
 
@@ -390,9 +389,9 @@ public class RelayClient : IRelayClient
 
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
         // from the client forcefully. In that case the corresponding `OnDisconnected` event will not be fired.
-        if (_netThreadContext.LastDisconnectReason != DisconnectReason.DisconnectPeerCalled)
+        if (_netThreadContext.LastDisconnectedReason != DisconnectedReason.ClientDisconnected)
         {
-            _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectReason);
+            _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectedReason);
         }
 
         _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
@@ -421,7 +420,7 @@ public class RelayClient : IRelayClient
         if (_netThreadContext.PlayerId == null)
         {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
-            OnDisconnected?.Invoke(_netThreadContext, _netThreadContext.LastDisconnectReason);
+            OnDisconnected?.Invoke(_netThreadContext);
         }
     }
 
@@ -537,35 +536,6 @@ public class RelayClient : IRelayClient
         SendMessage(message);
     }
 
-    public void SendMessageToPeers<T>(RelayMessageCode eventCode, T data, PlayerId[] peers, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ToPeers(eventCode, playerId.Value, peers, deliveryMethod);
-        data.Serialize(message.Writer);
-        SendMessage(message);
-    }
-
-    public void SendMessageRelayMode<T>(RelayMessageCode eventCode, T data, RelayMode mode, DeliveryMethod deliveryMethod)
-        where T : INetSerializable
-    {
-        var playerId = PlayerId;
-        if (playerId == null)
-        {
-            _logger.LogError("PlayerId cannot be null");
-            return;
-        }
-
-        var message = RelayMessage.ByRelayMode(eventCode, playerId.Value, mode, deliveryMethod);
-        SendMessage(message);
-    }
-
     private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsSent = new();
     private readonly ConcurrentDictionary<RelayMessageCode, (long Count, long Bytes)> _statsRecv = new();
 
@@ -588,6 +558,7 @@ public class RelayClient : IRelayClient
         {
             case RelayMessageCode.HandshakeConnected:
             {
+                var reconnectTicket = reader.Get<ConnectionTicket>();
                 var playerId = reader.Get<PlayerId>();
                 var nextId = reader.GetUInt();
                 if (_netThreadContext.PlayerId != null && _netThreadContext.PlayerId != playerId)
@@ -617,6 +588,8 @@ public class RelayClient : IRelayClient
 
                 _logger.LogInformation("Assigned Actor ID {PlayerId}", playerId);
                 _logger.LogDebug("Next available NetworkId is {NextNetworkId}", nextId);
+
+                _options.Ticket = reconnectTicket;
 
                 OnConnected?.Invoke(_netThreadContext, playerId, nextId);
                 break;
@@ -772,7 +745,7 @@ public class RelayClient : IRelayClient
             {
                 if (eventCode >= RelayMessageCode.MinBuiltInEvent)
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
                     if (serverHandler != null)
@@ -781,8 +754,8 @@ public class RelayClient : IRelayClient
                         foreach (var handlerUntyped in serverHandler.GetInvocationList())
                         {
                             reader.SetPosition(position);
-                            var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(_netThreadContext, serverHeader, reader);
+                            var handler = (Action<ServerEventHeader, NetDataReader>)handlerUntyped;
+                            handler.Invoke(serverHeader, reader);
                         }
                     }
 
@@ -791,7 +764,7 @@ public class RelayClient : IRelayClient
 
                 if (eventCode >= RelayMessageCode.MinServerRpcEvent)
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Multiplayer.Idents.PlayerId.Server);
+                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
                     if (serverHandler != null)
@@ -800,14 +773,14 @@ public class RelayClient : IRelayClient
                         foreach (var handlerUntyped in serverHandler.GetInvocationList())
                         {
                             reader.SetPosition(position);
-                            var handler = (Action<IRelayClientNetworkThreadContext, ServerEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(_netThreadContext, serverHeader, reader);
+                            var handler = (Action<ServerEventHeader, NetDataReader>)handlerUntyped;
+                            handler.Invoke(serverHeader, reader);
                         }
                     }
 
                     return;
                 }
-                
+
                 var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
                 var clientHandler = _clientMessageHandlers[(byte)eventCode];
 
@@ -817,8 +790,8 @@ public class RelayClient : IRelayClient
                     foreach (var handlerUntyped in clientHandler.GetInvocationList())
                     {
                         reader.SetPosition(position);
-                        var handler = (Action<IRelayClientNetworkThreadContext, CustomRelayEventHeader, NetDataReader>)handlerUntyped;
-                        handler.Invoke(_netThreadContext, clientHeader, reader);
+                        var handler = (Action<CustomRelayEventHeader, NetDataReader>)handlerUntyped;
+                        handler.Invoke(clientHeader, reader);
                     }
                 }
 
@@ -837,7 +810,7 @@ public class RelayClient : IRelayClient
     {
         // Round trip time. LiteNetLib reports one way latency, so we double it.
         // We add a random jitter so that the results are not always divisible by 2.
-        OnPingUpdated?.Invoke(_netThreadContext, 2 * latency + _rng.Next(2));
+        OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
 
         // NOTE: We need to read this once so that it is atomic
         var bytesReceived = _client.Statistics.BytesReceived;
@@ -861,7 +834,7 @@ public class RelayClient : IRelayClient
             delta = now - _lastStatCheck;
 
             _lastStatCheck = now;
-            
+
             _netStats.UpdateTransfer(_client.Statistics, (now - _processStart).TotalSeconds);
         }
 
@@ -870,7 +843,7 @@ public class RelayClient : IRelayClient
         var avgSent = (long)(dSent / delta.TotalSeconds);
         var packetLoss = _client.Statistics.PacketLoss;
         var sent = _client.Statistics.PacketsSent;
-        
+
         _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}", avgRecv, avgSent, packetLoss, sent);
     }
 
@@ -883,10 +856,24 @@ public class RelayClient : IRelayClient
         _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
-        _netThreadContext.LastDisconnectReason = info.Reason;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
-        OnDisconnected?.Invoke(_netThreadContext, info.Reason);
+
+        if (info.Reason == DisconnectReason.DisconnectPeerCalled)
+        {
+            _netThreadContext.LastDisconnectedReason = DisconnectedReason.ClientDisconnected;
+        }
+        else if (info.Reason == DisconnectReason.Timeout)
+        {
+            _netThreadContext.LastDisconnectedReason = DisconnectedReason.Timeout;
+        }
+        else if (info.AdditionalData.TryGetByte(out var b))
+        {
+            _netThreadContext.LastDisconnectedReason = (DisconnectedReason)b;
+            _logger.LogWarning("Disconnected from server with reason: {Reason}", _netThreadContext.LastDisconnectedReason);
+        }
+
+        OnDisconnected?.Invoke(_netThreadContext);
     }
 
     public void LogEventStats()

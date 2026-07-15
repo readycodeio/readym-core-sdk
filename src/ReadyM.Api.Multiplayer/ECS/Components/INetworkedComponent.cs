@@ -3,6 +3,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
+/// <exclude />
 public interface INetworkedComponent : IComponent, INetSerializable
 {
     void ClearDirty();

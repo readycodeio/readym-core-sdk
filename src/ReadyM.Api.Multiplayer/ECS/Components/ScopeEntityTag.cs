@@ -2,4 +2,4 @@
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
-public readonly struct ScopeEntityTag : ITag;
+internal readonly struct ScopeEntityTag : ITag;
