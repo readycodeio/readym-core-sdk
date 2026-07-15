@@ -21,6 +21,8 @@
         <OutputPath>bin\DebugProduction\</OutputPath>
         <DebugSymbols>true</DebugSymbols>
         <IntermediateOutputPath>obj\DebugProduction\</IntermediateOutputPath>
+        <StripSymbols>false</StripSymbols>       <!-- keeps the .pdb (Windows) / .dbg (Linux) -->
+        <NativeDebugSymbols>true</NativeDebugSymbols>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'ProductionLocalMod'">
         <DefineConstants>$(DefineConstants);DEBUG;PRODUCTION_MASTER_SERVER</DefineConstants>
@@ -47,5 +49,8 @@
         <DefineConstants>$(DefineConstants)</DefineConstants>
         <DebugType>none</DebugType>
         <DebugSymbols>false</DebugSymbols>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Aot)' == 'true'">
+        <DefineConstants>$(DefineConstants);NATIVE_AOT</DefineConstants>
     </PropertyGroup>
 </Project>
