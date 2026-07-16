@@ -17,6 +17,7 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
 
     public virtual void Init()
     {
+        Container.RegisterInstance(Container);
         Container.RegisterInstance<IDependencyContainer>(this);
         Container.Register(typeof(ILogger<>), typeof(Logger<>), ifAlreadyRegistered: IfAlreadyRegistered.Replace);
     }

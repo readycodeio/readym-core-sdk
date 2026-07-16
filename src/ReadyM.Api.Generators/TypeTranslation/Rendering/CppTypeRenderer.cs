@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using ReadyM.Api.Generators.TypeTranslation.Model;
 
@@ -56,6 +57,12 @@ internal sealed class CppTypeRenderer : ITypeRenderer
         {
             rendered = string.Empty;
             return false;
+        }
+        
+        if (parts.LastOrDefault() is "FormId")
+        {
+            rendered = "uint32_t";
+            return true;
         }
 
         rendered = parts.Count switch
