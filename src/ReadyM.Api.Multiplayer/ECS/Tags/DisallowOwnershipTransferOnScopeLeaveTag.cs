@@ -3,4 +3,4 @@
 namespace ReadyM.Api.Multiplayer.ECS.Tags;
 
 /// <exclude />
-public readonly struct DisallowOwnershipTransferTag : ITag;
+public readonly struct DisallowOwnershipTransferOnScopeLeaveTag : ITag;
