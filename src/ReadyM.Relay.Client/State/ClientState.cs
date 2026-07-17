@@ -1057,7 +1057,8 @@ internal class ClientState : IDisposable
                 _currentCellEntries.Clear();
                 _currentCellEntries.AddRange(newCellEntries);
 
-                _logger.LogInformation("ECS SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _currentCellEntries.Count, pendingEvent.PlayerId);
+                var cellsString = _currentCellEntries.Aggregate("", (p, n) => p + (p == "" ? "" : ", ") + n.CellId.ToString());
+                _logger.LogInformation("ECS set {count} active cells for player {PlayerId}: {cells}", _currentCellEntries.Count, pendingEvent.PlayerId, cellsString);
                 break;
             }
             case PendingEventKind.OtherPlayerInsideArea:
