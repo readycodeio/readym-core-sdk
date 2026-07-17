@@ -1,13 +1,13 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Friflo.Engine.ECS;
+using ReadyM.Api.DI;
 using ReadyM.Api.ECS.Worlds;
 
 namespace ReadyM.Api.ECS.Managers;
 
-internal class EntityDeleteManager : IDisposable
+internal class EntityDeleteManager : IHostedService
 {
     private readonly Store _world;
     private readonly List<IEntityDeleteImpl> _impls = [];
@@ -16,7 +16,10 @@ internal class EntityDeleteManager : IDisposable
     {
         _world = world;
         _impls.AddRange(impls);
+    }
 
+    public void OnScopeStart()
+    {
         _world.OnEntityDelete += OnEntityDeleteHandler;
     }
 
@@ -31,7 +34,7 @@ internal class EntityDeleteManager : IDisposable
         impl = _impls.FirstOrDefault(impl => impl is TImpl) as TImpl;
         return impl != null;
     }
-    
+
     private void OnEntityDeleteHandler(EntityDelete ev)
     {
         var entity = ev.Entity;
