@@ -31,13 +31,6 @@
         <DebugSymbols>true</DebugSymbols>
         <IntermediateOutputPath>obj\ProductionLocalMod\</IntermediateOutputPath>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)' == 'NoDisconnect'">
-        <DefineConstants>$(DefineConstants);DEBUG;NO_DISCONNECT</DefineConstants>
-        <PlatformTarget>AnyCPU</PlatformTarget>
-        <OutputPath>bin\NoDisconnect\</OutputPath>
-        <DebugSymbols>true</DebugSymbols>
-        <IntermediateOutputPath>obj\NoDisconnect\</IntermediateOutputPath>
-    </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Testing'">
         <DefineConstants>$(DefineConstants);DEBUG;TESTING</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>
