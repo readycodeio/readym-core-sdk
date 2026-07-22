@@ -33,21 +33,9 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
             }
 
             var owner = entity.Value.GetComponent<MetadataComponent>().Owner;
-
-            // if we are a client and the entity is owned by us, skip the delta
-            if (playerId != PlayerId.Server && playerId == owner)
-            {
-                // NOTE: To make the server implementation easier, each client receives exactly the same delta message
-                // This means that a client will receive deltas from the same entities that it SENDS deltas for.
-                // In order to avoid ping-ponging delta messages back and forth, we skip deltas for entities that are 
-                // owned by this client.
-                _skipinstance.ReadDelta(reader);
-                continue;
-            }
-
+            
             // entity exists, apply the delta
             // we assume entities are always created with the correct archetype
-
             if (_useSetComponent)
             {
                 var component = default(T);
@@ -65,11 +53,8 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 ref var component = ref entity.Value.GetComponent<T>();
                 component.ReadDelta(reader);
 
-                // FIXME: This should be simplified to playerId == PlayerId.Server
                 if (playerId == owner)
                 {
-                    // NOTE: Currently, dirty flags do not need to be set during server logic. Therefore we can clear them
-                    // right away, unlike on the client
                     component.ClearDirty();
                 }
             }
