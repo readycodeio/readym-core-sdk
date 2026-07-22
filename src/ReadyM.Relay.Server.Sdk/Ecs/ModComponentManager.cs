@@ -70,8 +70,8 @@ public sealed class ModComponentManager : IDisposable
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
         // correctly specialized for that T.
-        var factory = new AllocHeapDelegate(AllocHeapImpl<T>);
-        _delegateStore.PinDelegate(factory);
+        var allocHeapDelegate = new AllocHeapDelegate(AllocHeapImpl<T>);
+        var allocHeapDelegatePtr = _delegateStore.PinDelegate(allocHeapDelegate);
 
         // If T is a networked component, also provide a pointer to the WriteSnapshotJob<T>.Execute method.
         // This allows the AOT side to call back into managed code to write snapshots of plugin components.
@@ -80,7 +80,7 @@ public sealed class ModComponentManager : IDisposable
         var readBuffer = new byte[1024 * 1024];
         var reader = new NetDataReader(readBuffer);
 
-        var writeDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize) =>
+        var writeSnapshotDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize) =>
         {
             writer.Reset();
             var data = Unsafe.AsRef<T>((void*)ptr);
@@ -93,9 +93,9 @@ public sealed class ModComponentManager : IDisposable
             Marshal.Copy(bytes, 0, (IntPtr)buffer, bytes.Length);
             return writer.Length;
         });
-        _delegateStore.PinDelegate(writeDelegate);
-        
-        var readDelegate = new ReadSnapshotDelegate((comp, buffer, bufferSize) =>
+        var writeSnapshotDelegatePtr = _delegateStore.PinDelegate(writeSnapshotDelegate);
+
+        var readSnapshotDelegate = new ReadSnapshotDelegate((comp, buffer, bufferSize) =>
         {
             // TODO: Replace with a span
             if (bufferSize > readBuffer.Length)
@@ -107,19 +107,19 @@ public sealed class ModComponentManager : IDisposable
             Unsafe.Write((void*)comp, data);
             return reader.Position;
         });
-        _delegateStore.PinDelegate(readDelegate);
-        
+        var readSnapshotDelegatePtr = _delegateStore.PinDelegate(readSnapshotDelegate);
+
         var writeDeltaDelegate = new WriteDeltaDelegate((ptr, buffer, bufferSize) =>
         {
             ref var data = ref Unsafe.AsRef<T>((void*)ptr);
-            
+
             if (!data.IsDirty)
                 return 0;
-            
+
             writer.Reset();
             data.WriteDelta(writer);
             data.ClearDirty();
-            
+
             var bytes = writer.Data;
 
             if (writer.Length > bufferSize)
@@ -128,7 +128,7 @@ public sealed class ModComponentManager : IDisposable
             Marshal.Copy(bytes, 0, (IntPtr)buffer, writer.Length);
             return writer.Length;
         });
-        _delegateStore.PinDelegate(writeDeltaDelegate);
+        var writeDeltaDelegatePtr = _delegateStore.PinDelegate(writeDeltaDelegate);
 
         var readDeltaDelegate = new ReadDeltaDelegate((comp, buffer, bufferSize, clearDirty) =>
         {
@@ -148,17 +148,17 @@ public sealed class ModComponentManager : IDisposable
 
             return reader.Position;
         });
-        _delegateStore.PinDelegate(readDelegate);
+        var readDeltaDelegatePtr = _delegateStore.PinDelegate(readDeltaDelegate);
 
         return new ModComponentRegistration
         {
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
-            AllocHeap = Marshal.GetFunctionPointerForDelegate(factory),
-            WriteSnapshot = Marshal.GetFunctionPointerForDelegate(writeDelegate),
-            ReadSnapshot = Marshal.GetFunctionPointerForDelegate(readDelegate),
-            WriteDelta = Marshal.GetFunctionPointerForDelegate(writeDeltaDelegate),
-            ReadDelta = Marshal.GetFunctionPointerForDelegate(readDeltaDelegate)
+            AllocHeap = allocHeapDelegatePtr,
+            WriteSnapshot = writeSnapshotDelegatePtr,
+            ReadSnapshot = readSnapshotDelegatePtr,
+            WriteDelta = writeDeltaDelegatePtr,
+            ReadDelta = readDeltaDelegatePtr
         };
     }
 
