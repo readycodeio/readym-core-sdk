@@ -3,6 +3,7 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
+using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -38,6 +39,10 @@ public class RpcApi
             {
                 // convert to NetDataReader
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
+
+                // A server RPC handler is server-side game logic: writes it makes to networked
+                // components are authoritative overrides, so they reach the entity's owner too.
+                using var _ = ComponentWriteContext.EnterServerAuthoring();
                 handler(header, reader);
             };
             _pinnedDelegates.Add(handler, realHandler);

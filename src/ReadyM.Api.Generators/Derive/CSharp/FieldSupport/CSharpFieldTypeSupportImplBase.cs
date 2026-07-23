@@ -58,6 +58,24 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
+    /// <summary>
+    /// Emits a conditional API-flag set for a plain (non-API) setter. When the writing thread has
+    /// opted in (the server ECS thread), an ordinary write is treated as an authoritative override,
+    /// so it gets replicated back to the entity's owner without an explicit MarkChangedFromApi() call.
+    /// </summary>
+    protected virtual void EmitAutoApiMark(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        if (context.Model.MaskInfo == null)
+            return;
+
+        var bitExpr = $"({FullyQualifiedTypeName(context.Model.MaskInfo.Type)})1 << {context.Member.MaskIndex}";
+        context.AppendLine("if (global::ReadyM.Api.Multiplayer.ComponentWriteContext.AutoMarkApiOnWrite)");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine($"{context.CurrentApiMaskVar} |= {bitExpr};");
+        }
+    }
+
     protected virtual void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (context.Member.AccessorSettings.BoolAccessors)
@@ -152,6 +170,9 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         {
             EmitAssign(symbol, context);
             EmitSetDirty(symbol, context, fromApi);
+
+            if (!fromApi)
+                EmitAutoApiMark(symbol, context);
         }
     }
 

@@ -1,4 +1,6 @@
-﻿namespace ReadyM.Relay.Server.Sdk.Ecs.Systems;
+﻿using ReadyM.Api.Multiplayer;
+
+namespace ReadyM.Relay.Server.Sdk.Ecs.Systems;
 
 public abstract class ModSystemBase
 {
@@ -18,6 +20,10 @@ public abstract class ModSystemBase
     public void Update(float deltaTime, float time)
     {
         Tick = new UpdateTick(deltaTime, time);
+
+        // Mod system writes to networked components are authoritative server-side game logic:
+        // auto-mark them so overrides to player-owned components reach the owner.
+        using var _ = ComponentWriteContext.EnterServerAuthoring();
         OnUpdate();
     }
 }
