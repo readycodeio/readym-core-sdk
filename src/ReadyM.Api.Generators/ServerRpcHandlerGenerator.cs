@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -9,6 +9,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ReadyM.Api.Generators;
 
+/// <summary>
+/// Runs on a server mod project. For each class deriving from <c>ServerRpcHandlersBase</c>,
+/// emits, per RPC name:
+///   - the client-to-server (request) leg, if declared: an <c>On{Name}(RpcContext, ...)</c>
+///     handler stub, its receive/dispatch wiring, and handler (de)registration;
+///   - the server-to-client (response/push) leg, if declared: a
+///     <c>Send{Name}(PlayerId recipient, ...)</c> sender.
+///
+/// A one-way RPC only produces the leg it declares, so a client-to-server-only RPC has no
+/// server-side sender and a server-to-client-only RPC registers no server-side handler.
+/// </summary>
 [Generator]
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 {
@@ -91,24 +102,6 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static INamedTypeSymbol? FindContractClass(INamespaceSymbol ns)
-    {
-        foreach (var type in ns.GetTypeMembers())
-        {
-            if (type.GetAttributes().Any(a =>
-                    a.AttributeClass?.Name is "ServerRpcContractsAttribute" or "ServerRpcContracts"))
-                return type;
-        }
-
-        foreach (var child in ns.GetNamespaceMembers())
-        {
-            var found = FindContractClass(child);
-            if (found != null) return found;
-        }
-
-        return null;
-    }
-
     private static void GenerateSources(
         SourceProductionContext context,
         ImmutableArray<INamedTypeSymbol?> rawClasses,
@@ -122,7 +115,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 new DiagnosticDescriptor(
-                    "SRPC002", "Missing manifest",
+                    "SRPC003", "Missing manifest",
                     $"No {ManifestClassName} found. Add a reference to the Common project containing [ServerRpcContracts].",
                     "ServerRpc", DiagnosticSeverity.Error, true),
                 classes[0].Locations.FirstOrDefault()));
@@ -130,31 +123,35 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         }
 
         var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
-        var contractClass = FindContractClass(manifest.ContainingNamespace);
 
-        // Contract methods in the order the manifest defines them (alphabetical).
-        // The contract class is in a compiled referenced assembly - compiled methods
-        // carry no IsPartialDefinition metadata, so no filter is needed.
-        var contractMethods = manifest.GetMembers()
+        // Contract classes live in the same assembly as the manifest. Resolve, per RPC name,
+        // the client-to-server (request) and server-to-client (response) contract methods.
+        var contractClasses = ServerRpcModel.CollectContractClasses(manifest.ContainingAssembly.GlobalNamespace);
+        var directions = ServerRpcModel.ResolveDirections(contractClasses);
+
+        // Names in the order the manifest defines them (alphabetical).
+        var names = manifest.GetMembers()
             .OfType<IFieldSymbol>()
             .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
             .Select(p => p.Name.Substring(0, p.Name.Length - 4))
-            .Select(name => (
-                Name: name,
-                Symbol: contractClass?.GetMembers(name).OfType<IMethodSymbol>().FirstOrDefault()
-            ))
+            .ToList();
+
+        var rpcs = names
+            .Select(name =>
+            {
+                directions.TryGetValue(name, out var dir);
+                return (Name: name, Request: dir.ClientToServer, Response: dir.ServerToClient);
+            })
             .ToList();
 
         foreach (var classSymbol in classes)
-        {
-            GenerateHandlerClass(context, classSymbol, contractMethods, manifestFqn);
-        }
+            GenerateHandlerClass(context, classSymbol, rpcs, manifestFqn);
     }
 
     private static void GenerateHandlerClass(
         SourceProductionContext context,
         INamedTypeSymbol classSymbol,
-        List<(string Name, IMethodSymbol? Symbol)> contractMethods,
+        List<(string Name, IMethodSymbol? Request, IMethodSymbol? Response)> rpcs,
         string manifestFqn)
     {
         var ns = classSymbol.ContainingNamespace.ToDisplayString();
@@ -182,97 +179,30 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         var initCalls = new StringBuilder();
         var deinitCalls = new StringBuilder();
 
-        foreach (var (eventName, contractMethodSymbol) in contractMethods)
+        foreach (var (eventName, request, response) in rpcs)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
 
-            var payloadParams = contractMethodSymbol?.Parameters
-                                    .Select(p => new PayloadParam(
-                                        p.Type,
-                                        p.Name,
-                                        SerializationHelper.IsSerializablePrimitive(p.Type.SpecialType),
-                                        p.Type.AllInterfaces.Any(i => i.Name == "INetSerializable")))
-                                    .ToList()
-                                ?? new List<PayloadParam>();
-
-            var payloadParamList = string.Join(", ", payloadParams.Select(p =>
-                $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
-
-            // Partial declaration stub: RpcContext always first, then payload params from contract.
-            // The user provides the implementing half; unimplemented stubs are silently dropped
-            // by the compiler so a class may implement any subset of contract methods.
-            var stubParams = payloadParams.Count > 0
-                ? $"{RpcContextFqn} context, {payloadParamList}"
-                : $"{RpcContextFqn} context";
-            sb.AppendLine($"    partial void On{eventName}({stubParams});");
-            sb.AppendLine();
-
-            // SendX: server → one client
-            var sendParamList = payloadParams.Count > 0
-                ? $"{PlayerIdFqn} recipient, {payloadParamList}"
-                : $"{PlayerIdFqn} recipient";
-
-            sb.AppendLine($$"""
-                                public void Send{{eventName}}({{sendParamList}})
-                                {
-                                    var writer = new NetDataWriter();
-                                    writer.Put((byte){{codeRef}});
-                            """);
-
-            for (var i = 0; i < payloadParams.Count; i++)
+            // Server -> client (response/push): emit the sender using the response shape.
+            if (response is not null)
             {
-                var p = payloadParams[i];
-                if (p.IsSerializablePrimitive)
-                    sb.AppendLine($"        writer.Put({p.Name});");
-                else if (p.IsNetSerializable)
-                    sb.AppendLine($"        {p.Name}.Serialize(writer);");
-                else
-                    sb.AppendLine($"        Serializer.SerializeObject(writer, {p.Name});");
+                var responseParams = BuildPayloadParams(response);
+                EmitSender(sb, eventName, codeRef, responseParams);
             }
 
-            sb.AppendLine("""
-                                  Rpc.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
-                              }
-
-                          """);
-
-            // Dispatch branch
-            dispatchCases.AppendLine($"            case {codeRef}:");
-            dispatchCases.AppendLine("            {");
-
-            for (var i = 0; i < payloadParams.Count; i++)
+            // Client -> server (request): the server RECEIVES this leg, so emit the handler
+            // stub, its dispatch case, and (de)registration on the shared code.
+            if (request is not null)
             {
-                var p = payloadParams[i];
-                var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                if (p.IsSerializablePrimitive)
-                {
-                    var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
-                    dispatchCases.AppendLine($"                var {p.Name} = reader.{getter}();");
-                }
-                else if (p.IsNetSerializable)
-                {
-                    dispatchCases.AppendLine($"                var {p.Name} = new {typeFqn}();");
-                    dispatchCases.AppendLine($"                {p.Name}.Deserialize(reader);");
-                }
-                else
-                {
-                    dispatchCases.AppendLine($"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);");
-                }
+                var requestParams = BuildPayloadParams(request);
+                EmitReceiveHandlerStub(sb, eventName, requestParams);
+                EmitDispatchCase(dispatchCases, eventName, codeRef, requestParams);
+
+                if (initCalls.Length > 0) initCalls.AppendLine();
+                initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+                if (deinitCalls.Length > 0) deinitCalls.AppendLine();
+                deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
             }
-
-            var contextArg = $"new {RpcContextFqn}(header.Sender)";
-            var dispatchArgs = payloadParams.Count > 0
-                ? $"{contextArg}, {string.Join(", ", payloadParams.Select(p => p.Name))}"
-                : contextArg;
-
-            dispatchCases.AppendLine($"                On{eventName}({dispatchArgs});");
-            dispatchCases.AppendLine("                break;");
-            dispatchCases.AppendLine("            }");
-
-            if (initCalls.Length > 0) initCalls.AppendLine();
-            initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
-            if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-            deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
         }
 
         sb.AppendLine($$"""
@@ -303,6 +233,100 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             $"{fullClassName.Replace('.', '_')}_RpcHandlers.g.cs",
             sb.ToString());
     }
+
+    private static void EmitSender(
+        StringBuilder sb, string eventName, string codeRef, List<PayloadParam> payloadParams)
+    {
+        var payloadParamList = FormatParamList(payloadParams);
+        var sendParamList = payloadParams.Count > 0
+            ? $"{PlayerIdFqn} recipient, {payloadParamList}"
+            : $"{PlayerIdFqn} recipient";
+
+        sb.AppendLine($$"""
+                            public void Send{{eventName}}({{sendParamList}})
+                            {
+                                var writer = new NetDataWriter();
+                                writer.Put((byte){{codeRef}});
+                        """);
+
+        foreach (var p in payloadParams)
+            sb.AppendLine(SerializeStatement(p));
+
+        sb.AppendLine("""
+                              Rpc.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
+                          }
+
+                      """);
+    }
+
+    private static void EmitReceiveHandlerStub(
+        StringBuilder sb, string eventName, List<PayloadParam> payloadParams)
+    {
+        var payloadParamList = FormatParamList(payloadParams);
+        var stubParams = payloadParams.Count > 0
+            ? $"{RpcContextFqn} context, {payloadParamList}"
+            : $"{RpcContextFqn} context";
+
+        // The user provides the implementing half; unimplemented stubs are silently dropped
+        // by the compiler so a class may implement any subset of contract methods.
+        sb.AppendLine($"    partial void On{eventName}({stubParams});");
+        sb.AppendLine();
+    }
+
+    private static void EmitDispatchCase(
+        StringBuilder dispatchCases, string eventName, string codeRef, List<PayloadParam> payloadParams)
+    {
+        dispatchCases.AppendLine($"            case {codeRef}:");
+        dispatchCases.AppendLine("            {");
+
+        foreach (var p in payloadParams)
+            dispatchCases.AppendLine(DeserializeStatement(p));
+
+        var contextArg = $"new {RpcContextFqn}(header.Sender)";
+        var dispatchArgs = payloadParams.Count > 0
+            ? $"{contextArg}, {string.Join(", ", payloadParams.Select(p => p.Name))}"
+            : contextArg;
+
+        dispatchCases.AppendLine($"                On{eventName}({dispatchArgs});");
+        dispatchCases.AppendLine("                break;");
+        dispatchCases.AppendLine("            }");
+    }
+
+    private static string SerializeStatement(PayloadParam p) =>
+        p.IsSerializablePrimitive ? $"        writer.Put({p.Name});"
+        : p.IsNetSerializable ? $"        {p.Name}.Serialize(writer);"
+        : $"        Serializer.SerializeObject(writer, {p.Name});";
+
+    private static string DeserializeStatement(PayloadParam p)
+    {
+        var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (p.IsSerializablePrimitive)
+        {
+            var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
+            return $"                var {p.Name} = reader.{getter}();";
+        }
+
+        if (p.IsNetSerializable)
+        {
+            return $"                var {p.Name} = new {typeFqn}();\n"
+                   + $"                {p.Name}.Deserialize(reader);";
+        }
+
+        return $"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);";
+    }
+
+    private static string FormatParamList(List<PayloadParam> payloadParams) =>
+        string.Join(", ", payloadParams.Select(p =>
+            $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
+
+    private static List<PayloadParam> BuildPayloadParams(IMethodSymbol method) =>
+        method.Parameters
+            .Select(p => new PayloadParam(
+                p.Type,
+                p.Name,
+                SerializationHelper.IsSerializablePrimitive(p.Type.SpecialType),
+                SerializationHelper.IsINetSerializable(p.Type)))
+            .ToList();
 
     private sealed class PayloadParam(ITypeSymbol type, string name, bool isSerializablePrimitive, bool isNetSerializable)
     {
