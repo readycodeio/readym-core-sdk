@@ -43,6 +43,11 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
                 if (playerId == owner)
                 {
+                    // The server only ever sends the owner deltas for its own entity when it is
+                    // authoritatively overriding the owner's state (ChangedFromApi). Preserve that
+                    // signal so the client-side sync copies the value to the game actor and does not
+                    // let the local game state clobber it. Clear dirty so we do not echo it back.
+                    component.MarkChangedFromApi();
                     component.ClearDirty();
                 }
 
@@ -55,6 +60,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
                 if (playerId == owner)
                 {
+                    component.MarkChangedFromApi();
                     component.ClearDirty();
                 }
             }
