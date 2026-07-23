@@ -23,7 +23,7 @@ internal sealed class SerializationJobRegistry
             var id = registry.GetNetworkedComponentId<T>();
 
             owner._logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner._netEntity, owner._playerIdProvider));
+            owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner._netEntity, owner._playerIdProvider, owner._logger));
             owner.RegisterApplySnapshotJob(id, new ApplySnapshotJob<T>(owner._netEntity));
             owner.RegisterWriteSnapshotJob(id, new WriteSnapshotJob<T>(id));
         }
