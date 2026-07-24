@@ -133,7 +133,10 @@ namespace {info.Namespace};
         EmitReadDelta(sb, model, classState);
 
         sb.AppendLine("""
+    /// <exclude />
     public void ClearDirty() => _dirtyMask = 0;
+    
+    /// <exclude />
     public bool IsDirty => _dirtyMask != 0;
 """);
 
@@ -293,9 +296,13 @@ using {ns};
 
     private void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
+        sb.AppendLine("/// <exclude />");
         sb.AppendLine("public void ClearApiFlag() => _apiMask = 0;");
+        sb.AppendLine("/// <exclude />");
         sb.AppendLine($"public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));");
+        sb.AppendLine("/// <exclude />");
         sb.AppendLine("public readonly bool ChangedFromApi => _apiMask != 0;");
+        sb.AppendLine("/// <exclude />");
         sb.AppendLine("public void MarkChangedFromApi() => _apiMask = _dirtyMask;");
     }
 
@@ -357,6 +364,7 @@ using {ns};
         CSharpClassState classState)
     {
         sb.AppendLine("""
+    /// <exclude />
     public void WriteDelta(NetDataWriter writer)
     {
         var mask = _dirtyMask;
@@ -385,6 +393,7 @@ using {ns};
         CSharpClassState classState)
     {
         sb.AppendLine("""
+    /// <exclude />
     public void ReadDelta(NetDataReader reader)
     {
 """);
