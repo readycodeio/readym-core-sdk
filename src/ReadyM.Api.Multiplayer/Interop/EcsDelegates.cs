@@ -19,8 +19,7 @@ public unsafe delegate int WriteDeltaDelegate(IntPtr componentPtr, byte* buffer,
 public unsafe delegate int ReadSnapshotDelegate(IntPtr componentPtr, byte* buffer, int size);
 public unsafe delegate int ReadDeltaDelegate(IntPtr componentPtr, byte* buffer, int size, byte clearDirty);
 
-/// <summary>Returns 1 if the component instance has fields marked as changed from the API
-/// (an authoritative server override), 0 otherwise. Used to relay overrides back to the owner.</summary>
+/// <summary>1 if the component was changed from the API (a server override), else 0.</summary>
 public delegate byte ChangedFromApiDelegate(IntPtr componentPtr);
 
 

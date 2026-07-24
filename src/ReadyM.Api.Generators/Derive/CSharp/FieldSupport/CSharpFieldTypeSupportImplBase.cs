@@ -59,9 +59,8 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     }
 
     /// <summary>
-    /// Emits a conditional API-flag set for a plain (non-API) setter. When the writing thread has
-    /// opted in (the server ECS thread), an ordinary write is treated as an authoritative override,
-    /// so it gets replicated back to the entity's owner without an explicit MarkChangedFromApi() call.
+    /// Emits, in a plain setter, a conditional API-flag set: when the thread opted in (server
+    /// authoring scope), the write is treated as an authoritative override.
     /// </summary>
     protected virtual void EmitAutoApiMark(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {

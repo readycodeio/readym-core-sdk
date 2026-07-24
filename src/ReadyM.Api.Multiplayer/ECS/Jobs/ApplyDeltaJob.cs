@@ -24,8 +24,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
         if (playerId == null)
             return;
 
-        // On the server this is the client that sent the batch; a client may only change components
-        // on entities it owns. Unset on the client (deltas there are trusted server relays).
+        // Server-only: the sending client. Unset on the client (deltas there are trusted relays).
         var authoritativeSender = DeltaApplyContext.AuthoritativeSender;
 
         while (reader.TryGetNetworkId(out var netId))
@@ -41,8 +40,7 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
             if (authoritativeSender.HasValue && owner != authoritativeSender.Value)
             {
-                // Hostile/buggy external input: a client trying to change an entity it does not own.
-                // Consume the bytes to stay aligned, but do not apply (so it is never relayed either).
+                // Non-owner sender: consume the bytes to stay aligned, but do not apply/relay.
                 logger.LogWarning(
                     "Dropping delta for {Component} entity {NetId}: sender {Sender} is not the owner {Owner}",
                     typeof(T).Name, netId, authoritativeSender.Value, owner);
@@ -59,10 +57,8 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
                 if (playerId == owner)
                 {
-                    // The server only ever sends the owner deltas for its own entity when it is
-                    // authoritatively overriding the owner's state (ChangedFromApi). Preserve that
-                    // signal so the client-side sync copies the value to the game actor and does not
-                    // let the local game state clobber it. Clear dirty so we do not echo it back.
+                    // Owner-directed deltas are always server overrides; keep the API flag so the
+                    // sync copies it to the game actor, and clear dirty so we don't echo it back.
                     component.MarkChangedFromApi();
                     component.ClearDirty();
                 }

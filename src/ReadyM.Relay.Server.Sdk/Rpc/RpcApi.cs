@@ -40,8 +40,7 @@ public class RpcApi
                 // convert to NetDataReader
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
 
-                // A server RPC handler is server-side game logic: writes it makes to networked
-                // components are authoritative overrides, so they reach the entity's owner too.
+                // RPC handler writes are authoritative: auto-mark so overrides reach the owner.
                 using var _ = ComponentWriteContext.EnterServerAuthoring();
                 handler(header, reader);
             };

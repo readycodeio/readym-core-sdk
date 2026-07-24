@@ -4,26 +4,19 @@ using ReadyM.Api.Idents;
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
 /// <summary>
-/// Thread-local side channel carrying the authoritative sender of the delta batch currently being
-/// applied. The server sets it around <see cref="SerializationJobRegistry.ApplyDelta"/> so that
-/// <see cref="ApplyDeltaJob{T}"/> can reject deltas whose sender does not own the target entity
-/// (a client may only change components on entities it owns).
-///
-/// It is left unset on the client: deltas there arrive from the trusted server relay, which has
-/// already validated ownership, so no per-sender check runs.
+/// Thread-local sender of the delta batch being applied. The server sets it around
+/// <see cref="SerializationJobRegistry.ApplyDelta"/> so <see cref="ApplyDeltaJob{T}"/> can reject
+/// deltas from a non-owner. Left unset on the client (deltas there are trusted server relays).
 /// </summary>
 internal static class DeltaApplyContext
 {
     [ThreadStatic]
     private static PlayerId? _authoritativeSender;
 
-    /// <summary>The owner a delta's entities must match, or null when no check should run.</summary>
+    /// <summary>The owner a delta's entities must match, or null to skip the check.</summary>
     public static PlayerId? AuthoritativeSender => _authoritativeSender;
 
-    /// <summary>
-    /// Sets the authoritative sender for the duration of the returned scope, restoring the previous
-    /// value on dispose. Must be entered on the same thread that runs the apply job.
-    /// </summary>
+    /// <summary>Sets the sender for the scope (restored on dispose). Enter on the apply thread.</summary>
     public static Scope WithAuthoritativeSender(PlayerId sender)
     {
         var previous = _authoritativeSender;

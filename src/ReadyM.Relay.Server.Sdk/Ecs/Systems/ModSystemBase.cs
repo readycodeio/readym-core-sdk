@@ -21,8 +21,7 @@ public abstract class ModSystemBase
     {
         Tick = new UpdateTick(deltaTime, time);
 
-        // Mod system writes to networked components are authoritative server-side game logic:
-        // auto-mark them so overrides to player-owned components reach the owner.
+        // Mod writes are authoritative: auto-mark so owned-component overrides reach the owner.
         using var _ = ComponentWriteContext.EnterServerAuthoring();
         OnUpdate();
     }

@@ -10,14 +10,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 /// <summary>
-/// Runs on a client mod project. For each class deriving from <c>ServerRpcClient</c>,
-/// emits, per RPC name:
-///   - the client-to-server (request) leg, if declared: a <c>Send{Name}(...)</c> sender;
-///   - the server-to-client (response/push) leg, if declared: an <c>On{Name}(...)</c> handler
-///     stub, its receive/dispatch wiring, and handler (de)registration.
-///
-/// This is the mirror image of the server handler generator: the client sends the request and
-/// receives the response, so a one-way RPC only produces the leg it declares.
+/// Mirror of the server handler generator, on a client mod project. Per RPC name, for each
+/// <c>ServerRpcClient</c> class emits the declared legs: request (c-&gt;s) as a Send(...), and
+/// response (s-&gt;c) as an On(...) handler + dispatch. A one-way RPC only produces its declared leg.
 /// </summary>
 [Generator]
 internal class ServerRpcEventGenerator : IIncrementalGenerator
@@ -177,15 +172,14 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
 
-            // Client -> server (request): emit the sender using the request shape.
+            // c->s: emit the sender.
             if (request is not null)
             {
                 var requestParams = BuildPayloadParams(request);
                 EmitSender(sb, eventName, codeRef, offsetRef, requestParams);
             }
 
-            // Server -> client (response/push): the client RECEIVES this leg, so emit the
-            // handler stub, its dispatch branch, and (de)registration on the shared code.
+            // s->c: client receives, so emit the handler stub, dispatch branch and (de)registration.
             if (response is not null)
             {
                 var responseParams = BuildPayloadParams(response);
@@ -255,8 +249,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
     {
         var payloadParamList = FormatParamList(payloadParams);
 
-        // No RpcContext on the client side - the message always comes from the server, there
-        // is no meaningful sender. Unimplemented stubs are silently dropped by the compiler.
+        // No RpcContext on the client (the sender is always the server). Unimplemented stubs drop.
         sb.AppendLine($"    partial void On{eventName}({payloadParamList});");
         sb.AppendLine();
     }

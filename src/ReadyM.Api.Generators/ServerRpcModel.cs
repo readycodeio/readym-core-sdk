@@ -5,15 +5,9 @@ using Microsoft.CodeAnalysis;
 namespace ReadyM.Api.Generators;
 
 /// <summary>
-/// Shared helpers for the three server-RPC generators (contract manifest, server handlers,
-/// client events). Encapsulates how a <c>[ServerRpcContracts]</c> method's DIRECTION is read
-/// from its <c>[ClientToServer]</c> / <c>[ServerToClient]</c> attributes, and how the two
-/// directions of one logical RPC (identified by method NAME) are paired up.
-///
-/// A single RPC name maps to a single wire code used in both directions: a client only ever
-/// receives the server-to-client shape and a server only ever receives the client-to-server
-/// shape, so one code is unambiguous. The request (client-to-server) and response
-/// (server-to-client) payloads may nonetheless differ, which is the whole point of the split.
+/// Shared helpers for the three server-RPC generators: reads a contract method's direction
+/// attributes and pairs the two directions of one RPC (keyed by method name). One name = one wire
+/// code (each side only receives one direction), but request and response payloads may differ.
 /// </summary>
 internal static class ServerRpcModel
 {
@@ -50,9 +44,8 @@ internal static class ServerRpcModel
     }
 
     /// <summary>
-    /// Resolves, per RPC name, the client-to-server (request) and server-to-client (response)
-    /// contract method symbols. Either may be null for a one-way RPC. A method carrying both
-    /// direction attributes fills both slots (symmetric two-way of identical shape).
+    /// Per RPC name, the request (c-&gt;s) and response (s-&gt;c) method symbols; either may be null
+    /// (one-way). A method with both attributes fills both slots.
     /// </summary>
     public static Dictionary<string, DirectionalRpc> ResolveDirections(
         IEnumerable<INamedTypeSymbol> contractClasses)
@@ -80,13 +73,12 @@ internal static class ServerRpcModel
         return result;
     }
 
-    /// <summary>Per-name pairing of the two directional contract methods.</summary>
     public struct DirectionalRpc
     {
-        /// <summary>Request shape (client to server). Null when the RPC has no client-to-server leg.</summary>
+        /// <summary>Request (c-&gt;s) method, or null.</summary>
         public IMethodSymbol? ClientToServer;
 
-        /// <summary>Response/push shape (server to client). Null when the RPC has no server-to-client leg.</summary>
+        /// <summary>Response/push (s-&gt;c) method, or null.</summary>
         public IMethodSymbol? ServerToClient;
     }
 }

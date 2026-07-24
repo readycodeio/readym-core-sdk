@@ -10,15 +10,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 /// <summary>
-/// Runs on a server mod project. For each class deriving from <c>ServerRpcHandlersBase</c>,
-/// emits, per RPC name:
-///   - the client-to-server (request) leg, if declared: an <c>On{Name}(RpcContext, ...)</c>
-///     handler stub, its receive/dispatch wiring, and handler (de)registration;
-///   - the server-to-client (response/push) leg, if declared: a
-///     <c>Send{Name}(PlayerId recipient, ...)</c> sender.
-///
-/// A one-way RPC only produces the leg it declares, so a client-to-server-only RPC has no
-/// server-side sender and a server-to-client-only RPC registers no server-side handler.
+/// Runs on a server mod project. Per RPC name, for each <c>ServerRpcHandlersBase</c> class emits the
+/// declared legs: request (c-&gt;s) as an On(RpcContext, ...) handler + dispatch, and response (s-&gt;c)
+/// as a Send(PlayerId, ...). A one-way RPC only produces the leg it declares.
 /// </summary>
 [Generator]
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
@@ -124,8 +118,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
         var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
 
-        // Contract classes live in the same assembly as the manifest. Resolve, per RPC name,
-        // the client-to-server (request) and server-to-client (response) contract methods.
+        // Contract classes live in the manifest's assembly. Resolve each name's request/response.
         var contractClasses = ServerRpcModel.CollectContractClasses(manifest.ContainingAssembly.GlobalNamespace);
         var directions = ServerRpcModel.ResolveDirections(contractClasses);
 
@@ -183,15 +176,14 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
 
-            // Server -> client (response/push): emit the sender using the response shape.
+            // s->c: emit the sender.
             if (response is not null)
             {
                 var responseParams = BuildPayloadParams(response);
                 EmitSender(sb, eventName, codeRef, responseParams);
             }
 
-            // Client -> server (request): the server RECEIVES this leg, so emit the handler
-            // stub, its dispatch case, and (de)registration on the shared code.
+            // c->s: server receives, so emit the handler stub, dispatch case and (de)registration.
             if (request is not null)
             {
                 var requestParams = BuildPayloadParams(request);
@@ -267,8 +259,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             ? $"{RpcContextFqn} context, {payloadParamList}"
             : $"{RpcContextFqn} context";
 
-        // The user provides the implementing half; unimplemented stubs are silently dropped
-        // by the compiler so a class may implement any subset of contract methods.
+        // Unimplemented partial stubs are dropped, so a class may implement any subset.
         sb.AppendLine($"    partial void On{eventName}({stubParams});");
         sb.AppendLine();
     }
