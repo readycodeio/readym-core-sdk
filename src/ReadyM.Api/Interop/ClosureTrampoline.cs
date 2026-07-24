@@ -5,7 +5,7 @@ namespace ReadyM.Api.Interop;
 
 /// A handle for a C++ closure that does not take any parameters.
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ClosureTrampoline0
+internal unsafe struct ClosureTrampoline0
 {
     private delegate* unmanaged[Cdecl]<void*, void> Functor;
     private void* Context;
@@ -23,7 +23,7 @@ public unsafe struct ClosureTrampoline0
 
 /// A handle for a C++ closure that takes a single parameter.
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct ClosureTrampoline1
+internal unsafe struct ClosureTrampoline1
 {
     private delegate* unmanaged[Cdecl]<void*, IntPtr, void> Functor;
     private void* Context;

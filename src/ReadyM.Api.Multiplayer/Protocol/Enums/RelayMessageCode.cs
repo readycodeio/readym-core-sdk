@@ -1,5 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
+/// <exclude />
 /// <summary>
 /// A unique identifier of a single RPC message type.
 /// </summary>

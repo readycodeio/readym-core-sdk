@@ -16,7 +16,7 @@ internal partial struct EmptyScopeDeletionComponent
     /// Cells and their parent areas do not inherit that value from one another.
     /// This means that a cell with this flag set will still be deleted if all players leave its parent area if that area doesn't have this flag set.
     /// Similarly, a cell which doesn't have this flag set will be deleted when all players deactivate it (directly or by leaving its parent area),
-    /// even if its parent area has thi flag set.
+    /// even if its parent area has this flag set.
     /// Setting this flag to false on a scope that has no players in it won't cause the scope to be deleted until one or more players join it
     /// and then all players leave it again.
     /// </summary>

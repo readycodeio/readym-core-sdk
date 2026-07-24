@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
-public static class BlittableHelper
+internal static class BlittableHelper
 {
     private struct CacheEntry
     {

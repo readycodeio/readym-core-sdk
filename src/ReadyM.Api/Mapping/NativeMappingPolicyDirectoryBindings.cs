@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 
 namespace ReadyM.Api.Mapping;
 
+/// <exclude />
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 public static class NativeMappingPolicyDirectoryBindings
 {

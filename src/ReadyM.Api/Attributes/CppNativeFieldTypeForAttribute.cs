@@ -2,7 +2,8 @@ using System;
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = true)]
+/// <exclude />
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
 public class CppNativeFieldTypeForAttribute(
     Type forType,
     string forField,

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -8,6 +8,12 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ReadyM.Api.Generators;
+
+/// <summary>
+/// Mirror of the server handler generator, on a client mod project. Per RPC name, for each
+/// <c>ServerRpcClient</c> class emits the declared legs: request (c-&gt;s) as a Send(...), and
+/// response (s-&gt;c) as an On(...) handler + dispatch. A one-way RPC only produces its declared leg.
+/// </summary>
 [Generator]
 internal class ServerRpcEventGenerator : IIncrementalGenerator
 {
@@ -85,22 +91,6 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static INamedTypeSymbol? FindContractClass(INamespaceSymbol ns)
-    {
-        foreach (var type in ns.GetTypeMembers())
-        {
-            if (type.GetAttributes().Any(a =>
-                    a.AttributeClass?.Name is "ServerRpcContractsAttribute" or "ServerRpcContracts"))
-                return type;
-        }
-        foreach (var child in ns.GetNamespaceMembers())
-        {
-            var found = FindContractClass(child);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
     private static void GenerateSources(
         SourceProductionContext context,
         ImmutableArray<INamedTypeSymbol?> rawClasses,
@@ -114,7 +104,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 new DiagnosticDescriptor(
-                    "SRPC002", "Missing manifest",
+                    "SRPC003", "Missing manifest",
                     $"No {ManifestClassName} found. Add a reference to the Common project containing [ServerRpcContracts].",
                     "ServerRpc", DiagnosticSeverity.Error, true),
                 classes[0].Locations.FirstOrDefault()));
@@ -122,31 +112,32 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         }
 
         var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
-        var contractClass = FindContractClass(manifest.ContainingNamespace);
 
-        // Contract methods in the order the manifest defines them (alphabetical).
-        // The contract class is in a compiled referenced assembly - compiled methods
-        // carry no IsPartialDefinition metadata, so no filter is needed.
-        var contractMethods = manifest.GetMembers()
+        var contractClasses = ServerRpcModel.CollectContractClasses(manifest.ContainingAssembly.GlobalNamespace);
+        var directions = ServerRpcModel.ResolveDirections(contractClasses);
+
+        var names = manifest.GetMembers()
             .OfType<IFieldSymbol>()
             .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
             .Select(p => p.Name.Substring(0, p.Name.Length - 4))
-            .Select(name => (
-                Name: name,
-                Symbol: contractClass?.GetMembers(name).OfType<IMethodSymbol>().FirstOrDefault()
-            ))
+            .ToList();
+
+        var rpcs = names
+            .Select(name =>
+            {
+                directions.TryGetValue(name, out var dir);
+                return (Name: name, Request: dir.ClientToServer, Response: dir.ServerToClient);
+            })
             .ToList();
 
         foreach (var classSymbol in classes)
-        {
-            GenerateEventClass(context, classSymbol, contractMethods, manifestFqn);
-        }
+            GenerateEventClass(context, classSymbol, rpcs, manifestFqn);
     }
 
     private static void GenerateEventClass(
         SourceProductionContext context,
         INamedTypeSymbol classSymbol,
-        List<(string Name, IMethodSymbol? Symbol)> contractMethods,
+        List<(string Name, IMethodSymbol? Request, IMethodSymbol? Response)> rpcs,
         string manifestFqn)
     {
         var ns = classSymbol.ContainingNamespace.ToDisplayString();
@@ -175,88 +166,31 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         var dispatchBranches = new StringBuilder();
         var initCalls = new StringBuilder();
         var deinitCalls = new StringBuilder();
-
         var offsetRef = $"{manifestFqn}.Offset";
-        foreach (var (eventName, contractMethodSymbol) in contractMethods)
+
+        foreach (var (eventName, request, response) in rpcs)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
 
-            var payloadParams = contractMethodSymbol?.Parameters
-                .Select(p => new PayloadParam(
-                    p.Type,
-                    p.Name,
-                    SerializationHelper.IsSerializablePrimitive(p.Type.SpecialType),
-                    SerializationHelper.IsINetSerializable(p.Type)))
-                .ToList()
-                ?? new List<PayloadParam>();
-
-            var payloadParamList = string.Join(", ", payloadParams.Select(p =>
-                $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
-
-            // Partial declaration stub. No RpcContext on the client side - the message
-            // always comes from the server, there is no meaningful sender.
-            // Unimplemented stubs are silently dropped by the compiler.
-            sb.AppendLine($"    partial void On{eventName}({payloadParamList});");
-            sb.AppendLine();
-
-            // SendX: client → server
-            sb.AppendLine($$"""
-                                public void Send{{eventName}}({{payloadParamList}})
-                                {
-                                    var message = RelayMessage.ToServer({{codeRef}} + {{offsetRef}}, DeliveryMethod.ReliableOrdered);
-                                    var writer = message.Writer;
-                            """);
-
-            for (var i = 0; i < payloadParams.Count; i++)
+            // c->s: emit the sender.
+            if (request is not null)
             {
-                var p = payloadParams[i];
-                if (p.IsSerializablePrimitive)
-                    sb.AppendLine($"        writer.Put({p.Name});");
-                else if (p.IsNetSerializable)
-                    sb.AppendLine($"        {p.Name}.Serialize(writer);");
-                else
-                    sb.AppendLine($"        Serializer.SerializeObject(writer, {p.Name});");
+                var requestParams = BuildPayloadParams(request);
+                EmitSender(sb, eventName, codeRef, offsetRef, requestParams);
             }
 
-            sb.AppendLine("""
-                                  RelayClient.SendMessage(message);
-                              }
-
-                          """);
-
-            // Dispatch branch (server → client receive path)
-            dispatchBranches.AppendLine($"            case {codeRef}:");
-            dispatchBranches.AppendLine("            {");
-
-            for (var i = 0; i < payloadParams.Count; i++)
+            // s->c: client receives, so emit the handler stub, dispatch branch and (de)registration.
+            if (response is not null)
             {
-                var p = payloadParams[i];
-                var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                if (p.IsSerializablePrimitive)
-                {
-                    var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
-                    dispatchBranches.AppendLine($"                var {p.Name} = reader.{getter}();");
-                }
-                else if (p.IsNetSerializable)
-                {
-                    dispatchBranches.AppendLine($"                var {p.Name} = new {typeFqn}();");
-                    dispatchBranches.AppendLine($"                {p.Name}.Deserialize(reader);");
-                }
-                else
-                {
-                    dispatchBranches.AppendLine($"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);");
-                }
+                var responseParams = BuildPayloadParams(response);
+                EmitReceiveHandlerStub(sb, eventName, responseParams);
+                EmitDispatchBranch(dispatchBranches, eventName, codeRef, responseParams);
+
+                if (initCalls.Length > 0) initCalls.AppendLine();
+                initCalls.Append($"        RelayClient.AddServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
+                if (deinitCalls.Length > 0) deinitCalls.AppendLine();
+                deinitCalls.Append($"        RelayClient.RemoveServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
             }
-
-            var dispatchArgs = string.Join(", ", payloadParams.Select(p => p.Name));
-            dispatchBranches.AppendLine($"                RunOnGameThread(() => {{ On{eventName}({dispatchArgs}); }});");
-            dispatchBranches.AppendLine("                break;");
-            dispatchBranches.AppendLine("            }");
-
-            if (initCalls.Length > 0) initCalls.AppendLine();
-            initCalls.Append($"        RelayClient.AddServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
-            if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-            deinitCalls.Append($"        RelayClient.RemoveServerRpcMessageHandler({codeRef} + {offsetRef}, OnServerEvent);");
         }
 
         sb.AppendLine($$"""
@@ -287,6 +221,89 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             $"{fullClassName.Replace('.', '_')}_RpcEvents.g.cs",
             sb.ToString());
     }
+
+    private static void EmitSender(
+        StringBuilder sb, string eventName, string codeRef, string offsetRef, List<PayloadParam> payloadParams)
+    {
+        var payloadParamList = FormatParamList(payloadParams);
+
+        sb.AppendLine($$"""
+                            public void Send{{eventName}}({{payloadParamList}})
+                            {
+                                var message = RelayMessage.ToServer({{codeRef}} + {{offsetRef}}, DeliveryMethod.ReliableOrdered);
+                                var writer = message.Writer;
+                        """);
+
+        foreach (var p in payloadParams)
+            sb.AppendLine(SerializeStatement(p));
+
+        sb.AppendLine("""
+                              RelayClient.SendMessage(message);
+                          }
+
+                      """);
+    }
+
+    private static void EmitReceiveHandlerStub(
+        StringBuilder sb, string eventName, List<PayloadParam> payloadParams)
+    {
+        var payloadParamList = FormatParamList(payloadParams);
+
+        // No RpcContext on the client (the sender is always the server). Unimplemented stubs drop.
+        sb.AppendLine($"    partial void On{eventName}({payloadParamList});");
+        sb.AppendLine();
+    }
+
+    private static void EmitDispatchBranch(
+        StringBuilder dispatchBranches, string eventName, string codeRef, List<PayloadParam> payloadParams)
+    {
+        dispatchBranches.AppendLine($"            case {codeRef}:");
+        dispatchBranches.AppendLine("            {");
+
+        foreach (var p in payloadParams)
+            dispatchBranches.AppendLine(DeserializeStatement(p));
+
+        var dispatchArgs = string.Join(", ", payloadParams.Select(p => p.Name));
+        dispatchBranches.AppendLine($"                RunOnGameThread(() => {{ On{eventName}({dispatchArgs}); }});");
+        dispatchBranches.AppendLine("                break;");
+        dispatchBranches.AppendLine("            }");
+    }
+
+    private static string SerializeStatement(PayloadParam p) =>
+        p.IsSerializablePrimitive ? $"        writer.Put({p.Name});"
+        : p.IsNetSerializable ? $"        {p.Name}.Serialize(writer);"
+        : $"        Serializer.SerializeObject(writer, {p.Name});";
+
+    private static string DeserializeStatement(PayloadParam p)
+    {
+        var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (p.IsSerializablePrimitive)
+        {
+            var getter = SerializationHelper.GetDeserializationMethod(p.Type.SpecialType);
+            return $"                var {p.Name} = reader.{getter}();";
+        }
+
+        if (p.IsNetSerializable)
+        {
+            return $"                var {p.Name} = new {typeFqn}();\n"
+                   + $"                {p.Name}.Deserialize(reader);";
+        }
+
+        return $"                var {p.Name} = Serializer.DeserializeObject<{typeFqn}>(reader);";
+    }
+
+    private static string FormatParamList(List<PayloadParam> payloadParams) =>
+        string.Join(", ", payloadParams.Select(p =>
+            $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
+
+    private static List<PayloadParam> BuildPayloadParams(IMethodSymbol method) =>
+        method.Parameters
+            .Select(p => new PayloadParam(
+                p.Type,
+                p.Name,
+                SerializationHelper.IsSerializablePrimitive(p.Type.SpecialType),
+                SerializationHelper.IsINetSerializable(p.Type)))
+            .ToList();
 
     private sealed class PayloadParam(ITypeSymbol type, string name, bool isSerializablePrimitive, bool isNetSerializable)
     {

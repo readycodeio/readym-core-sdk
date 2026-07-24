@@ -1,5 +1,8 @@
 namespace ReadyM.Api.Saves;
 
+/// <summary>
+/// Represents a file with a name and binary content, used for saving game data.
+/// </summary>
 public readonly struct FileInfo(string name, byte[] content)
 {
     /// <summary>

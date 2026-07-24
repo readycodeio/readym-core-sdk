@@ -6,7 +6,7 @@ using ReadyM.Api.Mapping;
 
 namespace ReadyM.Api.Helpers;
 
-public sealed class DataSideChannel
+internal sealed class DataSideChannel
 {
     // Per-scope-type cache: resolves TEvent's interop class id (if any) once,
     // and exposes a delegate that pushes/pops/checks against the right dict

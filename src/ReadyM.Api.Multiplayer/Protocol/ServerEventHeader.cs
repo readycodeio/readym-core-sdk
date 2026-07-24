@@ -4,6 +4,7 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Protocol;
 
+/// <exclude />
 /// <summary>
 /// Spans 3 bytes.
 /// - 1 byte for eventCode

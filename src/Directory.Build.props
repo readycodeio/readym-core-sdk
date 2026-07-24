@@ -24,13 +24,6 @@
         <StripSymbols>false</StripSymbols>       <!-- keeps the .pdb (Windows) / .dbg (Linux) -->
         <NativeDebugSymbols>true</NativeDebugSymbols>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)' == 'ProductionLocalMod'">
-        <DefineConstants>$(DefineConstants);DEBUG;PRODUCTION_MASTER_SERVER</DefineConstants>
-        <PlatformTarget>AnyCPU</PlatformTarget>
-        <OutputPath>bin\ProductionLocalMod\</OutputPath>
-        <DebugSymbols>true</DebugSymbols>
-        <IntermediateOutputPath>obj\ProductionLocalMod\</IntermediateOutputPath>
-    </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Testing'">
         <DefineConstants>$(DefineConstants);DEBUG;TESTING</DefineConstants>
         <PlatformTarget>AnyCPU</PlatformTarget>

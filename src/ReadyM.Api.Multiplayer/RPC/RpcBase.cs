@@ -7,6 +7,9 @@ using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Api.Multiplayer.RPC;
 
+/// <summary>
+/// Base class for all RPC handlers, client and server.
+/// </summary>
 public abstract class RpcBase : IHostedService
 {
     /// <summary>
@@ -44,6 +47,11 @@ public abstract class RpcBase : IHostedService
         DeInitRpc();
     }
 
+    /// <exclude />
+    /// <summary>
+    /// Schedules a callback to be run on the game thread.
+    /// All RPC handlers use this method, it's not necessary to call it directly.
+    /// </summary>
     protected void RunOnGameThread(Action callback)
     {
         Scheduler.Schedule((_, c) => c(), callback);

@@ -3,6 +3,7 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
+using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -38,6 +39,9 @@ public class RpcApi
             {
                 // convert to NetDataReader
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
+
+                // RPC handler writes are authoritative: auto-mark so overrides reach the owner.
+                using var _ = ComponentWriteContext.EnterServerAuthoring();
                 handler(header, reader);
             };
             _pinnedDelegates.Add(handler, realHandler);

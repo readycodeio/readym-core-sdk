@@ -150,6 +150,13 @@ public sealed class ModComponentManager : IDisposable
         });
         var readDeltaDelegatePtr = _delegateStore.PinDelegate(readDeltaDelegate);
 
+        var changedFromApiDelegate = new ChangedFromApiDelegate(ptr =>
+        {
+            ref var data = ref Unsafe.AsRef<T>((void*)ptr);
+            return data.ChangedFromApi ? (byte)1 : (byte)0;
+        });
+        var changedFromApiDelegatePtr = _delegateStore.PinDelegate(changedFromApiDelegate);
+
         return new ModComponentRegistration
         {
             Stride = Unsafe.SizeOf<T>(),
@@ -158,7 +165,8 @@ public sealed class ModComponentManager : IDisposable
             WriteSnapshot = writeSnapshotDelegatePtr,
             ReadSnapshot = readSnapshotDelegatePtr,
             WriteDelta = writeDeltaDelegatePtr,
-            ReadDelta = readDeltaDelegatePtr
+            ReadDelta = readDeltaDelegatePtr,
+            ChangedFromApi = changedFromApiDelegatePtr
         };
     }
 

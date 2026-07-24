@@ -1,6 +1,7 @@
 ﻿using System;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -9,7 +10,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider) : IJob<NetDataReader>
+internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent = typeof(IForceSetComponent).IsAssignableFrom(typeof(T));
@@ -23,6 +24,9 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
         if (playerId == null)
             return;
 
+        // Server-only: the sending client. Unset on the client (deltas there are trusted relays).
+        var authoritativeSender = DeltaApplyContext.AuthoritativeSender;
+
         while (reader.TryGetNetworkId(out var netId))
         {
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
@@ -34,20 +38,18 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
             var owner = entity.Value.GetComponent<MetadataComponent>().Owner;
 
-            // if we are a client and the entity is owned by us, skip the delta
-            if (playerId != PlayerId.Server && playerId == owner)
+            if (authoritativeSender.HasValue && owner != authoritativeSender.Value)
             {
-                // NOTE: To make the server implementation easier, each client receives exactly the same delta message
-                // This means that a client will receive deltas from the same entities that it SENDS deltas for.
-                // In order to avoid ping-ponging delta messages back and forth, we skip deltas for entities that are 
-                // owned by this client.
+                // Non-owner sender: consume the bytes to stay aligned, but do not apply/relay.
+                logger.LogWarning(
+                    "Dropping delta for {Component} entity {NetId}: sender {Sender} is not the owner {Owner}",
+                    typeof(T).Name, netId, authoritativeSender.Value, owner);
                 _skipinstance.ReadDelta(reader);
                 continue;
             }
 
             // entity exists, apply the delta
             // we assume entities are always created with the correct archetype
-
             if (_useSetComponent)
             {
                 var component = default(T);
@@ -55,6 +57,9 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
 
                 if (playerId == owner)
                 {
+                    // Owner-directed deltas are always server overrides; keep the API flag so the
+                    // sync copies it to the game actor, and clear dirty so we don't echo it back.
+                    component.MarkChangedFromApi();
                     component.ClearDirty();
                 }
 
@@ -65,11 +70,9 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 ref var component = ref entity.Value.GetComponent<T>();
                 component.ReadDelta(reader);
 
-                // FIXME: This should be simplified to playerId == PlayerId.Server
                 if (playerId == owner)
                 {
-                    // NOTE: Currently, dirty flags do not need to be set during server logic. Therefore we can clear them
-                    // right away, unlike on the client
+                    component.MarkChangedFromApi();
                     component.ClearDirty();
                 }
             }

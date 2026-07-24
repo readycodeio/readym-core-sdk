@@ -4,6 +4,7 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.Protocol;
 
+/// <exclude />
 /// <summary>
 /// Spans 4 bytes in standard relay modes and (6 + 2 * peers) in peer-targeted relay mode.
 /// - 1 byte for eventCode

@@ -5,8 +5,7 @@ using ReadyM.Api.Mapping.Tags;
 
 namespace ReadyM.Api.Mapping.Policies.Event.Common;
 
-internal class AlwaysPropagatesEventPolicyFactory(
-    DataSideChannel sideChannel) : IMappingEventPolicyFactory
+internal class AlwaysPropagatesEventPolicyFactory(DataSideChannel sideChannel) : IMappingEventPolicyFactory
 {
     public bool Supports(Type eventType, Type contextType)
         => contextType == typeof(EmptyContext) && (

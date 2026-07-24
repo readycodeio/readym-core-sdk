@@ -3,7 +3,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
-public class ClearDirtySystem<T> : QuerySystem<T>
+internal class ClearDirtySystem<T> : QuerySystem<T>
     where T : struct, INetworkedComponent
 {
     protected override void OnUpdate()

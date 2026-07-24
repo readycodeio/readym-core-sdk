@@ -3,7 +3,7 @@
 namespace ReadyM.Api.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
-public class BoolNativeAccessMethodsAttribute : Attribute
+internal class BoolNativeAccessMethodsAttribute : Attribute
 {
     // empty
 }

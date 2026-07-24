@@ -3,7 +3,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Serialization;
 
-public class SpanDataWriter : NetDataWriter
+internal class SpanDataWriter : NetDataWriter
 {
     public SpanDataWriter() : base(true) { }
     public SpanDataWriter(int initialSize) : base(true, initialSize) { }

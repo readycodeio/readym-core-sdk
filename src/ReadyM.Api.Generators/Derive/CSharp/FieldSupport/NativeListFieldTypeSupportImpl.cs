@@ -114,6 +114,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             EmitSetDirty(symbol, context);
         }
         
+        context.AppendLine("/// <exclude />");
         context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {

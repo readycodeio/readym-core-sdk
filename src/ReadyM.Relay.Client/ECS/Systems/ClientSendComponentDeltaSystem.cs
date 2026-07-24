@@ -30,7 +30,7 @@ internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentI
         return 0;
     }
 
-    protected override void Send(PlayerId _, NetDataWriter data, SendContext context)
+    protected override void SendExceptOwner(PlayerId _, NetDataWriter data, SendContext context)
     {
         relay.SendRawMessage(data, deliveryMethod);
     }
