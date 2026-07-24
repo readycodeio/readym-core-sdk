@@ -8,7 +8,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 
 [DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
-internal partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>
+public partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>
 {
     private byte _dirtyMask;
     private byte _apiMask;
