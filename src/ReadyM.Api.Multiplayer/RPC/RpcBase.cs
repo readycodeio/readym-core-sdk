@@ -7,6 +7,9 @@ using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Api.Multiplayer.RPC;
 
+/// <summary>
+/// Base class for all RPC handlers, client and server.
+/// </summary>
 public abstract class RpcBase : IHostedService
 {
     /// <summary>

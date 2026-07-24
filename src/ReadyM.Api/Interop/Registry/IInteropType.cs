@@ -1,7 +1,6 @@
-﻿namespace ReadyM.Api.Interop.Registry
+﻿namespace ReadyM.Api.Interop.Registry;
+
+internal interface IInteropType
 {
-    public interface IInteropType
-    {
-        int GetClassId();
-    }
+    int GetClassId();
 }

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace ReadyM.Api.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
-public class CppNativeFieldTypeAttribute(
+internal class CppNativeFieldTypeAttribute(
     string cppTypeName,
     string defaultValue = "{}",
     string? getterTypeName = null,

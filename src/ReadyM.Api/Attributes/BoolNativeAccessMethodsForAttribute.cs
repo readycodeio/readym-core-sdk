@@ -2,8 +2,8 @@
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = true)]
-public class BoolNativeAccessMethodsForAttribute(
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+internal class BoolNativeAccessMethodsForAttribute(
     Type forType,
     string forField) : BoolNativeAccessMethodsAttribute
 {

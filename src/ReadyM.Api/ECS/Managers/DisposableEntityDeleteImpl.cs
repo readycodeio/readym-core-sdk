@@ -4,7 +4,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Managers;
 
-public class DisposableEntityDeleteImpl : IEntityDeleteImpl
+internal class DisposableEntityDeleteImpl : IEntityDeleteImpl
 {
     private readonly Dictionary<ComponentType, DisposableEntryBase?> _entryByComponentType = [];
 

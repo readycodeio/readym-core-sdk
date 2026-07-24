@@ -1,7 +1,7 @@
 ﻿namespace ReadyM.Api.Multiplayer.RPC;
 
 /// <summary>
-/// Base class for an RPC container.
+/// Base class for a client-side RPC handler.
 /// Each class that defines RPC methods with [RpcEvent] attributes must inherit from this class.
 /// </summary>
 public abstract class ClientRpcHandler : RpcBase

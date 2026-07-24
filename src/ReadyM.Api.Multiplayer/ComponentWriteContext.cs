@@ -2,6 +2,7 @@ using System;
 
 namespace ReadyM.Api.Multiplayer;
 
+/// <exclude />
 /// <summary>
 /// Thread-local switch that makes plain setter writes on networked components also set the API
 /// (authoritative) flag. Server mod code runs inside a "server authoring" scope (mod system ticks
@@ -11,21 +12,19 @@ namespace ReadyM.Api.Multiplayer;
 /// </summary>
 public static class ComponentWriteContext
 {
-    [ThreadStatic]
-    private static bool _autoMarkApiOnWrite;
-
     /// <summary>True when setter writes on the current thread should auto-set the API flag.</summary>
-    public static bool AutoMarkApiOnWrite => _autoMarkApiOnWrite;
+    [field: ThreadStatic]
+    public static bool AutoMarkApiOnWrite { get; private set; }
 
     /// <summary>Enables auto-marking for the scope (restored on dispose).</summary>
-    public static Scope EnterServerAuthoring()
+    internal static Scope EnterServerAuthoring()
     {
-        var previous = _autoMarkApiOnWrite;
-        _autoMarkApiOnWrite = true;
+        var previous = AutoMarkApiOnWrite;
+        AutoMarkApiOnWrite = true;
         return new Scope(previous);
     }
 
-    public struct Scope : IDisposable
+    internal struct Scope : IDisposable
     {
         private readonly bool _previous;
         private bool _disposed;
@@ -42,7 +41,7 @@ public static class ComponentWriteContext
                 return;
 
             _disposed = true;
-            _autoMarkApiOnWrite = _previous;
+            AutoMarkApiOnWrite = _previous;
         }
     }
 }

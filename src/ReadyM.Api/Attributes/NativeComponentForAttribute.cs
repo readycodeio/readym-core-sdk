@@ -2,8 +2,8 @@ using System;
 
 namespace ReadyM.Api.Attributes;
 
-[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = true)]
-public class NativeComponentForAttribute(
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+internal class NativeComponentForAttribute(
     Type forType,
     bool bindDelete = false,
     bool skipCpp = false) : NativeComponentAttribute(bindDelete, skipCpp)

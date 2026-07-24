@@ -3,7 +3,7 @@
 namespace ReadyM.Api.Attributes;
 
 [AttributeUsage(AttributeTargets.Struct)]
-public class DeriveNativeBindingAttribute : Attribute
+internal class DeriveNativeBindingAttribute : Attribute
 {
     // empty
 }

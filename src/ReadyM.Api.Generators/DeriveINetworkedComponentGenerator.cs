@@ -279,6 +279,7 @@ using {ns};
         DeriveTargetModel model,
         CSharpClassState classState)
     {
+        sb.AppendLine("    /// <exclude />\n");
         sb.AppendLine("    public static class Fields\n        {");
         foreach (var member in model.Members)
         {
@@ -292,11 +293,6 @@ using {ns};
 
     private void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
-        // public void ClearApiFlag() => _apiMask = 0;
-        // public void ClearApiFlag(int field) => _apiMask = (byte)(_apiMask & ~((byte)1 << field));
-        // public readonly bool ChangedFromApi => _apiMask != 0;
-        // public void MarkChangedFromApi() => _apiMask = _dirtyMask;
-
         sb.AppendLine("public void ClearApiFlag() => _apiMask = 0;");
         sb.AppendLine($"public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));");
         sb.AppendLine("public readonly bool ChangedFromApi => _apiMask != 0;");

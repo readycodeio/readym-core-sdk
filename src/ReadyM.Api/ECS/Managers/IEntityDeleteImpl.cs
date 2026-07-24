@@ -2,7 +2,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Managers;
 
-public interface IEntityDeleteImpl
+internal interface IEntityDeleteImpl
 {
     void HandleDelete(Entity entity);
 }

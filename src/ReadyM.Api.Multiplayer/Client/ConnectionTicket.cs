@@ -4,7 +4,7 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
-public struct ConnectionTicket : IEquatable<ConnectionTicket>, INetSerializable
+internal struct ConnectionTicket : IEquatable<ConnectionTicket>, INetSerializable
 {
     private Guid _value;
 

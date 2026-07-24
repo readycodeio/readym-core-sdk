@@ -3,6 +3,10 @@ using LiteNetLib.Utils;
 
 namespace ReadyM.Api.Multiplayer.Extensions;
 
+/// <exclude />
+/// <summary>
+/// Used in mod-generated code for serializing fields of custom components.
+/// </summary>
 public static class VectorSerializationExtensions
 {
     public static void Serialize(this Vector2 vector, NetDataWriter writer)

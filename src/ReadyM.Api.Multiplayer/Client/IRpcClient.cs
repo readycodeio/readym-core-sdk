@@ -6,6 +6,11 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
+/// <exclude />
+/// <summary>
+/// Used internally in generated RPC handlers to handle sending and receiving RPC messages.
+/// The type is public because it is used in mod-generated code, but it is not intended for direct use by mod developers.
+/// </summary>
 public interface IRpcClient : IPlayerIdProvider
 {
     void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<CustomRelayEventHeader, NetDataReader> handler);
