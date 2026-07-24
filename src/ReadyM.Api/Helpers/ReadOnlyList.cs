@@ -23,7 +23,7 @@ internal readonly struct ReadOnlyList<T>(List<T> list) : IReadOnlyList<T>
     public bool Contains(T item)
         => list.Contains(item);
     
-    public static readonly List<T> EmptyList = [];
+    private static readonly List<T> EmptyList = [];
     
     public static ReadOnlyList<T> Empty => new(EmptyList);
 
