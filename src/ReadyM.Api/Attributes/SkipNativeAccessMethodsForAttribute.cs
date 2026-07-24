@@ -2,8 +2,9 @@
 
 namespace ReadyM.Api.Attributes;
 
+/// <exclude />
 [AttributeUsage(AttributeTargets.Assembly)]
-internal class SkipNativeAccessMethodsForAttribute(
+public class SkipNativeAccessMethodsForAttribute(
     Type forType,
     string forField) : SkipNativeAccessMethodsAttribute
 {

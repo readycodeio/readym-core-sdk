@@ -2,8 +2,9 @@
 
 namespace ReadyM.Api.Attributes;
 
+/// <exclude />
 [AttributeUsage(AttributeTargets.Struct)]
-internal class NativeComponentAttribute(
+public class NativeComponentAttribute(
     bool bindDelete = false,
     bool skipCpp = false) : Attribute
 {

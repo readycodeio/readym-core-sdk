@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 namespace ReadyM.Api.Attributes;
 
+/// <exclude />
 [AttributeUsage(AttributeTargets.Field)]
-internal class CppNativeFieldTypeAttribute(
+public class CppNativeFieldTypeAttribute(
     string cppTypeName,
     string defaultValue = "{}",
     string? getterTypeName = null,
