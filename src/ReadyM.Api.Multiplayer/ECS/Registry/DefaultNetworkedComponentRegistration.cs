@@ -10,5 +10,6 @@ internal class DefaultNetworkedComponentRegistration : INetworkedComponentRegist
         registry.RegisterComponent<PlayerScopeComponent>(DeliveryMethod.ReliableOrdered);
         registry.RegisterComponent<AreaScopeComponent>(DeliveryMethod.ReliableOrdered);
         registry.RegisterComponent<CellScopeComponent>(DeliveryMethod.ReliableOrdered);
+        registry.RegisterComponent<EmptyScopeDeletionComponent>(DeliveryMethod.ReliableOrdered);
     }
 }

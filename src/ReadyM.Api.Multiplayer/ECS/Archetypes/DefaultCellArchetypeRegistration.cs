@@ -16,6 +16,8 @@ internal sealed class DefaultCellArchetypeRegistration : IArchetypeRegistration
             {
                 b.Add<MetadataComponent>();
                 b.Add<CellScopeComponent>();
+                b.Add<InParentAreaScopeComponent>();
+                b.Add<EmptyScopeDeletionComponent>();
                 b.AddTag<ScopeEntityTag>();
             }
         );

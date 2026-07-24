@@ -27,6 +27,7 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
             {
                 b.Add<MetadataComponent>();
                 b.Add<AreaScopeComponent>();
+                b.Add<EmptyScopeDeletionComponent>();
                 b.AddTag<ScopeEntityTag>();
                 areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b));
             }
