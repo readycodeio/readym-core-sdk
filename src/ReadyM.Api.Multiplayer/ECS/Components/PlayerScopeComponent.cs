@@ -15,6 +15,5 @@ public partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>
     
     private PlayerId _playerId;
     
-    public PlayerId GetIndexedValue()
-        => _playerId;
+    public PlayerId GetIndexedValue() => _playerId;
 }

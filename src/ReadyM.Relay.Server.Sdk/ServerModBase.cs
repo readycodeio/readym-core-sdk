@@ -6,7 +6,7 @@ namespace ReadyM.Relay.Server.Sdk;
 
 public abstract class ServerModBase
 {
-    protected IDependencyContainer Services { get; private set; } = null!;
+    protected IServerDependencyContainer Services { get; private set; } = null!;
 
     [UsedImplicitly]
     public void InitializeAot(IComponentRegistry registry)
@@ -15,7 +15,7 @@ public abstract class ServerModBase
     }
 
     [UsedImplicitly]
-    public void Initialize(IDependencyContainer services)
+    public void Initialize(IServerDependencyContainer services)
     {
         Services = services;
         Init();
