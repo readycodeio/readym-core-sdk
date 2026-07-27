@@ -11,7 +11,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// write barriers always fire correctly - even for non-blittable T. The AOT relay holds the
 /// resulting AOTHeapPointers and dispatches through them; it never writes directly into the array.
 /// </summary>
-public sealed class TypedComponentHeap<T> : IDisposable where T : struct
+internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
 {
     private T[] _components;
 
