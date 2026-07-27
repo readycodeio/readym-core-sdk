@@ -38,7 +38,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterLocalComponent<T>(string? displayName = null) where T : struct
+    public int RegisterLocalComponent<T>() where T : struct
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -50,7 +50,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterLocalComponent<T>();
-        var id = registerModComponent(registration, MakeDisplayName<T>(displayName));
+        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
         if (id < 0)
             throw new InvalidOperationException(
@@ -65,7 +65,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterComponent<T>(string? displayName = null) where T : struct, INetworkedComponent
+    public int RegisterComponent<T>() where T : struct, INetworkedComponent
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -77,7 +77,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterComponent<T>();
-        var id = registerModComponent(registration, MakeDisplayName<T>(displayName));
+        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
         if (id < 0)
             throw new InvalidOperationException($"Server refused to register {type.Name}: component slot limit reached.");
@@ -87,10 +87,4 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
         _registered[type] = (id, stride);
         return id;
     }
-
-    /// <summary>
-    /// The label the server's metrics tab shows for this component.
-    /// </summary>
-    private static NativeString256 MakeDisplayName<T>(string? displayName)
-        => new(string.IsNullOrWhiteSpace(displayName) ? typeof(T).Name : displayName, false);
 }
