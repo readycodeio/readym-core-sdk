@@ -108,6 +108,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     {
         if (context.Member.AccessorSettings.SkipAccessors)
         {
+            context.AppendLine($"/// <inheritdoc cref=\"{context.State.CurrentVar}\"/>");
             context.AppendLine($"private {FullyQualifiedTypeName(symbol)} {context.Member.GeneratedPropertyName}");
             using (context.WithCodeBlock())
             {
@@ -127,6 +128,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             accessorType = "bool";
         }
 
+        context.AppendLine($"/// <inheritdoc cref=\"{context.State.CurrentVar}\"/>");
         context.AppendLine($"public {accessorType} {context.Member.GeneratedPropertyName}");
         using (context.WithCodeBlock())
         {
