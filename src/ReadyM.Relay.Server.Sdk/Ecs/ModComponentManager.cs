@@ -22,7 +22,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// needed from the plugin after registration. All allocated heaps are tracked here and
 /// disposed in bulk on shutdown.
 /// </summary>
-public sealed class ModComponentManager : IDisposable
+internal sealed class ModComponentManager : IDisposable
 {
     // Keeps factory delegates alive - their IntPtrs live in AOT memory.
     private readonly PinnedDelegateStore _delegateStore = new();

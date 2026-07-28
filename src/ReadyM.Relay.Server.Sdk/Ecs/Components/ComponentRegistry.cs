@@ -50,7 +50,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterLocalComponent<T>();
-        var id = registerModComponent(registration);
+        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
         if (id < 0)
             throw new InvalidOperationException(
@@ -77,13 +77,13 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterComponent<T>();
-        var id = registerModComponent(registration);
+        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
-        if (id < 0) 
+        if (id < 0)
             throw new InvalidOperationException($"Server refused to register {type.Name}: component slot limit reached.");
 
         logger.LogDebug("Registered component {Component} with ID {Id}", type.FullName, id);
-        
+
         _registered[type] = (id, stride);
         return id;
     }

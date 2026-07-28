@@ -1,5 +1,4 @@
 ﻿using JetBrains.Annotations;
-using ReadyM.Api.DI;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 namespace ReadyM.Relay.Server.Sdk;

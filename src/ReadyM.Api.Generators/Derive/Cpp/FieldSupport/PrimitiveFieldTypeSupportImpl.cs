@@ -31,7 +31,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) <= {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else if (context.Member.AccessorSettings.BoolAccessors)
-            context.Append($"({context.State.CurrentVar} ? 1 : 0) == value");
+            context.Append($"({context.State.CurrentVar} != 0) == value");
         else
             context.Append($"{context.State.CurrentVar} == value");
     }
@@ -43,7 +43,7 @@ internal sealed class PrimitiveFieldTypeSupportImpl : CppNonOverrideFieldTypeSup
         else if (context.State.CurrentType.SpecialType == SpecialType.System_Double)
             context.Append($"std::abs({context.State.CurrentVar} - value) > {DeriveComponentUtils.ScalarComparisonEpsilon}");
         else if (context.Member.AccessorSettings.BoolAccessors)
-            context.Append($"({context.State.CurrentVar} ? 1 : 0) != value");
+            context.Append($"({context.State.CurrentVar} != 0) != value");
         else
             context.Append($"{context.State.CurrentVar} != value");
     }
