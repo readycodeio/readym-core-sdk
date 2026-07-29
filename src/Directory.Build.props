@@ -14,6 +14,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <!-- silence CS1591 warning for missing XML comments -->
         <NoWarn>$(NoWarn);1591</NoWarn>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'DebugProduction'">
         <DefineConstants>$(DefineConstants);DEBUG;PRODUCTION_MASTER_SERVER</DefineConstants>
