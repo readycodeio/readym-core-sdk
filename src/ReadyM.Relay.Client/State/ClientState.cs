@@ -136,6 +136,12 @@ internal class ClientState : IDisposable
     public CellEntry? GetActiveCellEntry(CellId cellId)
         => _currentCellEntries.FirstOrDefault(e => e.CellId == cellId) is var entry && entry.CellId == cellId ? entry : (CellEntry?)null;
 
+    private bool IsLocalCellMaster(Entity cellEntity)
+        => cellEntity != default
+           && cellEntity.HasComponent<CellScopeComponent>()
+           && LocalPlayerId is { } local
+           && cellEntity.GetComponent<CellScopeComponent>().MasterClient == local;
+
     public AreaEntry? CurrentAreaEntry
         => _currentAreaEntry;
 
@@ -149,6 +155,8 @@ internal class ClientState : IDisposable
 
     public event Action<AreaId, Entity>? OnJoinedArea;
     public event Action<AreaId, Entity>? OnLeftArea;
+    public event Action<FullCellId, Entity, bool>? OnActivatedCell;
+    public event Action<FullCellId, Entity, bool>? OnDeactivatedCell;
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
@@ -1041,17 +1049,34 @@ internal class ClientState : IDisposable
                     });
                 }
 
-                // Destroy entities in cells that are no longer active
+                // Currently active cells for diff.
+                var previousCellIds = _currentCellEntries.Select(e => e.CellId).ToHashSet();
+                var areaId = _currentAreaEntry.Value.AreaId;
+
                 foreach (var existing in _currentCellEntries)
                 {
-                    if (!newCellIds.Contains(existing.CellId) && existing.CellEntity != default)
+                    if (!newCellIds.Contains(existing.CellId))
                     {
-                        _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
+                        var wasMaster = IsLocalCellMaster(existing.CellEntity);
+                        if (existing.CellEntity != default)
+                        {
+                            _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
+                        }
+                        OnDeactivatedCell?.Invoke(new FullCellId(areaId, existing.CellId), existing.CellEntity, wasMaster);
                     }
                 }
 
                 _currentCellEntries.Clear();
                 _currentCellEntries.AddRange(newCellEntries);
+
+                // Notify activation for cells that were not active before.
+                foreach (var entry in newCellEntries)
+                {
+                    if (!previousCellIds.Contains(entry.CellId))
+                    {
+                        OnActivatedCell?.Invoke(new FullCellId(areaId, entry.CellId), entry.CellEntity, IsLocalCellMaster(entry.CellEntity));
+                    }
+                }
 
                 var cellsString = _currentCellEntries.Aggregate("", (p, n) => p + (p == "" ? "" : ", ") + n.CellId.ToString());
                 _logger.LogInformation("ECS set {count} active cells for player {PlayerId}: {cells}", _currentCellEntries.Count, pendingEvent.PlayerId, cellsString);
