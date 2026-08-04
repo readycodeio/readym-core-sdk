@@ -191,9 +191,9 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 EmitDispatchCase(dispatchCases, eventName, codeRef, requestParams);
 
                 if (initCalls.Length > 0) initCalls.AppendLine();
-                initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+                initCalls.Append($"        Rpc.AddServerRpcMessageHandler({codeRef} + {manifestFqn}.Offset, OnServerRpcEventHandler);");
                 if (deinitCalls.Length > 0) deinitCalls.AppendLine();
-                deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef}, OnServerRpcEventHandler);");
+                deinitCalls.Append($"        Rpc.RemoveServerRpcMessageHandler({codeRef} + {manifestFqn}.Offset, OnServerRpcEventHandler);");
             }
         }
 
