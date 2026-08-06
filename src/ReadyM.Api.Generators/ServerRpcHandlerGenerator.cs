@@ -226,8 +226,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             sb.ToString());
     }
 
-    private static void EmitSender(
-        StringBuilder sb, string eventName, string codeRef, List<PayloadParam> payloadParams)
+    private static void EmitSender(StringBuilder sb, string eventName, string codeRef, List<PayloadParam> payloadParams)
     {
         var payloadParamList = FormatParamList(payloadParams);
         var sendParamList = payloadParams.Count > 0
