@@ -41,4 +41,7 @@
     <PropertyGroup Condition="'$(Aot)' == 'true'">
         <DefineConstants>$(DefineConstants);NATIVE_AOT</DefineConstants>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Agones)' == 'true'">
+        <DefineConstants>$(DefineConstants);AGONES</DefineConstants>
+    </PropertyGroup>
 </Project>
