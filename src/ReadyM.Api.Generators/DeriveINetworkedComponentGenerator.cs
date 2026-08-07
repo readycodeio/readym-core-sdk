@@ -134,6 +134,7 @@ namespace {info.Namespace};
 
         sb.AppendLine("""
     /// <exclude />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearDirty() => _dirtyMask = 0;
     
     /// <exclude />
@@ -193,6 +194,7 @@ namespace {info.Namespace};
         moduleState.AddUsingList([
             "System",
             "System.Numerics",
+            "System.Runtime.CompilerServices",
             "LiteNetLib.Utils",
             "ReadyM.Api.Generators",
             "ReadyM.Api.Multiplayer",
@@ -297,12 +299,15 @@ using {ns};
     private void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
         sb.AppendLine("/// <exclude />");
+        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
         sb.AppendLine("public void ClearApiFlag() => _apiMask = 0;");
         sb.AppendLine("/// <exclude />");
+        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
         sb.AppendLine($"public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));");
         sb.AppendLine("/// <exclude />");
         sb.AppendLine("public readonly bool ChangedFromApi => _apiMask != 0;");
         sb.AppendLine("/// <exclude />");
+        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
         sb.AppendLine("public void MarkChangedFromApi() => _apiMask = _dirtyMask;");
     }
 

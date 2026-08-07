@@ -175,12 +175,13 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         foreach (var (eventName, request, response) in rpcs)
         {
             var codeRef = $"{manifestFqn}.{eventName}Code";
+            var codeRefWithOffset = $"{codeRef} + {manifestFqn}.Offset";
 
             // s->c: emit the sender.
             if (response is not null)
             {
                 var responseParams = BuildPayloadParams(response);
-                EmitSender(sb, eventName, codeRef, responseParams);
+                EmitSender(sb, eventName, codeRefWithOffset, responseParams);
             }
 
             // c->s: server receives, so emit the handler stub, dispatch case and (de)registration.
@@ -237,7 +238,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                             public void Send{{eventName}}({{sendParamList}})
                             {
                                 var writer = new NetDataWriter();
-                                writer.Put((byte){{codeRef}});
+                                writer.Put((byte)({{codeRef}}));
                         """);
 
         foreach (var p in payloadParams)
