@@ -56,6 +56,10 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         {
             context.AppendLine($"{context.CurrentApiMaskVar} |= {bitExpr};");
         }
+        else
+        {
+            EmitAutoApiMark(symbol, context);
+        }
     }
 
     /// <summary>
@@ -171,9 +175,6 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         {
             EmitAssign(symbol, context);
             EmitSetDirty(symbol, context, fromApi);
-
-            if (!fromApi)
-                EmitAutoApiMark(symbol, context);
         }
     }
 
@@ -181,6 +182,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
+        var maskType = context.Model.MaskInfo!.Type;
         var name = member.GeneratedPropertyName;
         var type = context.Member.AccessorSettings.BoolAccessors ? "bool" : member.Source.Type.ToString();
         var typeName = context.Model.Source.Name;
@@ -191,7 +193,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"   static c => c.{name},");
             context.AppendLine($"   static (ref c, v) => c.{name} = v,");
             context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => c.Is{name}Dirty());");
+            context.AppendLine($"   static c => (c._apiMask & (({maskType})1 << {i})) != 0);");
         }
     }
 
