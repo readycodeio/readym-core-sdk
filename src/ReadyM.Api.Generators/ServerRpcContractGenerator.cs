@@ -77,10 +77,14 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         // Manifest goes in the first contracts class's namespace (all should share a root namespace).
         var manifestNs = classes[0].Symbol.ContainingNamespace.ToDisplayString();
 
+        // One manifest per assembly, so the assembly name is its stable identity. Offsets are
+        // assigned in Id order at runtime, which keeps them independent of mod load order.
+        var manifestId = classes[0].Symbol.ContainingAssembly.Name;
+
         foreach (var cls in classes)
             EmitPartialImplementations(context, cls);
 
-        EmitManifest(context, manifestNs, names);
+        EmitManifest(context, manifestNs, manifestId, names);
     }
 
     /// <summary>
@@ -177,6 +181,7 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
     private static void EmitManifest(
         SourceProductionContext context,
         string ns,
+        string manifestId,
         List<string> names)
     {
         var sb = new StringBuilder();
@@ -197,6 +202,12 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"public static class {ManifestClassName}");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Stable identity of this contract set (the declaring assembly's name). Offsets are");
+        sb.AppendLine("    /// assigned in Id order, so every process agrees regardless of mod load order.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public const string Id = \"{manifestId}\";");
+        sb.AppendLine();
         sb.AppendLine($"    public const byte TotalEventCount = {names.Count};");
         sb.AppendLine();
         sb.AppendLine("    public static byte Offset { get; set; }");

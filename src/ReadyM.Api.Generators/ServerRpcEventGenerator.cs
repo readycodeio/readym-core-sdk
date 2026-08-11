@@ -27,12 +27,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             .Where(x => x is not null)
             .Collect();
 
-        var manifest = context.CompilationProvider
-            .Select(static (compilation, _) => FindManifestType(compilation));
-
-        context.RegisterSourceOutput(
-            eventClasses.Combine(manifest),
-            static (ctx, pair) => GenerateSources(ctx, pair.Left, pair.Right));
+        context.RegisterSourceOutput(eventClasses, static (ctx, classes) => GenerateSources(ctx, classes));
     }
 
     private static bool Predicate(SyntaxNode node, CancellationToken _) =>
@@ -63,75 +58,35 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static INamedTypeSymbol? FindManifestType(Compilation compilation)
-    {
-        var local = FindTypeNamed(compilation.GlobalNamespace, ManifestClassName);
-        if (local != null) return local;
-
-        foreach (var reference in compilation.References)
-        {
-            if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol asm)
-            {
-                var type = FindTypeNamed(asm.GlobalNamespace, ManifestClassName);
-                if (type != null) return type;
-            }
-        }
-        return null;
-    }
-
-    private static INamedTypeSymbol? FindTypeNamed(INamespaceSymbol ns, string name)
-    {
-        var direct = ns.GetTypeMembers(name).FirstOrDefault();
-        if (direct != null) return direct;
-        foreach (var child in ns.GetNamespaceMembers())
-        {
-            var found = FindTypeNamed(child, name);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
     private static void GenerateSources(
         SourceProductionContext context,
-        ImmutableArray<INamedTypeSymbol?> rawClasses,
-        INamedTypeSymbol? manifest)
+        ImmutableArray<INamedTypeSymbol?> rawClasses)
     {
         var classes = rawClasses.Where(c => c is not null).Select(c => c!).ToList();
-        if (classes.Count == 0)
-            return;
 
-        if (manifest is null)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    "SRPC003", "Missing manifest",
-                    $"No {ManifestClassName} found. Add a reference to the Common project containing [ServerRpcContracts].",
-                    "ServerRpc", DiagnosticSeverity.Error, true),
-                classes[0].Locations.FirstOrDefault()));
-            return;
-        }
-
-        var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
-
-        var contractClasses = ServerRpcModel.CollectContractClasses(manifest.ContainingAssembly.GlobalNamespace);
-        var directions = ServerRpcModel.ResolveDirections(contractClasses);
-
-        var names = manifest.GetMembers()
-            .OfType<IFieldSymbol>()
-            .Where(p => p.IsStatic && p.Name.EndsWith("Code"))
-            .Select(p => p.Name.Substring(0, p.Name.Length - 4))
-            .ToList();
-
-        var rpcs = names
-            .Select(name =>
-            {
-                directions.TryGetValue(name, out var dir);
-                return (Name: name, Request: dir.ClientToServer, Response: dir.ServerToClient);
-            })
-            .ToList();
-
+        // Each class names its own contract set, so a mod can host clients for several of them.
         foreach (var classSymbol in classes)
+        {
+            if (!ServerRpcModel.TryResolveContracts(context, classSymbol, out var contractsType, out var manifest))
+                continue;
+
+            var manifestFqn = $"global::{manifest.ContainingNamespace.ToDisplayString()}.{ManifestClassName}";
+
+            // Class-scoped: only the legs the named contracts class declares, even when the manifest
+            // covers several contract classes from the same assembly.
+            var directions = ServerRpcModel.ResolveDirections(new[] { contractsType });
+
+            var rpcs = ServerRpcModel.ManifestNames(manifest)
+                .Where(directions.ContainsKey)
+                .Select(name =>
+                {
+                    directions.TryGetValue(name, out var dir);
+                    return (Name: name, Request: dir.ClientToServer, Response: dir.ServerToClient);
+                })
+                .ToList();
+
             GenerateEventClass(context, classSymbol, rpcs, manifestFqn);
+        }
     }
 
     private static void GenerateEventClass(
