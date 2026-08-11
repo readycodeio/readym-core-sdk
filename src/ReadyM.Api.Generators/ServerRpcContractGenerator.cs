@@ -186,6 +186,7 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine($"namespace {ns};");
         sb.AppendLine();
+        sb.AppendLine("/// <exclude/>");
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Single source of truth for server RPC code assignment in this mod.");
         sb.AppendLine("/// Referenced by both the server handler and client event generators.");

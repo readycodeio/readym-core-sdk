@@ -12,6 +12,7 @@ namespace ReadyM.Api.Idents;
 /// <remarks>
 /// This struct doesn't replace <see cref="CellId"/>, because most of the time 
 /// <see cref="AreaId"/> can be inferred from the context of which area is a given player in.
+/// Cells are only used in OblivionMP for now. WukongMP does not use cells.
 /// </remarks>
 [DeriveJsonSerializable]
 public partial struct FullCellId : INetSerializable, IEquatable<FullCellId>

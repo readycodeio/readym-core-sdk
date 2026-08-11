@@ -10,6 +10,7 @@ namespace ReadyM.Api.Idents;
 /// Identifies a cell within an area.
 /// <see cref="CellId"/> has to be unique within its parent area (identified by <see cref="AreaId"/>).
 /// The main difference between a cell and an area is that a player can be only in one area at once, but can have many cells active within that area.
+/// <remarks>Cells are only used in OblivionMP for now. WukongMP does not use cells.</remarks>
 /// </summary>
 [DeriveJsonSerializable]
 public partial struct CellId : INetSerializable, IEquatable<CellId>

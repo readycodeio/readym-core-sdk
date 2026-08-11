@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Helpers;
 
-public class BiMap<TForwardKey, TReverseKey>
+internal class BiMap<TForwardKey, TReverseKey>
     where TForwardKey : notnull
     where TReverseKey : notnull
 {

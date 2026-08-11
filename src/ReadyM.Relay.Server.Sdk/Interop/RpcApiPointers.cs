@@ -2,6 +2,7 @@
 
 namespace ReadyM.Relay.Server.Sdk.Interop;
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential)]
 public  struct RpcApiPointers
 {

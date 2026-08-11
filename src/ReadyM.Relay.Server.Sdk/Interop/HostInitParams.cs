@@ -1,5 +1,6 @@
 ﻿namespace ReadyM.Relay.Server.Sdk.Interop;
 
+/// <exclude/>
 public struct HostInitParams
 {
     public required EcsApiPointers EcsApiPointers;

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Chunks1
 {
@@ -15,6 +16,7 @@ public struct Chunks1
     }
 }
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Chunks2
 {
@@ -35,6 +37,7 @@ public struct Chunks2
     }
 }
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Chunks3
 {
@@ -48,6 +51,7 @@ public struct Chunks3
     public int Length3;
 }
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Chunks4
 {
@@ -64,6 +68,7 @@ public struct Chunks4
     public int Length4;
 }
 
+/// <exclude/>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct Chunks5
 {

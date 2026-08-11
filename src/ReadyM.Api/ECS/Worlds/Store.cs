@@ -63,18 +63,18 @@ internal sealed partial class Store : IArchetypeRegistry
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> constructor)
+    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> build)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
-            Constructor = constructor
+            Constructor = build
         };
         return archetypeId;
     }
 
-    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> constructor)
+    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build)
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
@@ -86,7 +86,7 @@ internal sealed partial class Store : IArchetypeRegistry
             Constructor = builder =>
             {
                 entry.Constructor(builder);
-                constructor(builder);
+                build(builder);
             }
         };
     }

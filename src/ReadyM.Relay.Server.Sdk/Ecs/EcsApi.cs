@@ -101,12 +101,15 @@ public class EcsApi
 
     #region Query 1
 
+    /// <exclude />
     public delegate void EmbedForEach<T1>(ref T1 c1)
         where T1 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T, TState>(ref T component, ref TState state)
         where T : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T, in TState>(ref T component, TState state)
         where T : struct
         where TState : class;
@@ -173,12 +176,15 @@ public class EcsApi
 
     #region Query 2
 
+    /// <exclude />
     public delegate void EmbedForEach<T1, T2>(ref T1 c1, ref T2 c2)
         where T1 : struct where T2 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T1, T2, TState>(ref T1 c1, ref T2 c2, ref TState state)
         where T1 : struct where T2 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T1, T2, in TState>(ref T1 c1, ref T2 c2, TState state)
         where T1 : struct where T2 : struct where TState : class;
 
@@ -251,12 +257,15 @@ public class EcsApi
 
     #region Query 3
 
+    /// <exclude />
     public delegate void EmbedForEach<T1, T2, T3>(ref T1 c1, ref T2 c2, ref T3 c3)
         where T1 : struct where T2 : struct where T3 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T1, T2, T3, TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref TState state)
         where T1 : struct where T2 : struct where T3 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T1, T2, T3, in TState>(ref T1 c1, ref T2 c2, ref T3 c3, TState state)
         where T1 : struct where T2 : struct where T3 : struct where TState : class;
 
@@ -335,12 +344,15 @@ public class EcsApi
 
     #region Query 4
 
+    /// <exclude />
     public delegate void EmbedForEach<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T1, T2, T3, T4, TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T1, T2, T3, T4, in TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where TState : class;
 
@@ -425,12 +437,15 @@ public class EcsApi
 
     #region Query 5
 
+    /// <exclude />
     public delegate void EmbedForEach<T1, T2, T3, T4, T5>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T1, T2, T3, T4, T5, TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, ref TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T1, T2, T3, T4, T5, in TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where TState : class;
 
@@ -521,12 +536,15 @@ public class EcsApi
 
     #region Query 6
 
+    /// <exclude />
     public delegate void EmbedForEach<T1, T2, T3, T4, T5, T6>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, ref T6 c6)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachState<T1, T2, T3, T4, T5, T6, TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, ref T6 c6, ref TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachStateManaged<T1, T2, T3, T4, T5, T6, in TState>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4, ref T5 c5, ref T6 c6, TState state)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where TState : class;
 

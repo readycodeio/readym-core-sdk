@@ -2,7 +2,7 @@
 
 namespace ReadyM.Api.ECS.Registry;
 
-public interface IArchetypeRegistration
+internal interface IArchetypeRegistration
 {
     void Register(IArchetypeRegistry registry);
 }

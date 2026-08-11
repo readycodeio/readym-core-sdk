@@ -4,12 +4,14 @@ using System.Runtime.CompilerServices;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
+/// <exclude/>
 public struct SizeOfHelper<T>
     where T : unmanaged
 {
     public static readonly int Size = Unsafe.SizeOf<T>();
 }
 
+/// <exclude/>
 public struct SizeOfHelper
 {
     [ThreadStatic]

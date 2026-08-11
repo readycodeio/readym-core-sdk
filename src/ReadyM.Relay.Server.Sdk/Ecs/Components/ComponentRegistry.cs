@@ -38,7 +38,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterLocalComponent<T>() where T : struct
+    public void RegisterLocalComponent<T>() where T : struct
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -57,7 +57,6 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
                 $"Server refused to register {type.Name}: component slot limit reached.");
 
         _registered[type] = (id, stride);
-        return id;
     }
     
     /// <summary>
@@ -65,7 +64,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public int RegisterComponent<T>() where T : struct, INetworkedComponent
+    public void RegisterComponent<T>() where T : struct, INetworkedComponent
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -85,6 +84,5 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
         logger.LogDebug("Registered component {Component} with ID {Id}", type.FullName, id);
 
         _registered[type] = (id, stride);
-        return id;
     }
 }
