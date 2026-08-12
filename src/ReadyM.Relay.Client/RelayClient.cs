@@ -23,10 +23,13 @@ internal class RelayClient : IRelayClient
     {
         public readonly List<PlayerId> AllPlayers = [];
         public readonly List<PlayerId> AreaPlayers = [];
+        public readonly List<CellId> ActiveCells = [];
 
         public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
         public AreaId? CurrentAreaId { get; set; }
+
+        ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
 
         public DisconnectedReason LastDisconnectedReason { get; set; }
 
@@ -82,6 +85,8 @@ internal class RelayClient : IRelayClient
 
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
+    CellId[]? _requestedActiveCells;
+    public ReadOnlyList<CellId>? RequestedActiveCells => _requestedActiveCells == null ? null : new (_requestedActiveCells.ToList()); //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
 
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
@@ -98,9 +103,11 @@ internal class RelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerConnected;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerDisconnected;
     public event Action<AreaId>? OnRequestedJoinArea;
+    public event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
     public event Action<IRelayClientNetworkThreadContext, AreaId>? OnJoinedArea;
     public event Action? OnRequestedLeaveArea;
     public event Action<IRelayClientNetworkThreadContext>? OnLeftArea;
+    public event Action<IRelayClientNetworkThreadContext>? OnActiveCellsSet;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
 
@@ -486,6 +493,36 @@ internal class RelayClient : IRelayClient
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
     }
 
+    public void RequestSetActiveCells(IEnumerable<CellId> cellIds)
+    {
+        if (!RequestedConnect)
+        {
+            _logger.LogError("Relay client is not connected to the server");
+            return;
+        }
+
+        if (_requestedActiveCells != null)
+        {
+            _logger.LogError("Already requested to set active cells.");
+            return;
+        }
+
+        _requestedActiveCells = cellIds.ToArray();
+
+        var playerId = PlayerId;
+        if (playerId == null)
+        {
+            _logger.LogError("PlayerId cannot be null");
+            return;
+        }
+
+        var writer = new NetDataWriter();
+        writer.Put((byte)RelayMessageCode.RequestSetActiveCellsEvent);
+        writer.Put(playerId.Value);
+        writer.PutArray(_requestedActiveCells);
+        SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
+    }
+
     public void RequestLeaveArea()
     {
         if (!RequestedConnect)
@@ -663,6 +700,8 @@ internal class RelayClient : IRelayClient
 
                     _netThreadContext.CurrentAreaId = null;
                     _netThreadContext.AreaPlayers.Remove(playerId);
+                    _netThreadContext.ActiveCells.Clear();
+                    _requestedActiveCells = null;
                 }
 
                 break;
@@ -741,6 +780,38 @@ internal class RelayClient : IRelayClient
 
                 break;
             }
+            case RelayMessageCode.RequestSetActiveCellsEvent:
+            {
+                var playerId = reader.Get<PlayerId>();
+
+                if (_netThreadContext.PlayerId == null)
+                {
+                    _logger.LogError("Received RequestSetActiveCellsEvent but PlayerId is not set");
+                    break;
+                }
+
+                if (playerId != PlayerId)
+                {
+                    _logger.LogError("Received RequestSetActiveCellsEvent for player {PlayerId} but expected {ExpectedPlayerId}", playerId, PlayerId);
+                    break;
+                }
+
+                var cellIds = reader.GetArray<CellId>();
+
+                _netThreadContext.ActiveCells.Clear();
+                if (cellIds != null)
+                {
+                    foreach (var cellId in cellIds)
+                        _netThreadContext.ActiveCells.Add(cellId);
+                }
+
+                _requestedActiveCells = null;
+
+                _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
+
+                OnActiveCellsSet?.Invoke(_netThreadContext);
+                break;
+            }
             default:
             {
                 if (eventCode >= RelayMessageCode.MinBuiltInEvent)
@@ -806,6 +877,8 @@ internal class RelayClient : IRelayClient
     private DateTimeOffset _processStart = DateTimeOffset.Now;
     private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
+    private int _pingCount;
+    
     private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
     {
         // Round trip time. LiteNetLib reports one way latency, so we double it.
@@ -838,13 +911,18 @@ internal class RelayClient : IRelayClient
             _netStats.UpdateTransfer(_client.Statistics, (now - _processStart).TotalSeconds);
         }
 
-        // print avg recv and sent over the delta time
-        var avgRecv = (long)(dRecv / delta.TotalSeconds);
-        var avgSent = (long)(dSent / delta.TotalSeconds);
-        var packetLoss = _client.Statistics.PacketLoss;
-        var sent = _client.Statistics.PacketsSent;
+        if (_pingCount % 10 == 0)
+        {
+            // print avg recv and sent over the delta time
+            var avgRecv = (long)(dRecv / delta.TotalSeconds);
+            var avgSent = (long)(dSent / delta.TotalSeconds);
+            var packetLoss = _client.Statistics.PacketLoss;
 
-        _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}", avgRecv, avgSent, packetLoss, sent);
+            var sent = _client.Statistics.PacketsSent;
+            _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, Latency: {} ms", avgRecv, avgSent, packetLoss, sent, latency);
+        }
+
+        _pingCount++;
     }
 
     // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected
@@ -852,10 +930,12 @@ internal class RelayClient : IRelayClient
     {
         _logger.LogInformation("Disconnected from server: {Reason}", info.Reason);
 
+        _netThreadContext.ActiveCells.Clear();
         _netThreadContext.CurrentAreaId = null;
         _netThreadContext.IsConnected = false;
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
+        _requestedActiveCells = null;
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
 

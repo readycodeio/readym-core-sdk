@@ -1,5 +1,6 @@
 ﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
+/// <exclude />
 /// <summary>
 /// A unique identifier of a single RPC message type.
 /// </summary>
@@ -18,8 +19,10 @@ public enum RelayMessageCode : byte
     EcsCreateEntity = 248,
     EcsDeleteEntity = 247,
     EcsChangeOwnership = 246,
+
+    RequestSetActiveCellsEvent = 245,
     
-    MinBuiltInEvent = EcsChangeOwnership,
+    MinBuiltInEvent = RequestSetActiveCellsEvent,
     MaxAnyCustomEvent = MinBuiltInEvent - 1,
     
     MaxServerRpcEvent = MaxAnyCustomEvent,

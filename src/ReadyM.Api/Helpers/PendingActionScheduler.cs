@@ -700,8 +700,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     protected List<PendingGroupBase?> _queue = new(MaxPendingItemCount);
     protected List<PendingGroupBase?> _oldQueue = new(MaxPendingItemCount);
     protected int _queueIndex;
+    
+    protected int _delayedCount;
 
-    protected readonly TContext _context;
+    protected bool IsDelayed
+        => _delayedCount > 0;
+
+    protected TContext _context;
     
     protected PendingActionScheduler(TContext context, ILogger logger)
     {
@@ -709,11 +714,31 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         _group = new(this);
         _context = context;
     }
+
+    public void BeginDelay()
+    {
+        _delayedCount++;
+    }
+    
+    public void EndDelay()
+    {
+        if (_delayedCount <= 0)
+            throw new InvalidOperationException("No delay in progress");
+        _delayedCount--;
+    }
+
+    public void SetContext(TContext context)
+    {
+        _context = context;
+    }
     
     public async ValueTask RunAsync(Action<TContext> action)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
@@ -743,6 +768,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
@@ -781,6 +809,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
@@ -819,6 +850,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2);
@@ -856,6 +890,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3);
@@ -893,6 +930,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3, arg4);
@@ -930,6 +970,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             return func(_context);
@@ -968,6 +1011,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg);
@@ -1006,6 +1052,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg0, arg1);
@@ -1044,6 +1093,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg0, arg1, arg2);
@@ -1080,7 +1132,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule(Action<TContext> action)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1099,7 +1151,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule<T>(Action<TContext, T> action, T arg)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1126,7 +1178,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1153,7 +1205,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1180,7 +1232,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1207,7 +1259,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void Schedule<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1234,7 +1286,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
     public void ScheduleFunc<TResult>(Func<TContext, TResult> func)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1261,7 +1313,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void ScheduleFunc<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1288,7 +1340,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void ScheduleFunc<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1315,7 +1367,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     
     public void ScheduleFunc<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
-        if (thread == null || thread == Thread.CurrentThread)
+        if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
         {
             if (_queueIndex > 0)
                 Update();
@@ -1339,11 +1391,52 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
     }
-    
-    public void RunSynchronously(Action<TContext> action)
+
+    /// <summary>
+    /// Default upper bound (in milliseconds) for how long the <see cref="RunSynchronously(Action{TContext}, int)"/>
+    /// overloads wait for the scheduler thread to execute the scheduled action. Hitting this bound means the scheduler
+    /// stopped draining its queue, which would otherwise block the calling thread forever.
+    /// </summary>
+    /// <remarks>
+    /// Scheduler can end up never executing a task that was added to its queue due to an exception or a different kind of bug.
+    /// A finite time limit is the only way to make sure that this kind of issue, regardles of its exact cause, will always 
+    /// end up throwing an exception eventually instead of blocking the waiting thread forever.
+    /// This is especially important for integration tests, which use different <see cref="RunSynchronously(Action{TContext}, int)"/>
+    /// overloads extensively and when the main test thread is blocked, a test gets stuck instead of failing.
+    /// </remarks>
+    public const int DefaultRunSynchronouslyTimeoutMs = 60_000;
+
+    private TValue WaitForCompletion<TValue>(Task<TValue> task, int timeoutMs)
+    {
+        if (!WaitWithTimeout(task, timeoutMs))
+            throw MakeTimeoutException(timeoutMs);
+
+        return task.GetAwaiter().GetResult();
+    }
+
+    private static bool WaitWithTimeout(Task task, int timeoutMs)
+    {
+        try
+        {
+            return task.Wait(timeoutMs);
+        }
+        catch (AggregateException)
+        {
+            // The task faulted rather than timed out, the caller rethrows the original exception unwrapped.
+            return true;
+        }
+    }
+
+    private TimeoutException MakeTimeoutException(int timeoutMs)
+        => new($"Timed out after {timeoutMs} ms waiting for a scheduled action to be executed by the scheduler thread ({thread})");
+
+    public void RunSynchronously(Action<TContext> action, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             action(_context);
@@ -1360,7 +1453,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(_group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1368,10 +1461,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
     
-    public void RunSynchronously<T>(Action<TContext, T> action, T arg)
+    public void RunSynchronously<T>(Action<TContext, T> action, T arg, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+            
             if (_queueIndex > 0)
                 Update();
             action(_context, arg);
@@ -1397,7 +1493,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1405,10 +1501,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
     
-    public void RunSynchronously<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
+    public void RunSynchronously<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1);
@@ -1434,7 +1533,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1442,10 +1541,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
     
-    public void RunSynchronously<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
+    public void RunSynchronously<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2);
@@ -1471,7 +1573,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1479,10 +1581,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
     
-    public void RunSynchronously<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
+    public void RunSynchronously<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3);
@@ -1508,7 +1613,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1516,10 +1621,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
     
-    public void RunSynchronously<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+    public void RunSynchronously<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3, arg4);
@@ -1545,7 +1653,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        tcs.Task.AsTask().GetAwaiter().GetResult();
+        WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1553,10 +1661,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
     }
 
-    public TResult RunSynchronously<TResult>(Func<TContext, TResult> func)
+    public TResult RunSynchronously<TResult>(Func<TContext, TResult> func, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             return func(_context);
@@ -1581,7 +1692,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        var result = tcs.Task.AsTask().GetAwaiter().GetResult();
+        var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1591,10 +1702,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         return result;
     }
     
-    public TResult RunSynchronously<T, TResult>(Func<TContext, T, TResult> func, T arg)
+    public TResult RunSynchronously<T, TResult>(Func<TContext, T, TResult> func, T arg, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg);
@@ -1619,7 +1733,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        var result = tcs.Task.AsTask().GetAwaiter().GetResult();
+        var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1629,8 +1743,11 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         return result;
     }
     
-    public TResult RunSynchronously<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
+    public TResult RunSynchronously<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
+        if (IsDelayed)
+            throw new InvalidOperationException();
+
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (_queueIndex > 0)
@@ -1657,7 +1774,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        var result = tcs.Task.AsTask().GetAwaiter().GetResult();
+        var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {
@@ -1667,10 +1784,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         return result;
     }
     
-    public TResult RunSynchronously<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
+    public TResult RunSynchronously<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
+            if (IsDelayed)
+                throw new InvalidOperationException();
+
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg0, arg1, arg2);
@@ -1695,7 +1815,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
 
-        var result = tcs.Task.AsTask().GetAwaiter().GetResult();
+        var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
         
         lock (_lock)
         {

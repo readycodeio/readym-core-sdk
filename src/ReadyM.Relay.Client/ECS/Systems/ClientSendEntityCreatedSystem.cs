@@ -1,6 +1,7 @@
 ﻿using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -11,8 +12,8 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
 
-internal class ClientSendEntityCreatedSystem(JobRegistry jobRegistry, ClientState state, IRelayClient relay)
-    : SendEntityCreatedSystemBase(jobRegistry)
+internal class ClientSendEntityCreatedSystem(SerializationJobRegistry serializationJobRegistry, ClientState state, IRelayClient relay)
+    : SendEntityCreatedSystemBase(serializationJobRegistry)
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
     {
@@ -62,6 +63,13 @@ internal class ClientSendEntityCreatedSystem(JobRegistry jobRegistry, ClientStat
             {
                 var scopeEntity = state.CurrentAreaEntry.Value.AreaEntity;
                 var context = SendContext.FromArea(state.CurrentAreaEntry.Value.AreaId, scopeEntity);
+                base.OnUpdate(context);
+            }
+
+            // Send cell scoped updates
+            foreach (var cellEntry in state.ActiveCellEntries)
+            {
+                var context = SendContext.FromCell(new FullCellId(state.CurrentAreaId!.Value, cellEntry.CellId), cellEntry.CellEntity);
                 base.OnUpdate(context);
             }
         }

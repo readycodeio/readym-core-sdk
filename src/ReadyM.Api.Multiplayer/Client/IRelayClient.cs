@@ -1,12 +1,13 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using LiteNetLib;
+﻿using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
@@ -36,6 +37,10 @@ internal interface IRelayClient : IRpcClient, IDisposable
     bool RequestedConnect { get; }
 
     AreaId? RequestedAreaId { get; }
+
+    /// <summary>List of cells that are requested to be set as active or a null if there is no request in progress.</summary>
+    /// <remarks>An empty list means that a request to deactivate all cells is in progress.</remarks>
+    ReadOnlyList<CellId>? RequestedActiveCells { get; }
 
     /// <summary>
     /// Fired immediately after the client requests connection to the server. The client is not yet connected when
@@ -96,6 +101,13 @@ internal interface IRelayClient : IRpcClient, IDisposable
     event Action<AreaId>? OnRequestedJoinArea;
 
     /// <summary>
+    /// Fired immediately after the client requests to set active cells.
+    /// The cells are not yet active for the client when this is fired.
+    /// Always called from the MAIN thread.
+    /// </summary>
+    event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
+
+    /// <summary>
     /// Fired when the client has successfully joined an area of interest. Before this event is fired, the client
     /// will not receive any messages addressed to the area of interest. The client will always leave an area of
     /// interest before joining a new one. It is currently impossible to be in multiple areas of interest at the same
@@ -103,6 +115,12 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<IRelayClientNetworkThreadContext, AreaId> OnJoinedArea;
+
+    /// <summary>
+    /// Fired when the server has confirmed setting the active cells.
+    /// Always called from the same NETWORK thread.
+    /// </summary>
+    event Action<IRelayClientNetworkThreadContext>? OnActiveCellsSet;
 
     /// <summary>
     /// Fired immediately after the client requests to leave an area of interest. The client has not yet left the
@@ -162,10 +180,8 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
-
-    void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
+    
     void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
-    void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler);
     void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler);
 
     /// <summary>
@@ -190,6 +206,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void RequestReconnect();
 
     void RequestJoinArea(AreaId areaId);
+    void RequestSetActiveCells(IEnumerable<CellId> cellIds);
     void RequestLeaveArea();
 
     void SendRawMessage(NetDataWriter writer, DeliveryMethod deliveryMethod);

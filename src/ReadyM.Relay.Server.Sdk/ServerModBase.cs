@@ -1,0 +1,29 @@
+﻿using JetBrains.Annotations;
+using ReadyM.Relay.Server.Sdk.Ecs.Components;
+
+namespace ReadyM.Relay.Server.Sdk;
+
+public abstract class ServerModBase
+{
+    protected IServerDependencyContainer Services { get; private set; } = null!;
+
+    [UsedImplicitly]
+    public void InitializeAot(IComponentRegistry registry)
+    {
+        RegisterComponents(registry);
+    }
+
+    [UsedImplicitly]
+    public void Initialize(IServerDependencyContainer services)
+    {
+        Services = services;
+        Init();
+    }
+
+    /// <summary>
+    /// Any components defined in the mod must be registered here.
+    /// </summary>
+    protected virtual void RegisterComponents(IComponentRegistry registry) { }
+
+    protected abstract void Init();
+}

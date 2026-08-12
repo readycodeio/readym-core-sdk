@@ -9,3 +9,15 @@ src/ReadyM.Relay/publish
 src/ReadyM.Relay.Server.Wukong/wwwroot
 publish
 /src/test-docker
+
+Claude.ReadyM.Relay.sln
+Claude.2.ReadyM.Relay.sln
+Claude.3.ReadyM.Relay.sln
+Claude.4.ReadyM.Relay.sln
+Claude.5.ReadyM.Relay.sln
+src/Claude.ReadyM.Relay.sln.DotSettings.user
+src/ReadyM.Relay.Server.Oblivion/wwwroot
+
+# Reusable commit-message scratch file (never committed)
+.commit/
+src/.claude

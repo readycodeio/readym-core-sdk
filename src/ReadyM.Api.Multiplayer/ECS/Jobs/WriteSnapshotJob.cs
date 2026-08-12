@@ -10,7 +10,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
-    : IJob<EntityStore, QueryFilter, Entity?, NetDataWriter>, IJob<Entity, NetDataWriter>
+    : IJob<EntityStore, QueryFilter, Entity?, NetDataWriter>
     where T : struct, INetworkedComponent
 {
     [ThreadStatic] private static NetDataWriter? _writer;
@@ -18,61 +18,45 @@ internal class WriteSnapshotJob<T>(NetworkedComponentId componentId)
     
     public void Execute(EntityStore world, QueryFilter filter, Entity? scopeEntity, NetDataWriter writer)
     {
-        var begin = writer.Length;
-        writer.Put(componentId);
+        _writer = writer;
+        _counter = 0;
+        
+        var begin = _writer.Length;
+        _writer.Put(componentId);
 
-        var position = writer.Length;
-        writer.Put((uint)0);
-
-        uint counter = 0;
+        var countPosition = _writer.Length;
+        _writer.Put((uint)0);
 
         if (scopeEntity != null)
         {
             if (scopeEntity.Value.TryGetComponent<T>(out var comp))
             {
-                counter++;
-                writer.Put(scopeEntity.Value.GetComponent<MetadataComponent>().NetId);
-                writer.Put(comp);
+                _counter++;
+                _writer.Put(scopeEntity.Value.GetComponent<MetadataComponent>().NetId);
+                _writer.Put(comp);
             }
         }
         
         var query = world.Query<MetadataComponent, T>(filter);
 
-        _counter = counter;
-        _writer = writer;
-        query.ForEachEntity((ref meta, ref comp, _) =>
+        query.ForEachEntity(static (ref meta, ref comp, _) =>
         {
             _counter++;
             _writer.Put(meta.NetId);
             _writer.Put(comp);
         });
-        counter = _counter;
-        writer = _writer;
 
-        if (counter == 0)
+        if (_counter == 0)
         {
-            writer.SetPosition(begin);
+            _writer.SetPosition(begin);
             return;
         }
 
-        var finalPosition = writer.Length;
-        writer.SetPosition(position);
-        writer.Put(counter);
+        var finalPosition = _writer.Length;
+        _writer.SetPosition(countPosition);
+        _writer.Put(_counter);
 
         // Reset position to the end of the data
-        writer.SetPosition(finalPosition);
-    }
-
-    public void Execute(Entity entity, NetDataWriter writer)
-    {
-        if (entity.TryGetComponent<T>(out var comp))
-        {
-            writer.Put(componentId);
-            writer.Put((uint)1);
-
-            var meta = entity.GetComponent<MetadataComponent>();
-            writer.Put(meta.NetId);
-            writer.Put(comp);
-        }
+        _writer.SetPosition(finalPosition);
     }
 }

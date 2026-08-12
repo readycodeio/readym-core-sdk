@@ -6,6 +6,11 @@ using ReadyM.Api.Multiplayer.Protocol.Enums;
 
 namespace ReadyM.Api.Multiplayer.Client;
 
+/// <exclude />
+/// <summary>
+/// Represents a message to be sent through the relay system.
+/// The type is public because it is used in mod-generated code, but it is not intended for direct use by mod developers.
+/// </summary>
 public struct RelayMessage
 {
     internal readonly RelayMessageCode EventCode;
@@ -28,7 +33,7 @@ public struct RelayMessage
         DeliveryMethod = deliveryMethod;
     }
 
-    internal static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
+    public static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.Put((byte)eventCode);

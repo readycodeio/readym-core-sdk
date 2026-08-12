@@ -1,24 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <LangVersion>default</LangVersion>
+        <LangVersion>14</LangVersion>
         <Nullable>enable</Nullable>
-        <Configurations>Debug;Release;NoDisconnect;Testing;DebugSelfHosted</Configurations>
+        <Configurations>Debug;Release;Testing</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <Platforms>AnyCPU</Platforms>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     
     <ItemGroup>
         <PackageReference Include="Friflo.Json.Fliox.Annotation" Version="1.0.4" />
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
     </ItemGroup>
-
+    
     <ItemGroup>
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
+    <PropertyGroup>
+        <GeneratedCppPath>$(MSBuildProjectDirectory)\..\..\..\OblivionMp\src\Generated</GeneratedCppPath>
+        <GeneratedCppEnabled>true</GeneratedCppEnabled>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <CompilerVisibleProperty Include="GeneratedCppPath" />
+        <CompilerVisibleProperty Include="GeneratedCppEnabled" />
+    </ItemGroup>
 </Project>

@@ -18,5 +18,6 @@ internal interface IRelayClientNetworkThreadContext
     ReadOnlyList<PlayerId> AllPlayers { get; }
     
     AreaId? CurrentAreaId { get; }
+    ReadOnlyList<CellId> ActiveCells { get; }
     ReadOnlyList<PlayerId> AreaPlayers { get; }
 }

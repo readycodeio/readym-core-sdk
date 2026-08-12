@@ -1,0 +1,904 @@
+﻿using Xunit;
+
+namespace ReadyM.Api.Generators.Tests;
+
+public sealed class DeriveCppNativeComponentGeneratorBehaviorTests(ITestOutputHelper output)
+{
+    [Fact]
+    public void GeneratedCppFragment_ForRepresentativeNativeComponent_ContainsExpectedAccessorsDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public enum CharacterSex : byte
+{
+    Unknown = 0,
+    Male = 1,
+    Female = 2
+}
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct AppearanceComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private CharacterSex _sex;
+    private int _senescenceLevel;
+    private int _customisationEyeMaterialIndex;
+    private int _customisationHairIndex;
+    private int _customisationEyebrowsIndex;
+    private int _customisationMustacheIndex;
+    private int _customisationBeardIndex;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.Contains("RM::Generators::Tests::TestTypes::CharacterSex Sex() const", generatedText);
+        Assert.Contains("void SetSex(RM::Generators::Tests::TestTypes::CharacterSex value)", generatedText);
+        Assert.Contains("if (_sex != value)", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 0;", generatedText);
+
+        Assert.Contains("int32_t SenescenceLevel() const", generatedText);
+        Assert.Contains("void SetSenescenceLevel(int32_t value)", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 1;", generatedText);
+
+        Assert.Contains("int32_t CustomisationBeardIndex() const", generatedText);
+        Assert.Contains("void SetCustomisationBeardIndex(int32_t value)", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 6;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+        Assert.Contains("CharacterSex _sex = {};", generatedText);
+        Assert.Contains("int32_t _senescenceLevel = 0;", generatedText);
+        Assert.Contains("int32_t _customisationEyeMaterialIndex = 0;", generatedText);
+        Assert.Contains("int32_t _customisationHairIndex = 0;", generatedText);
+        Assert.Contains("int32_t _customisationEyebrowsIndex = 0;", generatedText);
+        Assert.Contains("int32_t _customisationMustacheIndex = 0;", generatedText);
+        Assert.Contains("int32_t _customisationBeardIndex = 0;", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithListFields_ContainsExpectedListAccessorsSettersDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+using Yooni.Native.Container;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public enum CharacterSex : byte
+{
+    Unknown = 0,
+    Male = 1,
+    Female = 2
+}
+
+public struct Pair
+{
+    public int X;
+    public int Y;
+}
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct AppearanceComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private NativeList<int> _intList;
+    private NativeList<CharacterSex> _sexList;
+    private NativeList<Pair> _pairList;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeList<int32_t>& IntList() const",
+            setterSignature: "void SetIntList(const Yooni::Native::Container::NativeList<int32_t>& value)",
+            inequalityGuard: "if (_intList != value)",
+            assignment: "_intList.Assign(value);",
+            dirtyMaskBit: 0,
+            backingField: "Yooni::Native::Container::NativeList<int32_t> _intList = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& SexList() const",
+            setterSignature: "void SetSexList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& value)",
+            inequalityGuard: "if (_sexList != value)",
+            assignment: "_sexList.Assign(value);",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& PairList() const",
+            setterSignature: "void SetPairList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& value)",
+            inequalityGuard: "if (_pairList != value)",
+            assignment: "_pairList.Assign(value);",
+            dirtyMaskBit: 2,
+            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
+            maskType: "uint32_t");
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithFixedFields_ContainsExpectedFixedAccessorsSettersDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+using Yooni.Native.Container;
+using Yooni.Native.LowLevel;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public enum CharacterSex : byte
+{
+    Unknown = 0,
+    Male = 1,
+    Female = 2
+}
+
+public struct Pair
+{
+    public int X;
+    public int Y;
+}
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct FixedComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private NativeFixed<int, Storage8<int>> _intFixed;
+    private NativeFixed<CharacterSex, Storage16<CharacterSex>> _sexFixed;
+    private NativeFixed<Pair, Storage32<Pair>> _pairFixed;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeFixed<int32_t, 8>& IntFixed() const",
+            setterSignature: "void SetIntFixed(const Yooni::Native::Container::NativeFixed<int32_t, 8>& value)",
+            inequalityGuard: "if (_intFixed != value)",
+            assignment: "_intFixed.Assign(value);",
+            dirtyMaskBit: 0,
+            backingField: "Yooni::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexFixed() const",
+            setterSignature: "void SetSexFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
+            inequalityGuard: "if (_sexFixed != value)",
+            assignment: "_sexFixed.Assign(value);",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& PairFixed() const",
+            setterSignature: "void SetPairFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
+            inequalityGuard: "if (_pairFixed != value)",
+            assignment: "_pairFixed.Assign(value);",
+            dirtyMaskBit: 2,
+            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};",
+            maskType: "uint32_t");
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithDictionaryFields_ContainsExpectedDictionaryAccessorsSettersDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+using Yooni.Native.Container;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public enum CharacterSex : byte
+{
+    Unknown = 0,
+    Male = 1,
+    Female = 2
+}
+
+public struct Pair
+{
+    public int X;
+    public int Y;
+}
+
+public struct CharacterSexHash : IHashFunction<CharacterSex>
+{
+    public uint ComputeHash(in CharacterSex value)
+    {
+        return (uint)value;
+    }
+}
+
+public struct PairHash : IHashFunction<Pair>
+{
+    public uint ComputeHash(in Pair value)
+    {
+        return (uint)(value.X * 397 ^ value.Y);
+    }
+}
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct DictionaryComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private NativeDictionary<int, CharacterSex, MemoryHash<int>> _intToSex;
+    private NativeDictionary<CharacterSex, Pair, CharacterSexHash> _sexToPair;
+    private NativeDictionary<Pair, int, PairHash> _pairToInt;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& IntToSex() const",
+            setterSignature: "void SetIntToSex(const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& value)",
+            inequalityGuard: "if (_intToSex != value)",
+            assignment: "_intToSex.Assign(value);",
+            dirtyMaskBit: 0,
+            backingField: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> _intToSex = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& SexToPair() const",
+            setterSignature: "void SetSexToPair(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& value)",
+            inequalityGuard: "if (_sexToPair != value)",
+            assignment: "_sexToPair.Assign(value);",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& PairToInt() const",
+            setterSignature: "void SetPairToInt(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& value)",
+            inequalityGuard: "if (_pairToInt != value)",
+            assignment: "_pairToInt.Assign(value);",
+            dirtyMaskBit: 2,
+            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};",
+            maskType: "uint32_t");
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithRingBufferFields_ContainsExpectedRingBufferAccessorsSettersDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+using Yooni.Native.Container;
+using Yooni.Native.LowLevel;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public enum CharacterSex : byte
+{
+    Unknown = 0,
+    Male = 1,
+    Female = 2
+}
+
+public struct Pair
+{
+    public int X;
+    public int Y;
+}
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct RingBufferComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private NativeRingBuffer<int, Storage8<int>> _intHistory;
+    private NativeRingBuffer<CharacterSex, Storage16<CharacterSex>> _sexHistory;
+    private NativeRingBuffer<Pair, Storage32<Pair>> _pairHistory;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& IntHistory() const",
+            setterSignature: "void SetIntHistory(const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& value)",
+            inequalityGuard: "if (_intHistory != value)",
+            assignment: "_intHistory.Assign(value);",
+            dirtyMaskBit: 0,
+            backingField: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexHistory() const",
+            setterSignature: "void SetSexHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
+            inequalityGuard: "if (_sexHistory != value)",
+            assignment: "_sexHistory.Assign(value);",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& PairHistory() const",
+            setterSignature: "void SetPairHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
+            inequalityGuard: "if (_pairHistory != value)",
+            assignment: "_pairHistory.Assign(value);",
+            dirtyMaskBit: 2,
+            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};",
+            maskType: "uint32_t");
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithNativeStringFields_ContainsExpectedStringAccessorsSettersDirtyMaskAndBackingFields()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+using Yooni.Native.Container;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct StringComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private NativeString64 _displayName;
+    private NativeString64 _title;
+    private NativeString256 _biography;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeString64& DisplayName() const",
+            setterSignature: "void SetDisplayName(const Yooni::Native::Container::NativeString64& value)",
+            inequalityGuard: "if (_displayName != value)",
+            assignment: "_displayName = value;",
+            dirtyMaskBit: 0,
+            backingField: "Yooni::Native::Container::NativeString64 _displayName = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
+            inequalityGuard: "if (_title != value)",
+            assignment: "_title = value;",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            maskType: "uint32_t");
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeString256& Biography() const",
+            setterSignature: "void SetBiography(const Yooni::Native::Container::NativeString256& value)",
+            inequalityGuard: "if (_biography != value)",
+            assignment: "_biography = value;",
+            dirtyMaskBit: 2,
+            backingField: "Yooni::Native::Container::NativeString256 _biography = {};",
+            maskType: "uint32_t");
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithoutNetworkComponentSkipsDirtyFlag()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct StringComponent : IComponent
+{
+    private NativeString64 _displayName;
+    private NativeString64 _title;
+    private NativeString256 _biography;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentSkipAccessMethodsActuallySkipsAccessMethods()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: true), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct StringComponent : IComponent
+{
+    [SkipNativeAccessMethods]
+    private NativeString64 _displayName;
+    private NativeString64 _title;
+    [SkipNativeAccessMethods]
+    private NativeString256 _biography;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("Yooni::Native::Container::NativeString64 _displayName = {};", generatedText);
+        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.DoesNotContain(" void SetDisplayName(", generatedText);
+        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.Contains("(* private *)void SetDisplayName(", generatedText);
+
+        AssertContainerMember(
+            generatedText,
+            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
+            inequalityGuard: "if (_title != value)",
+            assignment: "_title = value;",
+            dirtyMaskBit: 1,
+            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            maskType: "uint8_t");
+
+        Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
+        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.DoesNotContain(" void SetBiography(", generatedText);
+        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.Contains("(* private *)void SetBiography(", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_SkipAccessorsWorksInCpp()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using Yooni.Native.Container;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[NativeComponent]
+public struct LocalAppearanceComponent : IComponent
+{
+    [SkipNativeAccessMethods]
+    private byte _isAppearanceSynced;
+    
+    public bool IsAppearanceSynced
+    {
+        get => _isAppearanceSynced != 0;
+        set => _isAppearanceSynced = (byte)(value ? 1 : 0);
+    }
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("uint8_t _isAppearanceSynced = 0;", generatedText);
+        Assert.DoesNotContain(" uint8_t IsAppearanceSynced(", generatedText);
+        Assert.DoesNotContain(" void SetIsAppearanceSynced(", generatedText);
+        Assert.Contains("(* private *)uint8_t IsAppearanceSynced(", generatedText);
+        Assert.Contains("(* private *)void SetIsAppearanceSynced(", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithIntPtrField_TransformsIntPtrIntoVoidPointer()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct PointerComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    private IntPtr _nativeHandle;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.Contains("void* NativeHandle() const", generatedText);
+        Assert.Contains("void SetNativeHandle(void* value)", generatedText);
+        Assert.Contains("if (_nativeHandle != value)", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 0;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+        Assert.Contains("void* _nativeHandle = nullptr;", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForNativeComponentWithCppNativeFieldTypeAttribute_UsesSpecifiedCppTypeAndInclude()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct LocalAnimationComponent : IComponent
+{
+    private uint _dirtyMask;
+    private uint _apiMask;
+
+    [CppNativeFieldType("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>", includes: "Unreal/GCPinnedPtr.h")]
+    private IntPtr _localMontage;
+
+    private int _localMontagePosition;
+
+    [CppNativeFieldType("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>", defaultValue: "{}", includes: "Unreal/GCPinnedPtr.h")]
+    private IntPtr _animInstance;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("#include \"Unreal/GCPinnedPtr.h\"", generatedText);
+
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> LocalMontage() const", generatedText);
+        Assert.Contains("void SetLocalMontage(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
+        Assert.Contains("if (_localMontage != value)", generatedText);
+        Assert.Contains("_localMontage = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 0;", generatedText);
+
+        Assert.Contains("int32_t LocalMontagePosition() const", generatedText);
+        Assert.Contains("void SetLocalMontagePosition(int32_t value)", generatedText);
+        Assert.Contains("if (_localMontagePosition != value)", generatedText);
+        Assert.Contains("_localMontagePosition = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 1;", generatedText);
+
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> AnimInstance() const", generatedText);
+        Assert.Contains("void SetAnimInstance(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
+        Assert.Contains("if (_animInstance != value)", generatedText);
+        Assert.Contains("_animInstance = value;", generatedText);
+        Assert.Contains("_dirtyMask |= static_cast<uint32_t>(1) << 2;", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("uint32_t _dirtyMask = 0; // NOTE: Respecting the user-defined dirty mask size.", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _localMontage = {};", generatedText);
+        Assert.Contains("int32_t _localMontagePosition = 0;", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _animInstance = {};", generatedText);
+
+        Assert.DoesNotContain("void* LocalMontage() const", generatedText);
+        Assert.DoesNotContain("void* _localMontage = nullptr;", generatedText);
+        Assert.DoesNotContain("void* AnimInstance() const", generatedText);
+        Assert.DoesNotContain("void* _animInstance = nullptr;", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetTypeAndUsesAttributeSettings()
+    {
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+
+[assembly: CppNativeFieldTypeFor(
+    forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>),
+    forField: "_value",
+    cppTypeName: "Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>",
+    getterTypeName: "const Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>&",
+    useMove: true,
+    includes: "Unreal/GCPinnedPtr.h")]
+[assembly: NativeComponentFor(forType: typeof(ReadyM.Api.Generators.Tests.TestTypes.MappingComponent<IntPtr>), bindDelete: true)]
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[StructLayout(LayoutKind.Sequential)]
+public partial struct MappingComponent<T> : IComponent
+{
+    private T _value;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("struct MappingComponentGeneratedBase", generatedText);
+
+        Assert.Contains("const Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject>& Value() const", generatedText);
+        Assert.Contains("void SetValue(Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> value)", generatedText);
+        Assert.Contains("if (_value != value)", generatedText);
+        Assert.Contains("_value = std::move(value);", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("Ready::Unreal::GCPinnedPtr<RC::Unreal::UObject> _value = {};", generatedText);
+
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+
+        Assert.Contains("class NativeEntityDeleteImplGeneratedBase", generatedText);
+        Assert.Contains("struct NativeBinding", generatedText);
+        Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
+        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, MappingComponent& comp) = 0;", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForAssemblyLevelNativeComponentAttribute_GeneratesForTargetInAnotherModule()
+    {
+        const string externalModuleSource = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.ECS.Components;
+
+namespace ReadyM.Api.Generators.Tests.ExternalModuleTypes;
+
+[StructLayout(LayoutKind.Sequential)]
+public partial struct ExternalInScopeComponent : IComponent
+{
+    private Entity _entity;
+}
+""";
+
+        const string source = """
+using System;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Generators.Tests.ExternalModuleTypes;
+
+[assembly: CppNativeFieldTypeFor(
+    forType: typeof(ExternalInScopeComponent),
+    forField: "_entity",
+    cppTypeName: "RM::ECS::Values::RawEntity",
+    getterTypeName: "const RM::ECS::Values::RawEntity&",
+    useMove: true,
+    fieldType: typeof(Friflo.Engine.ECS.Entity),
+    includes: "Unreal/GCPinnedPtr.h")]
+[assembly: NativeComponentFor(forType: typeof(ExternalInScopeComponent), bindDelete: true)]
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(
+            [
+                ("ExternalModule.cs", externalModuleSource),
+                ("TestInput.cs", source),
+            ],
+            output);
+
+        var outputErrors = result.OutputDiagnostics
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.Empty(outputErrors);
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.NotEmpty(generatedText);
+
+        Assert.Contains("struct ExternalInScopeComponentGeneratedBase", generatedText);
+
+        Assert.Contains("const RM::ECS::Values::RawEntity& Entity() const", generatedText);
+        Assert.Contains("void SetEntity(RM::ECS::Values::RawEntity value)", generatedText);
+        Assert.Contains("if (_entity != value)", generatedText);
+        Assert.Contains("_entity = std::move(value);", generatedText);
+
+        Assert.Contains("protected:", generatedText);
+        Assert.Contains("RM::ECS::Values::RawEntity _entity = {};", generatedText);
+
+        Assert.DoesNotContain("_dirtyMask", generatedText);
+
+        Assert.Contains("class NativeEntityDeleteImplGeneratedBase", generatedText);
+        Assert.Contains("struct NativeBinding", generatedText);
+        Assert.Contains("void (*OnEntityDeleteHandler)(", generatedText);
+        Assert.Contains("virtual void HandleEntityDelete(Friflo::Engine::ECS::RawEntity entity, ExternalInScopeComponent& comp) = 0;", generatedText);
+    }
+
+    private static void AssertContainerMember(
+        string generatedText,
+        string getterSignature,
+        string setterSignature,
+        string inequalityGuard,
+        string assignment,
+        int dirtyMaskBit,
+        string backingField,
+        string maskType)
+    {
+        Assert.Contains(getterSignature, generatedText);
+        Assert.Contains(setterSignature, generatedText);
+        Assert.Contains(inequalityGuard, generatedText);
+        Assert.Contains(assignment, generatedText);
+        Assert.Contains($"_dirtyMask |= static_cast<{maskType}>(1) << {dirtyMaskBit};", generatedText);
+        Assert.Contains(backingField, generatedText);
+    }
+}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.ECS.Registry;
@@ -12,18 +13,19 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^Query.*")]
 [WrapperInclude("^Count$")]
 [WrapperInclude("^GetCommandBuffer$")] // TODO: Wrap to disable entity creation
+[WrapperInclude("^GetEntityBy.*")]
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
 [WrapperInclude("^GetEntity.*")]
-internal sealed partial class Store
+internal sealed partial class Store : IArchetypeRegistry
 {
     private struct ArchetypeEntry
     {
         public Action<EntityBuilder> Constructor;
-        public Action<Entity>? LateInit;
     }
 
+    private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
 
@@ -44,22 +46,55 @@ internal sealed partial class Store
         {
             registration.Register(this);
         }
+
+        OnEntityDelete += _ => { AssertThreadId(); };
     }
 
-    internal ArchetypeId RegisterArchetype(Action<EntityBuilder> constructor, Action<Entity>? lateInit = null)
+    public void SetThread(Thread newThread)
+    {
+        _thread = newThread;
+    }
+
+    private void AssertThreadId()
+    {
+        if (Thread.CurrentThread != _thread)
+        {
+            throw new InvalidOperationException("Store can only be accessed from the thread it was created on.");
+        }
+    }
+
+    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> build)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
-            Constructor = constructor,
-            LateInit = lateInit
+            Constructor = build
         };
         return archetypeId;
     }
 
+    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build)
+    {
+        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
+        {
+            throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
+        }
+
+        _archetypeEntries[archetypeId] = new ArchetypeEntry
+        {
+            Constructor = builder =>
+            {
+                entry.Constructor(builder);
+                build(builder);
+            }
+        };
+    }
+
     internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
+        AssertThreadId();
+
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
@@ -70,12 +105,13 @@ internal sealed partial class Store
         entry.Constructor.Invoke(builder);
         setComponents?.Invoke(builder);
         var entity = batch.CreateEntity();
-        entry.LateInit?.Invoke(entity);
         return entity;
     }
 
     internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
     {
+        AssertThreadId();
+
         var batch = _wrapped.Batch();
         var builder = new EntityBuilder(batch);
         setComponents?.Invoke(builder);

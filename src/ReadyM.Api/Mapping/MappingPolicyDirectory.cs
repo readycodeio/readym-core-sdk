@@ -1,0 +1,279 @@
+﻿using System;
+using System.Collections.Generic;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Helpers;
+using ReadyM.Api.Idents;
+using ReadyM.Api.Mapping.CreateDestroy;
+using ReadyM.Api.Mapping.Events;
+using ReadyM.Api.Mapping.Policies.Data;
+using ReadyM.Api.Mapping.Policies.Data.Common;
+using ReadyM.Api.Mapping.Policies.Event;
+using ReadyM.Api.Mapping.Tags;
+
+namespace ReadyM.Api.Mapping;
+
+internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPolicyDirectory, IMappingPolicyDirectoryRegistration
+{
+    private readonly object _createDeleteLock = new();
+    private readonly Dictionary<(ArchetypeId, Type), IMappingCreateDeletePolicyBase> _createDeletePolicies = new();
+    private readonly Dictionary<ArchetypeId, List<IMappingCreateDeletePolicyFactory>> _archetypeCreateDeletePolicyFactories = new();
+    private readonly List<IMappingCreateDeletePolicyFactory> _createDeletePolicyFactories = [];
+
+    private readonly object _dataLock = new();
+    private readonly Dictionary<(Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
+    private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = [];
+
+    protected readonly object eventLock = new();
+    protected readonly Dictionary<(Type, Type), IMappingEventPolicyBase> eventPolicies = new();
+    protected readonly List<IMappingEventPolicyFactory> eventPolicyFactories = [];
+
+    public IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
+        where TGameObject : class
+    {
+        lock (_createDeleteLock)
+        {
+            var key = (archetypeId, typeof(TGameObject));
+            if (!_createDeletePolicies.TryGetValue(key, out var untypedPolicy))
+            {
+                if (_archetypeCreateDeletePolicyFactories.TryGetValue(archetypeId, out var factories))
+                {
+                    foreach (var factory in factories)
+                    {
+                        if (!factory.Supports(typeof(TGameObject)))
+                            continue;
+
+                        untypedPolicy = factory.CreatePolicy(archetypeId, typeof(TGameObject));
+                        break;
+                    }
+                }
+
+                if (untypedPolicy == null)
+                {
+                    foreach (var factory in _createDeletePolicyFactories)
+                    {
+                        if (!factory.Supports(typeof(TGameObject)))
+                            continue;
+
+                        untypedPolicy = factory.CreatePolicy(archetypeId, typeof(TGameObject));
+                        break;
+                    }
+                }
+
+                if (untypedPolicy == null)
+                    throw new ArgumentException($"No create/delete policy registered for archetype {archetypeId} and game object type {typeof(TGameObject)}");
+
+                _createDeletePolicies.Add(key, untypedPolicy);
+            }
+
+            return (IMappingCreateDeletePolicy<TGameObject>)untypedPolicy;
+        }
+    }
+
+    private IMappingDataPolicy<TContext> ForData<TContext>(Type componentType)
+    {
+        lock (_dataLock)
+        {
+            var key = (componentType, typeof(TContext));
+
+            if (!_dataPolicies.TryGetValue(key, out var untypedPolicy))
+            {
+                foreach (var factory in _dataPolicyFactories)
+                {
+                    if (!factory.Supports(componentType, typeof(TContext)))
+                        continue;
+
+                    untypedPolicy = factory.CreatePolicy<TContext>(componentType);
+                    break;
+                }
+
+                if (untypedPolicy == null)
+                    throw new ArgumentException($"No data policy registered for data type {componentType}");
+
+                _dataPolicies.Add(key, untypedPolicy);
+            }
+
+            return (IMappingDataPolicy<TContext>)untypedPolicy;
+        }
+    }
+
+    public IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
+        where TComponent : struct, IMappingContext<TContext>
+        => ForData<TContext>(typeof(TComponent));
+
+    public IMappingDataPolicy<Entity> ForData<TComponent>()
+        where TComponent : struct, IMappingContext<Entity>
+        => ForData<TComponent, Entity>();
+
+    public IMappingDataPolicy<Entity> ForData(Type componentType)
+        => ForData<Entity>(componentType);
+
+    public IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType)
+    {
+        lock (eventLock)
+        {
+            var key = (eventType, typeof(TContext));
+
+            if (!eventPolicies.TryGetValue(key, out var untypedPolicy))
+            {
+                foreach (var factory in eventPolicyFactories)
+                {
+                    if (!factory.Supports(eventType, typeof(TContext)))
+                        continue;
+
+                    untypedPolicy = factory.CreatePolicy<TContext>(eventType);
+                    break;
+                }
+
+                if (untypedPolicy == null)
+                    throw new ArgumentException($"No event policy registered for event type {eventType}");
+
+                eventPolicies.Add(key, untypedPolicy);
+            }
+
+            return (IMappingEventPolicy<TContext>)untypedPolicy;
+        }
+    }
+
+    public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
+        where TEvent : struct, IMappingContext<TContext>
+    {
+        return ForEvent<TContext>(typeof(TEvent));
+    }
+
+    public IMappingEventPolicy<Entity> ForEvent<TEvent>()
+        where TEvent : struct, IMappingContext<Entity>
+        => ForEvent<TEvent, Entity>();
+    
+    public IMappingEventPolicy<Entity> ForEvent(Type eventType)
+        => ForEvent<Entity>(eventType);
+
+    // ---
+
+    public void RegisterDefaultCreateDelete(IMappingCreateDeletePolicyFactory factory)
+    {
+        _createDeletePolicyFactories.Add(factory);
+    }
+
+    public void RegisterDefaultCreateDelete(ArchetypeId archetypeId, IMappingCreateDeletePolicyFactory factory)
+    {
+        if (!_archetypeCreateDeletePolicyFactories.TryGetValue(archetypeId, out var factories))
+        {
+            factories = new List<IMappingCreateDeletePolicyFactory>();
+            _archetypeCreateDeletePolicyFactories.Add(archetypeId, factories);
+        }
+
+        factories.Add(factory);
+    }
+
+    public void RegisterDefaultCreateDelete<TGameObject>(
+        Func<TGameObject, bool> shouldCreatePropagate,
+        Func<Entity, bool> shouldDeletePropagate)
+        where TGameObject : class
+    {
+        var policy = new FuncCreateDeletePolicy<TGameObject>(shouldCreatePropagate, shouldDeletePropagate);
+        var factory = new FuncCreateDeletePolicyFactory<TGameObject>(_ => policy);
+        RegisterDefaultCreateDelete(factory);
+    }
+
+    public void RegisterCreateDelete<TGameObject>(ArchetypeId archetypeId, IMappingCreateDeletePolicy<TGameObject> policy)
+        where TGameObject : class
+    {
+        _createDeletePolicies.Add((archetypeId, typeof(TGameObject)), policy);
+    }
+
+    public void RegisterCreateDelete<TGameObject>(
+        ArchetypeId archetypeId,
+        Func<TGameObject, bool> shouldCreatePropagate,
+        Func<Entity, bool> shouldDeletePropagate)
+        where TGameObject : class
+    {
+        var policy = new FuncCreateDeletePolicy<TGameObject>(shouldCreatePropagate, shouldDeletePropagate);
+        RegisterCreateDelete(archetypeId, policy);
+    }
+
+    // ---
+
+    public void RegisterDefaultData(IMappingDataPolicyFactory factory)
+    {
+        _dataPolicyFactories.Add(factory);
+    }
+
+    public void RegisterDefaultData<TContext>(
+        Func<TContext, bool> shouldEcsCopyToGame,
+        Func<TContext, bool> canSetFromApi,
+        Func<TContext, bool> shouldGameCopyToEcs,
+        Func<TContext, bool> shouldSetLocally)
+    {
+        var factory = new FuncDataPolicyFactory<TContext>(shouldEcsCopyToGame, canSetFromApi, shouldGameCopyToEcs, shouldSetLocally);
+        RegisterDefaultData(factory);
+    }
+
+    public void RegisterData<TComponent, TContext>(IMappingDataPolicy<TContext> policy)
+        where TComponent : IMappingContext<TContext>
+        where TContext : struct
+    {
+        _dataPolicies.Add((typeof(TComponent), typeof(TContext)), policy);
+    }
+
+    public void RegisterData<TComponent>(
+        Func<Entity, bool> shouldEcsCopyToGame,
+        Func<Entity, bool> canSetFromApi,
+        Func<Entity, bool> shouldGameCopyToEcs,
+        Func<Entity, bool> shouldRunLocally)
+        where TComponent : IMappingContext<Entity>
+    {
+        var policy = new FuncDataPolicy<Entity>(
+            shouldEcsCopyToGame,
+            canSetFromApi,
+            shouldGameCopyToEcs,
+            shouldRunLocally);
+        RegisterData<TComponent, Entity>(policy);
+    }
+
+    // ---
+
+    public void RegisterDefaultEvent(IMappingEventPolicyFactory factory)
+    {
+        eventPolicyFactories.Add(factory);
+    }
+
+    public void RegisterDefaultEvent<TContext>(
+        Func<TContext, bool> shouldGameEventPropagate,
+        Func<TContext, bool> shouldEcsEventPropagate,
+        ShouldRunLocallyDelegate<TContext> shouldRunLocally)
+    {
+        var policyFactory = new FuncEntityEventPolicyFactory<TContext>(
+            shouldGameEventPropagate,
+            shouldEcsEventPropagate,
+            shouldRunLocally);
+        RegisterDefaultEvent(policyFactory);
+    }
+
+    public void RegisterEvent<TEvent, TContext>(IMappingEventPolicy<TContext> policy)
+        where TEvent : struct, IEquatable<TEvent>
+        where TContext : struct
+    {
+        eventPolicies.Add((typeof(TEvent), typeof(TContext)), policy);
+    }
+
+    public void RegisterEvent<TEvent, TContext>(
+        ShouldPropagateToEcsDelegate<TContext> shouldPropagateToEcs,
+        ShouldPropagateToGameDelegate<TContext> shouldPropagateToGame,
+        ShouldRunLocallyDelegate<TContext> shouldRunLocally)
+        where TEvent : struct, IEquatable<TEvent>
+        where TContext : struct
+    {
+        var policy = new FuncEventPolicy<TEvent, TContext>(shouldPropagateToEcs, shouldPropagateToGame, shouldRunLocally, sideChannel);
+        RegisterEvent<TEvent, TContext>(policy);
+    }
+
+    public void RegisterEvent<TEvent>(
+        ShouldPropagateToEcsDelegate<Entity> shouldPropagateToEcs,
+        ShouldPropagateToGameDelegate<Entity> shouldPropagateToGame,
+        ShouldRunLocallyDelegate<Entity> shouldRunLocally)
+        where TEvent : struct, IEquatable<TEvent>
+        => RegisterEvent<TEvent, Entity>(
+            shouldPropagateToEcs,
+            shouldPropagateToGame,
+            shouldRunLocally);
+}
