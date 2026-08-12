@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer;
@@ -14,7 +13,7 @@ public class PlayerApi
     private readonly PlayerEventHandlerDelegate _bridge;
     private readonly GetReadyMIdDelegate _getReadyMId;
 
-    internal unsafe PlayerApi(PlayerApiPointers pointers)
+    internal PlayerApi(PlayerApiPointers pointers)
     {
         _kickPlayer = Marshal.GetDelegateForFunctionPointer<KickPlayerDelegate>(pointers.KickPlayer);
         _getReadyMId = Marshal.GetDelegateForFunctionPointer<GetReadyMIdDelegate>(pointers.GetReadyMId);
@@ -39,44 +38,33 @@ public class PlayerApi
     /// Global to the platform: the same player carries the same id every time, it survives reconnects
     /// and server restarts. <see cref="PlayerId"/> does none of that, so key anything you persist on this instead.
     /// </summary>
-    public unsafe Guid? GetReadyMId(PlayerId player)
+    public Guid? GetReadyMId(PlayerId player)
     {
-        Guid readyMId;
-        return _getReadyMId(player, &readyMId) != 0 ? readyMId : null;
+        var readyMId = _getReadyMId(player);
+        return readyMId != Guid.Empty ? readyMId : null;
     }
 
-    private unsafe void OnPlayerEvent(byte* data, int size)
+    private void OnPlayerEvent(PlayerEventData data)
     {
-        var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
-
         using var _ = ComponentWriteContext.EnterServerAuthoring();
 
-        switch ((PlayerEventKind)reader.GetByte())
+        switch (data.Kind)
         {
             case PlayerEventKind.Connected:
-            {
-                var playerId = reader.Get<PlayerId>();
-                var readyMId = new Guid(reader.GetBytesWithLength());
-
                 OnPlayerConnected?.Invoke(new PlayerConnectedEvent
                 {
-                    PlayerId = playerId,
-                    ReadyMId = readyMId,
+                    PlayerId = data.PlayerId,
+                    ReadyMId = data.ReadyMId,
                 });
                 break;
-            }
-            case PlayerEventKind.Disconnected:
-            {
-                var playerId = reader.Get<PlayerId>();
-                var readyMId = new Guid(reader.GetBytesWithLength());
 
+            case PlayerEventKind.Disconnected:
                 OnPlayerDisconnected?.Invoke(new PlayerDisconnectedEvent
                 {
-                    PlayerId = playerId,
-                    ReadyMId = readyMId,
+                    PlayerId = data.PlayerId,
+                    ReadyMId = data.ReadyMId,
                 });
                 break;
-            }
         }
     }
 }

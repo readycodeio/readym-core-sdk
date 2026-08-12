@@ -2,7 +2,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Relay.Server.Sdk.Interop;
 
-public unsafe delegate void PlayerEventHandlerDelegate(byte* data, int size);
+public delegate void PlayerEventHandlerDelegate(PlayerEventData data);
 
 public delegate void AddPlayerEventHandlerDelegate(PlayerEventHandlerDelegate handler);
 
@@ -10,4 +10,4 @@ public delegate void RemovePlayerEventHandlerDelegate(PlayerEventHandlerDelegate
 
 public delegate void KickPlayerDelegate(PlayerId playerId);
 
-public unsafe delegate byte GetReadyMIdDelegate(PlayerId playerId, Guid* readyMId);
+public delegate Guid GetReadyMIdDelegate(PlayerId playerId);
