@@ -11,11 +11,11 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
     protected override void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"return {context.State.CurrentVar}.AsReadOnly();");
-    
+
     public override void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         var tempVar = context.ClassState.AddTempThreadStatic(symbol);
-        
+
         using (context.WithCurrent(tempVar, symbol))
         {
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
@@ -23,7 +23,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             context.AppendLine($"Set{context.Member.GeneratedPropertyName}({tempVar});");
         }
     }
-    
+
     public override void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         if (context.Member.AccessorSettings.SkipAccessors)
@@ -31,14 +31,14 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
         if (!SerializationHelper.IsNativeList(symbol, out var itemType))
             throw new InvalidOperationException("Expected a native list type.");
-        
+
         context.AppendLine($"public {FullyQualifiedTypeName(symbol)}.ReadOnly Get{context.Member.GeneratedPropertyName}()");
         using (context.WithCodeBlock())
         {
             EmitGetterBody(symbol, context);
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {
@@ -63,7 +63,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             context.AppendLine($"return {context.State.CurrentVar}[index];");
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.Member.GeneratedPropertyName}(int index, in {FullyQualifiedTypeName(itemType)} value)");
         using (context.WithCodeBlock())
         {
@@ -74,14 +74,14 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             }
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public bool Contains{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(itemType)} value)");
         using (context.WithCodeBlock())
         {
             context.AppendLine($"return {context.State.CurrentVar}.Contains(value);");
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public void Add{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(itemType)} value)");
         using (context.WithCodeBlock())
         {
@@ -89,7 +89,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             EmitSetDirty(symbol, context);
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public void Insert{context.Member.GeneratedPropertyName}(int index, in {FullyQualifiedTypeName(itemType)} value)");
         using (context.WithCodeBlock())
         {
@@ -97,7 +97,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             EmitSetDirty(symbol, context);
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public {FullyQualifiedTypeName(itemType)} RemoveAt{context.Member.GeneratedPropertyName}(int index)");
         using (context.WithCodeBlock())
         {
@@ -106,14 +106,14 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             context.AppendLine("return result;");
         }
         context.AppendLine();
-        
+
         context.AppendLine($"public void Clear{context.Member.GeneratedPropertyName}()");
         using (context.WithCodeBlock())
         {
             context.AppendLine($"{context.State.CurrentVar}.Clear();");
             EmitSetDirty(symbol, context);
         }
-        
+
         context.AppendLine("/// <exclude />");
         context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
@@ -121,7 +121,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             EmitSetterBody(symbol, context, true);
         }
     }
-    
+
     public override void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
     {
         var member = context.Member;
@@ -130,13 +130,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         var type = member.Source.Type;
         var typeName = context.Model.Source.Name;
 
-        using (context.WithIndent())
-        {
-            context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
-            context.AppendLine($"   static c => c.{context.State.CurrentVar},");
-            context.AppendLine($"   static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
-            context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => c.Is{name}Dirty());");
-        }
+        context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
+        context.AppendLine($"    static c => c.{context.State.CurrentVar},");
+        context.AppendLine($"    static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
+        context.AppendLine($"    static (ref c, v) => c.{name}_SetFromApi(v),");
+        context.AppendLine($"    static c => c.Is{name}Dirty());");
     }
 }
