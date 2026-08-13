@@ -185,14 +185,11 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         var type = context.Member.AccessorSettings.BoolAccessors ? "bool" : member.Source.Type.ToString();
         var typeName = context.Model.Source.Name;
 
-        using (context.WithIndent())
-        {
-            context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
-            context.AppendLine($"   static c => c.{name},");
-            context.AppendLine($"   static (ref c, v) => c.{name} = v,");
-            context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => c.Is{name}Dirty());");
-        }
+        context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
+        context.AppendLine($"    static c => c.{name},");
+        context.AppendLine($"    static (ref c, v) => c.{name} = v,");
+        context.AppendLine($"    static (ref c, v) => c.{name}_SetFromApi(v),");
+        context.AppendLine($"    static c => c.Is{name}Dirty());");
     }
 
     public virtual void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)

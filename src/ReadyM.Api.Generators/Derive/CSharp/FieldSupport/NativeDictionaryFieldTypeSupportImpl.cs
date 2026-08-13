@@ -39,7 +39,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
 
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {
@@ -47,7 +47,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
 
         context.AppendLine();
-        
+
         context.AppendLine($"public int {context.Member.GeneratedPropertyName}Count");
         using (context.WithCodeBlock())
         {
@@ -67,7 +67,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
 
         context.AppendLine();
-        
+
         context.AppendLine($"public void Set{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key, in {FullyQualifiedTypeName(valueType)} value)");
         using (context.WithCodeBlock())
         {
@@ -103,7 +103,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
 
         context.AppendLine();
-        
+
         context.AppendLine($"public bool Add{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(keyType)} key, in {FullyQualifiedTypeName(valueType)} value)");
         using (context.WithCodeBlock())
         {
@@ -113,7 +113,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         }
 
         context.AppendLine();
-        
+
         context.AppendLine($"public void Clear{context.Member.GeneratedPropertyName}()");
         using (context.WithCodeBlock())
         {
@@ -149,13 +149,10 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         var typeName = context.Model.Source.Name;
         var fieldName = member.Source.Name;
 
-        using (context.WithIndent())
-        {
-            context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
-            context.AppendLine($"   static c => c.{fieldName},");
-            context.AppendLine($"   static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
-            context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => c.Is{name}Dirty());");
-        }
+        context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
+        context.AppendLine($"    static c => c.{fieldName},");
+        context.AppendLine($"    static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
+        context.AppendLine($"    static (ref c, v) => c.{name}_SetFromApi(v),");
+        context.AppendLine($"    static c => c.Is{name}Dirty());");
     }
 }
