@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings: they are sourced by /bin/sh inside the Docker images and run
+# on Linux by the packaging scripts, and CRLF breaks both.
+*.sh text eol=lf
+
+# Same for the Dockerfiles, which RUN their commands through /bin/sh.
+Dockerfile* text eol=lf
