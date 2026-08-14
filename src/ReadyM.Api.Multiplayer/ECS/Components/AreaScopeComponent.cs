@@ -6,6 +6,9 @@ using ReadyM.Api.Multiplayer.Generators;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
+/// <summary>
+/// Holds information about the area entity, which is a scope for other entities.
+/// </summary>
 [DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
 public partial struct AreaScopeComponent : IIndexedComponent<AreaId>

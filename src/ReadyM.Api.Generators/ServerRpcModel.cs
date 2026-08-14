@@ -11,6 +11,102 @@ namespace ReadyM.Api.Generators;
 /// </summary>
 internal static class ServerRpcModel
 {
+    public const string ManifestClassName = "ServerRpcManifest";
+
+    /// <summary>
+    /// Resolves the contract set an RPC class implements, from its required <c>[ServerRpcFor]</c>.
+    /// Reports a diagnostic and returns false when the attribute is missing, names a type that is
+    /// not a contracts class, or names one whose assembly has no manifest.
+    /// </summary>
+    public static bool TryResolveContracts(
+        SourceProductionContext context,
+        INamedTypeSymbol rpcClass,
+        out INamedTypeSymbol contractsType,
+        out INamedTypeSymbol manifest)
+    {
+        contractsType = null!;
+        manifest = null!;
+
+        var location = rpcClass.Locations.FirstOrDefault();
+
+        var attribute = rpcClass.GetAttributes().FirstOrDefault(a =>
+            a.AttributeClass?.Name is "ServerRpcForAttribute" or "ServerRpcFor");
+
+        if (attribute is null || attribute.ConstructorArguments.Length == 0)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "SRPC004", "Missing [ServerRpcFor]",
+                    $"'{rpcClass.Name}' must be annotated with [ServerRpcFor(typeof(SomeContracts))] naming the "
+                    + "[ServerRpcContracts] class it implements.",
+                    "ServerRpc", DiagnosticSeverity.Error, true),
+                location));
+            return false;
+        }
+
+        if (attribute.ConstructorArguments[0].Value is not INamedTypeSymbol target)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "SRPC005", "Invalid contracts type",
+                    $"The type passed to [ServerRpcFor] on '{rpcClass.Name}' could not be resolved.",
+                    "ServerRpc", DiagnosticSeverity.Error, true),
+                location));
+            return false;
+        }
+
+        if (!HasContractsAttribute(target))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "SRPC005", "Invalid contracts type",
+                    $"'{target.ToDisplayString()}' is not annotated with [ServerRpcContracts], so "
+                    + $"'{rpcClass.Name}' cannot implement it.",
+                    "ServerRpc", DiagnosticSeverity.Error, true),
+                location));
+            return false;
+        }
+
+        var found = FindTypeNamed(target.ContainingAssembly.GlobalNamespace, ManifestClassName);
+        if (found is null)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "SRPC003", "Missing manifest",
+                    $"No {ManifestClassName} was found in '{target.ContainingAssembly.Name}'. Reference the "
+                    + "project that declares the [ServerRpcContracts] class.",
+                    "ServerRpc", DiagnosticSeverity.Error, true),
+                location));
+            return false;
+        }
+
+        contractsType = target;
+        manifest = found;
+        return true;
+    }
+
+    /// <summary>The RPC names of a manifest, in its own (authoritative) code order.</summary>
+    public static List<string> ManifestNames(INamedTypeSymbol manifest) =>
+        manifest.GetMembers()
+            .OfType<IFieldSymbol>()
+            .Where(f => f.IsStatic && f.Name.EndsWith("Code"))
+            .Select(f => f.Name.Substring(0, f.Name.Length - 4))
+            .ToList();
+
+    public static INamedTypeSymbol? FindTypeNamed(INamespaceSymbol ns, string name)
+    {
+        var direct = ns.GetTypeMembers(name).FirstOrDefault();
+        if (direct != null) return direct;
+
+        foreach (var child in ns.GetNamespaceMembers())
+        {
+            var found = FindTypeNamed(child, name);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
     public static bool HasContractsAttribute(INamedTypeSymbol type) =>
         type.GetAttributes().Any(a =>
             a.AttributeClass?.Name is "ServerRpcContractsAttribute" or "ServerRpcContracts");

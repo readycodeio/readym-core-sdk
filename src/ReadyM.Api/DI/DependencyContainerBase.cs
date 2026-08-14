@@ -28,19 +28,23 @@ public abstract class DependencyContainerBase : IDependencyContainer, IDisposabl
         Container.Dispose();
     }
 
-    public void RegisterSingleton<TService, TImplementation>(TImplementation instance) where TImplementation : TService
-        => Container.RegisterInstance<TService>(instance);
+    public void RegisterSingleton<TService, TImplementation>(TImplementation instance, bool replace = false) where TImplementation : TService
+        => Container.RegisterInstance<TService>(instance, RegistrationMode(replace));
 
     public T Resolve<T>() => Container.Resolve<T>();
     public IEnumerable<T> ResolveAll<T>() => Container.ResolveMany<T>();
 
-    public void RegisterSingleton<T>() => Container.Register<T>();
-    public void RegisterSingleton<T>(T instance) => Container.RegisterInstance(instance);
+    public void RegisterSingleton<T>(bool replace = false) => Container.Register<T>(ifAlreadyRegistered: RegistrationMode(replace));
+    public void RegisterSingleton<T>(T instance, bool replace = false) => Container.RegisterInstance(instance, RegistrationMode(replace));
 
-    public void RegisterSingleton<TService>(Type type) => Container.Register(typeof(TService), type);
+    public void RegisterSingleton<TService>(Type type, bool replace = false) => Container.Register(typeof(TService), type, ifAlreadyRegistered: RegistrationMode(replace));
 
-    public void RegisterSingleton<TService, TImplementation>() where TImplementation : TService
-        => Container.Register<TService, TImplementation>();
+    public void RegisterSingleton<TService, TImplementation>(bool replace = false) where TImplementation : TService
+        => Container.Register<TService, TImplementation>(ifAlreadyRegistered: RegistrationMode(replace));
+
+    // null defers to the container rules, which append rather than replace
+    private static IfAlreadyRegistered? RegistrationMode(bool replace)
+        => replace ? IfAlreadyRegistered.Replace : null;
 
     public void StartHostedServices()
     {

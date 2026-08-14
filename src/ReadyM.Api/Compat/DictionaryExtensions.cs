@@ -4,6 +4,7 @@ namespace ReadyM.Api.Compat;
 
 #if !NETSTANDARD2_1_OR_GREATER
 
+/// <exclude/>
 public static class DictionaryExtensions
 {
     public static TValue? GetValueOrDefault<TKey, TValue>(this Dictionary<TKey, TValue> self, TKey key)

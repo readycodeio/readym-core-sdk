@@ -11,6 +11,9 @@ using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Rpc;
 
+/// <summary>
+/// Low-level API for handling RPC messages in the ReadyM Relay Server SDK.
+/// </summary>
 public class RpcApi
 {
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler;
@@ -31,6 +34,7 @@ public class RpcApi
         _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
     }
 
+    /// <exclude/>
     public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (!_pinnedDelegates.TryGetValue(handler, out var realHandler))
@@ -54,6 +58,7 @@ public class RpcApi
         _addServerRpcMessageHandler(eventCode, realHandler);
     }
 
+    /// <exclude/>
     public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (!_pinnedDelegates.Remove(handler, out var realHandler))
@@ -84,6 +89,12 @@ public class RpcApi
         }
     }
 
+    /// <summary>
+    /// Sends a message to a specific player with the given data and delivery method.
+    /// </summary>
+    /// <param name="player"></param>
+    /// <param name="data"></param>
+    /// <param name="deliveryMethod"></param>
     public unsafe void SendToOne(PlayerId player, NetDataWriter data, DeliveryMethod deliveryMethod)
     {
         fixed (byte* ptr = data.Data)

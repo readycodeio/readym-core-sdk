@@ -6,6 +6,9 @@ using ReadyM.Api.Multiplayer.Generators;
 
 namespace ReadyM.Api.Multiplayer.ECS.Components;
 
+/// <summary>
+/// Holds the ID of the global player entity.
+/// </summary>
 [DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
 public partial struct PlayerScopeComponent : IIndexedComponent<PlayerId>

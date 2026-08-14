@@ -16,7 +16,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
     private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate =
         Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
 
-    
+
     private sealed class InteropEntityBuilder(ComponentRegistry registry) : EntityBuilderBase
     {
         public HashSet<int> ComponentIds { get; } = [];
@@ -28,19 +28,20 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
             return this;
         }
 
+        // TODO: Default values not set
+        [Obsolete("Default values are not set when adding a component with a value. Use Add<T>() and set the values manually.")]
         public override EntityBuilderBase Add<T>(in T component)
         {
-            // TODO: Default values not set
             var componentId = registry.ResolveComponentId<T>();
             ComponentIds.Add(componentId);
             return this;
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> constructor)
+    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> build)
     {
         var builder = new InteropEntityBuilder(registry);
-        constructor(builder);
+        build(builder);
         var componentList = new NativeList<int>(builder.ComponentIds.Count, AllocatorKind.Default);
         foreach (var componentId in builder.ComponentIds)
         {
@@ -50,10 +51,10 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
         return _registerArchetypeDelegate(componentList);
     }
 
-    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> constructor)
+    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build)
     {
         var builder = new InteropEntityBuilder(registry);
-        constructor(builder);
+        build(builder);
         var componentList = new NativeList<int>(builder.ComponentIds.Count, AllocatorKind.Default);
         foreach (var componentId in builder.ComponentIds)
         {
