@@ -125,12 +125,10 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
                         ownedHeaderSize = owned.Length;
                     }
 
-                    AppendDelta(owned, meta.NetId, ref comp, maxPacketSize, 
-                        flush: w => SendToOwner(owner, w, context));
+                    AppendDelta(owned, meta.NetId, ref comp, maxPacketSize, true, owner, context);
                 }
 
-                AppendDelta(others, meta.NetId, ref comp, maxPacketSize,
-                    flush: w => SendExceptOwner(owner, w, context));
+                AppendDelta(others, meta.NetId, ref comp, maxPacketSize, false, owner, context);
 
                 if (_clearDirty)
                     comp.ClearDirty();
@@ -153,7 +151,9 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
         NetworkId netId,
         ref T comp,
         int? maxPacketSize,
-        Action<NetDataWriter> flush)
+        bool sendToOwnerOnFlush,
+        PlayerId owner,
+        SendContext context)
     {
         if (maxPacketSize == null)
         {
@@ -180,7 +180,14 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
             // Rewind the overflowing delta, flush the partial packet, start a fresh one and retry.
             writer.SetPosition(beforePosition);
-            flush(writer);
+            if (sendToOwnerOnFlush)
+            {
+                SendToOwner(owner, writer, context);
+            }
+            else
+            {
+                SendExceptOwner(owner, writer, context);
+            }
 
             writer.Reset();
             CreatePacketHeader(writer);
