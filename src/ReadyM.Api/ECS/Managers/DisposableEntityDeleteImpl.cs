@@ -18,9 +18,10 @@ internal class DisposableEntityDeleteImpl : IEntityDeleteImpl
     {
         public override void Dispose(Entity entity)
         {
-            if (!entity.TryGetComponent<T>(out var comp))
+            if (!entity.HasComponent<T>())
                 return;
-            
+
+            ref var comp = ref entity.GetComponent<T>();
             comp.Dispose();
         }
     }

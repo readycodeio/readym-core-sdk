@@ -27,7 +27,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
 
             if (entity.Value.HasComponent<T>())
             {
-                var comp = entity.Value.GetComponent<T>();
+                var comp = default(T);
                 comp.Deserialize(reader);
                 entity.Value.Set(comp);
             }

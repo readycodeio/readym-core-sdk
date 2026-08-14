@@ -14,6 +14,7 @@ internal class NativeMappingPolicyDirectory(
     DataSideChannel sideChannel,
     INativeComponentRegistry registry,
     IMappedEntityManager<IntPtr> entityMapper,
+    ECS.Worlds.Store world,
     ILogger logger
 ) : MappingPolicyDirectory(sideChannel), INativeMappingPolicyDirectory
 {
@@ -39,6 +40,37 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanGameSetLocally(int componentId, IntPtr context)
         => TryResolveData(componentId, context, out var policy, out var entity) && policy.CanGameSetLocally(entity);
+
+    public bool ShouldGameCopyToEcsForEntity(int componentId, int entityId)
+        => TryResolveDataForEntity(componentId, entityId, out var policy, out var entity) && policy.ShouldGameCopyToEcs(entity);
+
+    public bool ShouldEcsCopyToGameForEntity(int componentId, int entityId)
+        => TryResolveDataForEntity(componentId, entityId, out var policy, out var entity) && policy.ShouldEcsCopyToGame(entity);
+
+    public bool CanSetFromApiForEntity(int componentId, int entityId)
+        => TryResolveDataForEntity(componentId, entityId, out var policy, out var entity) && policy.CanSetFromApi(entity);
+
+    public bool CanGameSetLocallyForEntity(int componentId, int entityId)
+        => TryResolveDataForEntity(componentId, entityId, out var policy, out var entity) && policy.CanGameSetLocally(entity);
+
+    private bool TryResolveDataForEntity(int componentId, int entityId, out IMappingDataPolicy<Entity> policy, out Entity entity)
+    {
+        policy = null!;
+        entity = default;
+
+        var type = registry.GetComponentType(componentId);
+        if (type == null)
+            throw new ArgumentException($"No component type found for component ID {componentId}");
+
+        if (!world.TryGetEntityById(entityId, out entity))
+        {
+            logger.LogError("Failed to resolve entity {EntityId} for native data policy of component id {ComponentId} type {Type}", entityId, componentId, type.FullName);
+            return false;
+        }
+
+        policy = ForData(type);
+        return true;
+    }
 
     private bool TryResolveData(int componentId, IntPtr context, out IMappingDataPolicy<Entity> policy, out Entity entity)
     {

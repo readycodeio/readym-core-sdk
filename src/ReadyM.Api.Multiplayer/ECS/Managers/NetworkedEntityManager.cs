@@ -179,4 +179,24 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         if (skipSync)
             _skipNetSync--;
     }
+
+    public bool TryDeleteEntity(int entityId)
+    {
+        if (!_world.TryGetEntityById(entityId, out var entity))
+        {
+            _logger.LogWarning("Attempted to delete entity {EntityId} which does not exist.", entityId);
+            return false;
+        }
+
+        if (entity.Tags.Has<ScopeEntityTag>())
+        {
+            _logger.LogError("Attempted to delete scope entity {EntityId}. Scope entities are owned by the server.", entityId);
+            return false;
+        }
+
+        // Local entities carry no MetadataComponent, so the delete broadcast in
+        // OnEntityDeleteHandler skips them and only networked deletes reach clients
+        entity.DeleteEntity();
+        return true;
+    }
 }

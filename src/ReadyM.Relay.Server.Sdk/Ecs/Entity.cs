@@ -17,6 +17,8 @@ public readonly struct Entity
         _registry = registry;
     }
 
+    public int Id => _id;
+
     public unsafe ref T GetComponent<T>() where T : struct
     {
         var compId = _registry.ResolveComponentId<T>();

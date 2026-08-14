@@ -22,4 +22,5 @@ internal interface INetworkedEntityManager
     bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity);
     void DeleteEntitiesInScope(Entity scopeEntity, bool skipSync, bool deleteScopeEntity);
     void DeleteAllNetworkedEntities(bool skipSync);
+    bool TryDeleteEntity(int entityId);
 }

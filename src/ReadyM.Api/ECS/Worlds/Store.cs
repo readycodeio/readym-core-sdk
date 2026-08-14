@@ -14,6 +14,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^Count$")]
 [WrapperInclude("^GetCommandBuffer$")] // TODO: Wrap to disable entity creation
 [WrapperInclude("^GetEntityBy.*")]
+[WrapperInclude("^TryGetEntityById$")]
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]

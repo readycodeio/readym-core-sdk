@@ -6,4 +6,5 @@ public struct HostInitParams
     public required RpcApiPointers RpcApiPointers;
     public required ArchetypePointers ArchetypePointers;
     public required PlayerApiPointers PlayerApiPointers;
+    public required ServerEventsPointers ServerEventsPointers;
 }
