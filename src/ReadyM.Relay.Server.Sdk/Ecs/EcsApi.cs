@@ -219,52 +219,6 @@ public class EcsApi
         public object? ManagedState;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WithCallback(object callback, Action body)
-    {
-        _tlsState.Callback = callback;
-        try
-        {
-            body();
-        }
-        finally
-        {
-            _tlsState.Callback = null;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WithCallbackAndManagedState(object callback, object? managed, Action body)
-    {
-        _tlsState.Callback = callback;
-        _tlsState.ManagedState = managed;
-        try
-        {
-            body();
-        }
-        finally
-        {
-            _tlsState.Callback = null;
-            _tlsState.ManagedState = null;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WithCallbackAndState(object callback, IntPtr statePtr, Action body)
-    {
-        _tlsState.Callback = callback;
-        _tlsState.State = statePtr;
-        try
-        {
-            body();
-        }
-        finally
-        {
-            _tlsState.Callback = null;
-            _tlsState.State = IntPtr.Zero;
-        }
-    }
-
     #region Query 1
 
     /// <exclude />
@@ -312,16 +266,34 @@ public class EcsApi
     public void Query<T>(EmbedForEach<T> callback) where T : struct
     {
         var id = _registry.ResolveComponentId<T>();
-        WithCallback(callback, () =>
-            _query1(id, static (d, count, s) => IterateChunk1<T>(d, count, s)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query1(id, static (d, count, s) => IterateChunk1<T>(d, count, s));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T, TState>(TState state, EmbedForEachStateManaged<T, TState> callback)
         where T : struct where TState : class
     {
         var id = _registry.ResolveComponentId<T>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query1(id, static (d, count, s) => IterateChunk1ManagedState<T, TState>(d, count, s)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query1(id, static (d, count, s) => IterateChunk1ManagedState<T, TState>(d, count, s));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T, TState>(ref TState state, EmbedForEachState<T, TState> callback)
@@ -332,8 +304,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query1(id, static (d, count, s) => IterateChunk1State<T, TState>(d, count, s)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query1(id, static (d, count, s) => IterateChunk1State<T, TState>(d, count, s));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
@@ -391,8 +374,16 @@ public class EcsApi
     {
         var c1 = _registry.ResolveComponentId<T1>();
         var c2 = _registry.ResolveComponentId<T2>();
-        WithCallback(callback, () =>
-            _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2<T1, T2>(d1, d2, count, s1, s2)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2<T1, T2>(d1, d2, count, s1, s2));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T1, T2, TState>(TState state, EmbedForEachStateManaged<T1, T2, TState> callback)
@@ -400,8 +391,18 @@ public class EcsApi
     {
         var c1 = _registry.ResolveComponentId<T1>();
         var c2 = _registry.ResolveComponentId<T2>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2ManagedState<T1, T2, TState>(d1, d2, count, s1, s2)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2ManagedState<T1, T2, TState>(d1, d2, count, s1, s2));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T1, T2, TState>(ref TState state, EmbedForEachState<T1, T2, TState> callback)
@@ -413,8 +414,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2State<T1, T2, TState>(d1, d2, count, s1, s2)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query2(c1, c2, static (d1, d2, count, s1, s2) => IterateChunk2State<T1, T2, TState>(d1, d2, count, s1, s2));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
@@ -476,8 +488,16 @@ public class EcsApi
         var c1 = _registry.ResolveComponentId<T1>();
         var c2 = _registry.ResolveComponentId<T2>();
         var c3 = _registry.ResolveComponentId<T3>();
-        WithCallback(callback, () =>
-            _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3<T1, T2, T3>(d1, d2, d3, count, s1, s2, s3)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3<T1, T2, T3>(d1, d2, d3, count, s1, s2, s3));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T1, T2, T3, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, TState> callback)
@@ -486,8 +506,18 @@ public class EcsApi
         var c1 = _registry.ResolveComponentId<T1>();
         var c2 = _registry.ResolveComponentId<T2>();
         var c3 = _registry.ResolveComponentId<T3>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3ManagedState<T1, T2, T3, TState>(d1, d2, d3, count, s1, s2, s3)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3ManagedState<T1, T2, T3, TState>(d1, d2, d3, count, s1, s2, s3));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T1, T2, T3, TState>(ref TState state, EmbedForEachState<T1, T2, T3, TState> callback)
@@ -500,8 +530,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3State<T1, T2, T3, TState>(d1, d2, d3, count, s1, s2, s3)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query3(c1, c2, c3, static (d1, d2, d3, count, s1, s2, s3) => IterateChunk3State<T1, T2, T3, TState>(d1, d2, d3, count, s1, s2, s3));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
@@ -567,8 +608,16 @@ public class EcsApi
         var c2 = _registry.ResolveComponentId<T2>();
         var c3 = _registry.ResolveComponentId<T3>();
         var c4 = _registry.ResolveComponentId<T4>();
-        WithCallback(callback, () =>
-            _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4<T1, T2, T3, T4>(d1, d2, d3, d4, count, s1, s2, s3, s4)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4<T1, T2, T3, T4>(d1, d2, d3, d4, count, s1, s2, s3, s4));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, TState> callback)
@@ -578,8 +627,18 @@ public class EcsApi
         var c2 = _registry.ResolveComponentId<T2>();
         var c3 = _registry.ResolveComponentId<T3>();
         var c4 = _registry.ResolveComponentId<T4>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4ManagedState<T1, T2, T3, T4, TState>(d1, d2, d3, d4, count, s1, s2, s3, s4)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4ManagedState<T1, T2, T3, T4, TState>(d1, d2, d3, d4, count, s1, s2, s3, s4));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, TState> callback)
@@ -593,8 +652,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4State<T1, T2, T3, T4, TState>(d1, d2, d3, d4, count, s1, s2, s3, s4)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query4(c1, c2, c3, c4, static (d1, d2, d3, d4, count, s1, s2, s3, s4) => IterateChunk4State<T1, T2, T3, T4, TState>(d1, d2, d3, d4, count, s1, s2, s3, s4));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
@@ -664,8 +734,16 @@ public class EcsApi
         var c3 = _registry.ResolveComponentId<T3>();
         var c4 = _registry.ResolveComponentId<T4>();
         var c5 = _registry.ResolveComponentId<T5>();
-        WithCallback(callback, () =>
-            _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5<T1, T2, T3, T4, T5>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5<T1, T2, T3, T4, T5>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, T5, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, T5, TState> callback)
@@ -676,8 +754,18 @@ public class EcsApi
         var c3 = _registry.ResolveComponentId<T3>();
         var c4 = _registry.ResolveComponentId<T4>();
         var c5 = _registry.ResolveComponentId<T5>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5ManagedState<T1, T2, T3, T4, T5, TState>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5ManagedState<T1, T2, T3, T4, T5, TState>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, T5, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, T5, TState> callback)
@@ -692,8 +780,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5State<T1, T2, T3, T4, T5, TState>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query5(c1, c2, c3, c4, c5, static (d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5) => IterateChunk5State<T1, T2, T3, T4, T5, TState>(d1, d2, d3, d4, d5, count, s1, s2, s3, s4, s5));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
@@ -767,8 +866,16 @@ public class EcsApi
         var c4 = _registry.ResolveComponentId<T4>();
         var c5 = _registry.ResolveComponentId<T5>();
         var c6 = _registry.ResolveComponentId<T6>();
-        WithCallback(callback, () =>
-            _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6<T1, T2, T3, T4, T5, T6>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6)));
+
+        _tlsState.Callback = callback;
+        try
+        {
+            _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6<T1, T2, T3, T4, T5, T6>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, T5, T6, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, T5, T6, TState> callback)
@@ -780,8 +887,18 @@ public class EcsApi
         var c4 = _registry.ResolveComponentId<T4>();
         var c5 = _registry.ResolveComponentId<T5>();
         var c6 = _registry.ResolveComponentId<T6>();
-        WithCallbackAndManagedState(callback, state, () =>
-            _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6ManagedState<T1, T2, T3, T4, T5, T6, TState>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6)));
+
+        _tlsState.Callback = callback;
+        _tlsState.ManagedState = state;
+        try
+        {
+            _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6ManagedState<T1, T2, T3, T4, T5, T6, TState>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+            _tlsState.ManagedState = null;
+        }
     }
 
     public void Query<T1, T2, T3, T4, T5, T6, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, T5, T6, TState> callback)
@@ -797,8 +914,19 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                WithCallbackAndState(callback, (IntPtr)sp, () =>
-                    _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6State<T1, T2, T3, T4, T5, T6, TState>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6)));
+                IntPtr statePtr = (IntPtr)sp;
+
+                _tlsState.Callback = callback;
+                _tlsState.State = statePtr;
+                try
+                {
+                    _query6(c1, c2, c3, c4, c5, c6, static (d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6) => IterateChunk6State<T1, T2, T3, T4, T5, T6, TState>(d1, d2, d3, d4, d5, d6, count, s1, s2, s3, s4, s5, s6));
+                }
+                finally
+                {
+                    _tlsState.Callback = null;
+                    _tlsState.State = IntPtr.Zero;
+                }
             }
         }
     }
