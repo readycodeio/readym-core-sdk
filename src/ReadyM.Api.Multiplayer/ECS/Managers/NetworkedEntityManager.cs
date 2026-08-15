@@ -26,7 +26,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
     public event Action<NetworkId, Entity>? OnEntityDelete;
 
     public NetworkedEntityManager(
-        Store world, 
+        Store world,
         IPlayerIdProvider playerIdProvider,
         ILogger logger)
     {
@@ -68,7 +68,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
             if (_skipNetSync == 0)
                 OnEntityDelete?.Invoke(meta.NetId, evt.Entity);
 
-            _logger.LogDebug("Network entity {NetId} deleted", meta.NetId);
+            _logger.LogDebug("Network entity {Archetype} {NetId} deleted", meta.Archetype, meta.NetId);
         }
     }
 
@@ -100,7 +100,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
             setComponents?.Invoke(b);
         });
 
-        _logger.LogDebug("Network entity {NetId} created (locally)", meta.NetId);
+        _logger.LogDebug("Network entity {Archetype} {NetId} created (locally)", meta.Archetype, meta.NetId);
 
         return (entity, netId);
     }
@@ -117,7 +117,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
             }
         });
 
-        _logger.LogDebug("Network entity {NetId} created (remote)", meta.NetId);
+        _logger.LogDebug("Network entity {Archetype} {NetId} created (remote)", meta.Archetype, meta.NetId);
 
         return entity;
     }
@@ -135,7 +135,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
                 entity = matching[0];
                 return true;
             default:
-                _logger.LogError("Multiple entities found with NetworkId {NetworkId}. This should not happen.", netId);
+                _logger.LogError("Multiple entities found with NetworkId {NetId}. This should not happen.", netId);
                 entity = null;
                 return false;
         }
@@ -147,7 +147,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
             throw new InvalidOperationException("Entity is not a scope entity.");
 
         // NOTE: Scope related entity deletes are not synchronized over the network because each
-        // client individually already deletes all those entities on their own. Having them also 
+        // client individually already deletes all those entities on their own. Having them also
         // synchronize using the normal EcsDeleteEntity events would result in an attempt to delete
         // the same entities twice. It would also waste a whole lot of traffic.
         if (skipSync)
@@ -161,7 +161,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
 
         if (deleteScopeEntity)
             scopeEntity.DeleteEntity();
-        
+
         if (skipSync)
             _skipNetSync--;
     }
@@ -171,7 +171,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         if (skipSync)
             _skipNetSync++;
         // When we disconnect all networked entities get deleted
-        
+
         _world.Query<MetadataComponent>()
             .ForEachEntity((ref _, entity) => { _commandBuffer.DeleteEntity(entity.Id); });
         _commandBuffer.Playback();

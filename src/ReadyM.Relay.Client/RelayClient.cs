@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,13 +63,13 @@ internal class RelayClient : IRelayClient
     // because of it.
     private readonly Random _rng = new(2137);
 
-    // NOTE: Stores data that can only be safely accessed from the network thread. It is disallowed to access any of 
+    // NOTE: Stores data that can only be safely accessed from the network thread. It is disallowed to access any of
     // this state from other threads.
     private readonly NetworkThreadContext _netThreadContext = new();
 
     private readonly PendingActionUpdater<IRelayClientNetworkThreadContext> _scheduler;
 
-    // NOTE: This gets assigned early on inside the `OnConnected` event handler. From that point on it is 
+    // NOTE: This gets assigned early on inside the `OnConnected` event handler. From that point on it is
     // readonly and immutable until the client disconnects. Since `PlayerId` for the client needs to be available
     public PlayerId? PlayerId
     {
@@ -819,6 +820,8 @@ internal class RelayClient : IRelayClient
                     var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
+                    _logger.LogDebug("Received built-in header code: {Header}", eventCode);
+
                     if (serverHandler != null)
                     {
                         var position = reader.Position;
@@ -828,6 +831,10 @@ internal class RelayClient : IRelayClient
                             var handler = (Action<ServerEventHeader, NetDataReader>)handlerUntyped;
                             handler.Invoke(serverHeader, reader);
                         }
+                    }
+                    else
+                    {
+                        _logger.LogError("Unhandled built-in header code: {Header}", eventCode);
                     }
 
                     return;
@@ -838,6 +845,8 @@ internal class RelayClient : IRelayClient
                     var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
+                    _logger.LogDebug("Received server RPC header code: {Header}", eventCode);
+
                     if (serverHandler != null)
                     {
                         var position = reader.Position;
@@ -848,6 +857,10 @@ internal class RelayClient : IRelayClient
                             handler.Invoke(serverHeader, reader);
                         }
                     }
+                    else
+                    {
+                        _logger.LogError("Unhandled server RPC header code: {Header}", eventCode);
+                    }
 
                     return;
                 }
@@ -857,6 +870,8 @@ internal class RelayClient : IRelayClient
 
                 if (clientHandler != null)
                 {
+                    _logger.LogDebug("Received custom header code: {Header}", eventCode);
+
                     var position = reader.Position;
                     foreach (var handlerUntyped in clientHandler.GetInvocationList())
                     {
@@ -864,6 +879,10 @@ internal class RelayClient : IRelayClient
                         var handler = (Action<CustomRelayEventHeader, NetDataReader>)handlerUntyped;
                         handler.Invoke(clientHeader, reader);
                     }
+                }
+                else
+                {
+                    _logger.LogError("Unhandled custom header code: {Header}", eventCode);
                 }
 
                 break;
@@ -878,7 +897,7 @@ internal class RelayClient : IRelayClient
     private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
     private int _pingCount;
-    
+
     private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
     {
         // Round trip time. LiteNetLib reports one way latency, so we double it.

@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
@@ -8,7 +9,7 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentRegistry registry) : IArchetypeRegistry
+internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentRegistry registry, ILogger logger) : IArchetypeRegistry
 {
     private readonly RegisterArchetypeDelegate _registerArchetypeDelegate =
         Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
@@ -48,7 +49,11 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
             componentList.Add(componentId);
         }
 
-        return _registerArchetypeDelegate(componentList);
+        var archetypeId = _registerArchetypeDelegate(componentList);
+
+        logger.LogDebug("Registering archetype {Archetype} {Target}:{Method} {Components}", archetypeId, build.Target, build.Method, componentList);
+
+        return archetypeId;
     }
 
     public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build)
@@ -60,6 +65,8 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
         {
             componentList.Add(componentId);
         }
+
+        logger.LogDebug("Modifying archetype {Archetype} {Target}:{Method} {Components}", archetypeId, build.Target, build.Method, componentList);
 
         _modifyArchetypeDelegate(archetypeId, componentList);
     }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
@@ -78,7 +80,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient = relayClient;
         Logger = logger;
         this.serializationJobRegistry = serializationJobRegistry;
-        
+
         // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
         // server.
@@ -92,7 +94,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 #if DEBUG
         SyncSystemGroup.SetMonitorPerf(true);
 #endif
-        
+
 
         SendSystemGroup = new SystemGroup("Send");
 #if DEBUG
@@ -123,9 +125,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
-        // sent to the server. 
+        // sent to the server.
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
-        
+
         _ecsLoop.AddSystem(ReceiveSystemGroup);
         _ecsLoop.AddSystem(SyncSystemGroup);
         _ecsLoop.AddSystem(SendSystemGroup);
@@ -194,6 +196,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 Entity? scopeEntity = null;
 
                 var entityCount = readerCopy.GetUInt();
+
                 for (var i = 0; i < entityCount; i++)
                 {
                     var meta = MetadataComponent.Deserialize(readerCopy);
@@ -287,7 +290,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 if (scopeNetId != default)
                 {
                     if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
-                        throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");
+                    {
+                        // NOTE: This situation is possible when a new client enters the game and is forwarded entities
+                        // created by another player before receiving the corresponding snapshot
+                        self.Logger.LogDebug("Scope entity with NetId {Scope} not found", scopeNetId);
+                        return;
+                    }
                 }
 
                 var queryCount = readerCopy.GetUInt();
