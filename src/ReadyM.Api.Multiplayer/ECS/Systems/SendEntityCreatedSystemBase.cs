@@ -10,12 +10,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
 internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataComponent>
 {
-    private readonly SerializationJobRegistry serializationJobRegistry;
+    private readonly SerializationJobRegistry _serializationJobRegistry;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent>> _queryCache;
 
     protected SendEntityCreatedSystemBase(SerializationJobRegistry serializationJobRegistry)
     {
-        this.serializationJobRegistry = serializationJobRegistry;
+        _serializationJobRegistry = serializationJobRegistry;
         _queryCache = new(
             context => context.ScopeEntity,
             context =>
@@ -64,10 +64,14 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
         query.ForEachEntity((ref meta, entity) =>
         {
             MetadataComponent.Serialize(meta, _writer);
+
+            // NOTE: This tag clearing has to happen here to make sure that snapshot captures the newly created entities
+            // as well. This is because the client-side creation message handler might miss the entities where the
+            // scope entity was missing
             CommandBuffer.RemoveTag<LocallyCreatedEntityTag>(entity.Id);
         });
 
-        serializationJobRegistry.WriteSnapshot(query.Store, query.Filter, null, _writer);
+        _serializationJobRegistry.WriteSnapshot(query.Store, query.Filter, null, _writer);
 
         if (queryCount > 0)
         {

@@ -18,13 +18,13 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         void IValueTaskSource<T>.OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags)
             => _core.OnCompleted(continuation, state, token, flags);
-        
+
         T IValueTaskSource<T>.GetResult(short token)
             => _core.GetResult(token);
-        
+
         public void SetResult(T result)
             => _core.SetResult(result);
-        
+
         public void SetException(Exception ex)
             => _core.SetException(ex);
 
@@ -34,7 +34,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         public void Reset()
             => _core.Reset();
     }
-    
+
     protected abstract class PendingGroupBase
     {
         // NOTE: By convention this function is called from inside the `_lock` monitor.
@@ -43,7 +43,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         // ReSharper disable once StaticMemberInGenericType
         protected static int TypeIndexCounter;
     }
-    
+
     protected class PendingActionGroup(PendingActionScheduler<TContext> owner) : PendingGroupBase
     {
         private readonly Stack<PooledCompletionSource<bool>> _sources = new();
@@ -57,7 +57,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             {
                 tcs = new PooledCompletionSource<bool>();
             }
-            
+
             _items.Add((action, tcs));
             return tcs;
         }
@@ -88,7 +88,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -105,12 +105,12 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _updateIndex = 0;
         }
     }
-    
+
     protected class PendingActionGroup<T>(PendingActionScheduler<TContext> owner) : PendingGroupBase
     {
         // ReSharper disable once StaticMemberInGenericType
         public static readonly int TypeIndex = TypeIndexCounter++;
-        
+
         private readonly Stack<PooledCompletionSource<bool>> _sources = new();
         private List<(Action<TContext, T>, T, PooledCompletionSource<bool>?)> _items = new(MaxPendingGroupItemCount);
         private List<(Action<TContext, T>, T, PooledCompletionSource<bool>?)> _oldItems = new(MaxPendingGroupItemCount);
@@ -153,7 +153,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -218,7 +218,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -283,7 +283,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -348,7 +348,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -413,7 +413,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -478,7 +478,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -543,7 +543,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -608,7 +608,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -673,7 +673,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 }
                 catch (Exception ex)
                 {
-                    owner._logger.LogError(ex, "Error executing pending action");
+                    owner.logger.LogError(ex, "Error executing pending action");
                     tcs?.SetException(ex);
                 }
             }
@@ -690,8 +690,8 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _updateIndex = 0;
         }
     }
-    
-    private readonly ILogger _logger;
+
+    protected readonly ILogger logger;
 
     protected readonly object _lock = new();
     protected readonly PendingActionGroup _group;
@@ -700,17 +700,17 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     protected List<PendingGroupBase?> _queue = new(MaxPendingItemCount);
     protected List<PendingGroupBase?> _oldQueue = new(MaxPendingItemCount);
     protected int _queueIndex;
-    
+
     protected int _delayedCount;
 
     protected bool IsDelayed
         => _delayedCount > 0;
 
     protected TContext _context;
-    
+
     protected PendingActionScheduler(TContext context, ILogger logger)
     {
-        _logger = logger;
+        this.logger = logger;
         _group = new(this);
         _context = context;
     }
@@ -719,7 +719,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         _delayedCount++;
     }
-    
+
     public void EndDelay()
     {
         if (_delayedCount <= 0)
@@ -731,23 +731,23 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     {
         _context = context;
     }
-    
+
     public async ValueTask RunAsync(Action<TContext> action)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
             action(_context);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
-        
+
         lock (_lock)
         {
             tcs = _group.AddAsync(action);
@@ -757,27 +757,27 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             _group.Release(tcs);
         }
     }
-    
+
     public async ValueTask RunAsync<T>(Action<TContext, T> action, T arg)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
             action(_context, arg);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T>? group;
 
@@ -790,7 +790,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg);
 
             _queueIndex++;
@@ -798,30 +798,30 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public async ValueTask RunAsync<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             // NOTE: We only guarantee that calls from the same thread will be executed in order.
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1>.TypeIndex;
@@ -831,28 +831,28 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public async ValueTask RunAsync<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2);
@@ -861,7 +861,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2>.TypeIndex;
@@ -871,7 +871,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2);
 
             _queueIndex++;
@@ -879,20 +879,20 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public async ValueTask RunAsync<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3);
@@ -901,7 +901,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2, T3>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3>.TypeIndex;
@@ -911,28 +911,28 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2, T3>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public async ValueTask RunAsync<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg0, arg1, arg2, arg3, arg4);
@@ -941,7 +941,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2, T3, T4>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3, T4>.TypeIndex;
@@ -951,15 +951,15 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2, T3, T4>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3, arg4);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
@@ -972,7 +972,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             return func(_context);
@@ -980,7 +980,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<TResult>.TypeIndex;
@@ -990,7 +990,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func);
 
             _queueIndex++;
@@ -998,22 +998,22 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         }
 
         var result = await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public async ValueTask<TResult> RunFuncAsync<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg);
@@ -1021,7 +1021,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T, TResult>.TypeIndex;
@@ -1031,30 +1031,30 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func, arg);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public async ValueTask<TResult> RunFuncAsync<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg0, arg1);
@@ -1062,7 +1062,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T0, T1, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, TResult>.TypeIndex;
@@ -1074,36 +1074,36 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             tcs = group.AddAsync(func, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public async ValueTask<TResult> RunFuncAsync<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             return func(_context, arg0, arg1, arg2);
         }
-        
+
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T0, T1, T2, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, T2, TResult>.TypeIndex;
@@ -1115,21 +1115,21 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             tcs = group.AddAsync(func, arg0, arg1, arg2);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = await tcs.Task;
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public void Schedule(Action<TContext> action)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1139,7 +1139,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context);
             return;
         }
-        
+
         lock (_lock)
         {
             _group.Add(action);
@@ -1148,7 +1148,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(_group);
         }
     }
-    
+
     public void Schedule<T>(Action<TContext, T> action, T arg)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1158,7 +1158,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T>.TypeIndex;
@@ -1175,7 +1175,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _queue.Add(group);
         }
     }
-    
+
     public void Schedule<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1185,7 +1185,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg0, arg1);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1>.TypeIndex;
@@ -1197,12 +1197,12 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             group.Add(action, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void Schedule<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1212,7 +1212,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg0, arg1, arg2);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2>.TypeIndex;
@@ -1224,12 +1224,12 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             group.Add(action, arg0, arg1, arg2);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void Schedule<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1239,7 +1239,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg0, arg1, arg2, arg3);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3>.TypeIndex;
@@ -1251,12 +1251,12 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             group.Add(action, arg0, arg1, arg2, arg3);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void Schedule<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1266,7 +1266,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg0, arg1, arg2, arg3, arg4);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3, T4>.TypeIndex;
@@ -1278,7 +1278,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
 
             group.Add(action, arg0, arg1, arg2, arg3, arg4);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
@@ -1293,7 +1293,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             func(_context);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<TResult>.TypeIndex;
@@ -1303,14 +1303,14 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             group.Add(func);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void ScheduleFunc<T, TResult>(Func<TContext, T, TResult> func, T arg)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1320,7 +1320,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             func(_context, arg);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T, TResult>.TypeIndex;
@@ -1330,14 +1330,14 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             group.Add(func, arg);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void ScheduleFunc<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1347,7 +1347,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             func(_context, arg0, arg1);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, TResult>.TypeIndex;
@@ -1357,14 +1357,14 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T0, T1, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             group.Add(func, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
     }
-    
+
     public void ScheduleFunc<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2)
     {
         if ((thread == null || thread == Thread.CurrentThread) && !IsDelayed)
@@ -1374,7 +1374,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             func(_context, arg0, arg1, arg2);
             return;
         }
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, T2, TResult>.TypeIndex;
@@ -1384,9 +1384,9 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T0, T1, T2, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             group.Add(func, arg0, arg1, arg2);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
@@ -1399,7 +1399,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
     /// </summary>
     /// <remarks>
     /// Scheduler can end up never executing a task that was added to its queue due to an exception or a different kind of bug.
-    /// A finite time limit is the only way to make sure that this kind of issue, regardles of its exact cause, will always 
+    /// A finite time limit is the only way to make sure that this kind of issue, regardles of its exact cause, will always
     /// end up throwing an exception eventually instead of blocking the waiting thread forever.
     /// This is especially important for integration tests, which use different <see cref="RunSynchronously(Action{TContext}, int)"/>
     /// overloads extensively and when the main test thread is blocked, a test gets stuck instead of failing.
@@ -1436,47 +1436,47 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             action(_context);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
-        
+
         lock (_lock)
         {
             tcs = _group.AddAsync(action);
-            
+
             _queueIndex++;
             _queue.Add(_group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             _group.Release(tcs);
         }
     }
-    
+
     public void RunSynchronously<T>(Action<TContext, T> action, T arg, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
         {
             if (IsDelayed)
                 throw new InvalidOperationException();
-            
+
             if (_queueIndex > 0)
                 Update();
             action(_context, arg);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T>.TypeIndex;
@@ -1486,21 +1486,21 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public void RunSynchronously<T0, T1>(Action<TContext, T0, T1> action, T0 arg0, T1 arg1, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1513,10 +1513,10 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             action(_context, arg0, arg1);
             return;
         }
-        
+
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1>.TypeIndex;
@@ -1526,21 +1526,21 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public void RunSynchronously<T0, T1, T2>(Action<TContext, T0, T1, T2> action, T0 arg0, T1 arg1, T2 arg2, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1556,7 +1556,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2>.TypeIndex;
@@ -1566,21 +1566,21 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public void RunSynchronously<T0, T1, T2, T3>(Action<TContext, T0, T1, T2, T3> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1596,7 +1596,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2, T3>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3>.TypeIndex;
@@ -1606,21 +1606,21 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2, T3>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
     }
-    
+
     public void RunSynchronously<T0, T1, T2, T3, T4>(Action<TContext, T0, T1, T2, T3, T4> action, T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1636,7 +1636,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<bool> tcs;
         PendingActionGroup<T0, T1, T2, T3, T4>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingActionGroup<T0, T1, T2, T3, T4>.TypeIndex;
@@ -1646,15 +1646,15 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingActionGroup<T0, T1, T2, T3, T4>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3, arg4);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
@@ -1675,7 +1675,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<TResult>.TypeIndex;
@@ -1685,23 +1685,23 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public TResult RunSynchronously<T, TResult>(Func<TContext, T, TResult> func, T arg, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1716,7 +1716,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T, TResult>.TypeIndex;
@@ -1726,23 +1726,23 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func, arg);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public TResult RunSynchronously<T0, T1, TResult>(Func<TContext, T0, T1, TResult> func, T0 arg0, T1 arg1, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (IsDelayed)
@@ -1757,7 +1757,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T0, T1, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, TResult>.TypeIndex;
@@ -1767,23 +1767,23 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T0, T1, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func, arg0, arg1);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
-    
+
     public TResult RunSynchronously<T0, T1, T2, TResult>(Func<TContext, T0, T1, T2, TResult> func, T0 arg0, T1 arg1, T2 arg2, int timeoutMs = DefaultRunSynchronouslyTimeoutMs)
     {
         if (thread == null || thread == Thread.CurrentThread)
@@ -1795,10 +1795,10 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 Update();
             return func(_context, arg0, arg1, arg2);
         }
-        
+
         PooledCompletionSource<TResult> tcs;
         PendingFuncGroup<T0, T1, T2, TResult>? group;
-        
+
         lock (_lock)
         {
             var typeIndex = PendingFuncGroup<T0, T1, T2, TResult>.TypeIndex;
@@ -1808,20 +1808,20 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
                 group = new PendingFuncGroup<T0, T1, T2, TResult>(this);
                 _groups[typeIndex] = group;
             }
-            
+
             tcs = group.AddAsync(func, arg0, arg1, arg2);
-            
+
             _queueIndex++;
             _queue.Add(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
-        
+
         lock (_lock)
         {
             group.Release(tcs);
         }
-        
+
         return result;
     }
 }
