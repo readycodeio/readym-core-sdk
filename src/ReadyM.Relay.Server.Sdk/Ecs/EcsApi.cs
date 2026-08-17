@@ -145,8 +145,15 @@ public class EcsApi
     public void QueryWithEntity<T>(EmbedForEachEntity<T> callback) where T : struct
     {
         var id = _registry.ResolveComponentId<T>();
-        WithCallback(callback, () =>
-            _query1WithIds(id, static (ids, d, count, s) => IterateChunkWithIds1<T>(ids, d, count, s)));
+        _tlsState.Callback = callback;
+        try
+        {
+            _query1WithIds(id, static (ids, d, count, s) => IterateChunkWithIds1<T>(ids, d, count, s));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     /// <inheritdoc cref="QueryWithEntity{T}"/>
@@ -155,9 +162,16 @@ public class EcsApi
     {
         var id1 = _registry.ResolveComponentId<T1>();
         var id2 = _registry.ResolveComponentId<T2>();
-        WithCallback(callback, () =>
+        _tlsState.Callback = callback;
+        try
+        {
             _query2WithIds(id1, id2,
-                static (ids, d1, d2, count, s1, s2) => IterateChunkWithIds2<T1, T2>(ids, d1, d2, count, s1, s2)));
+                static (ids, d1, d2, count, s1, s2) => IterateChunkWithIds2<T1, T2>(ids, d1, d2, count, s1, s2));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
     }
 
     private static unsafe void IterateChunkWithIds1<T>(IntPtr ids, IntPtr d, int count, int s)
