@@ -820,8 +820,6 @@ internal class RelayClient : IRelayClient
                     var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
 
-                    _logger.LogDebug("Received built-in header code: {Header}", eventCode);
-
                     if (serverHandler != null)
                     {
                         var position = reader.Position;
@@ -844,8 +842,6 @@ internal class RelayClient : IRelayClient
                 {
                     var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
                     var serverHandler = _serverMessageHandlers[(byte)eventCode];
-
-                    _logger.LogDebug("Received server RPC header code: {Header}", eventCode);
 
                     if (serverHandler != null)
                     {
@@ -870,8 +866,6 @@ internal class RelayClient : IRelayClient
 
                 if (clientHandler != null)
                 {
-                    _logger.LogDebug("Received custom header code: {Header}", eventCode);
-
                     var position = reader.Position;
                     foreach (var handlerUntyped in clientHandler.GetInvocationList())
                     {
