@@ -21,7 +21,7 @@ internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistr
         componentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
         componentTypes.Add(id, typeof(T));
 
-        logger.LogDebug("Registered networked component: {ComponentType} with ID {Id} and delivery method {DeliveryMethod}", typeof(T).Name, id, deliveryMethod);
+        logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
         return base.RegisterComponent(defaultValue);
     }
 
