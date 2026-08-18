@@ -13,7 +13,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
-    private readonly bool _useSetComponent = typeof(IForceSetComponent).IsAssignableFrom(typeof(T));
+    private readonly bool _useSetComponent = typeof(IIndexedComponent<>).IsAssignableFrom(typeof(T));
 
     [ThreadStatic]
     private static T _skipinstance;
