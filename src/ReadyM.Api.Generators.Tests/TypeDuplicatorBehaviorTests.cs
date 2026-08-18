@@ -161,7 +161,7 @@ public partial struct Duplicate
     }
 
     [Fact]
-    public void ExistingNonPartialTarget_IsReportedAsAnIssue()
+    public void ExistingNonPartialTarget_IsGeneratedAnywayAndLeftToTheCompiler()
     {
         const string source = """
 namespace ReadyM.Api.Generators.Tests.TestTypes;
@@ -176,14 +176,16 @@ public struct Copy
 }
 """;
 
-        var result = Duplicate(source, "Origin", "Copy");
+        var generated = Duplicate(source, "Origin", "Copy");
 
-        Assert.Null(result.Source);
-        Assert.Equal(TypeDuplicationIssueCode.TargetNotPartial, Assert.Single(result.Issues).Code);
+        // A clash with a hand-written declaration is the programmer's to resolve, so nothing is said about it.
+        Assert.DoesNotContain("#error", generated);
+        Assert.Contains("public partial struct Copy", generated);
+        Assert.Contains("public int Value;", generated);
     }
 
     [Fact]
-    public void NonStructSource_IsReportedAsAnIssue()
+    public void NonStructSource_StillGeneratesAndSaysWhyInline()
     {
         const string source = """
 namespace ReadyM.Api.Generators.Tests.TestTypes;
@@ -194,14 +196,18 @@ public class NotAStruct
 }
 """;
 
-        var result = Duplicate(source, "NotAStruct", "CopyOfClass");
+        var generated = Duplicate(source, "NotAStruct", "CopyOfClass");
 
-        Assert.Null(result.Source);
-        Assert.Equal(TypeDuplicationIssueCode.SourceNotStruct, Assert.Single(result.Issues).Code);
+        Assert.Contains("#error", generated);
+        Assert.Contains("is not a struct", generated);
+
+        // The copy is still emitted: the #error names the problem, it does not withhold the work.
+        Assert.Contains("public partial struct CopyOfClass", generated);
+        Assert.Contains("public int Value;", generated);
     }
 
     [Fact]
-    public void TargetNameMatchingTheSource_IsReportedAsAnIssue()
+    public void TargetNameMatchingTheSource_SaysSoInline()
     {
         const string source = """
 namespace ReadyM.Api.Generators.Tests.TestTypes;
@@ -212,10 +218,52 @@ public partial struct Origin
 }
 """;
 
-        var result = Duplicate(source, "Origin", "Origin");
+        var generated = Duplicate(source, "Origin", "Origin");
 
-        Assert.Null(result.Source);
-        Assert.Equal(TypeDuplicationIssueCode.SourceIsTarget, Assert.Single(result.Issues).Code);
+        Assert.Contains("#error", generated);
+        Assert.Contains("cannot be a duplicate of itself", generated);
+    }
+
+    [Fact]
+    public void UnusableTargetName_SaysSoInlineAndEmitsNoType()
+    {
+        const string source = """
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public partial struct Origin
+{
+    public int Value;
+}
+""";
+
+        var generated = Duplicate(source, "Origin", "not a name");
+
+        Assert.Contains("#error", generated);
+        Assert.Contains("is not a usable type name", generated);
+        Assert.DoesNotContain("struct", generated);
+    }
+
+    [Fact]
+    public void GeneratedErrors_AreReportedByTheCompiler()
+    {
+        const string source = """
+using System;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DuplicateAs("Origin")]
+public partial struct Origin
+{
+    public int Value;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructTestGenerator>(
+            [("Attribute.cs", AttributeDeclaration), ("Origin.cs", source)],
+            output);
+
+        // CS1029 is the compiler acting on our #error, which is the whole point of putting it in the file.
+        Assert.Contains(result.OutputDiagnostics, d => d.Id == "CS1029");
     }
 
     private SourceGeneratorTestHelper.GeneratorRunResult Run(IEnumerable<(string Path, string Source)> sources)
@@ -238,11 +286,15 @@ public partial struct Origin
             .EmitToAssembly(result.OutputCompilation, output)
             .GetType($"{Namespace}.{targetName}", throwOnError: true)!;
 
-    private TypeDuplicationResult Duplicate(string source, string sourceTypeName, string targetName)
+    private string Duplicate(string source, string sourceTypeName, string targetName)
     {
         var compilation = SourceGeneratorTestHelper.CreateCompilation(source, output);
         var sourceType = compilation.GetTypeByMetadataName($"{Namespace}.{sourceTypeName}")!;
 
-        return TypeDuplicator.Duplicate(new TypeDuplicationRequest(compilation, sourceType, targetName));
+        var generated = TypeDuplicator.Duplicate(new TypeDuplicationRequest(compilation, sourceType, targetName));
+
+        output.WriteLine(generated);
+
+        return generated;
     }
 }

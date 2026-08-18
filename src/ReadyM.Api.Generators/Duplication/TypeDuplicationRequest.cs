@@ -27,6 +27,14 @@ internal sealed class TypeDuplicationRequest(
     /// <summary>Namespace to produce the target in. Null means the source's namespace.</summary>
     public string? TargetNamespace { get; set; }
 
+    /// <summary>The namespace actually used: <see cref="TargetNamespace"/>, or the source's when that is null.</summary>
+    public string? ResolvedNamespace => TargetNamespace ?? (Source.ContainingNamespace.IsGlobalNamespace
+        ? null
+        : Source.ContainingNamespace.ToDisplayString());
+
+    /// <summary>Namespace-qualified name of the produced type. Use it to build a hint name.</summary>
+    public string TargetFullName => ResolvedNamespace is null ? TargetName : ResolvedNamespace + "." + TargetName;
+
     /// <summary>Accessibility of the produced type. Null means the source's accessibility.</summary>
     public Accessibility? TargetAccessibility { get; set; }
 

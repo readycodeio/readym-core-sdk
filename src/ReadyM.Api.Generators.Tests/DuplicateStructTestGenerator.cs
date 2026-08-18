@@ -26,13 +26,12 @@ internal sealed class DuplicateStructTestGenerator : IIncrementalGenerator
             if (attribute.ConstructorArguments[0].Value is not string targetName)
                 return;
 
-            var result = TypeDuplicator.Duplicate(new TypeDuplicationRequest(compilation, source, targetName)
+            var request = new TypeDuplicationRequest(compilation, source, targetName)
             {
                 ExcludedMemberNames = AttributeUtils.GetAttributeValue(attribute, "Exclude", new string[0])
-            });
+            };
 
-            if (result.Source is not null)
-                spc.AddSource(result.TargetFullName + ".g.cs", result.Source);
+            spc.AddSource(request.TargetFullName + ".g.cs", TypeDuplicator.Duplicate(request));
         });
     }
 }

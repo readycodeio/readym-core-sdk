@@ -18,28 +18,30 @@ namespace ReadyM.Api.Generators.Duplication;
 /// Members that half declares are skipped, so redeclaring a member there replaces the copied one, and its own
 /// modifiers win. That is how a duplicate gets customised without the caller having to describe the differences.
 ///
+/// Duplication always returns source. Anything that went wrong is written into that source as a <c>#error</c>
+/// directive rather than handed back for the caller to report: a file that names its own problem at the point of
+/// use beats no file at all. Ordinary conflicts, such as the target name already being taken by something else,
+/// are not commented on at all, because the compiler already says so.
+///
 /// The engine is deliberately standalone: it knows nothing about which attribute or generator asked for the copy,
 /// only about a <see cref="TypeDuplicationRequest"/>. Move this folder as-is to share it.
 /// </summary>
 internal static class TypeDuplicator
 {
-    public static TypeDuplicationResult Duplicate(TypeDuplicationRequest request)
+    /// <summary>Duplicates the source struct, always returning a source file, problems included.</summary>
+    public static string Duplicate(TypeDuplicationRequest request)
     {
         var source = request.Source;
+        var errors = new List<string>();
 
         if (!SyntaxFacts.IsValidIdentifier(request.TargetName))
         {
-            return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.InvalidTargetName,
-                $"'{request.TargetName}' is not a usable type name.");
+            // Nothing can be written without a name to write it under.
+            return Header(request, [$"'{request.TargetName}' is not a usable type name."]);
         }
 
         if (source.TypeKind != TypeKind.Struct)
-        {
-            return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.SourceNotStruct,
-                $"'{source.ToDisplayString()}' is not a struct, so it cannot be duplicated.");
-        }
+            errors.Add($"'{source.ToDisplayString()}' is not a struct, so '{request.TargetName}' may not be either.");
 
         var sourceParts = source.DeclaringSyntaxReferences
             .Select(reference => reference.GetSyntax())
@@ -48,50 +50,27 @@ internal static class TypeDuplicator
 
         if (sourceParts.Count == 0)
         {
-            return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.SourceNotInCompilation,
+            errors.Add(
                 $"'{source.ToDisplayString()}' is not declared in this compilation, so its members cannot be copied. "
                 + "Duplication works on source, not on referenced assemblies.");
         }
 
-        var targetNamespace = request.TargetNamespace
-                              ?? (source.ContainingNamespace.IsGlobalNamespace
-                                  ? null
-                                  : source.ContainingNamespace.ToDisplayString());
+        var targetNamespace = request.ResolvedNamespace;
 
         // The target may or may not already have a hand-written partial half. Either is fine.
         var existing = FindExisting(request.Compilation, targetNamespace, request.TargetName);
 
-        if (existing is not null)
+        if (SymbolEqualityComparer.Default.Equals(existing, source))
+            errors.Add($"'{source.ToDisplayString()}' cannot be a duplicate of itself.");
+        else if (existing is not null && existing.Arity != source.Arity)
         {
-            if (SymbolEqualityComparer.Default.Equals(existing, source))
-            {
-                return TypeDuplicationResult.Failed(
-                    TypeDuplicationIssueCode.SourceIsTarget,
-                    $"'{source.ToDisplayString()}' cannot be a duplicate of itself.");
-            }
-
-            if (existing.Arity != source.Arity)
-            {
-                return TypeDuplicationResult.Failed(
-                    TypeDuplicationIssueCode.GenericArityMismatch,
-                    $"'{existing.ToDisplayString()}' has {existing.Arity} type parameter(s) but "
-                    + $"'{source.ToDisplayString()}' has {source.Arity}. They must match.");
-            }
-
-            var nonPartial = FindNonPartialDeclaration(existing);
-            if (nonPartial is not null)
-            {
-                return TypeDuplicationResult.Failed(
-                    TypeDuplicationIssueCode.TargetNotPartial,
-                    $"'{nonPartial.ToDisplayString()}' already exists and is not partial, so "
-                    + $"'{request.TargetName}' cannot be generated alongside it.");
-            }
+            errors.Add(
+                $"'{existing.ToDisplayString()}' has {existing.Arity} type parameter(s) but "
+                + $"'{source.ToDisplayString()}' has {source.Arity}. They must match.");
         }
 
-        var targetFullName = (targetNamespace is null ? string.Empty : targetNamespace + ".") + request.TargetName;
         var sourceQualified = source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var targetQualified = "global::" + targetFullName + TypeArgumentSuffix(source);
+        var targetQualified = "global::" + request.TargetFullName + TypeArgumentSuffix(source);
 
         var (declaredSignatures, declaredNames) = existing is null
             ? (new HashSet<string>(), new HashSet<string>())
@@ -156,8 +135,9 @@ internal static class TypeDuplicator
                 usings.Add(sourceNamespaceUsing);
         }
 
-        var text = Emit(
+        return Emit(
             request,
+            errors,
             existing,
             targetNamespace,
             usings,
@@ -166,8 +146,6 @@ internal static class TypeDuplicator
             copied,
             sourceQualified,
             targetQualified);
-
-        return new TypeDuplicationResult(text, [], copied.Count, targetFullName);
     }
 
     /// <summary>
@@ -306,8 +284,28 @@ internal static class TypeDuplicator
         }
     }
 
+    /// <summary>
+    /// The file header, and any problems as <c>#error</c> directives so they surface where the generated code is,
+    /// not in some diagnostic the caller has to remember to forward.
+    /// </summary>
+    private static string Header(TypeDuplicationRequest request, IReadOnlyList<string> errors)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("// Duplicated from " + request.Source.ToDisplayString() + ".");
+
+        foreach (var error in errors)
+            sb.AppendLine("#error " + error.Replace("\r", " ").Replace("\n", " "));
+
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+
+        return sb.ToString();
+    }
+
     private static string Emit(
         TypeDuplicationRequest request,
+        IReadOnlyList<string> errors,
         INamedTypeSymbol? existing,
         string? targetNamespace,
         List<string> usings,
@@ -317,11 +315,7 @@ internal static class TypeDuplicator
         string sourceQualified,
         string targetQualified)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("// Duplicated from " + request.Source.ToDisplayString() + ".");
-        sb.AppendLine("#nullable enable");
-        sb.AppendLine();
+        var sb = new StringBuilder(Header(request, errors));
 
         foreach (var directive in usings.OrderBy(u => u, StringComparer.Ordinal))
             sb.AppendLine(directive);
