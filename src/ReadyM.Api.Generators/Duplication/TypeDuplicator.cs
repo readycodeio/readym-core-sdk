@@ -84,6 +84,7 @@ internal static class TypeDuplicator
         var typeAttributes = new List<AttributeListSyntax>();
 
         SyntaxList<TypeParameterConstraintClauseSyntax> constraints = default;
+        ParameterListSyntax? primaryConstructor = null;
 
         foreach (var part in sourceParts)
         {
@@ -112,6 +113,11 @@ internal static class TypeDuplicator
                     .OfType<TypeParameterConstraintClauseSyntax>());
             }
 
+            // A primary constructor lives on the declaration, not among the members, so it is copied from here.
+            // Its parameters are in scope in the copied member bodies, which is why it has to come across.
+            if (primaryConstructor is null && part.ParameterList is not null)
+                primaryConstructor = rewriter.Visit(part.ParameterList) as ParameterListSyntax;
+
             var kept = part.Members
                 .Select(member => KeepMember(
                     member,
@@ -126,6 +132,10 @@ internal static class TypeDuplicator
 
             copied.AddRange(rewriter.RewriteAll(kept));
         }
+
+        // Exactly one part may declare the parameter list, so a hand-written primary constructor wins.
+        if (existing is not null && HasPrimaryConstructor(existing))
+            primaryConstructor = null;
 
         // Unqualified references to the source type's siblings resolve through its own namespace.
         if (!source.ContainingNamespace.IsGlobalNamespace)
@@ -143,6 +153,7 @@ internal static class TypeDuplicator
             usings,
             typeAttributes,
             constraints,
+            primaryConstructor,
             copied,
             sourceQualified,
             targetQualified);
@@ -311,6 +322,7 @@ internal static class TypeDuplicator
         List<string> usings,
         List<AttributeListSyntax> typeAttributes,
         SyntaxList<TypeParameterConstraintClauseSyntax> constraints,
+        ParameterListSyntax? primaryConstructor,
         List<MemberDeclarationSyntax> members,
         string sourceQualified,
         string targetQualified)
@@ -345,7 +357,11 @@ internal static class TypeDuplicator
         foreach (var attributeList in typeAttributes)
             sb.AppendLine(Reindent(attributeList.ToString(), indent));
 
-        sb.AppendLine(indent + TargetHeader(request, existing, BuildBaseList(request, existing, sourceQualified, targetQualified)));
+        sb.AppendLine(indent + TargetHeader(
+            request,
+            existing,
+            primaryConstructor,
+            BuildBaseList(request, existing, sourceQualified, targetQualified)));
 
         foreach (var clause in constraints)
             sb.AppendLine(Reindent(clause.ToString(), indent + "    "));
@@ -379,7 +395,11 @@ internal static class TypeDuplicator
     /// The declaration line for the produced type. Whatever an existing partial half already states wins, so the
     /// two halves cannot disagree; everything else is inherited from the source.
     /// </summary>
-    private static string TargetHeader(TypeDuplicationRequest request, INamedTypeSymbol? existing, string? baseList)
+    private static string TargetHeader(
+        TypeDuplicationRequest request,
+        INamedTypeSymbol? existing,
+        ParameterListSyntax? primaryConstructor,
+        string? baseList)
     {
         var source = request.Source;
 
@@ -407,6 +427,9 @@ internal static class TypeDuplicator
         var typeParameters = existing is not null ? existing.TypeParameters : source.TypeParameters;
         if (typeParameters.Length > 0)
             sb.Append('<').Append(string.Join(", ", typeParameters.Select(p => p.Name))).Append('>');
+
+        if (primaryConstructor is not null)
+            sb.Append(primaryConstructor.ToString());
 
         if (!string.IsNullOrEmpty(baseList))
             sb.Append(" : ").Append(baseList);
@@ -471,6 +494,12 @@ internal static class TypeDuplicator
         => type.Arity == 0
             ? string.Empty
             : "<" + string.Join(", ", type.TypeParameters.Select(p => p.Name)) + ">";
+
+    private static bool HasPrimaryConstructor(INamedTypeSymbol type)
+        => type.DeclaringSyntaxReferences
+            .Select(reference => reference.GetSyntax())
+            .OfType<TypeDeclarationSyntax>()
+            .Any(declaration => declaration.ParameterList is not null);
 
     private static bool IsDeclaredUnsafe(INamedTypeSymbol? type)
         => type is not null &&

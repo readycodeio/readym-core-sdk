@@ -266,6 +266,111 @@ public partial struct Origin
         Assert.Contains(result.OutputDiagnostics, d => d.Id == "CS1029");
     }
 
+    [Fact]
+    public void PrimaryConstructor_IsCarriedOntoTheTarget()
+    {
+        const string source = """
+using System;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DuplicateAs("Spot")]
+public partial struct Point(int x, int y)
+{
+    // A primary constructor parameter is in scope here, so the parameter list has to come across with it.
+    public int X = x;
+
+    public int Sum => x + y;
+
+    public Point Shifted() => new Point(x + 1, y + 1);
+
+    public Point(int both) : this(both, both)
+    {
+    }
+}
+""";
+
+        var result = Run([("Attribute.cs", AttributeDeclaration), ("Point.cs", source)]);
+
+        var generated = Generated(result, "Spot");
+
+        Assert.Contains("public partial struct Spot(int x, int y)", generated);
+        Assert.Contains("public int X = x;", generated);
+        Assert.Contains("public int Sum => x + y;", generated);
+        Assert.Contains("public Spot Shifted() => new Spot(x + 1, y + 1);", generated);
+        Assert.Contains("public Spot(int both) : this(both, both)", generated);
+
+        var type = Load(result, "Spot");
+        var instance = Activator.CreateInstance(type, 3, 4)!;
+
+        Assert.Equal(3, type.GetField("X")!.GetValue(instance));
+        Assert.Equal(7, type.GetProperty("Sum")!.GetValue(instance));
+
+        var chained = Activator.CreateInstance(type, 5)!;
+        Assert.Equal(5, type.GetField("X")!.GetValue(chained));
+    }
+
+    [Fact]
+    public void PositionalRecordStruct_KeepsItsParametersAndKind()
+    {
+        const string source = """
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DuplicateAs("Coord")]
+public partial record struct Pair(int A, int B);
+""";
+
+        var result = Run([("Attribute.cs", AttributeDeclaration), ("Pair.cs", source)]);
+
+        var generated = Generated(result, "Coord");
+
+        Assert.Contains("public partial record struct Coord(int A, int B)", generated);
+
+        var type = Load(result, "Coord");
+        var instance = Activator.CreateInstance(type, 1, 2)!;
+
+        Assert.Equal(1, type.GetProperty("A")!.GetValue(instance));
+        Assert.Equal(2, type.GetProperty("B")!.GetValue(instance));
+    }
+
+    [Fact]
+    public void ExistingHalfWithItsOwnPrimaryConstructor_KeepsIt()
+    {
+        const string source = """
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DuplicateAs("Slot")]
+public partial struct Cell(int index)
+{
+    public int Doubled() => index * 2;
+}
+""";
+
+        const string half = """
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+public partial struct Slot(int index)
+{
+    public int Index => index;
+}
+""";
+
+        var result = Run([("Attribute.cs", AttributeDeclaration), ("Cell.cs", source), ("Half.cs", half)]);
+
+        var generated = Generated(result, "Slot");
+
+        // Only one part may declare the parameter list, so the hand-written half keeps it.
+        Assert.Contains("public partial struct Slot", generated);
+        Assert.DoesNotContain("Slot(int index)", generated);
+        Assert.Contains("public int Doubled() => index * 2;", generated);
+
+        var type = Load(result, "Slot");
+        var instance = Activator.CreateInstance(type, 6)!;
+
+        Assert.Equal(12, type.GetMethod("Doubled")!.Invoke(instance, null));
+        Assert.Equal(6, type.GetProperty("Index")!.GetValue(instance));
+    }
+
     private SourceGeneratorTestHelper.GeneratorRunResult Run(IEnumerable<(string Path, string Source)> sources)
     {
         var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructTestGenerator>(sources, output);

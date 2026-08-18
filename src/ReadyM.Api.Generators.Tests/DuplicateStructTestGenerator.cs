@@ -16,7 +16,7 @@ internal sealed class DuplicateStructTestGenerator : IIncrementalGenerator
     {
         var sources = context.SyntaxProvider.ForAttributeWithMetadataName(
             "ReadyM.Api.Generators.Tests.TestTypes.DuplicateAsAttribute",
-            static (node, _) => node is StructDeclarationSyntax,
+            static (node, _) => node is TypeDeclarationSyntax,
             static (ctx, _) => (ctx.SemanticModel.Compilation, Source: (INamedTypeSymbol)ctx.TargetSymbol, ctx.Attributes[0]));
 
         context.RegisterSourceOutput(sources, static (spc, model) =>
