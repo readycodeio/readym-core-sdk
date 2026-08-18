@@ -1,0 +1,411 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace ReadyM.Api.Generators.Duplication;
+
+/// <summary>
+/// Copies the members of one struct onto a second, differently named partial struct.
+///
+/// The engine is deliberately standalone: it knows nothing about which attribute triggered it or which generator
+/// called it, only about a <see cref="TypeDuplicationRequest"/>. Move this folder as-is to share it.
+///
+/// Members the target declares itself are skipped, so redeclaring a member in the target's own partial replaces the
+/// copied one. That, plus adding new members, is how a duplicate is customised.
+/// </summary>
+internal static class TypeDuplicator
+{
+    public static TypeDuplicationResult Duplicate(TypeDuplicationRequest request)
+    {
+        var source = request.Source;
+        var target = request.Target;
+
+        if (SymbolEqualityComparer.Default.Equals(source, target))
+        {
+            return TypeDuplicationResult.Failed(
+                TypeDuplicationIssueCode.SourceIsTarget,
+                $"'{target.ToDisplayString()}' cannot be a duplicate of itself.");
+        }
+
+        if (source.TypeKind != TypeKind.Struct)
+        {
+            return TypeDuplicationResult.Failed(
+                TypeDuplicationIssueCode.SourceNotStruct,
+                $"'{source.ToDisplayString()}' is not a struct, so it cannot be duplicated.");
+        }
+
+        if (source.Arity != target.Arity)
+        {
+            return TypeDuplicationResult.Failed(
+                TypeDuplicationIssueCode.GenericArityMismatch,
+                $"'{target.ToDisplayString()}' has {target.Arity} type parameter(s) but "
+                + $"'{source.ToDisplayString()}' has {source.Arity}. They must match.");
+        }
+
+        var nonPartial = FindNonPartialDeclaration(target);
+        if (nonPartial is not null)
+        {
+            return TypeDuplicationResult.Failed(
+                TypeDuplicationIssueCode.TargetNotPartial,
+                $"'{nonPartial.ToDisplayString()}' must be declared partial for '{target.Name}' to be generated.");
+        }
+
+        var sourceParts = source.DeclaringSyntaxReferences
+            .Select(reference => reference.GetSyntax())
+            .OfType<TypeDeclarationSyntax>()
+            .ToList();
+
+        if (sourceParts.Count == 0)
+        {
+            return TypeDuplicationResult.Failed(
+                TypeDuplicationIssueCode.SourceNotInCompilation,
+                $"'{source.ToDisplayString()}' is not declared in this compilation, so its members cannot be copied. "
+                + "Duplication works on source, not on referenced assemblies.");
+        }
+
+        var sourceFullName = source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var targetFullName = target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var (declaredSignatures, declaredNames) = MemberSignature.CollectDeclared(target);
+        var excluded = new HashSet<string>(request.ExcludedMemberNames, StringComparer.Ordinal);
+
+        var copied = new List<MemberDeclarationSyntax>();
+        var usings = new List<string>();
+        var seenUsings = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var part in sourceParts)
+        {
+            var semanticModel = request.Compilation.GetSemanticModel(part.SyntaxTree);
+            var rewriter = new TypeReferenceRewriter(
+                semanticModel,
+                source,
+                target.Name,
+                request.CopyAttributes,
+                request.CopyDocumentation);
+
+            CollectUsings(part, usings, seenUsings);
+
+            var kept = part.Members
+                .Select(member => KeepMember(
+                    member,
+                    semanticModel,
+                    sourceFullName,
+                    targetFullName,
+                    declaredSignatures,
+                    declaredNames,
+                    excluded))
+                .Where(member => member is not null)
+                .Select(member => member!);
+
+            copied.AddRange(rewriter.RewriteAll(kept));
+        }
+
+        // Unqualified references to the source type's siblings resolve through its own namespace.
+        if (!source.ContainingNamespace.IsGlobalNamespace)
+        {
+            var sourceNamespaceUsing = "using " + source.ContainingNamespace.ToDisplayString() + ";";
+            if (seenUsings.Add(sourceNamespaceUsing))
+                usings.Add(sourceNamespaceUsing);
+        }
+
+        var text = Emit(request, usings, copied, sourceFullName, targetFullName);
+
+        return new TypeDuplicationResult(text, [], copied.Count);
+    }
+
+    /// <summary>Returns the member to copy, trimmed of excluded field/event variables, or <c>null</c> to skip it.</summary>
+    private static MemberDeclarationSyntax? KeepMember(
+        MemberDeclarationSyntax member,
+        SemanticModel semanticModel,
+        string sourceFullName,
+        string targetFullName,
+        HashSet<string> declaredSignatures,
+        HashSet<string> declaredNames,
+        HashSet<string> excluded)
+    {
+        // A field or event-field declaration can declare several names at once, so it is filtered variable by variable.
+        switch (member)
+        {
+            case FieldDeclarationSyntax field:
+            {
+                var keptFields = FilterVariables(field.Declaration, semanticModel, declaredNames, excluded);
+                return keptFields is null ? null : field.WithDeclaration(keptFields);
+            }
+
+            case EventFieldDeclarationSyntax eventField:
+            {
+                var keptEvents = FilterVariables(eventField.Declaration, semanticModel, declaredNames, excluded);
+                return keptEvents is null ? null : eventField.WithDeclaration(keptEvents);
+            }
+        }
+
+        var symbol = semanticModel.GetDeclaredSymbol(member);
+        if (symbol is null)
+            return null;
+
+        if (excluded.Contains(symbol.Name))
+            return null;
+
+        var key = MemberSignature.Create(symbol, sourceFullName, targetFullName);
+        if (key is null)
+            return null;
+
+        if (declaredSignatures.Contains(key))
+            return null;
+
+        // A non-overloadable member is blocked by anything the target declares under the same name.
+        if (symbol is not IMethodSymbol &&
+            symbol is not IPropertySymbol { IsIndexer: true } &&
+            declaredNames.Contains(symbol.Name))
+        {
+            return null;
+        }
+
+        return member;
+    }
+
+    private static VariableDeclarationSyntax? FilterVariables(
+        VariableDeclarationSyntax declaration,
+        SemanticModel semanticModel,
+        HashSet<string> declaredNames,
+        HashSet<string> excluded)
+    {
+        var kept = declaration.Variables
+            .Where(variable =>
+            {
+                var name = semanticModel.GetDeclaredSymbol(variable)?.Name ?? variable.Identifier.Text;
+                return !excluded.Contains(name) && !declaredNames.Contains(name);
+            })
+            .ToList();
+
+        if (kept.Count == 0)
+            return null;
+
+        if (kept.Count == declaration.Variables.Count)
+            return declaration;
+
+        return declaration.WithVariables(SyntaxFactory.SeparatedList(kept));
+    }
+
+    private static void CollectUsings(SyntaxNode part, List<string> usings, HashSet<string> seen)
+    {
+        foreach (var node in part.Ancestors())
+        {
+            SyntaxList<UsingDirectiveSyntax> directives;
+
+            switch (node)
+            {
+                case CompilationUnitSyntax unit:
+                    directives = unit.Usings;
+                    break;
+
+                case BaseNamespaceDeclarationSyntax ns:
+                    directives = ns.Usings;
+                    break;
+
+                default:
+                    continue;
+            }
+
+            foreach (var directive in directives)
+            {
+                var text = directive.ToString().Trim();
+                if (seen.Add(text))
+                    usings.Add(text);
+            }
+        }
+    }
+
+    private static string Emit(
+        TypeDuplicationRequest request,
+        List<string> usings,
+        List<MemberDeclarationSyntax> members,
+        string sourceFullName,
+        string targetFullName)
+    {
+        var target = request.Target;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("// Duplicated from " + request.Source.ToDisplayString() + ".");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+
+        foreach (var directive in usings.OrderBy(u => u, StringComparer.Ordinal))
+            sb.AppendLine(directive);
+
+        if (usings.Count > 0)
+            sb.AppendLine();
+
+        if (!target.ContainingNamespace.IsGlobalNamespace)
+        {
+            sb.AppendLine("namespace " + target.ContainingNamespace.ToDisplayString() + ";");
+            sb.AppendLine();
+        }
+
+        // Reopen every enclosing type before the target itself.
+        var enclosing = new List<INamedTypeSymbol>();
+        for (var containing = target.ContainingType; containing is not null; containing = containing.ContainingType)
+            enclosing.Insert(0, containing);
+
+        var indent = string.Empty;
+        foreach (var containing in enclosing)
+        {
+            sb.AppendLine(indent + DeclarationHeader(containing, baseList: null));
+            sb.AppendLine(indent + "{");
+            indent += "    ";
+        }
+
+        sb.AppendLine(indent + DeclarationHeader(target, BuildBaseList(request, sourceFullName, targetFullName)));
+        sb.AppendLine(indent + "{");
+
+        var memberIndent = indent + "    ";
+        var first = true;
+
+        foreach (var member in members)
+        {
+            if (!first)
+                sb.AppendLine();
+
+            first = false;
+            sb.AppendLine(Reindent(member.ToFullString(), memberIndent));
+        }
+
+        sb.AppendLine(indent + "}");
+
+        for (var i = enclosing.Count - 1; i >= 0; i--)
+        {
+            indent = indent.Substring(0, i * 4);
+            sb.AppendLine(indent + "}");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string? BuildBaseList(
+        TypeDuplicationRequest request,
+        string sourceFullName,
+        string targetFullName)
+    {
+        if (!request.CopyInterfaces)
+            return null;
+
+        var already = new HashSet<string>(
+            request.Target.AllInterfaces.Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
+            StringComparer.Ordinal);
+
+        var added = request.Source.Interfaces
+            .Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                .Replace(sourceFullName, targetFullName))
+            .Where(name => !already.Contains(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return added.Count == 0 ? null : string.Join(", ", added);
+    }
+
+    private static string DeclarationHeader(INamedTypeSymbol type, string? baseList)
+    {
+        var keyword = type.TypeKind switch
+        {
+            TypeKind.Struct => type.IsRecord ? "record struct" : "struct",
+            TypeKind.Interface => "interface",
+            _ => type.IsRecord ? "record" : "class"
+        };
+
+        var sb = new StringBuilder();
+        sb.Append(AccessibilityKeyword(type.DeclaredAccessibility));
+
+        if (type.IsStatic)
+            sb.Append("static ");
+
+        if (type.IsReadOnly)
+            sb.Append("readonly ");
+
+        if (IsDeclaredUnsafe(type))
+            sb.Append("unsafe ");
+
+        sb.Append("partial ").Append(keyword).Append(' ').Append(type.Name);
+
+        if (type.Arity > 0)
+            sb.Append('<').Append(string.Join(", ", type.TypeParameters.Select(p => p.Name))).Append('>');
+
+        if (!string.IsNullOrEmpty(baseList))
+            sb.Append(" : ").Append(baseList);
+
+        return sb.ToString();
+    }
+
+    private static bool IsDeclaredUnsafe(INamedTypeSymbol type)
+        => type.DeclaringSyntaxReferences
+            .Select(reference => reference.GetSyntax())
+            .OfType<TypeDeclarationSyntax>()
+            .Any(declaration => declaration.Modifiers.Any(SyntaxKind.UnsafeKeyword));
+
+    private static string AccessibilityKeyword(Accessibility accessibility) => accessibility switch
+    {
+        Accessibility.Public => "public ",
+        Accessibility.Internal => "internal ",
+        Accessibility.Private => "private ",
+        Accessibility.Protected => "protected ",
+        Accessibility.ProtectedOrInternal => "protected internal ",
+        Accessibility.ProtectedAndInternal => "private protected ",
+        _ => string.Empty
+    };
+
+    private static INamedTypeSymbol? FindNonPartialDeclaration(INamedTypeSymbol target)
+    {
+        for (var type = target; type is not null; type = type.ContainingType)
+        {
+            var declarations = type.DeclaringSyntaxReferences
+                .Select(reference => reference.GetSyntax())
+                .OfType<TypeDeclarationSyntax>()
+                .ToList();
+
+            if (declarations.Count > 0 && !declarations.Any(d => d.Modifiers.Any(SyntaxKind.PartialKeyword)))
+                return type;
+        }
+
+        return null;
+    }
+
+    /// <summary>Strips the member's original indentation and re-indents it for its position in the generated file.</summary>
+    private static string Reindent(string text, string indent)
+    {
+        var lines = text.Replace("\r\n", "\n").Trim('\n').TrimEnd().Split('\n');
+
+        var common = int.MaxValue;
+        foreach (var line in lines)
+        {
+            if (line.Trim().Length == 0)
+                continue;
+
+            var leading = line.Length - line.TrimStart().Length;
+            common = Math.Min(common, leading);
+        }
+
+        if (common == int.MaxValue)
+            common = 0;
+
+        var sb = new StringBuilder();
+        var first = true;
+
+        foreach (var line in lines)
+        {
+            if (!first)
+                sb.AppendLine();
+
+            first = false;
+
+            if (line.Trim().Length == 0)
+                continue;
+
+            sb.Append(indent).Append(line.Substring(Math.Min(common, line.Length)));
+        }
+
+        return sb.ToString();
+    }
+}
