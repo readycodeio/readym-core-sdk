@@ -6,7 +6,8 @@ namespace ReadyM.Api.Generators.Duplication;
 internal sealed class TypeDuplicationResult(
     string? source,
     IReadOnlyList<TypeDuplicationIssue> issues,
-    int copiedMemberCount)
+    int copiedMemberCount,
+    string? targetFullName = null)
 {
     /// <summary>The generated C# file, or <c>null</c> when duplication failed.</summary>
     public string? Source { get; } = source;
@@ -16,6 +17,9 @@ internal sealed class TypeDuplicationResult(
 
     /// <summary>How many member declarations were actually copied.</summary>
     public int CopiedMemberCount { get; } = copiedMemberCount;
+
+    /// <summary>Namespace-qualified name of the produced type. Handy for building a hint name.</summary>
+    public string? TargetFullName { get; } = targetFullName;
 
     public static TypeDuplicationResult Failed(TypeDuplicationIssueCode code, string message)
         => new(null, [new TypeDuplicationIssue(code, message)], 0);

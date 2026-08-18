@@ -9,26 +9,29 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators.Duplication;
 
 /// <summary>
-/// Copies the members of one struct onto a second, differently named partial struct.
+/// Produces a struct that is a copy of another struct under a different name.
 ///
-/// The engine is deliberately standalone: it knows nothing about which attribute triggered it or which generator
-/// called it, only about a <see cref="TypeDuplicationRequest"/>. Move this folder as-is to share it.
+/// The target is named, not passed in as a symbol, so the usual case is that it does not exist yet and this call is
+/// what brings it into existence: modifiers, type parameters, interfaces and members all come from the source.
 ///
-/// Members the target declares itself are skipped, so redeclaring a member in the target's own partial replaces the
-/// copied one. That, plus adding new members, is how a duplicate is customised.
+/// If the compilation does declare a partial half under the target name, the engine finds it and defers to it.
+/// Members that half declares are skipped, so redeclaring a member there replaces the copied one, and its own
+/// modifiers win. That is how a duplicate gets customised without the caller having to describe the differences.
+///
+/// The engine is deliberately standalone: it knows nothing about which attribute or generator asked for the copy,
+/// only about a <see cref="TypeDuplicationRequest"/>. Move this folder as-is to share it.
 /// </summary>
 internal static class TypeDuplicator
 {
     public static TypeDuplicationResult Duplicate(TypeDuplicationRequest request)
     {
         var source = request.Source;
-        var target = request.Target;
 
-        if (SymbolEqualityComparer.Default.Equals(source, target))
+        if (!SyntaxFacts.IsValidIdentifier(request.TargetName))
         {
             return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.SourceIsTarget,
-                $"'{target.ToDisplayString()}' cannot be a duplicate of itself.");
+                TypeDuplicationIssueCode.InvalidTargetName,
+                $"'{request.TargetName}' is not a usable type name.");
         }
 
         if (source.TypeKind != TypeKind.Struct)
@@ -36,22 +39,6 @@ internal static class TypeDuplicator
             return TypeDuplicationResult.Failed(
                 TypeDuplicationIssueCode.SourceNotStruct,
                 $"'{source.ToDisplayString()}' is not a struct, so it cannot be duplicated.");
-        }
-
-        if (source.Arity != target.Arity)
-        {
-            return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.GenericArityMismatch,
-                $"'{target.ToDisplayString()}' has {target.Arity} type parameter(s) but "
-                + $"'{source.ToDisplayString()}' has {source.Arity}. They must match.");
-        }
-
-        var nonPartial = FindNonPartialDeclaration(target);
-        if (nonPartial is not null)
-        {
-            return TypeDuplicationResult.Failed(
-                TypeDuplicationIssueCode.TargetNotPartial,
-                $"'{nonPartial.ToDisplayString()}' must be declared partial for '{target.Name}' to be generated.");
         }
 
         var sourceParts = source.DeclaringSyntaxReferences
@@ -67,14 +54,57 @@ internal static class TypeDuplicator
                 + "Duplication works on source, not on referenced assemblies.");
         }
 
-        var sourceFullName = source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var targetFullName = target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var (declaredSignatures, declaredNames) = MemberSignature.CollectDeclared(target);
+        var targetNamespace = request.TargetNamespace
+                              ?? (source.ContainingNamespace.IsGlobalNamespace
+                                  ? null
+                                  : source.ContainingNamespace.ToDisplayString());
+
+        // The target may or may not already have a hand-written partial half. Either is fine.
+        var existing = FindExisting(request.Compilation, targetNamespace, request.TargetName);
+
+        if (existing is not null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(existing, source))
+            {
+                return TypeDuplicationResult.Failed(
+                    TypeDuplicationIssueCode.SourceIsTarget,
+                    $"'{source.ToDisplayString()}' cannot be a duplicate of itself.");
+            }
+
+            if (existing.Arity != source.Arity)
+            {
+                return TypeDuplicationResult.Failed(
+                    TypeDuplicationIssueCode.GenericArityMismatch,
+                    $"'{existing.ToDisplayString()}' has {existing.Arity} type parameter(s) but "
+                    + $"'{source.ToDisplayString()}' has {source.Arity}. They must match.");
+            }
+
+            var nonPartial = FindNonPartialDeclaration(existing);
+            if (nonPartial is not null)
+            {
+                return TypeDuplicationResult.Failed(
+                    TypeDuplicationIssueCode.TargetNotPartial,
+                    $"'{nonPartial.ToDisplayString()}' already exists and is not partial, so "
+                    + $"'{request.TargetName}' cannot be generated alongside it.");
+            }
+        }
+
+        var targetFullName = (targetNamespace is null ? string.Empty : targetNamespace + ".") + request.TargetName;
+        var sourceQualified = source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var targetQualified = "global::" + targetFullName + TypeArgumentSuffix(source);
+
+        var (declaredSignatures, declaredNames) = existing is null
+            ? (new HashSet<string>(), new HashSet<string>())
+            : MemberSignature.CollectDeclared(existing);
+
         var excluded = new HashSet<string>(request.ExcludedMemberNames, StringComparer.Ordinal);
 
         var copied = new List<MemberDeclarationSyntax>();
         var usings = new List<string>();
         var seenUsings = new HashSet<string>(StringComparer.Ordinal);
+        var typeAttributes = new List<AttributeListSyntax>();
+
+        SyntaxList<TypeParameterConstraintClauseSyntax> constraints = default;
 
         foreach (var part in sourceParts)
         {
@@ -82,18 +112,33 @@ internal static class TypeDuplicator
             var rewriter = new TypeReferenceRewriter(
                 semanticModel,
                 source,
-                target.Name,
+                request.TargetName,
                 request.CopyAttributes,
                 request.CopyDocumentation);
 
             CollectUsings(part, usings, seenUsings);
 
+            if (request.CopyTypeAttributes)
+            {
+                typeAttributes.AddRange(part.AttributeLists
+                    .Select(list => rewriter.Visit(list))
+                    .OfType<AttributeListSyntax>());
+            }
+
+            // Constraints may be written on any one part, and may mention the source type.
+            if (constraints.Count == 0 && part.ConstraintClauses.Count > 0)
+            {
+                constraints = SyntaxFactory.List(part.ConstraintClauses
+                    .Select(clause => rewriter.Visit(clause))
+                    .OfType<TypeParameterConstraintClauseSyntax>());
+            }
+
             var kept = part.Members
                 .Select(member => KeepMember(
                     member,
                     semanticModel,
-                    sourceFullName,
-                    targetFullName,
+                    sourceQualified,
+                    targetQualified,
                     declaredSignatures,
                     declaredNames,
                     excluded))
@@ -111,17 +156,59 @@ internal static class TypeDuplicator
                 usings.Add(sourceNamespaceUsing);
         }
 
-        var text = Emit(request, usings, copied, sourceFullName, targetFullName);
+        var text = Emit(
+            request,
+            existing,
+            targetNamespace,
+            usings,
+            typeAttributes,
+            constraints,
+            copied,
+            sourceQualified,
+            targetQualified);
 
-        return new TypeDuplicationResult(text, [], copied.Count);
+        return new TypeDuplicationResult(text, [], copied.Count, targetFullName);
+    }
+
+    /// <summary>
+    /// Finds a hand-written declaration of the target name in this compilation, ignoring same-named types from
+    /// referenced assemblies, which the generated type would simply shadow.
+    /// </summary>
+    private static INamedTypeSymbol? FindExisting(Compilation compilation, string? targetNamespace, string targetName)
+    {
+        var namespaceSymbol = ResolveNamespace(compilation.GlobalNamespace, targetNamespace);
+
+        return namespaceSymbol?
+            .GetTypeMembers(targetName)
+            .FirstOrDefault(type =>
+                type.DeclaringSyntaxReferences.Length > 0 &&
+                SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, compilation.Assembly));
+    }
+
+    private static INamespaceSymbol? ResolveNamespace(INamespaceSymbol root, string? qualifiedName)
+    {
+        if (string.IsNullOrEmpty(qualifiedName))
+            return root;
+
+        var current = root;
+
+        foreach (var part in qualifiedName!.Split('.'))
+        {
+            current = current.GetNamespaceMembers().FirstOrDefault(ns => ns.Name == part);
+
+            if (current is null)
+                return null;
+        }
+
+        return current;
     }
 
     /// <summary>Returns the member to copy, trimmed of excluded field/event variables, or <c>null</c> to skip it.</summary>
     private static MemberDeclarationSyntax? KeepMember(
         MemberDeclarationSyntax member,
         SemanticModel semanticModel,
-        string sourceFullName,
-        string targetFullName,
+        string sourceQualified,
+        string targetQualified,
         HashSet<string> declaredSignatures,
         HashSet<string> declaredNames,
         HashSet<string> excluded)
@@ -149,7 +236,7 @@ internal static class TypeDuplicator
         if (excluded.Contains(symbol.Name))
             return null;
 
-        var key = MemberSignature.Create(symbol, sourceFullName, targetFullName);
+        var key = MemberSignature.Create(symbol, sourceQualified, targetQualified);
         if (key is null)
             return null;
 
@@ -221,13 +308,15 @@ internal static class TypeDuplicator
 
     private static string Emit(
         TypeDuplicationRequest request,
+        INamedTypeSymbol? existing,
+        string? targetNamespace,
         List<string> usings,
+        List<AttributeListSyntax> typeAttributes,
+        SyntaxList<TypeParameterConstraintClauseSyntax> constraints,
         List<MemberDeclarationSyntax> members,
-        string sourceFullName,
-        string targetFullName)
+        string sourceQualified,
+        string targetQualified)
     {
-        var target = request.Target;
-
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("// Duplicated from " + request.Source.ToDisplayString() + ".");
@@ -240,26 +329,33 @@ internal static class TypeDuplicator
         if (usings.Count > 0)
             sb.AppendLine();
 
-        if (!target.ContainingNamespace.IsGlobalNamespace)
+        if (targetNamespace is not null)
         {
-            sb.AppendLine("namespace " + target.ContainingNamespace.ToDisplayString() + ";");
+            sb.AppendLine("namespace " + targetNamespace + ";");
             sb.AppendLine();
         }
 
-        // Reopen every enclosing type before the target itself.
+        // Only an existing target can be nested, and then its enclosing types have to be reopened around it.
         var enclosing = new List<INamedTypeSymbol>();
-        for (var containing = target.ContainingType; containing is not null; containing = containing.ContainingType)
+        for (var containing = existing?.ContainingType; containing is not null; containing = containing.ContainingType)
             enclosing.Insert(0, containing);
 
         var indent = string.Empty;
         foreach (var containing in enclosing)
         {
-            sb.AppendLine(indent + DeclarationHeader(containing, baseList: null));
+            sb.AppendLine(indent + EnclosingHeader(containing));
             sb.AppendLine(indent + "{");
             indent += "    ";
         }
 
-        sb.AppendLine(indent + DeclarationHeader(target, BuildBaseList(request, sourceFullName, targetFullName)));
+        foreach (var attributeList in typeAttributes)
+            sb.AppendLine(Reindent(attributeList.ToString(), indent));
+
+        sb.AppendLine(indent + TargetHeader(request, existing, BuildBaseList(request, existing, sourceQualified, targetQualified)));
+
+        foreach (var clause in constraints)
+            sb.AppendLine(Reindent(clause.ToString(), indent + "    "));
+
         sb.AppendLine(indent + "{");
 
         var memberIndent = indent + "    ";
@@ -285,29 +381,46 @@ internal static class TypeDuplicator
         return sb.ToString();
     }
 
-    private static string? BuildBaseList(
-        TypeDuplicationRequest request,
-        string sourceFullName,
-        string targetFullName)
+    /// <summary>
+    /// The declaration line for the produced type. Whatever an existing partial half already states wins, so the
+    /// two halves cannot disagree; everything else is inherited from the source.
+    /// </summary>
+    private static string TargetHeader(TypeDuplicationRequest request, INamedTypeSymbol? existing, string? baseList)
     {
-        if (!request.CopyInterfaces)
-            return null;
+        var source = request.Source;
 
-        var already = new HashSet<string>(
-            request.Target.AllInterfaces.Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
-            StringComparer.Ordinal);
+        var sb = new StringBuilder();
+        sb.Append(AccessibilityKeyword(
+            request.TargetAccessibility ?? existing?.DeclaredAccessibility ?? source.DeclaredAccessibility));
 
-        var added = request.Source.Interfaces
-            .Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                .Replace(sourceFullName, targetFullName))
-            .Where(name => !already.Contains(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        if (existing?.IsReadOnly ?? source.IsReadOnly)
+            sb.Append("readonly ");
 
-        return added.Count == 0 ? null : string.Join(", ", added);
+        if (IsDeclaredUnsafe(existing) || IsDeclaredUnsafe(source))
+            sb.Append("unsafe ");
+
+        if (existing?.IsRefLikeType ?? source.IsRefLikeType)
+            sb.Append("ref ");
+
+        // An existing half is already partial, so the generated half has to be too.
+        if (request.Partial || existing is not null)
+            sb.Append("partial ");
+
+        sb.Append((existing?.IsRecord ?? source.IsRecord) ? "record struct " : "struct ");
+        sb.Append(request.TargetName);
+
+        // With an existing half the type parameter names must match what it wrote; otherwise take the source's.
+        var typeParameters = existing is not null ? existing.TypeParameters : source.TypeParameters;
+        if (typeParameters.Length > 0)
+            sb.Append('<').Append(string.Join(", ", typeParameters.Select(p => p.Name))).Append('>');
+
+        if (!string.IsNullOrEmpty(baseList))
+            sb.Append(" : ").Append(baseList);
+
+        return sb.ToString();
     }
 
-    private static string DeclarationHeader(INamedTypeSymbol type, string? baseList)
+    private static string EnclosingHeader(INamedTypeSymbol type)
     {
         var keyword = type.TypeKind switch
         {
@@ -333,17 +446,44 @@ internal static class TypeDuplicator
         if (type.Arity > 0)
             sb.Append('<').Append(string.Join(", ", type.TypeParameters.Select(p => p.Name))).Append('>');
 
-        if (!string.IsNullOrEmpty(baseList))
-            sb.Append(" : ").Append(baseList);
-
         return sb.ToString();
     }
 
-    private static bool IsDeclaredUnsafe(INamedTypeSymbol type)
-        => type.DeclaringSyntaxReferences
-            .Select(reference => reference.GetSyntax())
-            .OfType<TypeDeclarationSyntax>()
-            .Any(declaration => declaration.Modifiers.Any(SyntaxKind.UnsafeKeyword));
+    private static string? BuildBaseList(
+        TypeDuplicationRequest request,
+        INamedTypeSymbol? existing,
+        string sourceQualified,
+        string targetQualified)
+    {
+        if (!request.CopyInterfaces)
+            return null;
+
+        var already = new HashSet<string>(
+            (existing?.AllInterfaces ?? []).Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
+            StringComparer.Ordinal);
+
+        var added = request.Source.Interfaces
+            .Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                .Replace(sourceQualified, targetQualified))
+            .Where(name => !already.Contains(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return added.Count == 0 ? null : string.Join(", ", added);
+    }
+
+    /// <summary>The <c>&lt;T, U&gt;</c> suffix that makes a bare name a usable type reference.</summary>
+    private static string TypeArgumentSuffix(INamedTypeSymbol type)
+        => type.Arity == 0
+            ? string.Empty
+            : "<" + string.Join(", ", type.TypeParameters.Select(p => p.Name)) + ">";
+
+    private static bool IsDeclaredUnsafe(INamedTypeSymbol? type)
+        => type is not null &&
+           type.DeclaringSyntaxReferences
+               .Select(reference => reference.GetSyntax())
+               .OfType<TypeDeclarationSyntax>()
+               .Any(declaration => declaration.Modifiers.Any(SyntaxKind.UnsafeKeyword));
 
     private static string AccessibilityKeyword(Accessibility accessibility) => accessibility switch
     {
@@ -372,7 +512,7 @@ internal static class TypeDuplicator
         return null;
     }
 
-    /// <summary>Strips the member's original indentation and re-indents it for its position in the generated file.</summary>
+    /// <summary>Strips the original indentation and re-indents for the position in the generated file.</summary>
     private static string Reindent(string text, string indent)
     {
         var lines = text.Replace("\r\n", "\n").Trim('\n').TrimEnd().Split('\n');

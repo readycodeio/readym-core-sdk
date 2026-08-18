@@ -19,7 +19,10 @@ internal enum TypeDuplicationIssueCode
     GenericArityMismatch,
 
     /// <summary>Source and target are the same type.</summary>
-    SourceIsTarget
+    SourceIsTarget,
+
+    /// <summary>The requested target name is empty or not a usable identifier.</summary>
+    InvalidTargetName
 }
 
 /// <summary>A single problem found while duplicating a type.</summary>
