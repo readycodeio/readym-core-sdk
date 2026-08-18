@@ -1,16 +1,30 @@
 using Microsoft.CodeAnalysis;
+using ReadyM.Api.Generators.Duplication;
 using Xunit;
 
 namespace ReadyM.Api.Generators.Tests;
 
-public sealed class DuplicateStructGeneratorBehaviorTests(ITestOutputHelper output)
+public sealed class TypeDuplicatorBehaviorTests(ITestOutputHelper output)
 {
+    private const string AttributeDeclaration = """
+using System;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[AttributeUsage(AttributeTargets.Struct)]
+internal sealed class DuplicateOfAttribute(Type source) : Attribute
+{
+    public Type Source { get; } = source;
+
+    public string[]? Exclude { get; set; }
+}
+""";
+
     [Fact]
     public void DuplicatedStruct_CopiesMembers_AndHonoursLocalOverridesAndAdditions()
     {
         const string source = """
 using System;
-using ReadyM.Api.Generators;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -52,7 +66,9 @@ public partial struct Duplicate
 }
 """;
 
-        var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructGenerator>(source, output);
+        var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructTestGenerator>(
+            [("Attribute.cs", AttributeDeclaration), ("TestInput.cs", source)],
+            output);
 
         Assert.Empty(result.OutputDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
@@ -63,14 +79,13 @@ public partial struct Duplicate
 
         // Members are copied with references to the source type remapped onto the duplicate.
         Assert.Contains("public int Health;", generated);
+        Assert.Contains("public float Speed;", generated);
         Assert.Contains("public Duplicate(int health, float speed)", generated);
         Assert.Contains("public static Duplicate Default => new Duplicate(100, 1f);", generated);
         Assert.Contains("public static Duplicate operator +(Duplicate left, Duplicate right)", generated);
         Assert.Contains("public Duplicate WithHealth(int health)", generated);
         Assert.Contains("global::System.IEquatable<global::ReadyM.Api.Generators.Tests.TestTypes.Duplicate>", generated);
         Assert.Contains("<summary>Adds two originals together.</summary>", generated);
-
-        Assert.Contains("public float Speed;", generated);
 
         // Excluded and locally redeclared members are not copied.
         Assert.DoesNotContain("public int Legacy;", generated);
@@ -94,11 +109,9 @@ public partial struct Duplicate
     }
 
     [Fact]
-    public void NonPartialTarget_ReportsDiagnostic()
+    public void NonPartialTarget_IsReportedAsAnIssue()
     {
         const string source = """
-using ReadyM.Api.Generators;
-
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 public struct Origin
@@ -106,23 +119,21 @@ public struct Origin
     public int Value;
 }
 
-[DuplicateOf(typeof(Origin))]
 public struct SealedCopy
 {
 }
 """;
 
-        var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructGenerator>(source, output);
+        var result = Duplicate(source, "Origin", "SealedCopy");
 
-        Assert.Contains(result.CompilationDiagnostics, d => d.Id == "DUP004");
+        Assert.Null(result.Source);
+        Assert.Equal(TypeDuplicationIssueCode.TargetNotPartial, Assert.Single(result.Issues).Code);
     }
 
     [Fact]
-    public void NonStructSource_ReportsDiagnostic()
+    public void NonStructSource_IsReportedAsAnIssue()
     {
         const string source = """
-using ReadyM.Api.Generators;
-
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 public class NotAStruct
@@ -130,14 +141,26 @@ public class NotAStruct
     public int Value;
 }
 
-[DuplicateOf(typeof(NotAStruct))]
 public partial struct CopyOfClass
 {
 }
 """;
 
-        var result = SourceGeneratorTestHelper.RunGenerator<DuplicateStructGenerator>(source, output);
+        var result = Duplicate(source, "NotAStruct", "CopyOfClass");
 
-        Assert.Contains(result.CompilationDiagnostics, d => d.Id == "DUP002");
+        Assert.Null(result.Source);
+        Assert.Equal(TypeDuplicationIssueCode.SourceNotStruct, Assert.Single(result.Issues).Code);
+    }
+
+    private TypeDuplicationResult Duplicate(string source, string sourceTypeName, string targetTypeName)
+    {
+        const string ns = "ReadyM.Api.Generators.Tests.TestTypes.";
+
+        var compilation = SourceGeneratorTestHelper.CreateCompilation(source, output);
+
+        var sourceType = compilation.GetTypeByMetadataName(ns + sourceTypeName)!;
+        var targetType = compilation.GetTypeByMetadataName(ns + targetTypeName)!;
+
+        return TypeDuplicator.Duplicate(new TypeDuplicationRequest(compilation, sourceType, targetType));
     }
 }
