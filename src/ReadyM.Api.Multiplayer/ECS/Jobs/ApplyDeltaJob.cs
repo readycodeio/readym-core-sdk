@@ -11,7 +11,7 @@ using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal class ApplyDeltaJob<T>(INetworkTime netTime, INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
+internal class ApplyDeltaJob<T>(INetworkTime netTime, IChangeTrackingStore changeTrackingStore, INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent =
@@ -52,7 +52,7 @@ internal class ApplyDeltaJob<T>(INetworkTime netTime, INetworkedEntityManager ne
 
             var lastObservedServerTime = reader.GetUInt();
             var currentTime = netTime.GetCurrentTime();
-            using var _ = ComponentWriteContext.EnterServerApplyDelta(currentTime, lastObservedServerTime);
+            using var _ = ComponentWriteContext.EnterServerApplyDelta(currentTime, lastObservedServerTime, changeTrackingStore);
 
             // STOP! DO NOT CHANGE this block without consulting the people maintaining networked components and native
             // components!
@@ -68,7 +68,7 @@ internal class ApplyDeltaJob<T>(INetworkTime netTime, INetworkedEntityManager ne
                 if (entity.Value.HasComponent<T>())
                 {
                     var component = entity.Value.GetComponent<T>();
-                    component.ReadDeltaTracking(reader, entity.Value);
+                    component.ReadDeltaTracking(reader, entity.Value.Id);
 
                     if (playerId == owner)
                     {
@@ -83,7 +83,7 @@ internal class ApplyDeltaJob<T>(INetworkTime netTime, INetworkedEntityManager ne
                 else
                 {
                     var component = default(T);
-                    component.ReadDeltaTracking(reader, entity.Value);
+                    component.ReadDeltaTracking(reader, entity.Value.Id);
 
                     if (playerId == owner)
                     {

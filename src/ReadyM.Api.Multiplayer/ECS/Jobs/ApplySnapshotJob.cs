@@ -44,7 +44,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
                 if (entity.Value.HasComponent<T>())
                 {
                     ref var comp = ref entity.Value.GetComponent<T>();
-                    comp.DeserializeTracking(reader, entity.Value);
+                    comp.DeserializeTracking(reader, entity.Value.Id);
                     entity.Value.Set(comp);
                 }
                 else
@@ -57,7 +57,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
                 if (entity.Value.HasComponent<T>())
                 {
                     ref var comp = ref entity.Value.GetComponent<T>();
-                    comp.DeserializeTracking(reader, entity.Value);
+                    comp.DeserializeTracking(reader, entity.Value.Id);
                 }
                 else
                 {

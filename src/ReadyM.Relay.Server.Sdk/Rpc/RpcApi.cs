@@ -24,13 +24,15 @@ public class RpcApi
     private readonly SendToOneDelegate _sendToOne;
 
     private readonly INetworkTime _netTime;
+    private readonly IChangeTrackingStore _changeTracking;
     private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
     private readonly Dictionary<Delegate, HashSet<RelayMessageCode>> _toCode = new();
 
-    internal RpcApi(RpcApiPointers pointers, INetworkTime netTime)
+    internal RpcApi(RpcApiPointers pointers, INetworkTime netTime, IChangeTrackingStore changeTracking)
     {
         _netTime = netTime;
+        _changeTracking = changeTracking;
         _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
         _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers
             .RemoveServerRpcMessageHandler);
@@ -48,7 +50,7 @@ public class RpcApi
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
 
                 // RPC handler writes are authoritative: auto-mark so overrides reach the owner.
-                using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime());
+                using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime(), _changeTracking);
 
                 // NOTE: ATTENTION!!! RPC server-side handlers have been moved to the ECS thread.
                 // The current implementation does the scheduling in a architecturally questionable place inside

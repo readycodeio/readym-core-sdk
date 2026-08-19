@@ -75,7 +75,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
                 // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
                 if (false)
-                    context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+                    context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
             }
         }
         context.AppendLine();
@@ -95,7 +95,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
             // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
             if (false)
-                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+                context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
         }
         context.AppendLine();
 
@@ -107,7 +107,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
             // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
             if (false)
-                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+                context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
         }
         context.AppendLine();
 
@@ -119,7 +119,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
             // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
             if (false)
-                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+                context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
             context.AppendLine("return result;");
         }
         context.AppendLine();
@@ -132,11 +132,11 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
             // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
             if (false)
-                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+                context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
         }
 
         context.AppendLine("/// <exclude />");
-        context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value, global::Friflo.Engine.ECS.Entity entity)");
+        context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value, int id)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);

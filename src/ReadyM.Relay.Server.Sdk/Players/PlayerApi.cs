@@ -14,11 +14,13 @@ public class PlayerApi
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
     private readonly PlayerEventHandlerDelegate _bridge;
     private readonly INetworkTime _netTime;
+    private readonly IChangeTrackingStore _changeTracking;
     private readonly GetReadyMIdDelegate _getReadyMId;
 
-    internal PlayerApi(PlayerApiPointers pointers, INetworkTime netTime)
+    internal PlayerApi(PlayerApiPointers pointers, INetworkTime netTime, IChangeTrackingStore changeTracking)
     {
         _netTime = netTime;
+        _changeTracking = changeTracking;
         _kickPlayer = Marshal.GetDelegateForFunctionPointer<KickPlayerDelegate>(pointers.KickPlayer);
         _getReadyMId = Marshal.GetDelegateForFunctionPointer<GetReadyMIdDelegate>(pointers.GetReadyMId);
 
@@ -51,7 +53,7 @@ public class PlayerApi
     private void OnPlayerEvent(PlayerEventData data)
     {
         // NOTE: We are on the ECS thread already (PlayerApi forwards ServerState)
-        using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime());
+        using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime(), _changeTracking);
 
         switch (data.Kind)
         {

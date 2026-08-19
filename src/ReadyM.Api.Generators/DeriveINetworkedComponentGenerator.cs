@@ -486,7 +486,7 @@ using {ns};
 
         sb.AppendLine("""
     /// <exclude />
-    public void DeserializeTracking(NetDataReader reader, global::Friflo.Engine.ECS.Entity entity)
+    public void DeserializeTracking(NetDataReader reader, int id)
     {
 """);
 
@@ -568,7 +568,7 @@ using {ns};
 
         sb.AppendLine("""
     /// <exclude />
-    public void ReadDeltaTracking(NetDataReader reader, global::Friflo.Engine.ECS.Entity entity)
+    public void ReadDeltaTracking(NetDataReader reader, int id)
     {
 """);
         sb.AppendLine($"""
@@ -704,7 +704,7 @@ using {ns};
         context.SetAutoMark("global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.AutoMarkApiOnWrite");
         var changeContext = new CSharpEmitConflictSupportContext(emitState, member, model);
         changeContext.SetResolver(
-            "global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.ResolveConflicts",
+            "global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.ConflictResolver",
             "global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.LastObservedTime");
         context.SetEmitConflictResolver(new DefaultEmitConflictSupportImpl(), changeContext);
 

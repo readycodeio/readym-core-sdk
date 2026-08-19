@@ -13,16 +13,13 @@ public abstract class ModSystemBase
     /// </summary>
     /// <param name="deltaTime">Time since last tick, in seconds.</param>
     /// <param name="time">Total time since server start, in seconds.</param>
-    protected readonly struct UpdateTick(float deltaTime, float time, uint netTicks)
+    protected readonly struct UpdateTick(float deltaTime, float time)
     {
         /// <summary> The time in seconds since the last tick. </summary>
         public readonly float DeltaTime = deltaTime;
 
         /// <summary> The time at the beginning of the current frame since application start. </summary>
         public readonly float Time = time;
-
-        /// <summary> The number of server authority network ticks since server start. </summary>
-        public readonly uint NetTicks = netTicks;
     }
 
     /// <summary>
@@ -37,11 +34,8 @@ public abstract class ModSystemBase
     /// <param name="deltaTime">Time since last tick, in seconds.</param>
     /// <param name="time">Total time since server start, in seconds.</param>
     /// <param name="netTicks">The number of server authority network ticks since server start.</param>
-    public void Update(float deltaTime, float time, uint netTicks)
+    public void Update(float deltaTime, float time)
     {
-        // Mod writes are authoritative: auto-mark so owned-component overrides reach the owner.
-        // NOTE: Already on the right ECS thread
-        using var _ = ComponentWriteContext.EnterServerAuthoring(netTicks);
-        OnUpdate(new UpdateTick(deltaTime, time, netTicks));
+        OnUpdate(new UpdateTick(deltaTime, time));
     }
 }

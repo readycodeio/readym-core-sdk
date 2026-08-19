@@ -12,9 +12,9 @@ public interface INetworkedComponent : IReadyComponent, INetSerializable
     bool IsDirty { get; }
     void WriteDelta(NetDataWriter writer);
     void ReadDelta(NetDataReader reader);
-    void ReadDeltaTracking(NetDataReader reader, Entity entity);
+    void ReadDeltaTracking(NetDataReader reader, int id);
 
-    void DeserializeTracking(NetDataReader reader, Entity entity);
+    void DeserializeTracking(NetDataReader reader, int id);
 
     Type GetChangeComponent();
 }

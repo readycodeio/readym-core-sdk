@@ -13,25 +13,25 @@ internal class CSharpEmitConflictSupportContext(
     public string TypeName
         => Model.Source.Name;
 
-    public string EntityVarName { get; private set; } = "entity";
+    public string IdentVarName { get; private set; } = "id";
 
-    private string? _resolveConflictsVarName;
+    private string? _changeStoreVar;
     private string? _lastObservedTimeVarName;
 
-    public string ResolveConflictsVar
-        => _resolveConflictsVarName ?? throw new InvalidOperationException("ResolverVarName has not been set");
+    public string ChangeStoreVar
+        => _changeStoreVar ?? throw new InvalidOperationException("ChangeStoreVar has not been set");
 
     public string LastObservedTimeVar
-        => _lastObservedTimeVarName ?? throw new InvalidOperationException("ObservedTimeVarName has not been set");
+        => _lastObservedTimeVarName ?? throw new InvalidOperationException("LastObservedTimeVar has not been set");
 
-    public void SetEntity(string entity)
+    public void SetIdent(string entity)
     {
-        EntityVarName = entity;
+        IdentVarName = entity;
     }
 
-    public void SetResolver(string resolveVarName, string lastObservedTimeVar)
+    public void SetResolver(string resolverVarName, string lastObservedTimeVar)
     {
-        _resolveConflictsVarName = resolveVarName;
+        _changeStoreVar = resolverVarName;
         _lastObservedTimeVarName = lastObservedTimeVar;
     }
 }

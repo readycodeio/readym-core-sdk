@@ -150,7 +150,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
 
         var paramType = context.Member.AccessorSettings.BoolAccessors ? "bool" : FullyQualifiedTypeName(symbol);
-        context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value, global::Friflo.Engine.ECS.Entity entity)");
+        context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value, int id)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);
@@ -159,10 +159,10 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
     public void EmitNotifyChangesMethods(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
     {
-        context.AppendLine($"public void {context.Member.GeneratedPropertyName}NotifyChanged(global::Friflo.Engine.ECS.Entity entity)");
+        context.AppendLine($"public void {context.Member.GeneratedPropertyName}NotifyChanged(int id)");
         using (context.WithCodeBlock())
         {
-            context.EmitConflict.EmitNotifyChange(sourceType, context.EmitConflictContext);
+            context.EmitConflict.EmitNotifyChanged(sourceType, context.EmitConflictContext);
         }
     }
 
@@ -184,7 +184,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         // FIXME: There should be no fromApi check, however currently it's impossible to get hold of the current
         // entity in regular setters in order to have a lookup key
         if (fromApi)
-            context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+            context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
     }
 
     protected virtual void EmitSetterBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi)
@@ -233,14 +233,14 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
 
         context.Append("if (");
-        context.EmitConflict.EmitTryResolve(symbol, context.EmitConflictContext, forceParen: false);
+        context.EmitConflict.EmitCanChange(symbol, context.EmitConflictContext, forceParen: false);
         context.AppendLine(")");
 
         using (context.WithCodeBlock())
         {
             EmitDeserializeBodyInner(symbol, context, true);
 
-            context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+            context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
         }
 
         context.AppendLine("else");

@@ -35,9 +35,15 @@ public sealed class ServerEventsApi : IDisposable
     private readonly PinnedDelegateStore _pinnedDelegates = new();
     private readonly EcsApi _ecs;
     private readonly INetworkTime _netTime;
+    private readonly IChangeTrackingStore _changeTracking;
     private readonly ILogger _logger;
 
-    internal ServerEventsApi(ServerEventsPointers pointers, EcsApi ecs, INetworkTime netTime, ILogger logger)
+    internal ServerEventsApi(
+        ServerEventsPointers pointers,
+        EcsApi ecs,
+        INetworkTime netTime,
+        IChangeTrackingStore changeTracking,
+        ILogger logger)
     {
         if (pointers.Subscribe == IntPtr.Zero || pointers.Unsubscribe == IntPtr.Zero)
         {
@@ -46,6 +52,7 @@ public sealed class ServerEventsApi : IDisposable
 
         _ecs = ecs;
         _netTime = netTime;
+        _changeTracking = changeTracking;
         _logger = logger;
         _unsubscribe = Marshal.GetDelegateForFunctionPointer<UnsubscribeServerEventsDelegate>(pointers.Unsubscribe);
 
@@ -67,7 +74,7 @@ public sealed class ServerEventsApi : IDisposable
         try
         {
             // NOTE: We are on the ECS thread already (ServerEventsApi forwards ServerState)
-            using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime());
+            using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime(), _changeTracking);
             Raise(kind, payload);
         }
         catch (Exception ex)

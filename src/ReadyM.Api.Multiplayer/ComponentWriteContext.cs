@@ -1,4 +1,5 @@
 using System;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 
 namespace ReadyM.Api.Multiplayer;
 
@@ -17,14 +18,14 @@ public static class ComponentWriteContext
     public static ComponentWriteState Current { get; private set; }
 
     /// <summary>Enables auto-marking for the scope (restored on dispose).</summary>
-    internal static Scope EnterServerAuthoring(uint currentTime)
+    internal static Scope EnterServerAuthoring(uint currentTime, IChangeTrackingStore resolver)
     {
         var previous = Current;
-        Current = new ComponentWriteState(true, currentTime, currentTime, true);
+        Current = new ComponentWriteState(true, currentTime, currentTime, resolver);
         return new Scope(previous);
     }
 
-    internal static Scope EnterServerApplyDelta(uint currentTime, uint lastObserved)
+    internal static Scope EnterServerApplyDelta(uint currentTime, uint lastObserved, IChangeTrackingStore resolver)
     {
         if (lastObserved == 0)
             throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time must be non-zero");
@@ -34,7 +35,7 @@ public static class ComponentWriteContext
             throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time cannot be greater than current time");
 
         var previous = Current;
-        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, currentTime, lastObserved, true);
+        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, currentTime, lastObserved, resolver);
         return new Scope(previous);
     }
 

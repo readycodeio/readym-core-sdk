@@ -4,10 +4,10 @@ namespace ReadyM.Api.Generators.Derive.CSharp.ConflictResolution;
 
 internal class NoOpEmitConflictSupportImplBase : ICSharpEmitConflictSupportImpl
 {
-    public void EmitTryResolve(ITypeSymbol symbol, CSharpEmitConflictSupportContext context, bool forceParen)
+    public void EmitCanChange(ITypeSymbol symbol, CSharpEmitConflictSupportContext context, bool forceParen)
         => context.Append("true");
 
-    public void EmitNotifyChange(ITypeSymbol symbol, CSharpEmitConflictSupportContext context)
+    public void EmitNotifyChanged(ITypeSymbol symbol, CSharpEmitConflictSupportContext context)
     {
         // empty
     }
