@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Players;
@@ -12,10 +13,12 @@ public class PlayerApi
     private readonly KickPlayerDelegate _kickPlayer;
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
     private readonly PlayerEventHandlerDelegate _bridge;
+    private readonly INetworkTime _netTime;
     private readonly GetReadyMIdDelegate _getReadyMId;
 
-    internal PlayerApi(PlayerApiPointers pointers)
+    internal PlayerApi(PlayerApiPointers pointers, INetworkTime netTime)
     {
+        _netTime = netTime;
         _kickPlayer = Marshal.GetDelegateForFunctionPointer<KickPlayerDelegate>(pointers.KickPlayer);
         _getReadyMId = Marshal.GetDelegateForFunctionPointer<GetReadyMIdDelegate>(pointers.GetReadyMId);
 
@@ -48,7 +51,7 @@ public class PlayerApi
     private void OnPlayerEvent(PlayerEventData data)
     {
         // NOTE: We are on the ECS thread already (PlayerApi forwards ServerState)
-        using var _ = ComponentWriteContext.EnterServerAuthoring();
+        using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime());
 
         switch (data.Kind)
         {

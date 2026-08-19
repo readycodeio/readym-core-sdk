@@ -4,6 +4,7 @@ using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -22,12 +23,14 @@ public class RpcApi
 
     private readonly SendToOneDelegate _sendToOne;
 
+    private readonly INetworkTime _netTime;
     private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
     private readonly Dictionary<Delegate, HashSet<RelayMessageCode>> _toCode = new();
 
-    internal RpcApi(RpcApiPointers pointers)
+    internal RpcApi(RpcApiPointers pointers, INetworkTime netTime)
     {
+        _netTime = netTime;
         _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
         _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers
             .RemoveServerRpcMessageHandler);
@@ -45,7 +48,7 @@ public class RpcApi
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
 
                 // RPC handler writes are authoritative: auto-mark so overrides reach the owner.
-                using var _ = ComponentWriteContext.EnterServerAuthoring();
+                using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime());
 
                 // NOTE: ATTENTION!!! RPC server-side handlers have been moved to the ECS thread.
                 // The current implementation does the scheduling in a architecturally questionable place inside

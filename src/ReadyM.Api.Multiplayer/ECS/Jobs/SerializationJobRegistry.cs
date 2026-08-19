@@ -5,6 +5,7 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Compat;
 using ReadyM.Api.ECS.Jobs;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
@@ -23,13 +24,14 @@ internal sealed class SerializationJobRegistry
             var id = registry.GetNetworkedComponentId<T>();
 
             owner._logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner._netEntity, owner._playerIdProvider, owner._logger));
+            owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner._netTime, owner._netEntity, owner._playerIdProvider, owner._logger));
             owner.RegisterApplySnapshotJob(id, new ApplySnapshotJob<T>(owner._netEntity));
             owner.RegisterWriteSnapshotJob(id, new WriteSnapshotJob<T>(id));
         }
     }
 
     private readonly INetworkedComponentRegistry _registry;
+    private readonly INetworkTime _netTime;
     private readonly INetworkedEntityManager _netEntity;
     private readonly IPlayerIdProvider _playerIdProvider;
     private readonly ILogger _logger;
@@ -44,11 +46,13 @@ internal sealed class SerializationJobRegistry
 
     public SerializationJobRegistry(
         INetworkedComponentRegistry registry,
+        INetworkTime netTime,
         INetworkedEntityManager netEntity,
         IPlayerIdProvider playerIdProvider,
         ILogger logger)
     {
         _registry = registry;
+        _netTime = netTime;
         _netEntity = netEntity;
         _playerIdProvider = playerIdProvider;
         _logger = logger;

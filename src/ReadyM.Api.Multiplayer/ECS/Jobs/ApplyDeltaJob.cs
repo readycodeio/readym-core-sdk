@@ -4,13 +4,14 @@ using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
+internal class ApplyDeltaJob<T>(INetworkTime netTime, INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent =
@@ -48,6 +49,10 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 _skipinstance.ReadDelta(reader);
                 continue;
             }
+
+            var lastObservedServerTime = reader.GetUInt();
+            var currentTime = netTime.GetCurrentTime();
+            using var _ = ComponentWriteContext.EnterServerApplyDelta(currentTime, lastObservedServerTime);
 
             // STOP! DO NOT CHANGE this block without consulting the people maintaining networked components and native
             // components!

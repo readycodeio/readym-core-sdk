@@ -17,46 +17,24 @@ public static class ComponentWriteContext
     public static ComponentWriteState Current { get; private set; }
 
     /// <summary>Enables auto-marking for the scope (restored on dispose).</summary>
-    internal static Scope EnterServerAuthoring()
+    internal static Scope EnterServerAuthoring(uint currentTime)
     {
         var previous = Current;
-        Current = new ComponentWriteState(true, Current.CurrentTime, Current.CurrentTime, Current.ResolveConflicts);
+        Current = new ComponentWriteState(true, currentTime, currentTime, true);
         return new Scope(previous);
     }
 
-    internal static Scope EnterServerSide(uint currentTime)
-    {
-        if (currentTime == 0)
-            throw new ArgumentOutOfRangeException(nameof(currentTime), "Current time must be non-zero");
-        if (Current.CurrentTime > 0)
-            throw new InvalidOperationException("Already in server-side context");
-
-        var previous = Current;
-        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, currentTime, Current.LastObservedTime, Current.ResolveConflicts);
-        return new Scope(previous);
-    }
-
-    internal static Scope EnterClientApply(uint lastObserved)
+    internal static Scope EnterServerApplyDelta(uint currentTime, uint lastObserved)
     {
         if (lastObserved == 0)
             throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time must be non-zero");
-        if (Current.CurrentTime == 0)
+        if (currentTime == 0)
             throw new InvalidOperationException("Cannot enter client apply without entering server-side first");
-        if (lastObserved > Current.CurrentTime)
+        if (lastObserved > currentTime)
             throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time cannot be greater than current time");
 
         var previous = Current;
-        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, Current.CurrentTime, lastObserved, true);
-        return new Scope(previous);
-    }
-
-    internal static Scope EnterServerApply()
-    {
-        if (Current.CurrentTime == 0)
-            throw new InvalidOperationException("Cannot enter server apply without entering server-side first");
-
-        var previous = Current;
-        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, Current.CurrentTime, Current.CurrentTime, true);
+        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, currentTime, lastObserved, true);
         return new Scope(previous);
     }
 
