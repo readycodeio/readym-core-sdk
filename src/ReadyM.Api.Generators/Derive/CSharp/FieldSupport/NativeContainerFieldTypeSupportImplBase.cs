@@ -14,18 +14,19 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
         context.AppendLine($"{context.State.CurrentVar}.Assign(value);");
     }
 
-    public override void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected override void EmitDeserializeBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool skip)
     {
         var tempVar = context.ClassState.AddTempThreadStatic(symbol);
-        
+
         using (context.WithCurrent(tempVar, symbol))
         {
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
-            context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");
+            if (!skip)
+                context.AppendLine($"{context.Member.GeneratedPropertyName}.Assign({tempVar});");
         }
     }
-    
+
     public override void EmitAssignComponentBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         context.AppendLine($"Set{context.Member.GeneratedPropertyName}(value.{context.State.CurrentVar});");

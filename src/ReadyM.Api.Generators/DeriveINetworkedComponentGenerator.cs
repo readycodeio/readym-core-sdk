@@ -1,25 +1,84 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ReadyM.Api.Generators.Derive.CSharp;
+using ReadyM.Api.Generators.Derive.CSharp.ConflictResolution;
 using ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
 namespace ReadyM.Api.Generators;
 
 [Generator]
+[SuppressMessage("MicrosoftCodeAnalysisDesign", "RS1032:Define diagnostic message correctly")]
 internal sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 {
+    public struct TransformResult(
+        string genName,
+        string genCode,
+        string? errorMessage,
+        Exception? exception)
+    {
+        public string GenName { get; private set; } = genName;
+        public string GenCode { get; private set; } = genCode;
+        public string? ErrorMessage { get; private set; } = errorMessage;
+        public Exception? Exception { get; private set; } = exception;
+
+        public static TransformResult Success(string genName, string genCode)
+            => new(genName, genCode, null, null);
+        public static TransformResult Failure(string errorMessage)
+            => new(string.Empty, string.Empty, errorMessage, null);
+        public static TransformResult FatalError(Exception? exception = null)
+            => new(string.Empty, string.Empty, null, exception);
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(Predicate, Transform);
+        var codeProvider = context.SyntaxProvider.CreateSyntaxProvider(
+            predicate: Predicate,
+            transform: Transform);
 
         context.RegisterSourceOutput(
             codeProvider,
-            static (spc, nameAndContent) => spc.AddSource($"{nameAndContent.Name}.g.cs", nameAndContent.Code));
+            (spc, result) =>
+            {
+                if (result.Exception is not null)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            id: "DNC001",
+                            title: $"{nameof(DeriveINetworkedComponentGenerator)} generator failed",
+                            messageFormat: "Source generator failed: {0}",
+                            category: "Generator",
+                            defaultSeverity: DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None,
+                        string.Join("\\n", result.Exception.ToString().Split(["\r\n", "\r", "\n"], StringSplitOptions.None))));
+
+                    return;
+                }
+                else if (!string.IsNullOrEmpty(result.ErrorMessage))
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            id: "DNC002",
+                            title: $"{nameof(DeriveINetworkedComponentGenerator)} generator failed",
+                            messageFormat: "Source generator failed: {0}",
+                            category: "Generator",
+                            defaultSeverity: DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None,
+                        result.ErrorMessage));
+
+                    return;
+                }
+
+                spc.AddSource($"{result.GenName}.g.cs", result.GenCode);
+            });
     }
 
     private bool Predicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
@@ -34,17 +93,26 @@ internal sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
         return attributes.Any(x => x.Name is IdentifierNameSyntax { Identifier.Text: "DeriveINetworkedComponent" or "DeriveINetworkedComponentAttribute" });
     }
 
-    private (string Name, string Code) Transform(GeneratorSyntaxContext context, CancellationToken ct)
+    private TransformResult Transform(
+        GeneratorSyntaxContext context,
+        CancellationToken ct)
     {
-        if (ct.IsCancellationRequested)
-            return (string.Empty, string.Empty);
+        try
+        {
+            if (ct.IsCancellationRequested)
+                return default;
 
-        var symbol = DeriveUtils.GetTargetSymbol(context, ct);
-        var targetModel = DeriveComponentUtils.GetTargetModel(false, symbol, context);
-        var code = GenerateNetworkedComponent(targetModel);
-        var genName = DeriveUtils.GetGeneratedFileName(symbol);
+            var symbol = DeriveUtils.GetTargetSymbol(context, ct);
+            var targetModel = DeriveComponentUtils.GetTargetModel(false, symbol, context);
+            var genCode = GenerateNetworkedComponent(targetModel);
+            var genName = $"{DeriveUtils.GetGeneratedFileName(symbol)}";
 
-        return (genName, code);
+            return TransformResult.Success(genName, genCode);
+        }
+        catch (Exception ex)
+        {
+            return TransformResult.FatalError(ex);
+        }
     }
 
     private string GenerateNetworkedComponent(DeriveTargetModel model)
@@ -87,12 +155,13 @@ internal sealed class DeriveINetworkedComponentGenerator : IIncrementalGenerator
 
         var hasDispose = HasDispose(sb, model, classState);
 
-        sb.Append($@"
-namespace {info.Namespace};
+        sb.Append($$"""
+namespace {{info.Namespace}};
 
-{access} partial struct {info.Name} : INetworkedComponent{(hasDispose ? ", IDisposable" : string.Empty)}
-{{
-");
+{{access}} partial struct {{info.Name}} : INetworkedComponent{{(hasDispose ? ", IDisposable" : string.Empty)}}
+{
+
+""");
 
         if (info.HasErrors)
         {
@@ -105,6 +174,8 @@ namespace {info.Namespace};
 
             sb.AppendLine();
         }
+
+        EmitChangeComponent(sb, model);
 
         EmitDirtyMask(sb, model);
 
@@ -122,6 +193,7 @@ namespace {info.Namespace};
 
             EmitDirtyMethods(sb, member, model, classState);
             EmitAccessorMethods(sb, member, model, classState);
+            EmitNotifyChangesMethods(sb, member, model, classState);
         }
 
         EmitFieldEnums(sb, model, classState);
@@ -217,6 +289,33 @@ using {ns};
         }
     }
 
+    private void EmitChangeComponent(StringBuilder sb, DeriveTargetModel model)
+    {
+        sb.AppendLine($$"""
+
+    public struct ChangeComponent : global::Friflo.Engine.ECS.IComponent
+    {
+""");
+
+        foreach (var member in model.Members)
+        {
+            sb.AppendLine($"""
+        public uint {member.GeneratedPropertyName}LastChanged;
+""");
+        }
+
+        sb.AppendLine("""
+    }
+    
+""");
+
+        sb.AppendLine("""
+    public System.Type GetChangeComponent()
+        => typeof(ChangeComponent);
+    
+""");
+    }
+
     private void EmitDirtyMask(StringBuilder sb, DeriveTargetModel model)
     {
         var mask = model.MaskInfo;
@@ -277,6 +376,19 @@ using {ns};
 
         context.State.ResetIndent("    ");
         impl.EmitAccessorMethods(member.Source.Type, context);
+    }
+
+    private void EmitNotifyChangesMethods(
+        StringBuilder sb,
+        DeriveMemberModel member,
+        DeriveTargetModel model,
+        CSharpClassState classState)
+    {
+        var impl = GetEmitFieldSupportImpl(member, true);
+        var context = CreateEmitContext(sb, member, model, classState);
+
+        context.State.ResetIndent("    ");
+        impl.EmitNotifyChangesMethods(member.Source.Type, context);
     }
 
     private void EmitFieldEnums(
@@ -364,7 +476,28 @@ using {ns};
             var context = CreateEmitContext(sb, member, model, methodContext);
 
             context.State.ResetIndent("        ");
-            impl.EmitDeserializeBody(member.Source.Type, context);
+            impl.EmitDeserializeBody(member.Source.Type, context, false);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+
+        sb.AppendLine("""
+    /// <exclude />
+    public void DeserializeTracking(NetDataReader reader, global::Friflo.Engine.ECS.Entity entity)
+    {
+""");
+
+        methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+
+            context.State.ResetIndent("        ");
+            impl.EmitDeserializeBody(member.Source.Type, context, true);
         }
 
         sb.AppendLine("""
@@ -424,7 +557,33 @@ using {ns};
             context.SetCurrentMaskVarName("mask");
 
             context.State.ResetIndent("        ");
-            impl.EmitReadDeltaBody(member.Source.Type, context);
+            impl.EmitReadDeltaBody(member.Source.Type, context, false);
+        }
+
+        sb.AppendLine("""
+    }
+
+""");
+
+
+        sb.AppendLine("""
+    /// <exclude />
+    public void ReadDeltaTracking(NetDataReader reader, global::Friflo.Engine.ECS.Entity entity)
+    {
+""");
+        sb.AppendLine($"""
+        var mask = reader.{GetDeserializationMethod(model.MaskInfo.Type)}();
+""");
+
+        methodContext = new CSharpMethodState(classState);
+        foreach (var member in model.Members)
+        {
+            var impl = GetEmitFieldSupportImpl(member, true);
+            var context = CreateEmitContext(sb, member, model, methodContext);
+            context.SetCurrentMaskVarName("mask");
+
+            context.State.ResetIndent("        ");
+            impl.EmitReadDeltaBody(member.Source.Type, context, true);
         }
 
         sb.AppendLine("""
@@ -532,10 +691,23 @@ using {ns};
         CSharpMethodState methodState)
     {
         var emitState = new CSharpEmitState(sb, methodState);
-        var context = new CSharpEmitFieldSupportContext(emitState, member, model, CSharpFieldSupportRegistry.EmitSerializeVisitor, CSharpFieldSupportRegistry.EmitDeserializeVisitor);
+        var context = new CSharpEmitFieldSupportContext(
+            emitState,
+            member,
+            model,
+            CSharpFieldSupportRegistry.EmitSerializeVisitor,
+            CSharpFieldSupportRegistry.EmitDeserializeVisitor);
         var fieldName = member.Source.Name;
         var fieldType = member.Source.Type;
         context.State.ResetCurrent(fieldName, fieldType);
+
+        context.SetAutoMark("global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.AutoMarkApiOnWrite");
+        var changeContext = new CSharpEmitConflictSupportContext(emitState, member, model);
+        changeContext.SetResolver(
+            "global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.ResolveConflicts",
+            "global::ReadyM.Api.Multiplayer.ComponentWriteContext.Current.LastObservedTime");
+        context.SetEmitConflictResolver(new DefaultEmitConflictSupportImpl(), changeContext);
+
         return context;
     }
 }

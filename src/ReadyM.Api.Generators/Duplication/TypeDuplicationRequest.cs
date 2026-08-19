@@ -65,4 +65,6 @@ internal sealed class TypeDuplicationRequest(
     /// <c>IEquatable&lt;Target&gt;</c>.
     /// </summary>
     public bool CopyInterfaces { get; set; } = true;
+
+    public string InsertBlock { get; set; } = string.Empty;
 }

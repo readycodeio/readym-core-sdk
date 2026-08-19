@@ -72,7 +72,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             return;
 
         var bitExpr = $"({FullyQualifiedTypeName(context.Model.MaskInfo.Type)})1 << {context.Member.MaskIndex}";
-        context.AppendLine("if (global::ReadyM.Api.Multiplayer.ComponentWriteContext.AutoMarkApiOnWrite)");
+        context.AppendLine($"if ({context.AutoMarkApiOnWriteVar})");
         using (context.WithCodeBlock())
         {
             context.AppendLine($"{context.CurrentApiMaskVar} |= {bitExpr};");
@@ -119,7 +119,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
                 context.AppendLine("set");
                 using (context.WithCodeBlock())
                 {
-                    EmitSetterBody(symbol, context);
+                    EmitSetterBody(symbol, context, false);
                 }
             }
 
@@ -145,15 +145,24 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine("set");
             using (context.WithCodeBlock())
             {
-                EmitSetterBody(symbol, context);
+                EmitSetterBody(symbol, context, false);
             }
         }
 
         var paramType = context.Member.AccessorSettings.BoolAccessors ? "bool" : FullyQualifiedTypeName(symbol);
-        context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value)");
+        context.AppendLine($"private void {context.Member.GeneratedPropertyName}_SetFromApi({paramType} value, global::Friflo.Engine.ECS.Entity entity)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);
+        }
+    }
+
+    public void EmitNotifyChangesMethods(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
+    {
+        context.AppendLine($"public void {context.Member.GeneratedPropertyName}NotifyChanged(global::Friflo.Engine.ECS.Entity entity)");
+        using (context.WithCodeBlock())
+        {
+            context.EmitConflict.EmitNotifyChange(sourceType, context.EmitConflictContext);
         }
     }
 
@@ -165,7 +174,20 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"return {context.State.CurrentVar};");
     }
 
-    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi = false)
+    protected virtual void EmitSetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi)
+    {
+        EmitSetterBodyInner(symbol, context, fromApi);
+
+        // NOTE: We always reset time on API assignment, not just when the value differs. Nothing change can
+        // still win with the client-side change
+
+        // FIXME: There should be no fromApi check, however currently it's impossible to get hold of the current
+        // entity in regular setters in order to have a lookup key
+        if (fromApi)
+            context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+    }
+
+    protected virtual void EmitSetterBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool fromApi)
     {
         context.Append("if ");
         EmitNotEqualCheck(symbol, context, forceParen: true);
@@ -178,29 +200,58 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
+    public virtual void EmitFieldEnum(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
         var maskType = context.Model.MaskInfo!.Type;
         var name = member.GeneratedPropertyName;
         var type = context.Member.AccessorSettings.BoolAccessors ? "bool" : member.Source.Type.ToString();
-        var typeName = context.Model.Source.Name;
+        var typeName = context.TypeName;
 
-        using (context.WithIndent())
-        {
-            context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
-            context.AppendLine($"   static c => c.{name},");
-            context.AppendLine($"   static (ref c, v) => c.{name} = v,");
-            context.AppendLine($"   static (ref c, v) => c.{name}_SetFromApi(v),");
-            context.AppendLine($"   static c => (c._apiMask & (({maskType})1 << {i})) != 0);");
-        }
+        context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
+        context.AppendLine($"    static c => c.{name},");
+        context.AppendLine($"    static (ref c, v) => c.{name} = v,");
+        context.AppendLine($"    static (ref c, v, e) => c.{name}_SetFromApi(v, e),");
+        context.AppendLine($"    static c => (c._apiMask & (({maskType})1 << {i})) != 0);");
     }
 
     public virtual void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    {
+        EmitSerializeBodyInner(symbol, context);
+    }
+
+    protected virtual void EmitSerializeBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.EmitSerializeVar(context.State.CurrentVar, symbol);
 
-    public virtual void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    public void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool resolveConflicts)
+    {
+        if (!resolveConflicts)
+        {
+            EmitDeserializeBodyInner(symbol, context, false);
+            return;
+        }
+
+        context.Append("if (");
+        context.EmitConflict.EmitTryResolve(symbol, context.EmitConflictContext, forceParen: false);
+        context.AppendLine(")");
+
+        using (context.WithCodeBlock())
+        {
+            EmitDeserializeBodyInner(symbol, context, true);
+
+            context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
+        }
+
+        context.AppendLine("else");
+
+        using (context.WithCodeBlock())
+        {
+            EmitDeserializeBodyInner(symbol, context, false);
+        }
+    }
+
+    protected virtual void EmitDeserializeBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool skip)
     {
         var tempVar = context.MethodState.NewVarName("temp");
         using (context.WithCurrent(tempVar, symbol))
@@ -208,10 +259,13 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
             context.AppendLine($"{FullyQualifiedTypeName(symbol)} {tempVar} = default;");
             context.EmitDeserializeVar(context.State.CurrentVar, symbol);
 
-            if (context.Member.AccessorSettings.BoolAccessors)
-                context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar} != 0;");
-            else
-                context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");
+            if (!skip)
+            {
+                if (context.Member.AccessorSettings.BoolAccessors)
+                    context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar} != 0;");
+                else
+                    context.AppendLine($"{context.Member.GeneratedPropertyName} = {tempVar};");
+            }
         }
     }
 
@@ -227,7 +281,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
         }
     }
 
-    public virtual void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    public virtual void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool resolveConflicts)
     {
         context.Append("if ");
         EmitDirtyCheck(symbol, context, forceParen: true);
@@ -235,7 +289,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
         using (context.WithCodeBlock())
         {
-            EmitDeserializeBody(symbol, context);
+            EmitDeserializeBody(symbol, context, resolveConflicts);
         }
     }
 

@@ -380,6 +380,9 @@ internal static class TypeDuplicator
             sb.AppendLine(Reindent(member.ToFullString(), memberIndent));
         }
 
+        if (!string.IsNullOrEmpty(request.InsertBlock))
+            sb.AppendLine(request.InsertBlock);
+
         sb.AppendLine(indent + "}");
 
         for (var i = enclosing.Count - 1; i >= 0; i--)

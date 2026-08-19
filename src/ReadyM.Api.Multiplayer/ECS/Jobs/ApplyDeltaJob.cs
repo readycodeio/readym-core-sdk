@@ -13,7 +13,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
-    private readonly bool _useSetComponent = 
+    private readonly bool _useSetComponent =
         typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
 
     [ThreadStatic]
@@ -49,25 +49,58 @@ internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProv
                 continue;
             }
 
+            // STOP! DO NOT CHANGE this block without consulting the people maintaining networked components and native
+            // components!
+            // - Networked components have internal delta calculation that depends on in-place changes.
+            // This doesn't apply here because CURRENTLY clients never send snapshots of anything to the server.
+            // - Native components have allocations that need to be DISPOSED first, without that we leak memory.
+            // YES, all fields of `comp` will be overwritten BUT deltas should still be correctly updated.
+
             // entity exists, apply the delta
             // we assume entities are always created with the correct archetype
             if (_useSetComponent)
             {
-                var component = default(T);
-                component.ReadDelta(reader);
-
-                if (playerId == owner)
+                if (entity.Value.HasComponent<T>())
                 {
-                    // Owner-directed deltas are always server overrides; keep the API flag so the
-                    // sync copies it to the game actor, and clear dirty so we don't echo it back.
-                    component.MarkChangedFromApi();
-                    component.ClearDirty();
-                }
+                    var component = entity.Value.GetComponent<T>();
+                    component.ReadDeltaTracking(reader, entity.Value);
 
-                entity.Value.Set(component);
+                    if (playerId == owner)
+                    {
+                        // Owner-directed deltas are always server overrides; keep the API flag so the
+                        // sync copies it to the game actor, and clear dirty so we don't echo it back.
+                        component.MarkChangedFromApi();
+                        component.ClearDirty();
+                    }
+
+                    entity.Value.Set(component);
+                }
+                else
+                {
+                    var component = default(T);
+                    component.ReadDeltaTracking(reader, entity.Value);
+
+                    if (playerId == owner)
+                    {
+                        // Owner-directed deltas are always server overrides; keep the API flag so the
+                        // sync copies it to the game actor, and clear dirty so we don't echo it back.
+                        component.MarkChangedFromApi();
+                        component.ClearDirty();
+                    }
+
+                    entity.Value.Add(component);
+                }
             }
             else
             {
+                if (!entity.Value.HasComponent<T>())
+                {
+                    logger.LogWarning(
+                        "Dropping delta for {Component} entity {NetId}: no such component on the target entity",
+                        typeof(T).Name, netId);
+                    return;
+                }
+
                 ref var component = ref entity.Value.GetComponent<T>();
                 component.ReadDelta(reader);
 

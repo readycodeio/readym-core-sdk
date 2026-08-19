@@ -9,8 +9,6 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
     private byte _componentTypes;
 
-    public bool HasComponents => GetNextComponentId() > 0;
-
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
         var registry = (TRegistry)(object)this;
@@ -47,6 +45,21 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
             callback.AcceptComponent((TRegistry)(object)this, defaultValue);
         });
 
+        return (TRegistry)(object)this;
+    }
+
+    public virtual TRegistry RegisterComponent(Type componentType, TComponent defaultValue)
+    {
+        if (!typeof(TComponent).IsAssignableFrom(componentType))
+            throw new ArgumentException($"Type {componentType.FullName} is not assignable to {typeof(TComponent).FullName}");
+        if (!componentType.IsValueType)
+            throw new ArgumentException($"Type {componentType.FullName} is not a value type");
+
+        var method = typeof(ComponentRegistryBase<TRegistry, TComponent>).GetMethod(nameof(RegisterComponent), [componentType]);
+        if (method == null)
+            throw new InvalidOperationException($"Could not find RegisterComponent method for type {componentType.FullName}");
+
+        method.Invoke(this, [defaultValue]);
         return (TRegistry)(object)this;
     }
 

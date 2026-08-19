@@ -12,7 +12,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
     protected override void EmitGetterBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
         => context.AppendLine($"return {context.State.CurrentVar}.AsReadOnly();");
 
-    public override void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
+    protected override void EmitDeserializeBodyInner(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool skip)
     {
         var tempVar = context.ClassState.AddTempThreadStatic(symbol);
 
@@ -20,7 +20,8 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         {
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
-            context.AppendLine($"Set{context.Member.GeneratedPropertyName}({tempVar});");
+            if (!skip)
+                context.AppendLine($"Set{context.Member.GeneratedPropertyName}({tempVar});");
         }
     }
 
@@ -42,7 +43,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         context.AppendLine($"public void Set{context.Member.GeneratedPropertyName}(in {FullyQualifiedTypeName(symbol)} value)");
         using (context.WithCodeBlock())
         {
-            EmitSetterBody(symbol, context);
+            EmitSetterBody(symbol, context, false);
         }
         context.AppendLine();
 
@@ -71,6 +72,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
             using (context.WithCodeBlock())
             {
                 EmitSetDirty(symbol, context);
+
+                // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
+                if (false)
+                    context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
             }
         }
         context.AppendLine();
@@ -87,6 +92,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         {
             context.AppendLine($"{context.State.CurrentVar}.Add(value);");
             EmitSetDirty(symbol, context);
+
+            // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
+            if (false)
+                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
         }
         context.AppendLine();
 
@@ -95,6 +104,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         {
             context.AppendLine($"{context.State.CurrentVar}.Insert(index, value);");
             EmitSetDirty(symbol, context);
+
+            // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
+            if (false)
+                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
         }
         context.AppendLine();
 
@@ -103,6 +116,10 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         {
             context.AppendLine($"var result = {context.State.CurrentVar}.RemoveAt(index);");
             EmitSetDirty(symbol, context);
+
+            // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
+            if (false)
+                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
             context.AppendLine("return result;");
         }
         context.AppendLine();
@@ -112,28 +129,32 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
         {
             context.AppendLine($"{context.State.CurrentVar}.Clear();");
             EmitSetDirty(symbol, context);
+
+            // FIXME: There should be a check, but it's currently not possible to get an entity in regular setters
+            if (false)
+                context.EmitConflict.EmitNotifyChange(symbol, context.EmitConflictContext);
         }
 
         context.AppendLine("/// <exclude />");
-        context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value)");
+        context.AppendLine($"public void {context.Member.GeneratedPropertyName}_SetFromApi({FullyQualifiedTypeName(symbol)} value, global::Friflo.Engine.ECS.Entity entity)");
         using (context.WithCodeBlock())
         {
             EmitSetterBody(symbol, context, true);
         }
     }
 
-    public override void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context)
+    public override void EmitFieldEnum(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
         var name = member.GeneratedPropertyName;
         var type = member.Source.Type;
-        var typeName = context.Model.Source.Name;
+        var typeName = context.TypeName;
 
         context.AppendLine($"public static readonly Field<{typeName}, {type}> {name} = new({i},");
         context.AppendLine($"    static c => c.{context.State.CurrentVar},");
         context.AppendLine($"    static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
-        context.AppendLine($"    static (ref c, v) => c.{name}_SetFromApi(v),");
+        context.AppendLine($"    static (ref c, v, e) => c.{name}_SetFromApi(v, e),");
         context.AppendLine($"    static c => c.Is{name}Dirty());");
     }
 }
