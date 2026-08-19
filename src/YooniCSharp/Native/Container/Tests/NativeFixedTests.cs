@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;

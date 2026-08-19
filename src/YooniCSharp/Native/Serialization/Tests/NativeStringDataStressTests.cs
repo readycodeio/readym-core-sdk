@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using LiteNetLib.Utils;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Yooni.Native.Container;
 
 namespace Yooni.Native.Serialization.Tests;
