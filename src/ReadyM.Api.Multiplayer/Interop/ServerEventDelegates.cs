@@ -15,6 +15,7 @@ public enum ServerEventKind : byte
     CellDeleted = 7,
     PlayerActivatedCell = 8,
     PlayerDeactivatedCell = 9,
+    WorldEntityCreated = 10,
 }
 
 public delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);

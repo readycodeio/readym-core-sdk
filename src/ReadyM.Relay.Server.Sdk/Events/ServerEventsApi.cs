@@ -24,6 +24,12 @@ public sealed class ServerEventsApi : IDisposable
     public event Action<PlayerId, AreaId, CellId>? OnPlayerActivatedCell;
     public event Action<PlayerId, AreaId, CellId>? OnPlayerDeactivatedCell;
 
+    /// <summary>
+    /// Raised once, when the world entity exists. A mod's Init runs before that, so this is the earliest
+    /// point at which world components can be written.
+    /// </summary>
+    public event Action<Entity>? OnWorldEntityCreated;
+
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
     private readonly PinnedDelegateStore _pinnedDelegates = new();
@@ -102,6 +108,9 @@ public sealed class ServerEventsApi : IDisposable
                 break;
             case ServerEventKind.PlayerDeactivatedCell:
                 OnPlayerDeactivatedCell?.Invoke(payload.Player, payload.Area, payload.Cell);
+                break;
+            case ServerEventKind.WorldEntityCreated:
+                OnWorldEntityCreated?.Invoke(entity);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");
