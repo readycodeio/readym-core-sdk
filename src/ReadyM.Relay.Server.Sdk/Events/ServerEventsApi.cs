@@ -64,6 +64,7 @@ public sealed class ServerEventsApi : IDisposable
     {
         try
         {
+            // NOTE: We are on the ECS thread already (ServerEventsApi forwards ServerState)
             using var _ = ComponentWriteContext.EnterServerAuthoring();
             Raise(kind, payload);
         }

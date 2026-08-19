@@ -19,11 +19,8 @@ public static class ComponentWriteContext
     /// <summary>Enables auto-marking for the scope (restored on dispose).</summary>
     internal static Scope EnterServerAuthoring()
     {
-        if (Current.CurrentTime == 0)
-            throw new InvalidOperationException("Cannot enter server authoring without entering server-side first");
-
         var previous = Current;
-        Current = new ComponentWriteState(true, Current.CurrentTime, Current.CurrentTime, true);
+        Current = new ComponentWriteState(true, Current.CurrentTime, Current.CurrentTime, Current.ResolveConflicts);
         return new Scope(previous);
     }
 

@@ -46,6 +46,13 @@ public class RpcApi
 
                 // RPC handler writes are authoritative: auto-mark so overrides reach the owner.
                 using var _ = ComponentWriteContext.EnterServerAuthoring();
+
+                // NOTE: ATTENTION!!! RPC server-side handlers have been moved to the ECS thread.
+                // The current implementation does the scheduling in a architecturally questionable place inside
+                // `ModHostInitializer` assignment to `ptrToAddServerRpcMessageHandler`. There's probably a better
+                // place to put this.
+                // Being on the wrong thread means that any [ThreadStatic] state such as `ComponentWriteContext.Current`
+                // would have to be carried into the ECS thread inside the scheduling capability
                 handler(header, reader);
             };
             _pinnedDelegates.Add(handler, realHandler);

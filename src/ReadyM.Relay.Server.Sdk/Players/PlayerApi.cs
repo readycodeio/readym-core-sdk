@@ -6,6 +6,7 @@ using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Players;
 
+// FIXME: ~jk: Maybe I'm mistaken but this seems to duplicate some of the functionality of the wider ServerEventsApi
 public class PlayerApi
 {
     private readonly KickPlayerDelegate _kickPlayer;
@@ -46,6 +47,7 @@ public class PlayerApi
 
     private void OnPlayerEvent(PlayerEventData data)
     {
+        // NOTE: We are on the ECS thread already (PlayerApi forwards ServerState)
         using var _ = ComponentWriteContext.EnterServerAuthoring();
 
         switch (data.Kind)

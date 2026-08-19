@@ -36,6 +36,7 @@ public abstract class ModSystemBase
     public void Update(float deltaTime, float time)
     {
         // Mod writes are authoritative: auto-mark so owned-component overrides reach the owner.
+        // NOTE: Already on the right ECS thread
         using var _ = ComponentWriteContext.EnterServerAuthoring();
         OnUpdate(new UpdateTick(deltaTime, time));
     }
