@@ -22,9 +22,15 @@
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
+    <!--
+        C++ header generation for OblivionMp. Off unless a consuming repository opts in
+        from its own Directory.Build.props by setting both properties, with an absolute
+        GeneratedCppPath. It used to default to true with a path relative to this
+        project, which only resolved correctly while this project lived directly inside
+        the gameserver repository.
+    -->
     <PropertyGroup>
-        <GeneratedCppPath>$(MSBuildProjectDirectory)\..\..\..\OblivionMp\src\Generated</GeneratedCppPath>
-        <GeneratedCppEnabled>true</GeneratedCppEnabled>
+        <GeneratedCppEnabled Condition="'$(GeneratedCppEnabled)' == ''">false</GeneratedCppEnabled>
     </PropertyGroup>
 
     <ItemGroup>
