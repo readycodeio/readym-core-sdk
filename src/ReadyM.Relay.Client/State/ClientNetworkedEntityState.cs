@@ -1,5 +1,6 @@
 ﻿using System;
 using Friflo.Engine.ECS;
+using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.State;
@@ -13,32 +14,36 @@ internal class ClientNetworkedEntityState(
     public Entity CreateEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
+        Action<EntityBuilderBase>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
-        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents: null, ownerOverride);
+        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents, ownerOverride);
         return entity;
     }
 
     public Entity CreateGlobalEntity(
         ArchetypeId archetypeId,
+        Action<EntityBuilderBase>? setComponents = null,
         PlayerId? ownerOverride = null)
-        => CreateEntity(archetypeId, null, ownerOverride);
+        => CreateEntity(archetypeId, null, setComponents, ownerOverride);
 
     public Entity CreateAreaEntity(
         ArchetypeId archetypeId,
+        Action<EntityBuilderBase>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         if (!state.CurrentAreaEntity.HasValue)
             throw new InvalidOperationException("Attempted to create a networked entity in area but no area is set.");
 
         var scopeEntity = state.CurrentAreaEntity.Value;
-        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity);
+        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents, ownerOverride);
         return entity;
     }
 
     public Entity CreateCellEntity(
         CellId cellId,
         ArchetypeId archetypeId,
+        Action<EntityBuilderBase>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         var cellEntry = state.GetActiveCellEntry(cellId);
@@ -46,7 +51,7 @@ internal class ClientNetworkedEntityState(
             throw new InvalidOperationException($"Attempted to create a networked entity in cell {cellId} but that cell is not active.");
 
         var scopeEntity = cellEntry.Value.CellEntity;
-        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity);
+        var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents, ownerOverride);
         return entity;
     }
 
