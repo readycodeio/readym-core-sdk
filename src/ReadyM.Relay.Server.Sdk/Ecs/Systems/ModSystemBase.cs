@@ -20,6 +20,16 @@ public abstract class ModSystemBase
 
         /// <summary> The time at the beginning of the current frame since application start. </summary>
         public readonly float Time = time;
+
+        /// <summary> The time in seconds since the last tick. </summary>
+        // FIXME: This will be made obsolete
+        public float deltaTime
+            => DeltaTime;
+
+        /// <summary> The time at the beginning of the current frame since application start. </summary>
+        // FIXME: This will be made obsolete
+        public float time
+            => Time;
     }
 
     /// <summary>
