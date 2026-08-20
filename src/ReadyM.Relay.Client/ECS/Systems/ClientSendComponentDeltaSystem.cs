@@ -1,16 +1,20 @@
 using Friflo.Engine.ECS;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Systems;
+using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Client.ConflictResolution;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
 
-internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentId, DeliveryMethod deliveryMethod, IRelayClient relay) 
+internal class ClientSendComponentDeltaSystem<T>(
+    NetworkedComponentId componentId,
+    IClientNetworkTime netTime,
+    DeliveryMethod deliveryMethod, IRelayClient relay)
 	: SendComponentDeltaSystemBase<T>(componentId, false)
     where T : struct, INetworkedComponent
 {
@@ -19,6 +23,13 @@ internal class ClientSendComponentDeltaSystem<T>(NetworkedComponentId componentI
 
     protected override int? GetMaxPacketSize()
         => deliveryMethod == DeliveryMethod.ReliableOrdered ? null : relay.GetMaxPacketSize(deliveryMethod);
+
+    protected override void CreatePacketHeader(NetDataWriter writer)
+    {
+        writer.Put((byte)RelayMessageCode.EcsDelta);
+        writer.Put(netTime.GetCurrentTime());
+        writer.Put(ComponentId);
+    }
 
     protected override uint SentOwners()
     {

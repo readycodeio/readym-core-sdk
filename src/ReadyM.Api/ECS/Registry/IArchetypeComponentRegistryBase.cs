@@ -7,9 +7,6 @@ namespace ReadyM.Api.ECS.Registry;
 internal interface IArchetypeComponentRegistryBase<out TRegistry> : IComponentRegistryBase<TRegistry, IComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, IComponent>
 {
-    void RegisterComponent<T>(Func<T>? valueFactory = null)
-        where T : struct, IComponent;
-
-    bool TryGetValueFactory<T>([NotNullWhen(true)] out Func<T>? valueFactory)
+    void RegisterComponent<T>(T defaultValue = default)
         where T : struct, IComponent;
 }

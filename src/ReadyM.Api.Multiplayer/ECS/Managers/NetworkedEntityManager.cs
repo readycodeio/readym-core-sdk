@@ -75,7 +75,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
     public (Entity Entity, NetworkId NetId) CreateNetworkedEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
-        Action<EntityBuilder>? setComponents = null,
+        Action<EntityBuilderBase>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         var playerId = _playerIdProvider.PlayerId;

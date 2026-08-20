@@ -1,13 +1,27 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace ReadyM.Api.ECS.Registry;
 
+// NOTE: ATTENTION! ATTENTION! ATTENTION! Please keep this class clean. This is just a way to be able to register
+// components using generic method calls and have the ability to carry that generic-ness into the callbacks via
+// `Accept`. This is not a place to put any specific logic concerning any particular registry.
+// If you're thinking about adding more code here 99% chance you want to do it in that specific registry NOT here.
+// Please consult before making substantial changes here.
 internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponentRegistryBase<TRegistry, TComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
-    private byte _componentTypes;
+
+    // NOTE: DO NOT use for id generation. There's a specialized `IdComponentRegistryBase` for that.
+    private readonly List<Type> _componentTypes = [];
+
+    public bool HasComponents
+        => _componentTypes.Count > 0;
+
+    public IEnumerable<Type> ComponentTypes => _componentTypes;
 
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
@@ -18,28 +32,19 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         }
     }
 
-    protected byte GetNextComponentId()
-    {
-        return _componentTypes;
-    }
-
-    public virtual TRegistry RegisterComponent<T>(T defaultValue = default)
+    protected virtual TRegistry RegisterComponentImpl<T>(T defaultValue = default)
         where T : struct, TComponent
     {
-        if (_componentTypes == byte.MaxValue)
-        {
-            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
-        }
-
         if (defaultValue is IDisposable && !defaultValue.Equals(default(T)))
         {
             throw new InvalidOperationException(
-                $"Component {typeof(T).Name} was registered with a constructed default, whose native buffers "
-                + "every entity would then share. Register the type without a value and let each entity allocate "
-                + "its own on first write");
+                $"Component {typeof(T).Name} was registered with a constructed default. LIKELY it contains allocated " +
+                "native buffers that every entity would then share. Due to how native buffers work, this would not " +
+                "just cause aliasing issues but also likely cause hard-to-debug crashes. Register the type without a " +
+                "value and let each entity allocate its own on first write");
         }
 
-        _componentTypes++;
+        _componentTypes.Add(typeof(T));
         _acceptCallbacks.Add(callback =>
         {
             callback.AcceptComponent((TRegistry)(object)this, defaultValue);
@@ -48,34 +53,22 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         return (TRegistry)(object)this;
     }
 
-    public virtual TRegistry RegisterComponent(Type componentType, TComponent defaultValue)
+    protected TRegistry RegisterComponentImpl(Type componentType, TComponent? defaultValue = default)
     {
         if (!typeof(TComponent).IsAssignableFrom(componentType))
             throw new ArgumentException($"Type {componentType.FullName} is not assignable to {typeof(TComponent).FullName}");
         if (!componentType.IsValueType)
             throw new ArgumentException($"Type {componentType.FullName} is not a value type");
 
-        var method = typeof(ComponentRegistryBase<TRegistry, TComponent>).GetMethod(nameof(RegisterComponent), [componentType]);
+        var method = GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Single(m => m is { Name: nameof(RegisterComponentImpl), IsGenericMethodDefinition: true });
         if (method == null)
             throw new InvalidOperationException($"Could not find RegisterComponent method for type {componentType.FullName}");
+        method = method.MakeGenericMethod(componentType);
 
+        if (defaultValue == null)
+            defaultValue = (TComponent)Activator.CreateInstance(componentType)!;
         method.Invoke(this, [defaultValue]);
-        return (TRegistry)(object)this;
-    }
-
-    protected TRegistry RegisterWithoutCallbacks()
-    {
-        if (_componentTypes == byte.MaxValue)
-        {
-            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
-        }
-
-        _componentTypes++;
-        _acceptCallbacks.Add(callback =>
-        {
-            // do nothing
-        });
-
         return (TRegistry)(object)this;
     }
 

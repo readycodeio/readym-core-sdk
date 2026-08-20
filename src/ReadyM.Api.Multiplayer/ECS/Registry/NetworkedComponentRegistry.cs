@@ -8,7 +8,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
 internal class NetworkedComponentRegistry(ServerSideSettings serverSide, IEnumerable<INetworkedComponentRegistration> registrations, ILogger logger)
-    : ComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
+    : IdComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
     protected readonly ServerSideSettings ServerSide = serverSide;
     protected readonly ILogger Logger = logger;
@@ -23,7 +23,7 @@ internal class NetworkedComponentRegistry(ServerSideSettings serverSide, IEnumer
         ComponentTypes.Add(id, typeof(T));
 
         logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
-        return base.RegisterComponent(defaultValue);
+        return base.RegisterComponentImpl(defaultValue);
     }
 
     public NetworkedComponentId GetNetworkedComponentId(Type type)

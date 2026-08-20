@@ -17,7 +17,7 @@ internal class ServerAuthoritativeDataPolicyFactory(ClientOwnershipManager owner
     {
         Debug.Assert(contextType == typeof(Entity), "contextType == typeof(Entity).");
         var genericType = typeof(ServerAuthoritativeDataPolicy<>).MakeGenericType(componentType);
-        return (IMappingDataPolicyBase)Activator.CreateInstance(genericType, ownership, sideChannel);
+        return (IMappingDataPolicyBase)Activator.CreateInstance(genericType, ownership, sideChannel)!;
     }
 
     public IMappingDataPolicy<TContext> CreatePolicy<TContext>(Type componentType)

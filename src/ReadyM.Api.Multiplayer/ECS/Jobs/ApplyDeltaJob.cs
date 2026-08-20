@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
@@ -7,18 +8,23 @@ using ReadyM.Api.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
+using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal class ApplyDeltaJob<T>(INetworkTime netTime, IChangeTrackingStore changeTrackingStore, INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
+internal class ApplyDeltaJob<T>(
+    INetworkedEntityManager netEntity,
+    IPlayerIdProvider playerIdProvider,
+    ILogger logger)
+    : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent =
         typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
 
     [ThreadStatic]
-    private static T _skipinstance;
+    private static T _skipInstance;
 
     public void Execute(NetDataReader reader)
     {
@@ -34,7 +40,7 @@ internal class ApplyDeltaJob<T>(INetworkTime netTime, IChangeTrackingStore chang
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
             {
                 // entity is dead or unknown, skip
-                _skipinstance.ReadDelta(reader);
+                _skipInstance.ReadDelta(reader);
                 continue;
             }
 
@@ -46,13 +52,9 @@ internal class ApplyDeltaJob<T>(INetworkTime netTime, IChangeTrackingStore chang
                 logger.LogWarning(
                     "Dropping delta for {Component} entity {NetId}: sender {Sender} is not the owner {Owner}",
                     typeof(T).Name, netId, authoritativeSender.Value, owner);
-                _skipinstance.ReadDelta(reader);
+                _skipInstance.ReadDelta(reader);
                 continue;
             }
-
-            var lastObservedServerTime = reader.GetUInt();
-            var currentTime = netTime.GetCurrentTime();
-            using var _ = ComponentWriteContext.EnterServerApplyDelta(currentTime, lastObservedServerTime, changeTrackingStore);
 
             // STOP! DO NOT CHANGE this block without consulting the people maintaining networked components and native
             // components!

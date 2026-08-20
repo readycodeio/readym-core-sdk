@@ -13,13 +13,13 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T>
     where T : struct, INetworkedComponent
 {
-    private readonly NetworkedComponentId _componentId;
+    protected readonly NetworkedComponentId ComponentId;
     private readonly bool _clearDirty;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;
 
     protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearDirty)
     {
-        _componentId = componentId;
+        ComponentId = componentId;
         _clearDirty = clearDirty;
         _queryCache = new QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>>(
             context => context.ScopeEntity,
@@ -53,10 +53,10 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     /// Owner-directed send used for API-authored deltas. Only invoked when SendApiDeltasToOwner is true.
     protected virtual void SendToOwner(PlayerId owner, NetDataWriter data, SendContext context) { }
 
-    private void CreatePacketHeader(NetDataWriter writer)
+    protected virtual void CreatePacketHeader(NetDataWriter writer)
     {
         writer.Put((byte)RelayMessageCode.EcsDelta);
-        writer.Put(_componentId);
+        writer.Put(ComponentId);
     }
 
     protected override void OnUpdate()

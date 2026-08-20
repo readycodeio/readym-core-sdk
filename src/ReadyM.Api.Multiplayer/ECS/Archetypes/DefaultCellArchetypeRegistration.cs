@@ -12,14 +12,12 @@ internal sealed class DefaultCellArchetypeRegistration : IArchetypeRegistration
     public void Register(IArchetypeRegistry registry)
     {
         CellArchetype = registry.RegisterArchetype(
-            b =>
-            {
-                b.Add<MetadataComponent>();
-                b.Add<CellScopeComponent>();
-                b.Add<InParentAreaScopeComponent>();
-                b.Add<EmptyScopeDeletionComponent>();
-                b.AddTag<ScopeEntityTag>();
-            }
+            new ArchetypeBuilder()
+                .Add<MetadataComponent>()
+                .Add<CellScopeComponent>()
+                .Add<InParentAreaScopeComponent>()
+                .Add<EmptyScopeDeletionComponent>()
+                .AddTag<ScopeEntityTag>()
         );
     }
 }

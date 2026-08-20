@@ -9,19 +9,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
 internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry worldComponentRegistry) : IArchetypeRegistration
 {
-    private class RegisterWorldComponentsCallback(EntityBuilderBase builder) : IWorldComponentRegistryCallback
+    private class RegisterWorldComponentsCallback(ArchetypeBuilder builder) : IWorldComponentRegistryCallback
     {
         public void AcceptComponent<T>(IWorldComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            if (registry.TryGetValueFactory<T>(out var factory))
-            {
-                builder.Add(factory.Invoke());
-            }
-            else
-            {
-                builder.Add<T>();
-            }
+            builder.Add<T>();
         }
     }
 
@@ -29,12 +22,8 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
 
     public void Register(IArchetypeRegistry registry)
     {
-        WorldArchetype = registry.RegisterArchetype(
-            b =>
-            {
-                b.Add<MetadataComponent>();
-                worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b));
-            }
-        );
+        WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
+            .Add<MetadataComponent>()
+            .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));
     }
 }
