@@ -96,7 +96,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     private int _count;
     private int _capacity;
     private AllocatorKind _allocator;
-    private Tracker _tracker;
+    private NativeTracker _tracker;
 
     public AllocatorKind Allocator
         => _allocator;
@@ -132,7 +132,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _count = 0;
         _capacity = initialCapacity;
         _allocator = kind;
-        _tracker = Tracker.Alloc();
+        _tracker = NativeTracker.Alloc();
     }
 
     public void Dispose()
@@ -152,7 +152,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             return;
         }
 
-        _tracker = Tracker.Alloc();
+        _tracker = NativeTracker.Alloc();
         _ptr = TypedArrayPtr<T>.Alloc(0, kind);
         _count = 0;
         _capacity = 0;

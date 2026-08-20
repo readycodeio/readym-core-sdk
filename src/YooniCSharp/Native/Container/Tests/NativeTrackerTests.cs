@@ -9,13 +9,13 @@ public class NativeTrackerTests
     [SetUp]
     public void SetUp()
     {
-        NativeTrackHelper.Instance.Init(AllocatorKind.Marshal);
+        NativeTrackerRepo.Init(AllocatorKind.Marshal);
     }
 
     [TearDown]
     public void TearDown()
     {
-        NativeTrackHelper.Instance.Dispose();
+        NativeTrackerRepo.Dispose();
     }
 
     [Test]

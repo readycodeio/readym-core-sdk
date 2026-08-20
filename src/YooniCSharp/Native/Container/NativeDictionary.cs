@@ -149,13 +149,13 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     }
 
     private NativeHashCollection<TKey, TValue> _impl;
-    private Tracker _tracker;
+    private NativeTracker _tracker;
 
     // ReSharper disable once ConvertToPrimaryConstructor
     public NativeDictionary(int initialCapacity, AllocatorKind kind)
     {
         _impl = new NativeHashCollection<TKey, TValue>(initialCapacity, kind);
-        _tracker = Tracker.Alloc();
+        _tracker = NativeTracker.Alloc();
     }
 
     public void Dispose()
@@ -171,7 +171,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             _tracker.Check();
             return;
         }
-        _tracker = Tracker.Alloc();
+        _tracker = NativeTracker.Alloc();
         _impl = new NativeHashCollection<TKey, TValue>(0, kind);
     }
 

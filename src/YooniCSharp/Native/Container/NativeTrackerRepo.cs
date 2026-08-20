@@ -4,10 +4,10 @@ using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
 
-internal class NativeTrackHelper : IDisposable
+public class NativeTrackerRepo : IDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct TrackEntry
+    internal struct TrackEntry
     {
         // AllocVersion == 0
         // ChangeCount == -1  | uninitialized or deallocated
@@ -41,9 +41,18 @@ internal class NativeTrackHelper : IDisposable
     private bool _alreadyInit;
     private bool _disposed;
 
-    public static readonly NativeTrackHelper Instance = new();
+    internal static readonly NativeTrackerRepo Instance = new();
 
-    public void Init(AllocatorKind allocator)
+    public static void Init(AllocatorKind allocator)
+        => Instance.DoInit(allocator);
+
+    public static void Init(IntPtr trackerPtr, AllocatorKind allocator)
+        => Instance.DoInit(trackerPtr, allocator);
+
+    public static void Dispose()
+        => ((IDisposable)Instance).Dispose();
+
+    internal void DoInit(AllocatorKind allocator)
     {
         if (_alreadyInit)
             throw new InvalidOperationException("Tracker already initialized");
@@ -57,7 +66,18 @@ internal class NativeTrackHelper : IDisposable
         _disposed = false;
     }
 
-    public void Dispose()
+    internal void DoInit(IntPtr trackerPtr, AllocatorKind allocator)
+    {
+        if (_alreadyInit)
+            throw new InvalidOperationException("Tracker already initialized");
+
+        _ptr = new TypedPtr<EntryList>(trackerPtr);
+        _allocator = allocator;
+        _alreadyInit = true;
+        _disposed = false;
+    }
+
+    void IDisposable.Dispose()
     {
         ref var root = ref _ptr.Get();
         root.Entries.Dispose();
@@ -68,7 +88,7 @@ internal class NativeTrackHelper : IDisposable
         _disposed = true;
     }
 
-    public int TrackAlloc(out TrackEntry entry)
+    internal int TrackAlloc(out TrackEntry entry)
     {
         if (!_alreadyInit)
         {
@@ -96,7 +116,7 @@ internal class NativeTrackHelper : IDisposable
         return index;
     }
 
-    public void TrackFree(int index, ref TrackEntry entry)
+    internal void TrackFree(int index, ref TrackEntry entry)
     {
         if (!Check(index, in entry))
             return; // This is an untracked entry, nothing to do
@@ -109,10 +129,10 @@ internal class NativeTrackHelper : IDisposable
     }
 
     // NOTE: Returns whether this is a tracked entry
-    public bool Check(int index, in TrackEntry entry)
+    internal bool Check(int index, in TrackEntry entry)
     {
         if (_disposed)
-            throw new InvalidOperationException("Tracker is disposed!");
+            return false;
 
         if (!_alreadyInit)
             return false; // Untracked because we're not done setting up yet
@@ -187,7 +207,7 @@ internal class NativeTrackHelper : IDisposable
         return true;
     }
 
-    public void MarkChange(int index, ref TrackEntry entry)
+    internal void MarkChange(int index, ref TrackEntry entry)
     {
         if (!Check(index, in entry))
             return;
@@ -197,12 +217,9 @@ internal class NativeTrackHelper : IDisposable
         entry.ChangeCount++;
     }
 
-    public void MarkChangeNoCheck(int index, ref TrackEntry entry)
+    internal void MarkChangeNoCheck(int index, ref TrackEntry entry)
     {
-        if (_disposed)
-            throw new InvalidOperationException("Tracker is disposed!");
-
-        if (!_alreadyInit || index == -1)
+        if (_disposed || !_alreadyInit || index == -1)
             return;
 
         if (index < 0)

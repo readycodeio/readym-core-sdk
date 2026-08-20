@@ -15,6 +15,11 @@ public unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
         _ptr = ptr;
     }
 
+    public TypedPtr(IntPtr ptr)
+    {
+        _ptr = (void*)ptr;
+    }
+
     public TypedPtr(ref T value)
     {
         _ptr = Unsafe.AsPointer(ref value);

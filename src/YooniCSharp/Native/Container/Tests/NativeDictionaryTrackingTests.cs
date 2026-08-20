@@ -19,13 +19,13 @@ public class NativeDictionaryTrackingTests
     [SetUp]
     public void SetUp()
     {
-        NativeTrackHelper.Instance.Init(AllocatorKind.Default);
+        NativeTrackerRepo.Init(AllocatorKind.Default);
     }
 
     [TearDown]
     public void TearDown()
     {
-        NativeTrackHelper.Instance.Dispose();
+        NativeTrackerRepo.Dispose();
     }
 
     [Test]
