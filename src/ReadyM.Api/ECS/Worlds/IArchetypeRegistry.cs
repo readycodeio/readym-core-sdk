@@ -22,4 +22,6 @@ public interface IArchetypeRegistry
     /// <param name="callback">This callback will be invoked immediately to modify the existing registered archetype
     /// builder. It is NOT invoked on each call</param>
     void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback);
+
+    void RegisterFilter(IArchetypeBuilderCallback filter);
 }

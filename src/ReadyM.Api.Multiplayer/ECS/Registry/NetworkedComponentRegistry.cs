@@ -7,23 +7,35 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-internal class NetworkedComponentRegistry(ServerSideSettings serverSide, IEnumerable<INetworkedComponentRegistration> registrations, ILogger logger)
+internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistration> registrations, ILogger logger)
     : IdComponentRegistryBase<INetworkedComponentRegistry, INetworkedComponent>(registrations), INetworkedComponentRegistry
 {
-    protected readonly ServerSideSettings ServerSide = serverSide;
     protected readonly ILogger Logger = logger;
     protected readonly Dictionary<string, (NetworkedComponentId Id, DeliveryMethod DeliveryMethod)> ComponentIds = new();
-    protected readonly Dictionary<NetworkedComponentId, Type> ComponentTypes = new();
+    protected readonly Dictionary<NetworkedComponentId, Type> NetComponentTypes = new();
 
-    public INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable, T defaultValue = default)
+    public INetworkedComponentRegistry RegisterComponent(Type componentType, DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable)
+    {
+        if (!typeof(INetworkedComponent).IsAssignableFrom(componentType))
+            throw new ArgumentException($"Type {componentType.FullName} does not implement INetworkedComponent", nameof(componentType));
+
+        var id = new NetworkedComponentId(GetNextComponentId());
+        ComponentIds.Add(componentType.FullName!, (id, deliveryMethod));
+        NetComponentTypes.Add(id, componentType);
+
+        Logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, componentType.Name, componentType.FullName, deliveryMethod);
+        return base.RegisterComponentImpl(componentType);
+    }
+
+    public INetworkedComponentRegistry RegisterComponent<T>(DeliveryMethod deliveryMethod = DeliveryMethod.Unreliable)
         where T : struct, INetworkedComponent
     {
         var id = new NetworkedComponentId(GetNextComponentId());
         ComponentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
-        ComponentTypes.Add(id, typeof(T));
+        NetComponentTypes.Add(id, typeof(T));
 
-        logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
-        return base.RegisterComponentImpl(defaultValue);
+        Logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
+        return base.RegisterComponentImpl(default(T));
     }
 
     public NetworkedComponentId GetNetworkedComponentId(Type type)
@@ -36,7 +48,7 @@ internal class NetworkedComponentRegistry(ServerSideSettings serverSide, IEnumer
         => ComponentIds[typeFullName].Id;
 
     public Type GetComponentType(NetworkedComponentId componentId)
-        => ComponentTypes[componentId];
+        => NetComponentTypes[componentId];
 
     public DeliveryMethod GetNetworkedComponentDeliveryMethod<T>()
         => ComponentIds[typeof(T).FullName!].DeliveryMethod;

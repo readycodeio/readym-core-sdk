@@ -15,7 +15,7 @@ internal abstract class CSharpEmitConflictSupportImplBase : ICSharpEmitConflictS
         if (forceParen)
             context.Append("(");
 
-        context.Append($"{context.LastObservedTimeVar} > {EmitLastChanged(symbol, context, true)}");
+        context.Append($"!({context.LastObservedTimeVar} <= {EmitLastChanged(symbol, context, true)})");
 
         if (forceParen)
             context.Append(")");

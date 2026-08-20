@@ -14,6 +14,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
+    private readonly List<IComponentRegistryCallbackBase<TRegistry, TComponent>> _filters = [];
 
     // NOTE: DO NOT use for id generation. There's a specialized `IdComponentRegistryBase` for that.
     private readonly List<Type> _componentTypes = [];
@@ -45,10 +46,17 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         }
 
         _componentTypes.Add(typeof(T));
-        _acceptCallbacks.Add(callback =>
+
+        var accept = new Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>(callback =>
         {
             callback.AcceptComponent((TRegistry)(object)this, defaultValue);
         });
+        _acceptCallbacks.Add(accept);
+
+        foreach (var filter in _filters)
+        {
+            accept(filter);
+        }
 
         return (TRegistry)(object)this;
     }
@@ -72,11 +80,23 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         return (TRegistry)(object)this;
     }
 
-    public void Accept(IComponentRegistryCallbackBase<TRegistry, TComponent> callbackBase)
+    public TRegistry RegisterFilter(IComponentRegistryCallbackBase<TRegistry, TComponent> filter)
     {
-        foreach (var acceptCallbacks in _acceptCallbacks)
+        // NOTE: Order matters
+        _filters.Add(filter);
+        foreach (var accept in _acceptCallbacks.ToList())
         {
-            acceptCallbacks(callbackBase);
+            accept(filter);
+        }
+
+        return (TRegistry)(object)this;
+    }
+
+    public void Accept(IComponentRegistryCallbackBase<TRegistry, TComponent> callback)
+    {
+        foreach (var accept in _acceptCallbacks)
+        {
+            accept(callback);
         }
     }
 }

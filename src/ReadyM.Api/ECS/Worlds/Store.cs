@@ -54,6 +54,7 @@ internal sealed partial class Store : IArchetypeRegistry
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly CreateEntityBatchCallback _callback = new();
+    private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     public SystemRoot SystemRoot { get; }
 
@@ -112,6 +113,11 @@ internal sealed partial class Store : IArchetypeRegistry
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
         var cons = CreateConstructor(builder);
+
+        foreach (var filter in _filters)
+        {
+            builder.RegisterFilter(filter);
+        }
 
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
@@ -173,5 +179,15 @@ internal sealed partial class Store : IArchetypeRegistry
         where TLinkComponent : struct, ILinkComponent
     {
         return _wrapped.LinkComponentIndex<TLinkComponent>();
+    }
+
+    public void RegisterFilter(IArchetypeBuilderCallback filter)
+    {
+        _filters.Add(filter);
+
+        foreach (var entry in _archetypeEntries.Values)
+        {
+            entry.Builder.RegisterFilter(filter);
+        }
     }
 }

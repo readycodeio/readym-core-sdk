@@ -16,7 +16,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
         typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
 
     [ThreadStatic]
-    private static T _skipinstance;
+    private static T _skipInstance;
 
     public void Execute(NetDataReader reader)
     {
@@ -29,7 +29,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
             if (!netEntity.TryGetEntityByNetworkId(netId, out var entity))
             {
                 // snapshots are required to create entities, so if we don't have the entity, we skip the delta
-                _skipinstance.Deserialize(reader);
+                _skipInstance.Deserialize(reader);
                 continue;
             }
 
@@ -43,7 +43,7 @@ internal class ApplySnapshotJob<T>(INetworkedEntityManager netEntity) : IJob<Net
             {
                 if (entity.Value.HasComponent<T>())
                 {
-                    ref var comp = ref entity.Value.GetComponent<T>();
+                    var comp = entity.Value.GetComponent<T>();
                     comp.DeserializeTracking(reader, entity.Value.Id);
                     entity.Value.Set(comp);
                 }

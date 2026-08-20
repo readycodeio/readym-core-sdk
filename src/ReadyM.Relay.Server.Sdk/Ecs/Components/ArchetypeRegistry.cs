@@ -55,6 +55,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly CollectComponentIdsCallback _callback = new(registry, serverSide, logger);
+    private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     private List<int> GetComponentIds(int startIndex, ArchetypeBuilder builder)
     {
@@ -81,6 +82,11 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
         var componentList = GetComponentIds(0, builder);
         var nativeComponentList = ToNative(componentList);
         var archetypeId = _registerArchetypeDelegate(nativeComponentList);
+
+        foreach (var filter in _filters)
+        {
+            builder.RegisterFilter(filter);
+        }
 
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
@@ -109,5 +115,15 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
 
         var nativeNewComponentList = ToNative(newComponentList);
         _modifyArchetypeDelegate(archetypeId, nativeNewComponentList);
+    }
+
+    public void RegisterFilter(IArchetypeBuilderCallback filter)
+    {
+        _filters.Add(filter);
+
+        foreach (var entry in _archetypeEntries.Values)
+        {
+            entry.Builder.RegisterFilter(filter);
+        }
     }
 }

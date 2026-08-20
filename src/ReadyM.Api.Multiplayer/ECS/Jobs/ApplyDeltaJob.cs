@@ -69,33 +69,33 @@ internal class ApplyDeltaJob<T>(
             {
                 if (entity.Value.HasComponent<T>())
                 {
-                    var component = entity.Value.GetComponent<T>();
-                    component.ReadDeltaTracking(reader, entity.Value.Id);
+                    var comp = entity.Value.GetComponent<T>();
+                    comp.ReadDeltaTracking(reader, entity.Value.Id);
 
                     if (playerId == owner)
                     {
                         // Owner-directed deltas are always server overrides; keep the API flag so the
                         // sync copies it to the game actor, and clear dirty so we don't echo it back.
-                        component.MarkChangedFromApi();
-                        component.ClearDirty();
+                        comp.MarkChangedFromApi();
+                        comp.ClearDirty();
                     }
 
-                    entity.Value.Set(component);
+                    entity.Value.Set(comp);
                 }
                 else
                 {
-                    var component = default(T);
-                    component.ReadDeltaTracking(reader, entity.Value.Id);
+                    var comp = default(T);
+                    comp.ReadDeltaTracking(reader, entity.Value.Id);
 
                     if (playerId == owner)
                     {
                         // Owner-directed deltas are always server overrides; keep the API flag so the
                         // sync copies it to the game actor, and clear dirty so we don't echo it back.
-                        component.MarkChangedFromApi();
-                        component.ClearDirty();
+                        comp.MarkChangedFromApi();
+                        comp.ClearDirty();
                     }
 
-                    entity.Value.Add(component);
+                    entity.Value.Add(comp);
                 }
             }
             else

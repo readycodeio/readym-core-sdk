@@ -238,7 +238,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
         using (context.WithCodeBlock())
         {
-            EmitDeserializeBodyInner(symbol, context, true);
+            EmitDeserializeBodyInner(symbol, context, false);
 
             context.EmitConflict.EmitNotifyChanged(symbol, context.EmitConflictContext);
         }
@@ -247,7 +247,7 @@ internal abstract class CSharpFieldTypeSupportImplBase : ICSharpFieldTypeSupport
 
         using (context.WithCodeBlock())
         {
-            EmitDeserializeBodyInner(symbol, context, false);
+            EmitDeserializeBodyInner(symbol, context, true);
         }
     }
 
