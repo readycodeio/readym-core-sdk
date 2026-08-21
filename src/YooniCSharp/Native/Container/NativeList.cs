@@ -128,6 +128,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     // ReSharper disable once ConvertToPrimaryConstructor
     public NativeList(int initialCapacity, AllocatorKind kind)
     {
+        if (initialCapacity < 0)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
+
         _ptr = TypedArrayPtr<T>.Alloc(initialCapacity, kind);
         _count = 0;
         _capacity = initialCapacity;
@@ -166,7 +169,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             _tracker.Check();
             if (index < 0 || index >= _count)
             {
-                throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
+                throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
             }
             return ref _ptr[index];
         }
@@ -261,6 +264,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         _tracker.MarkChange();
 
+        if (index < 0 || index >= _count)
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
         if (EqualityComparer<T>.Default.Equals(_ptr[index], value))
             return false;
 
@@ -289,6 +295,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         _tracker.MarkChange();
 
+        if (index < 0 || index > _count)
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
         if (_capacity < _count + 1)
         {
             var newCapacity = (_count + 1) * 2;
@@ -305,6 +314,15 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public void InsertRange(int index, T value, int count)
     {
         _tracker.MarkChange();
+
+        if (count < 0)
+            throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative");
+
+        if (index < 0 || index > _count)
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
+        if (count > int.MaxValue - _count)
+            throw new ArgumentOutOfRangeException(nameof(count), "Resulting list length is too large");
 
         if (_capacity < _count + count)
         {
@@ -329,7 +347,13 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _tracker.MarkChange();
         source._tracker.Check();
 
+        if (index < 0 || index > _count)
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
         var sourceCount = source._count;
+
+        if (sourceCount > int.MaxValue - _count)
+            throw new ArgumentOutOfRangeException(nameof(source), "Resulting list length is too large");
 
         if (_capacity < _count + sourceCount)
         {
@@ -354,9 +378,8 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _tracker.MarkChange();
 
         if (index < 0 || index >= _count)
-        {
-            throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
-        }
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
         var result = _ptr[index];
         for (var i = 0; i < -1 + _count + (-index); ++i)
         {
@@ -370,12 +393,11 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         _tracker.MarkChange();
 
+        if (index < 0 || index >= _count)
+            throw new IndexOutOfRangeException($"Index {index} out of bounds 0..{_count}");
+
         var result = _ptr[index];
 
-        if (index < 0 || index >= _count)
-        {
-            throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
-        }
         _ptr[index] = _ptr[_count - 1];
         _count--;
         return result;
@@ -385,10 +407,12 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         _tracker.MarkChange();
 
-        if (index < 0 || index + count > _count)
-        {
-            throw new InvalidOperationException($"Index {index} is out of bounds: {0}..{_count}");
-        }
+        if (count < 0)
+            throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative");
+
+        if (count > _count || index < 0 || index > _count - count)
+            throw new IndexOutOfRangeException($"Range {index}..{index + count} out of bounds 0..{_count}");
+
         for (var i = index; i < _count - count; ++i)
         {
             _ptr[i] = _ptr[i + count];
@@ -405,6 +429,10 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public bool EnsureLength(int targetLength)
     {
         _tracker.MarkChange();
+
+        if (targetLength < 0)
+            throw new ArgumentOutOfRangeException(nameof(targetLength), "Target length must be non-negative");
+
         if (_capacity < targetLength)
         {
             var newCapacity = targetLength * 2;
@@ -425,9 +453,13 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public void Resize(int newLength)
     {
         _tracker.MarkChange();
+
+        if (newLength < 0)
+            throw new ArgumentOutOfRangeException(nameof(newLength), "New length must be non-negative");
+
         if (_capacity < newLength)
         {
-            var newCapacity = (newLength) * 2;
+            var newCapacity = newLength * 2;
             Realloc(newCapacity);
         }
         if (_count < newLength)
@@ -443,10 +475,13 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public void ZeroMemory(int index, int count)
     {
         _tracker.Check();
-        if (index < 0 || index + count > _count)
-        {
-            throw new InvalidOperationException($"Range starting at {index} is out of bounds: {0}..{_count}");
-        }
+
+        if (count < 0)
+            throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative");
+
+        if (count > _count || index < 0 || index > _count - count)
+            throw new IndexOutOfRangeException($"Range {index}..{index + count} out of bounds 0..{_count}");
+
         for (var i = index; i < count + index; ++i)
         {
             _ptr[i] = default;
@@ -456,6 +491,10 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     private void Realloc(int newCapacity)
     {
         _tracker.MarkChange();
+
+        if (newCapacity < 0)
+            throw new ArgumentOutOfRangeException(nameof(newCapacity), "New capacity must be non-negative");
+
         var prevPtr = _ptr;
         if (newCapacity > 0)
         {

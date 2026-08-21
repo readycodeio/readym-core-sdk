@@ -151,9 +151,18 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     private NativeHashCollection<TKey, TValue> _impl;
     private NativeTracker _tracker;
 
+    private readonly void EnsureCreated()
+    {
+        if (!_impl.IsCreated)
+            throw new InvalidOperationException("NativeDictionary is not created");
+    }
+
     // ReSharper disable once ConvertToPrimaryConstructor
     public NativeDictionary(int initialCapacity, AllocatorKind kind)
     {
+        if (initialCapacity < 0)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
+
         _impl = new NativeHashCollection<TKey, TValue>(initialCapacity, kind);
         _tracker = NativeTracker.Alloc();
     }
@@ -177,23 +186,11 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     [Pure]
     public readonly AllocatorKind Allocator
-    {
-        get
-        {
-            _tracker.Check();
-            return _impl.Allocator;
-        }
-    }
+        => _impl.Allocator;
 
     [Pure]
     public readonly bool IsCreated
-    {
-        get
-        {
-            _tracker.Check();
-            return _impl.IsCreated;
-        }
-    }
+        => _impl.IsCreated;
 
     [Pure]
     public readonly int Count
@@ -201,6 +198,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         get
         {
             _tracker.Check();
+            EnsureCreated();
             return _impl.Count;
         }
     }
@@ -211,6 +209,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         get
         {
             _tracker.Check();
+            EnsureCreated();
             return _impl.Capacity;
         }
     }
@@ -221,6 +220,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         get
         {
             _tracker.Check();
+            EnsureCreated();
+
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (entryPtr.IsNull)
@@ -233,6 +234,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         set
         {
             _tracker.MarkChange();
+            EnsureCreated();
+
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (!entryPtr.IsNull)
@@ -253,6 +256,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool ContainsKey(in TKey key)
     {
         _tracker.Check();
+        EnsureCreated();
         return !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
     }
 
@@ -261,6 +265,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Contains(in KeyValuePair<TKey, TValue> item)
     {
         _tracker.Check();
+        EnsureCreated();
+
         if (TryGetValue(item.Key, out TValue value))
         {
             return EqualityComparer<TValue>.Default.Equals(item.Value, value);
@@ -273,6 +279,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Contains(in TKey key, TValue value)
     {
         _tracker.Check();
+        EnsureCreated();
+
         if (TryGetValue(key, out TValue innerValue))
         {
             return EqualityComparer<TValue>.Default.Equals(value, innerValue);
@@ -286,6 +294,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         where TComparer : IEqualityComparer<TValue>
     {
         _tracker.Check();
+        EnsureCreated();
+
         if (TryGetValue(item.Key, out TValue value))
         {
             return comparer.Equals(item.Value, value);
@@ -299,6 +309,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         where TComparer : IEqualityComparer<TValue>
     {
         _tracker.Check();
+        EnsureCreated();
+
         if (TryGetValue(key, out TValue innerValue))
         {
             return comparer.Equals(value, innerValue);
@@ -311,6 +323,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool TryGetValue(in TKey key, out TValue value)
     {
         _tracker.Check();
+        EnsureCreated();
+
         var entry = _impl.Find(key, default(THash).ComputeHash(in key));
         if (!entry.IsNull)
         {
@@ -327,11 +341,15 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     {
         _tracker.Check();
         other._tracker.Check();
+
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
 
         if (_impl.IsCreated != other._impl.IsCreated)
             return false;
+
+        if (!_impl.IsCreated)
+            return true;
 
         if (Count != other.Count)
             return false;
@@ -364,6 +382,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         if (_impl.IsCreated != other._impl.IsCreated)
             return false;
 
+        if (!_impl.IsCreated)
+            return true;
+
         if (Count != other.Count)
             return false;
 
@@ -386,6 +407,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public ref TValue GetItemRef(in TKey key)
     {
         _tracker.Check();
+        EnsureCreated();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -400,6 +422,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public ref TValue GetItemRef(TKey key)
     {
         _tracker.Check();
+        EnsureCreated();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -415,6 +438,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public bool Add(in TKey key, TValue value)
     {
         _tracker.MarkChange();
+        EnsureCreated();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -433,6 +457,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public bool TrySet(in TKey key, TValue value)
     {
         _tracker.MarkChange();
+        EnsureCreated();
+
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (!entryPtr.IsNull)
@@ -454,6 +480,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public void Set(in TKey key, TValue value)
     {
         _tracker.MarkChange();
+        EnsureCreated();
+
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (!entryPtr.IsNull)
@@ -473,6 +501,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public void Clear()
     {
         _tracker.MarkChange();
+        EnsureCreated();
         _impl.Clear();
     }
 
@@ -480,6 +509,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public bool Remove(in TKey key)
     {
         _tracker.MarkChange();
+        EnsureCreated();
         return _impl.Remove(key, default(THash).ComputeHash(in key));
     }
 
@@ -488,9 +518,17 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     {
         _tracker.Check();
         other._tracker.Check();
+
         if (other._impl.GetRawBucketsPointer() == _impl.GetRawBucketsPointer())
             return;
+
+        EnsureCreated();
+
+        if (!other._impl.IsCreated)
+            throw new InvalidOperationException("Source NativeDictionary is not created");
+
         _tracker.MarkChangeNoCheck();
+
         Clear();
         foreach (var item in other)
         {
@@ -509,10 +547,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly Enumerator GetEnumerator()
     {
         _tracker.Check();
-
-        if (!IsCreated)
-            throw new InvalidOperationException("NativeDictionary is not created");
-
+        EnsureCreated();
         return new Enumerator(_impl);
     }
 
@@ -526,6 +561,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly ReadOnly AsReadOnly()
     {
         _tracker.Check();
+        EnsureCreated();
         return new ReadOnly(this);
     }
 
