@@ -1,5 +1,4 @@
 using Friflo.Engine.ECS;
-using Microsoft.Extensions.Logging;
 using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Relay.Server.Sdk.Ecs;
 
@@ -15,4 +14,8 @@ public class ChangeTrackingStore(EcsApi ecs) : IChangeTrackingStore
 
         return ref ecs.GetComponentRef<T>(id);
     }
+
+    internal void ForceAOT<T>()
+        where T : struct, IComponent
+        => GetChangeComponent<T>(0);
 }

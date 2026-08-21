@@ -28,7 +28,7 @@ public class ArchetypeBuilder
             throw new ArgumentException($"Type {componentType} does not implement IComponent.", nameof(componentType));
 
         var method = typeof(ArchetypeBuilder).GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Single(m => m.Name == nameof(Add) && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
+            .Single(m => m is { Name: nameof(Add), IsGenericMethodDefinition: true } && m.GetParameters().Length == 0);
         method = method.MakeGenericMethod(componentType);
 
         method.Invoke(this, null);
@@ -126,5 +126,18 @@ public class ArchetypeBuilder
         {
             accept(callback);
         }
+    }
+
+    internal void ForceComponentAOT<T>()
+        where T : struct, IComponent
+    {
+        Add<T>();
+        Add<T>(default);
+    }
+
+    internal void ForceTagAOT<T>()
+        where T : struct, ITag
+    {
+        AddTag<T>();
     }
 }

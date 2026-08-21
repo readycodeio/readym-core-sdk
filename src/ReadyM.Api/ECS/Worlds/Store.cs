@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Generators;
 using ReadyM.Api.Idents;
+using Yooni.Native.LowLevel;
 
 namespace ReadyM.Api.ECS.Worlds;
 
@@ -26,6 +30,7 @@ internal sealed partial class Store : IArchetypeRegistry
     {
         public ArchetypeBuilder Builder;
         public Action<CreateEntityBatch> Constructor;
+        public Action<Entity>? PostCreateInit;
     }
 
     private class CreateEntityBatchCallback : IArchetypeBuilderCallback
@@ -48,12 +53,59 @@ internal sealed partial class Store : IArchetypeRegistry
             => Batch!.AddTag<T>();
     }
 
+    private class NativeInitCallback(ILogger logger) : IArchetypeBuilderCallback
+    {
+        public Action<Entity>? PostCreateInit;
+
+        delegate void NativeInitDelegate<T>(ref T comp, AllocatorKind allocatorKind);
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder)
+            where T : struct, IComponent
+        {
+            if (typeof(INativeInit).IsAssignableFrom(typeof(T)))
+            {
+                var method = typeof(T).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    .SingleOrDefault(m => m.Name == nameof(INativeInit.Init) && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(AllocatorKind));
+
+                if (method == null)
+                {
+                    logger.LogWarning("Component type {ComponentType} implements INativeInit but does not have a valid Init method. Skipping native init.", typeof(T));
+                    return;
+                }
+
+                var del = (NativeInitDelegate<T>)method.CreateDelegate(typeof(NativeInitDelegate<T>));
+
+                PostCreateInit = (Action<Entity>?)Delegate.Combine(PostCreateInit, new Action<Entity>(e =>
+                {
+                    ref var comp = ref e.GetComponent<T>();
+                    del.Invoke(ref comp, AllocatorKind.Default);
+                }));
+            }
+        }
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
+            where T : struct, IComponent
+            => AcceptComponentType<T>(builder);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+        {
+            // empty
+        }
+
+        public void AcceptTag<T>(ArchetypeBuilder builder)
+            where T : struct, ITag
+        {
+            // empty
+        }
+    }
+
     private readonly ILogger _logger;
 
     private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
-    private readonly CreateEntityBatchCallback _callback = new();
+    private readonly CreateEntityBatchCallback _consCallback;
+    private readonly NativeInitCallback _nativeInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     public SystemRoot SystemRoot { get; }
@@ -64,6 +116,8 @@ internal sealed partial class Store : IArchetypeRegistry
     {
         _wrapped = wrapped;
         _logger = logger;
+        _consCallback = new CreateEntityBatchCallback();
+        _nativeInitCallback = new NativeInitCallback(logger);
 
         SystemRoot = new SystemRoot();
         SystemRoot.AddStore(wrapped);
@@ -98,14 +152,29 @@ internal sealed partial class Store : IArchetypeRegistry
         {
             try
             {
-                _callback.Batch = b;
-                builder.Accept(_callback);
+                _consCallback.Batch = b;
+                builder.Accept(_consCallback);
             }
             finally
             {
-                _callback.Batch = null;
+                _consCallback.Batch = null;
             }
         };
+    }
+
+    private Action<Entity>? CreatePostCreateInit(ArchetypeBuilder builder)
+    {
+        try
+        {
+            _nativeInitCallback.PostCreateInit = null;
+            builder.Accept(_nativeInitCallback);
+            var result = _nativeInitCallback.PostCreateInit;
+            return result;
+        }
+        finally
+        {
+            _nativeInitCallback.PostCreateInit = null;
+        }
     }
 
     public ArchetypeId RegisterArchetype(ArchetypeBuilder builder)
@@ -113,6 +182,7 @@ internal sealed partial class Store : IArchetypeRegistry
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
         var cons = CreateConstructor(builder);
+        var postCreateInit = CreatePostCreateInit(builder);
 
         foreach (var filter in _filters)
         {
@@ -123,6 +193,7 @@ internal sealed partial class Store : IArchetypeRegistry
         {
             Builder = builder,
             Constructor = cons,
+            PostCreateInit = postCreateInit,
         };
 
         _logger.LogDebug("Registering archetype {ArchetypeId} {Builder}", archetypeId, builder);
@@ -141,6 +212,7 @@ internal sealed partial class Store : IArchetypeRegistry
 
         callback(entry.Builder);
         entry.Constructor = CreateConstructor(entry.Builder);
+        entry.PostCreateInit = CreatePostCreateInit(entry.Builder);
         _archetypeEntries[archetypeId] = entry;
     }
 
@@ -158,6 +230,7 @@ internal sealed partial class Store : IArchetypeRegistry
         entry.Constructor.Invoke(batch);
         setComponents?.Invoke(builder);
         var entity = batch.CreateEntity();
+        entry.PostCreateInit?.Invoke(entity);
         return entity;
     }
 
@@ -189,5 +262,14 @@ internal sealed partial class Store : IArchetypeRegistry
         {
             entry.Builder.RegisterFilter(filter);
         }
+    }
+
+    internal void ForceAOT<T>()
+        where T : struct, IComponent
+    {
+        default(NativeInitCallback)!.AcceptComponentType<T>(null!);
+        // ReSharper disable once SuspiciousTypeConversion.Global
+        if (default(T) is INativeInit nativeInit)
+            nativeInit.Init(default);
     }
 }
