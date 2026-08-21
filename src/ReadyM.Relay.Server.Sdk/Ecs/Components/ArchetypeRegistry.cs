@@ -26,7 +26,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
         public void AcceptComponentType<T>(ArchetypeBuilder builder)
             where T : struct, IComponent
         {
-            var componentId = registry.ResolveComponentId(typeof(T));
+            var componentId = registry.ResolveComponentId<T>();
             if (!ComponentIds!.Contains(componentId))
                 ComponentIds.Add(componentId);
         }
@@ -103,7 +103,14 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
-            throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
+            // NOTE: We're optimistically assuming that the corresponding archetype exists on the native server side.
+            // This should work normally, as we're passing only the newly added components, not all.
+            entry = new ArchetypeEntry()
+            {
+                Builder = new ArchetypeBuilder(),
+                ComponentIds = new List<int>(),
+            };
+            _archetypeEntries[archetypeId] = entry;
         }
 
         var startIndex = entry.ComponentIds.Count;

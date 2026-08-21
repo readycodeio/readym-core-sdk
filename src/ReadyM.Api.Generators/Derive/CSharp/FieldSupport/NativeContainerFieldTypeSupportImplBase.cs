@@ -23,7 +23,10 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
             context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
             if (!skip)
+            {
+                context.AppendLine($"{context.Member.GeneratedPropertyName}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
                 context.AppendLine($"{context.Member.GeneratedPropertyName}.Assign({tempVar});");
+            }
         }
     }
 
