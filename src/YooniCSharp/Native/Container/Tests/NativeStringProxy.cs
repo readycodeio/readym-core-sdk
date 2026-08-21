@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
@@ -19,7 +20,7 @@ public static unsafe class NativeStringProxy<TString>
     {
         if (sizeBytes != sizeof(GetLengthArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetLength: expected {sizeof(GetLengthArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetLength: expected {Args}, got {SizeBytes}", sizeof(GetLengthArgs), sizeBytes);
             return 1;
         }
 
@@ -42,7 +43,7 @@ public static unsafe class NativeStringProxy<TString>
     {
         if (sizeBytes != sizeof(ToBytesArgs))
         {
-            Console.WriteLine($"Invalid argument size for ToBytes: expected {sizeof(ToBytesArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for ToBytes: expected {Args}, got {SizeBytes}", sizeof(ToBytesArgs), sizeBytes);
             return 1;
         }
 
@@ -77,7 +78,7 @@ public static unsafe class NativeStringProxy<TString>
     {
         if (sizeBytes != sizeof(EqualsArgs))
         {
-            Console.WriteLine($"Invalid argument size for Equals: expected {sizeof(EqualsArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Equals: expected {Args}, got {SizeBytes}", sizeof(EqualsArgs), sizeBytes);
             return 1;
         }
 
@@ -99,7 +100,7 @@ public static unsafe class NativeStringProxy<TString>
     {
         if (sizeBytes != sizeof(GetHashCodeArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetHashCode: expected {sizeof(GetHashCodeArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetHashCode: expected {Args}, got {SizeBytes}", sizeof(GetHashCodeArgs), sizeBytes);
             return 1;
         }
 

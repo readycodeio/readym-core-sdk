@@ -12,7 +12,7 @@
         <ProjectReference Include="../LowLevel/Yooni.Native.LowLevel.csproj" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
     </ItemGroup>
     <ItemGroup>
         <Compile Remove="Tests/**/*.cs" />

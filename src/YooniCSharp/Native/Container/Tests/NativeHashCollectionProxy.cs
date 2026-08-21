@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
@@ -19,7 +20,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(DisposeArgs))
         {
-            Console.WriteLine($"Invalid argument size for Dispose: expected {sizeof(DisposeArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Dispose: expected {Args}, got {SizeBytes}", sizeof(DisposeArgs), sizeBytes);
             return 1;
         }
 
@@ -41,7 +42,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(IsCreatedArgs))
         {
-            Console.WriteLine($"Invalid argument size for IsCreated: expected {sizeof(IsCreatedArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for IsCreated: expected {Args}, got {SizeBytes}", sizeof(IsCreatedArgs), sizeBytes);
             return 1;
         }
 
@@ -63,7 +64,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(GetCountArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCount: expected {sizeof(GetCountArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCount: expected {Args}, got {SizeBytes}", sizeof(GetCountArgs), sizeBytes);
             return 1;
         }
 
@@ -85,7 +86,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(GetCapacityArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCapacity: expected {sizeof(GetCapacityArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCapacity: expected {Args}, got {SizeBytes}", sizeof(GetCapacityArgs), sizeBytes);
             return 1;
         }
 
@@ -110,7 +111,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(InsertArgs))
         {
-            Console.WriteLine($"Invalid argument size for Insert: expected {sizeof(InsertArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Insert: expected {Args}, got {SizeBytes}", sizeof(InsertArgs), sizeBytes);
             return 1;
         }
 
@@ -134,7 +135,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(RemoveArgs))
         {
-            Console.WriteLine($"Invalid argument size for Remove: expected {sizeof(RemoveArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Remove: expected {Args}, got {SizeBytes}", sizeof(RemoveArgs), sizeBytes);
             return 1;
         }
 
@@ -158,7 +159,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(FindArgs))
         {
-            Console.WriteLine($"Invalid argument size for Find: expected {sizeof(FindArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Find: expected {Args}, got {SizeBytes}", sizeof(FindArgs), sizeBytes);
             return 1;
         }
 
@@ -179,7 +180,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(ClearArgs))
         {
-            Console.WriteLine($"Invalid argument size for Clear: expected {sizeof(ClearArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Clear: expected {Args}, got {SizeBytes}", sizeof(ClearArgs), sizeBytes);
             return 1;
         }
 
@@ -201,7 +202,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(EntryGetHashArgs))
         {
-            Console.WriteLine($"Invalid argument size for EntryGetHash: expected {sizeof(EntryGetHashArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for EntryGetHash: expected {Args}, got {SizeBytes}", sizeof(EntryGetHashArgs), sizeBytes);
             return 1;
         }
 
@@ -223,7 +224,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(EntryGetKeyArgs))
         {
-            Console.WriteLine($"Invalid argument size for EntryGetKey: expected {sizeof(EntryGetKeyArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for EntryGetKey: expected {Args}, got {SizeBytes}", sizeof(EntryGetKeyArgs), sizeBytes);
             return 1;
         }
 
@@ -245,7 +246,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(EntryGetValueArgs))
         {
-            Console.WriteLine($"Invalid argument size for EntryGetValue: expected {sizeof(EntryGetValueArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for EntryGetValue: expected {Args}, got {SizeBytes}", sizeof(EntryGetValueArgs), sizeBytes);
             return 1;
         }
 
@@ -267,7 +268,7 @@ public static unsafe class NativeHashCollectionProxy<TKey, TValue>
     {
         if (sizeBytes != sizeof(EntryNextIsNullArgs))
         {
-            Console.WriteLine($"Invalid argument size for EntryNextIsNull: expected {sizeof(EntryNextIsNullArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for EntryNextIsNull: expected {Args}, got {SizeBytes}", sizeof(EntryNextIsNullArgs), sizeBytes);
             return 1;
         }
 

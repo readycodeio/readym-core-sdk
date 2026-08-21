@@ -1,10 +1,23 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
 
 public class NativeDictionaryTests
 {
+    [SetUp]
+    public void SetUp()
+    {
+        NativeTrackHelper.Instance.Init(AllocatorKind.Default);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        NativeTrackHelper.Instance.Dispose();
+    }
+
     [Test, Category("Native"), Category("NativeDictionary")]
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestAdd(int initialCapacity)

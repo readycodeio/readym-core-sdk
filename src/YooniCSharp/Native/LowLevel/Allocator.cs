@@ -1,26 +1,42 @@
-﻿namespace Yooni.Native.LowLevel;
+﻿using System;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+
+namespace Yooni.Native.LowLevel;
 
 public static unsafe class Allocator
 {
     public static void* Alloc(int size, AllocatorKind kind)
     {
+        void* result;
         switch (kind)
         {
             case AllocatorKind.InternalCall:
-                return InternalCallAllocatorImpl.AllocMemory(size);
+                result = InternalCallAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.NativeUnity:
-                return NativeUnityAllocatorImpl.AllocMemory(size);
+                result = NativeUnityAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.Marshal:
-                return MarshalAllocatorImpl.AllocMemory(size);
+                result = MarshalAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.Cpp:
-                return CppAllocatorImpl.AllocMemory(size);
+                result = CppAllocatorImpl.AllocMemory(size);
+                break;
             default:
-                return null;
+                throw new InvalidOperationException($"Invalid allocator kind: {kind}");
         }
+
+        NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Alloc: {Result:X} size {Size} bytes", kind, (long)result, size);
+        NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+        return result;
     }
 
-    public static void Free(void* ptr, AllocatorKind kind)
+    public static void Free(ref void* ptr, AllocatorKind kind)
     {
+        NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Free: {Ptr:X}", kind, (long)ptr);
+        NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+
         switch (kind)
         {
             case AllocatorKind.InternalCall:
@@ -36,7 +52,9 @@ public static unsafe class Allocator
                 CppAllocatorImpl.FreeMemory(ptr);
                 break;
             default:
-                break;
+                throw new InvalidOperationException($"Invalid allocator kind: {kind}");
         }
+
+        ptr = null;
     }
 }

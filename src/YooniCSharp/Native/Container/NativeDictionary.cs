@@ -51,10 +51,10 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly ref struct ReadOnly(NativeDictionary<TKey, TValue, THash> owner) : IEnumerable<KeyValuePair<TKey, TValue>>
     {
         internal readonly NativeDictionary<TKey, TValue, THash> _impl = owner;
-        
+
         public AllocatorKind Allocator
             => _impl.Allocator;
-        
+
         [Pure]
         public bool IsCreated
             => _impl.IsCreated;
@@ -66,7 +66,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         [Pure]
         public int Capacity
             => _impl.Capacity;
-        
+
         [Pure]
         public TValue this[in TKey key]
         {
@@ -75,7 +75,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         }
 
         // -- read access
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool ContainsKey(in TKey key)
             => _impl.ContainsKey(key);
@@ -88,13 +88,13 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(in TKey key, TValue value)
             => _impl.Contains(key, value);
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
             where TComparer : IEqualityComparer<TValue>
             => _impl.Contains(item, comparer);
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
@@ -106,22 +106,22 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             }
             return false;
         }
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(in TKey key, out TValue value)
             => _impl.TryGetValue(key, out value);
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(in NativeDictionary<TKey, TValue, THash> other)
             => _impl.Equals(other);
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(in ReadOnly other)
             => _impl.Equals(other);
-        
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
@@ -147,48 +147,80 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         IEnumerator IEnumerable.GetEnumerator()
             => GetEnumerator();
     }
-    
+
     private NativeHashCollection<TKey, TValue> _impl;
+    private Tracker _tracker;
 
     // ReSharper disable once ConvertToPrimaryConstructor
     public NativeDictionary(int initialCapacity, AllocatorKind kind)
     {
         _impl = new NativeHashCollection<TKey, TValue>(initialCapacity, kind);
+        _tracker = Tracker.Alloc();
     }
 
     public void Dispose()
     {
+        _tracker.Free();
         _impl.Dispose();
     }
 
     public void TryCreate(AllocatorKind kind)
     {
         if (_impl.IsCreated)
+        {
+            _tracker.Check();
             return;
+        }
+        _tracker = Tracker.Alloc();
         _impl = new NativeHashCollection<TKey, TValue>(0, kind);
     }
-    
+
     [Pure]
     public readonly AllocatorKind Allocator
-        => _impl.Allocator;
-    
+    {
+        get
+        {
+            _tracker.Check();
+            return _impl.Allocator;
+        }
+    }
+
     [Pure]
     public readonly bool IsCreated
-        => _impl.IsCreated;
+    {
+        get
+        {
+            _tracker.Check();
+            return _impl.IsCreated;
+        }
+    }
 
     [Pure]
     public readonly int Count
-        => _impl.Count;
+    {
+        get
+        {
+            _tracker.Check();
+            return _impl.Count;
+        }
+    }
 
     [Pure]
     public readonly int Capacity
-        => _impl.Capacity;
+    {
+        get
+        {
+            _tracker.Check();
+            return _impl.Capacity;
+        }
+    }
 
     public TValue this[in TKey key]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
+            _tracker.Check();
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (entryPtr.IsNull)
@@ -200,6 +232,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
+            _tracker.MarkChange();
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
             if (!entryPtr.IsNull)
@@ -212,18 +245,22 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             }
         }
     }
-    
+
     // -- read access
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool ContainsKey(in TKey key)
-        => !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
+    {
+        _tracker.Check();
+        return !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
+    }
 
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains(in KeyValuePair<TKey, TValue> item)
     {
+        _tracker.Check();
         if (TryGetValue(item.Key, out TValue value))
         {
             return EqualityComparer<TValue>.Default.Equals(item.Value, value);
@@ -235,41 +272,45 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains(in TKey key, TValue value)
     {
+        _tracker.Check();
         if (TryGetValue(key, out TValue innerValue))
         {
             return EqualityComparer<TValue>.Default.Equals(value, innerValue);
         }
         return false;
     }
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
+        _tracker.Check();
         if (TryGetValue(item.Key, out TValue value))
         {
             return comparer.Equals(item.Value, value);
         }
         return false;
     }
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
+        _tracker.Check();
         if (TryGetValue(key, out TValue innerValue))
         {
             return comparer.Equals(value, innerValue);
         }
         return false;
     }
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool TryGetValue(in TKey key, out TValue value)
     {
+        _tracker.Check();
         var entry = _impl.Find(key, default(THash).ComputeHash(in key));
         if (!entry.IsNull)
         {
@@ -279,17 +320,19 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         value = default;
         return false;
     }
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Equals(in NativeDictionary<TKey, TValue, THash> other)
     {
+        _tracker.Check();
+        other._tracker.Check();
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
-        
+
         if (_impl.IsCreated != other._impl.IsCreated)
             return false;
-        
+
         if (Count != other.Count)
             return false;
 
@@ -298,26 +341,29 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             if (!Contains(item.Key, item.Value))
                 return false;
         }
-        
+
         return true;
     }
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private readonly bool Equals(in ReadOnly other)
         => Equals(other._impl);
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
+        _tracker.Check();
+        other._tracker.Check();
+
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
-        
+
         if (_impl.IsCreated != other._impl.IsCreated)
             return false;
-        
+
         if (Count != other.Count)
             return false;
 
@@ -326,7 +372,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
             if (!Contains(item.Key, item.Value, comparer))
                 return false;
         }
-        
+
         return true;
     }
 
@@ -339,31 +385,37 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     public ref TValue GetItemRef(in TKey key)
     {
+        _tracker.Check();
+
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (entryPtr.IsNull)
         {
             throw new InvalidOperationException($"Key not found: {key}");
         }
-        
+
         return ref entryPtr.Get().Value;
     }
-    
+
     public ref TValue GetItemRef(TKey key)
     {
+        _tracker.Check();
+
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (entryPtr.IsNull)
         {
             throw new InvalidOperationException($"Key not found: {key}");
         }
-        
+
         return ref entryPtr.Get().Value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Add(in TKey key, TValue value)
     {
+        _tracker.MarkChange();
+
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (!entryPtr.IsNull)
@@ -380,13 +432,14 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySet(in TKey key, TValue value)
     {
+        _tracker.MarkChange();
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
         if (!entryPtr.IsNull)
         {
             if (EqualityComparer<TValue>.Default.Equals(entryPtr.Get().Value, value))
                 return false;
-            
+
             entryPtr.Get().Value = value;
             return true;
         }
@@ -398,36 +451,65 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(in TKey key, TValue value)
+    {
+        _tracker.MarkChange();
+        var hash = default(THash).ComputeHash(in key);
+        var entryPtr = _impl.Find(key, hash);
+        if (!entryPtr.IsNull)
+        {
+            entryPtr.Get().Value = value;
+        }
+        else
+        {
+            _impl.Insert(key, hash, value);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Add(in KeyValuePair<TKey, TValue> item)
         => Add(item.Key, item.Value);
 
     public void Clear()
-        => _impl.Clear();
+    {
+        _tracker.MarkChange();
+        _impl.Clear();
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Remove(in TKey key)
-        => _impl.Remove(key, default(THash).ComputeHash(in key));
+    {
+        _tracker.MarkChange();
+        return _impl.Remove(key, default(THash).ComputeHash(in key));
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Assign(NativeDictionary<TKey, TValue, THash> other)
+    public void Assign(in NativeDictionary<TKey, TValue, THash> other)
     {
+        _tracker.Check();
+        other._tracker.Check();
+        if (other._impl.GetRawBucketsPointer() == _impl.GetRawBucketsPointer())
+            return;
+        _tracker.MarkChangeNoCheck();
         Clear();
         foreach (var item in other)
         {
             Add(item.Key, item.Value);
         }
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Assign(ReadOnly other)
         => Assign(other._impl);
-    
+
     // -- access object
-    
+
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly Enumerator GetEnumerator()
     {
+        _tracker.Check();
+
         if (!IsCreated)
             throw new InvalidOperationException("NativeDictionary is not created");
 
@@ -439,8 +521,14 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     readonly IEnumerator IEnumerable.GetEnumerator()
         => GetEnumerator();
-    
+
     [Pure]
     public readonly ReadOnly AsReadOnly()
-        => new(this);
+    {
+        _tracker.Check();
+        return new ReadOnly(this);
+    }
+
+    public void Check()
+        => _tracker.Check();
 }

@@ -168,8 +168,16 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
 
     public void Dispose()
     {
+        _count = 0;
+
         _buckets.Free(_allocator);
         _entries.Free(_allocator);
+
+        _freeHead = TypedPtr<Entry>.Null;
+        _freeCount = 0;
+        _usedCount = 0;
+
+        _allocator = default;
     }
 
     public int Count => _usedCount - _freeCount;
