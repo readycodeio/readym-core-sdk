@@ -18,10 +18,10 @@ public struct NativeTracker
     public int ChangeCount
         => _entry.ChangeCount;
 
-    public static NativeTracker Alloc()
+    public static NativeTracker Alloc(LogTrackingLevel level)
     {
         NativeTracker result;
-        result._index = NativeTrackerRepo.Instance.TrackAlloc(out result._entry);
+        result._index = NativeTrackerRepo.Instance.TrackAlloc(out result._entry, level);
         return result;
     }
 
@@ -36,4 +36,10 @@ public struct NativeTracker
 
     public void MarkChangeNoCheck()
         => NativeTrackerRepo.Instance.MarkChangeNoCheck(_index, ref _entry);
+
+    public LogTrackingLevel GetLogging()
+        => NativeTrackerRepo.Instance.GetLogging(_index, ref _entry);
+
+    public void SetLogging(LogTrackingLevel level)
+        => NativeTrackerRepo.Instance.SetLogging(_index, ref _entry, level);
 }

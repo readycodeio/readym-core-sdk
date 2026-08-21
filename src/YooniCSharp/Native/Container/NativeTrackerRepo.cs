@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
@@ -30,9 +32,28 @@ public class NativeTrackerRepo : IDisposable
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal struct TrackEntryEx
+    {
+        public TrackEntry Entry;
+        public LogTrackingLevel Logging;
+
+        public int AllocVersion
+        {
+            get => Entry.AllocVersion;
+            set => Entry.AllocVersion = value;
+        }
+
+        public int ChangeCount
+        {
+            get => Entry.ChangeCount;
+            set => Entry.ChangeCount = value;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct EntryList
     {
-        public NativeList<TrackEntry> Entries;
+        public NativeList<TrackEntryEx> Entries;
         public NativeList<int> FreeList;
     }
 
@@ -60,7 +81,7 @@ public class NativeTrackerRepo : IDisposable
         _ptr = TypedPtr<EntryList>.Alloc(allocator);
         _allocator = allocator;
         ref var root = ref _ptr.Get();
-        root.Entries = new NativeList<TrackEntry>(1024, allocator);
+        root.Entries = new NativeList<TrackEntryEx>(1024, allocator);
         root.FreeList = new NativeList<int>(1024, allocator);
         _alreadyInit = true;
         _disposed = false;
@@ -88,7 +109,7 @@ public class NativeTrackerRepo : IDisposable
         _disposed = true;
     }
 
-    internal int TrackAlloc(out TrackEntry entry)
+    internal int TrackAlloc(out TrackEntry entry, LogTrackingLevel level)
     {
         if (!_alreadyInit)
         {
@@ -109,10 +130,30 @@ public class NativeTrackerRepo : IDisposable
         else
         {
             index = root.Entries.Count;
-            root.Entries.Add(new TrackEntry { AllocVersion = 1, ChangeCount = 0 });
+            root.Entries.Add(new TrackEntryEx { AllocVersion = 1, ChangeCount = 0 });
         }
 
-        entry = root.Entries[index];
+        root.Entries[index].Logging = level;
+        entry = root.Entries[index].Entry;
+
+        switch (root.Entries[index].Logging)
+        {
+            case LogTrackingLevel.Disabled:
+                break;
+            case LogTrackingLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking ALLOC {Index}, version: {Version}",
+                    index, entry.AllocVersion);
+                break;
+            case LogTrackingLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking ALLOC {Index}, version: {Version}\n{Trace}",
+                    index, entry.AllocVersion, new StackTrace(true));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         return index;
     }
 
@@ -122,6 +163,25 @@ public class NativeTrackerRepo : IDisposable
             return; // This is an untracked entry, nothing to do
 
         ref var root = ref _ptr.Get();
+
+        switch (root.Entries[index].Logging)
+        {
+            case LogTrackingLevel.Disabled:
+                break;
+            case LogTrackingLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking FREE {Index}, version: {Version}",
+                    index, entry.AllocVersion);
+                break;
+            case LogTrackingLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking FREE {Index}, version: {Version}\n{Trace}",
+                    index, entry.AllocVersion, new StackTrace(true));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         root.Entries[index].ChangeCount = -1; // NOTE: Special value to denote freed
         entry.ChangeCount = -1;
 
@@ -213,6 +273,29 @@ public class NativeTrackerRepo : IDisposable
             return;
 
         ref var root = ref _ptr.Get();
+
+        if (root.Entries[index].Logging != 0)
+            NativeLogging.Logger.LogDebug("[C#] Tracking marking change {Index}, change count: {FromCount} -> {ToCount}", index, entry.ChangeCount, entry.ChangeCount + 1);
+
+        switch (root.Entries[index].Logging)
+        {
+            case LogTrackingLevel.Disabled:
+                break;
+            case LogTrackingLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            case LogTrackingLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    new StackTrace(true),
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         root.Entries[index].ChangeCount++;
         entry.ChangeCount++;
     }
@@ -226,7 +309,47 @@ public class NativeTrackerRepo : IDisposable
             throw new InvalidOperationException($"[C#] Invalid index {index} for tracking. Index must be non-negative.");
 
         ref var root = ref _ptr.Get();
+
+        switch (root.Entries[index].Logging)
+        {
+            case LogTrackingLevel.Disabled:
+                break;
+            case LogTrackingLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            case LogTrackingLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    new StackTrace(true),
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         root.Entries[index].ChangeCount++;
         entry.ChangeCount++;
+    }
+
+    internal LogTrackingLevel GetLogging(int index, ref TrackEntry entry)
+    {
+        if (!Check(index, in entry))
+            return LogTrackingLevel.Disabled;
+
+        ref var root = ref _ptr.Get();
+
+        return root.Entries[index].Logging;
+    }
+
+    internal void SetLogging(int index, ref TrackEntry entry, LogTrackingLevel logging)
+    {
+        if (!Check(index, in entry))
+            return;
+
+        ref var root = ref _ptr.Get();
+
+        root.Entries[index].Logging = logging;
     }
 }

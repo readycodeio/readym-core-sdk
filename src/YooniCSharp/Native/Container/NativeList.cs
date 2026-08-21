@@ -98,6 +98,12 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     private AllocatorKind _allocator;
     private NativeTracker _tracker;
 
+    private readonly void EnsureCreated()
+    {
+        if (!IsCreated)
+            throw new InvalidOperationException("NativeList is not created");
+    }
+
     public AllocatorKind Allocator
         => _allocator;
 
@@ -110,6 +116,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         get
         {
+            EnsureCreated();
             _tracker.Check();
             return _count;
         }
@@ -120,13 +127,14 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         get
         {
+            EnsureCreated();
             _tracker.Check();
             return _capacity;
         }
     }
 
     // ReSharper disable once ConvertToPrimaryConstructor
-    public NativeList(int initialCapacity, AllocatorKind kind)
+    public NativeList(int initialCapacity, AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
     {
         if (initialCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
@@ -135,11 +143,12 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _count = 0;
         _capacity = initialCapacity;
         _allocator = kind;
-        _tracker = NativeTracker.Alloc();
+        _tracker = NativeTracker.Alloc(trackLevel);
     }
 
     public void Dispose()
     {
+        EnsureCreated();
         _tracker.Free();
         _capacity = 0;
         _count = 0;
@@ -147,7 +156,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _allocator = default;
     }
 
-    public void TryCreate(AllocatorKind kind)
+    public void TryCreate(AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
     {
         if (IsCreated)
         {
@@ -155,7 +164,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
             return;
         }
 
-        _tracker = NativeTracker.Alloc();
+        _tracker = NativeTracker.Alloc(trackLevel);
         _ptr = TypedArrayPtr<T>.Alloc(0, kind);
         _count = 0;
         _capacity = 0;
@@ -166,6 +175,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     {
         get
         {
+            EnsureCreated();
             _tracker.Check();
             if (index < 0 || index >= _count)
             {
@@ -179,6 +189,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly bool Contains(in T value)
     {
+        EnsureCreated();
         _tracker.Check();
         for (var i = 0; i < _count; ++i)
         {
@@ -191,6 +202,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public readonly bool Contains<TComparer>(in T value, TComparer comparer)
         where TComparer : IEqualityComparer<T>
     {
+        EnsureCreated();
         _tracker.Check();
         for (var i = 0; i < _count; ++i)
         {
@@ -202,11 +214,17 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly bool Equals(in NativeList<T> other)
     {
-        _tracker.Check();
-        other._tracker.Check();
-
         if (_ptr == other._ptr)
             return true; // Reference equality short circuit
+
+        if (IsCreated != other.IsCreated)
+            return false;
+
+        if (!IsCreated)
+            return true;
+
+        _tracker.Check();
+        other._tracker.Check();
 
         if (_count != other._count)
             return false;
@@ -222,11 +240,17 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public readonly bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
         where TComparer : IEqualityComparer<T>
     {
-        _tracker.Check();
-        other._tracker.Check();
-
         if (_ptr == other._ptr)
             return true; // Reference equality short circuit
+
+        if (IsCreated != other.IsCreated)
+            return false;
+
+        if (!IsCreated)
+            return true;
+
+        _tracker.Check();
+        other._tracker.Check();
 
         if (_count != other._count)
             return false;
@@ -244,7 +268,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Assign(NativeList<T> other)
     {
+        EnsureCreated();
         _tracker.Check();
+        other.EnsureCreated();
         other._tracker.Check();
         if (_ptr == other._ptr)
             return;
@@ -262,6 +288,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public bool TrySet(int index, T value)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (index < 0 || index >= _count)
@@ -276,6 +303,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public int Add(T value)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (_capacity < _count + 1)
@@ -293,6 +321,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void Insert(int index, T value)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (index < 0 || index > _count)
@@ -313,6 +342,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void InsertRange(int index, T value, int count)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (count < 0)
@@ -344,7 +374,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void InsertRange(int index, NativeList<T> source)
     {
+        EnsureCreated();
         _tracker.MarkChange();
+        source.EnsureCreated();
         source._tracker.Check();
 
         if (index < 0 || index > _count)
@@ -375,6 +407,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public T RemoveAt(int index)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (index < 0 || index >= _count)
@@ -391,6 +424,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public T RemoveSwapBack(int index)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (index < 0 || index >= _count)
@@ -405,6 +439,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void RemoveRange(int index, int count)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (count < 0)
@@ -422,12 +457,14 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void Clear()
     {
+        EnsureCreated();
         _tracker.MarkChange();
         _count = 0;
     }
 
     public bool EnsureLength(int targetLength)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (targetLength < 0)
@@ -452,6 +489,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void Resize(int newLength)
     {
+        EnsureCreated();
         _tracker.MarkChange();
 
         if (newLength < 0)
@@ -474,6 +512,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public void ZeroMemory(int index, int count)
     {
+        EnsureCreated();
         _tracker.Check();
 
         if (count < 0)
@@ -490,8 +529,6 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     private void Realloc(int newCapacity)
     {
-        _tracker.MarkChange();
-
         if (newCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(newCapacity), "New capacity must be non-negative");
 
@@ -515,12 +552,14 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly Enumerator GetEnumerator()
     {
+        EnsureCreated();
         _tracker.Check();
         return new Enumerator(this);
     }
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator()
     {
+        EnsureCreated();
         _tracker.Check();
         return new Enumerator(this);
     }
@@ -530,6 +569,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly ReadOnly AsReadOnly()
     {
+        EnsureCreated();
         _tracker.Check();
         return new ReadOnly(this);
     }
@@ -539,4 +579,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     internal void MarkChange()
         => _tracker.MarkChange();
+
+    public void LogTracking(LogTrackingLevel level = LogTrackingLevel.Enabled)
+        => _tracker.SetLogging(level);
 }

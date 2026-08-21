@@ -158,29 +158,30 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     }
 
     // ReSharper disable once ConvertToPrimaryConstructor
-    public NativeDictionary(int initialCapacity, AllocatorKind kind)
+    public NativeDictionary(int initialCapacity, AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
     {
         if (initialCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
 
         _impl = new NativeHashCollection<TKey, TValue>(initialCapacity, kind);
-        _tracker = NativeTracker.Alloc();
+        _tracker = NativeTracker.Alloc(trackLevel);
     }
 
     public void Dispose()
     {
+        EnsureCreated();
         _tracker.Free();
         _impl.Dispose();
     }
 
-    public void TryCreate(AllocatorKind kind)
+    public void TryCreate(AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
     {
         if (_impl.IsCreated)
         {
             _tracker.Check();
             return;
         }
-        _tracker = NativeTracker.Alloc();
+        _tracker = NativeTracker.Alloc(trackLevel);
         _impl = new NativeHashCollection<TKey, TValue>(0, kind);
     }
 
@@ -197,8 +198,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     {
         get
         {
-            _tracker.Check();
             EnsureCreated();
+            _tracker.Check();
             return _impl.Count;
         }
     }
@@ -208,8 +209,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     {
         get
         {
-            _tracker.Check();
             EnsureCreated();
+            _tracker.Check();
             return _impl.Capacity;
         }
     }
@@ -219,8 +220,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            _tracker.Check();
             EnsureCreated();
+            _tracker.Check();
 
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
@@ -233,8 +234,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _tracker.MarkChange();
             EnsureCreated();
+            _tracker.MarkChange();
 
             var hash = default(THash).ComputeHash(in key);
             var entryPtr = _impl.Find(key, hash);
@@ -255,8 +256,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool ContainsKey(in TKey key)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
         return !_impl.Find(key, default(THash).ComputeHash(in key)).IsNull;
     }
 
@@ -264,8 +265,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains(in KeyValuePair<TKey, TValue> item)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         if (TryGetValue(item.Key, out TValue value))
         {
@@ -278,8 +279,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Contains(in TKey key, TValue value)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         if (TryGetValue(key, out TValue innerValue))
         {
@@ -293,8 +294,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Contains<TComparer>(in KeyValuePair<TKey, TValue> item, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         if (TryGetValue(item.Key, out TValue value))
         {
@@ -308,8 +309,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Contains<TComparer>(in TKey key, TValue value, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         if (TryGetValue(key, out TValue innerValue))
         {
@@ -322,8 +323,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool TryGetValue(in TKey key, out TValue value)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         var entry = _impl.Find(key, default(THash).ComputeHash(in key));
         if (!entry.IsNull)
@@ -339,9 +340,6 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Equals(in NativeDictionary<TKey, TValue, THash> other)
     {
-        _tracker.Check();
-        other._tracker.Check();
-
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
 
@@ -350,6 +348,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
         if (!_impl.IsCreated)
             return true;
+
+        _tracker.Check();
+        other._tracker.Check();
 
         if (Count != other.Count)
             return false;
@@ -373,9 +374,6 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
-        _tracker.Check();
-        other._tracker.Check();
-
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
 
@@ -384,6 +382,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
         if (!_impl.IsCreated)
             return true;
+
+        _tracker.Check();
+        other._tracker.Check();
 
         if (Count != other.Count)
             return false;
@@ -406,8 +407,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     public ref TValue GetItemRef(in TKey key)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -421,8 +422,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     public ref TValue GetItemRef(TKey key)
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -437,8 +438,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Add(in TKey key, TValue value)
     {
-        _tracker.MarkChange();
         EnsureCreated();
+        _tracker.MarkChange();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -456,8 +457,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySet(in TKey key, TValue value)
     {
-        _tracker.MarkChange();
         EnsureCreated();
+        _tracker.MarkChange();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -479,8 +480,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(in TKey key, TValue value)
     {
-        _tracker.MarkChange();
         EnsureCreated();
+        _tracker.MarkChange();
 
         var hash = default(THash).ComputeHash(in key);
         var entryPtr = _impl.Find(key, hash);
@@ -500,29 +501,29 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
     public void Clear()
     {
-        _tracker.MarkChange();
         EnsureCreated();
+        _tracker.MarkChange();
         _impl.Clear();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Remove(in TKey key)
     {
-        _tracker.MarkChange();
         EnsureCreated();
+        _tracker.MarkChange();
         return _impl.Remove(key, default(THash).ComputeHash(in key));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Assign(in NativeDictionary<TKey, TValue, THash> other)
     {
+        EnsureCreated();
         _tracker.Check();
+        other.EnsureCreated();
         other._tracker.Check();
 
         if (other._impl.GetRawBucketsPointer() == _impl.GetRawBucketsPointer())
             return;
-
-        EnsureCreated();
 
         if (!other._impl.IsCreated)
             throw new InvalidOperationException("Source NativeDictionary is not created");
@@ -546,8 +547,8 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly Enumerator GetEnumerator()
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
         return new Enumerator(_impl);
     }
 
@@ -560,11 +561,14 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [Pure]
     public readonly ReadOnly AsReadOnly()
     {
-        _tracker.Check();
         EnsureCreated();
+        _tracker.Check();
         return new ReadOnly(this);
     }
 
     public void Check()
         => _tracker.Check();
+
+    public void LogTracking(LogTrackingLevel level = LogTrackingLevel.Enabled)
+        => _tracker.SetLogging(level);
 }
