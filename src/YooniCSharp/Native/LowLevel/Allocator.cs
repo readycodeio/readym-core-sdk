@@ -28,14 +28,14 @@ public static unsafe class Allocator
         }
 
         NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Alloc: {Result:X} size {Size} bytes", kind, (long)result, size);
-        NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+        // NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
         return result;
     }
 
     public static void Free(ref void* ptr, AllocatorKind kind)
     {
         NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Free: {Ptr:X}", kind, (long)ptr);
-        NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+        // NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
 
         switch (kind)
         {
