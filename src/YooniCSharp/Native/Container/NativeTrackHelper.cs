@@ -199,6 +199,15 @@ internal class NativeTrackHelper : IDisposable
 
     public void MarkChangeNoCheck(int index, ref TrackEntry entry)
     {
+        if (_disposed)
+            throw new InvalidOperationException("Tracker is disposed!");
+
+        if (!_alreadyInit || index == -1)
+            return;
+
+        if (index < 0)
+            throw new InvalidOperationException($"Invalid index {index} for tracking. Index must be non-negative.");
+
         ref var root = ref _ptr.Get();
         root.Entries[index].ChangeCount++;
         entry.ChangeCount++;
