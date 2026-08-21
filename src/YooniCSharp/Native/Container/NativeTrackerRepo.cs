@@ -64,36 +64,36 @@ public class NativeTrackerRepo : IDisposable
 
     internal static readonly NativeTrackerRepo Instance = new();
 
-    public static void Init(AllocatorKind allocator)
-        => Instance.DoInit(allocator);
+    public static void Init(AllocatorKind allocatorKind)
+        => Instance.DoInit(allocatorKind);
 
-    public static void Init(IntPtr trackerPtr, AllocatorKind allocator)
-        => Instance.DoInit(trackerPtr, allocator);
+    public static void Init(IntPtr trackerPtr, AllocatorKind allocatorKind)
+        => Instance.DoInit(trackerPtr, allocatorKind);
 
     public static void Dispose()
         => ((IDisposable)Instance).Dispose();
 
-    internal void DoInit(AllocatorKind allocator)
+    internal void DoInit(AllocatorKind allocatorKind)
     {
         if (_alreadyInit)
             throw new InvalidOperationException("[C#] Tracker already initialized");
 
-        _ptr = TypedPtr<EntryList>.Alloc(allocator);
-        _allocator = allocator;
+        _ptr = TypedPtr<EntryList>.Alloc(allocatorKind);
+        _allocator = allocatorKind;
         ref var root = ref _ptr.Get();
-        root.Entries = new NativeList<TrackEntryEx>(1024, allocator);
-        root.FreeList = new NativeList<int>(1024, allocator);
+        root.Entries = new NativeList<TrackEntryEx>(1024, allocatorKind);
+        root.FreeList = new NativeList<int>(1024, allocatorKind);
         _alreadyInit = true;
         _disposed = false;
     }
 
-    internal void DoInit(IntPtr trackerPtr, AllocatorKind allocator)
+    internal void DoInit(IntPtr trackerPtr, AllocatorKind allocatorKind)
     {
         if (_alreadyInit)
             throw new InvalidOperationException("[C#] Tracker already initialized");
 
         _ptr = new TypedPtr<EntryList>(trackerPtr);
-        _allocator = allocator;
+        _allocator = allocatorKind;
         _alreadyInit = true;
         _disposed = false;
     }
@@ -273,9 +273,6 @@ public class NativeTrackerRepo : IDisposable
             return;
 
         ref var root = ref _ptr.Get();
-
-        if (root.Entries[index].Logging != 0)
-            NativeLogging.Logger.LogDebug("[C#] Tracking marking change {Index}, change count: {FromCount} -> {ToCount}", index, entry.ChangeCount, entry.ChangeCount + 1);
 
         switch (root.Entries[index].Logging)
         {

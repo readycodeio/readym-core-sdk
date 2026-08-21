@@ -214,6 +214,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
     public readonly bool Equals(in NativeList<T> other)
     {
+        if (IsCreated) _tracker.Check();
+        if (other.IsCreated) other._tracker.Check();
+
         if (_ptr == other._ptr)
             return true; // Reference equality short circuit
 
@@ -222,9 +225,6 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
         if (!IsCreated)
             return true;
-
-        _tracker.Check();
-        other._tracker.Check();
 
         if (_count != other._count)
             return false;
@@ -240,6 +240,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     public readonly bool Equals<TComparer>(in NativeList<T> other, TComparer comparer)
         where TComparer : IEqualityComparer<T>
     {
+        if (IsCreated) _tracker.Check();
+        if (other.IsCreated) other._tracker.Check();
+
         if (_ptr == other._ptr)
             return true; // Reference equality short circuit
 
@@ -248,9 +251,6 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
 
         if (!IsCreated)
             return true;
-
-        _tracker.Check();
-        other._tracker.Check();
 
         if (_count != other._count)
             return false;

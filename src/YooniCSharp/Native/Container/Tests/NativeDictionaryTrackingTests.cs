@@ -144,7 +144,7 @@ public class NativeDictionaryTrackingTests
         // before other._tracker.Check().
         Assert.Throws<InvalidOperationException>(() =>
         {
-            dict.Equals(stale);
+            var _ = dict.Equals(stale);
         });
 
         dict.Dispose();

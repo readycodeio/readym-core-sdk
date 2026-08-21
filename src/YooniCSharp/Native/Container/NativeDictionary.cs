@@ -340,6 +340,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool Equals(in NativeDictionary<TKey, TValue, THash> other)
     {
+        if (IsCreated) _tracker.Check();
+        if (other.IsCreated) other._tracker.Check();
+
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
 
@@ -348,9 +351,6 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
         if (!_impl.IsCreated)
             return true;
-
-        _tracker.Check();
-        other._tracker.Check();
 
         if (Count != other.Count)
             return false;
@@ -374,6 +374,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public readonly bool Equals<TComparer>(in NativeDictionary<TKey, TValue, THash> other, TComparer comparer)
         where TComparer : IEqualityComparer<TValue>
     {
+        if (IsCreated) _tracker.Check();
+        if (other.IsCreated) other._tracker.Check();
+
         if (_impl.GetRawBucketsPointer() == other._impl.GetRawBucketsPointer())
             return true; // Reference equality short circuit
 
@@ -382,9 +385,6 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
 
         if (!_impl.IsCreated)
             return true;
-
-        _tracker.Check();
-        other._tracker.Check();
 
         if (Count != other.Count)
             return false;
