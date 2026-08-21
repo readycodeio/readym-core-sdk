@@ -27,10 +27,6 @@ public static class ComponentWriteContext
 
     internal static Scope EnterServerApplyDelta(uint currentTime, uint lastObserved, IChangeTrackingStore resolver)
     {
-        if (lastObserved == 0)
-            throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time must be non-zero");
-        if (currentTime == 0)
-            throw new InvalidOperationException("Cannot enter client apply without entering server-side first");
         if (lastObserved > currentTime)
             throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time cannot be greater than current time");
 
