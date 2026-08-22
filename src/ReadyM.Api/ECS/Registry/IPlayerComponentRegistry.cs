@@ -1,9 +1,6 @@
-using Friflo.Engine.ECS;
-
 namespace ReadyM.Api.ECS.Registry;
 
-internal interface IPlayerComponentRegistry : IComponentRegistryBase<IPlayerComponentRegistry, IComponent>
+internal interface IPlayerComponentRegistry : IArchetypeComponentRegistryBase<IPlayerComponentRegistry>
 {
-    void RegisterComponent<T>(T defaultValue = default)
-        where T : struct, IComponent;
+    // empty
 }

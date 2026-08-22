@@ -14,10 +14,17 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
         public void AcceptComponent<T>(IPlayerComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add(defaultValue);
+            if (registry.TryGetValueFactory<T>(out var factory))
+            {
+                builder.Add(factory.Invoke());
+            }
+            else
+            {
+                builder.Add<T>();
+            }
         }
     }
-    
+
     public ArchetypeId PlayerArchetype { get; private set; }
 
     public void Register(IArchetypeRegistry registry)

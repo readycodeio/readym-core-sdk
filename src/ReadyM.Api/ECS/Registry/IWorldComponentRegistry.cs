@@ -1,9 +1,6 @@
-using Friflo.Engine.ECS;
-
 namespace ReadyM.Api.ECS.Registry;
 
-internal interface IWorldComponentRegistry : IComponentRegistryBase<IWorldComponentRegistry, IComponent>
+internal interface IWorldComponentRegistry : IArchetypeComponentRegistryBase<IWorldComponentRegistry>
 {
-    void RegisterComponent<T>(T defaultValue = default)
-        where T : struct, IComponent;
+    // empty
 }

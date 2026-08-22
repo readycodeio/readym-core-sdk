@@ -9,6 +9,8 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
     private byte _componentTypes;
 
+    public bool HasComponents => GetNextComponentId() > 0;
+
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
         var registry = (TRegistry)(object)this;
@@ -47,7 +49,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 
         return (TRegistry)(object)this;
     }
-    
+
     protected TRegistry RegisterWithoutCallbacks()
     {
         if (_componentTypes == byte.MaxValue)

@@ -14,7 +14,14 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
         public void AcceptComponent<T>(IWorldComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add(defaultValue);
+            if (registry.TryGetValueFactory<T>(out var factory))
+            {
+                builder.Add(factory.Invoke());
+            }
+            else
+            {
+                builder.Add<T>();
+            }
         }
     }
 
