@@ -77,7 +77,7 @@ public class NativeTrackerRepo : IDisposable
     internal void DoInit(AllocatorKind allocatorKind)
     {
         if (_alreadyInit)
-            throw new InvalidOperationException("[C#] Tracker already initialized");
+            throw new InvalidOperationException("Tracker already initialized");
 
         _ptr = TypedPtr<EntryList>.Alloc(allocatorKind);
         _allocator = allocatorKind;
@@ -91,7 +91,7 @@ public class NativeTrackerRepo : IDisposable
     internal void DoInit(IntPtr trackerPtr, AllocatorKind allocatorKind)
     {
         if (_alreadyInit)
-            throw new InvalidOperationException("[C#] Tracker already initialized");
+            throw new InvalidOperationException("Tracker already initialized");
 
         _ptr = new TypedPtr<EntryList>(trackerPtr);
         _allocator = allocatorKind;
@@ -143,12 +143,12 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking ALLOC {Index}, version: {Version}",
+                    "Tracking ALLOC {Index}, version: {Version}",
                     index, entry.AllocVersion);
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking ALLOC {Index}, version: {Version}\n{Trace}",
+                    "Tracking ALLOC {Index}, version: {Version}\n{Trace}",
                     index, entry.AllocVersion, new StackTrace(true));
                 break;
             default:
@@ -171,12 +171,12 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking FREE {Index}, version: {Version}",
+                    "Tracking FREE {Index}, version: {Version}",
                     index, entry.AllocVersion);
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking FREE {Index}, version: {Version}\n{Trace}",
+                    "Tracking FREE {Index}, version: {Version}\n{Trace}",
                     index, entry.AllocVersion, new StackTrace(true));
                 break;
             default:
@@ -208,22 +208,22 @@ public class NativeTrackerRepo : IDisposable
 
         if (index >= root.Entries.Count)
             throw new InvalidOperationException(
-                $"[C#] Invalid index {index} for tracking. Current entry count: {root.Entries.Count}");
+                $"Invalid index {index} for tracking. Current entry count: {root.Entries.Count}");
 
         if (entry.AllocVersion <= 0)
             throw new InvalidOperationException(
-                $"[C#] Invalid tracked entry {index} caller alloc version: {entry.AllocVersion}. " +
+                $"Invalid tracked entry {index} caller alloc version: {entry.AllocVersion}. " +
                 $"Possibly caller's memory got corrupted");
 
         if (entry.ChangeCount == -1)
             throw new InvalidOperationException(
-                $"[C#] Corruption: tracked entry {index} caller's entry is marked as freed. This is " +
+                $"Corruption: tracked entry {index} caller's entry is marked as freed. This is " +
                 $"a potential use-after-free or use-uninitialized bug. Caller " +
                 $"alloc version: {entry.AllocVersion}");
 
         if (entry.ChangeCount < 0)
             throw new InvalidOperationException(
-                $"[C#] THIS SHOULD NOT HAPPEN! tracked entry {index} caller's entry is broken. This is " +
+                $"THIS SHOULD NOT HAPPEN! tracked entry {index} caller's entry is broken. This is " +
                 $"a potential use-uninitialized bug or a memory corruption bug. Caller " +
                 $"alloc version: {entry.AllocVersion}, caller change count: {entry.ChangeCount}");
 
@@ -231,35 +231,35 @@ public class NativeTrackerRepo : IDisposable
 
         if (currentEntry.AllocVersion <= 0)
             throw new InvalidOperationException(
-                $"[C#] THIS SHOULD NOT HAPPEN! Invalid tracked entry {index} current alloc version: {currentEntry.AllocVersion}. " +
+                $"THIS SHOULD NOT HAPPEN! Invalid tracked entry {index} current alloc version: {currentEntry.AllocVersion}. " +
                 $"Possibly tracker's memory got corrupted");
 
         if (currentEntry.AllocVersion != entry.AllocVersion)
             throw new InvalidOperationException(
-                $"[C#] Corruption: tracked entry {index} has already been freed (then index was reused) but the " +
+                $"Corruption: tracked entry {index} has already been freed (then index was reused) but the " +
                 $"caller holds a stale copy. Stale alloc version: {entry.AllocVersion}, " +
                 $"stale change count: #{entry.ChangeCount}, current alloc version: {currentEntry.AllocVersion}");
 
         if (currentEntry.ChangeCount == -1)
             throw new InvalidOperationException(
-                $"[C#] Corruption: tracked entry {index} has already been freed but the " +
+                $"Corruption: tracked entry {index} has already been freed but the " +
                 $"caller holds a stale copy. Stale alloc version: {entry.AllocVersion} change count #{entry.ChangeCount}");
 
         if (currentEntry.ChangeCount < -1)
             throw new InvalidOperationException(
-                $"[C#] THIS SHOULD NOT HAPPEN! something seems to have overwritten tracked entry {index} current change " +
+                $"THIS SHOULD NOT HAPPEN! something seems to have overwritten tracked entry {index} current change " +
                 $"count with an invalid value. Alloc version: {entry.AllocVersion}, " +
                 $"caller change count: #{entry.ChangeCount}, current change count: #{currentEntry.ChangeCount}");
 
         if (currentEntry.ChangeCount > entry.ChangeCount)
             throw new InvalidOperationException(
-                $"[C#] Corruption: tracked entry {index} has been modified but the caller holds a " +
+                $"Corruption: tracked entry {index} has been modified but the caller holds a " +
                 $"stale copy that didn't see that change. Caller alloc version: {entry.AllocVersion}, " +
                 $"stale change count: #{entry.ChangeCount}, current change count: #{currentEntry.ChangeCount}");
 
         if (currentEntry.ChangeCount < entry.ChangeCount)
             throw new InvalidOperationException(
-                $"[C#] THIS SHOULD NOT HAPPEN! current tracked entry {index} has a lower change count than the caller's " +
+                $"THIS SHOULD NOT HAPPEN! current tracked entry {index} has a lower change count than the caller's " +
                 $"change count. This could be due to memory corruption, accidental overwrite. " +
                 $"Caller alloc version: {entry.AllocVersion}, caller change count: #{entry.ChangeCount}, " +
                 $"current change count: #{currentEntry.ChangeCount}");
@@ -281,12 +281,12 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
                     new StackTrace(true),
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
@@ -304,7 +304,7 @@ public class NativeTrackerRepo : IDisposable
             return;
 
         if (index < 0)
-            throw new InvalidOperationException($"[C#] Invalid index {index} for tracking. Index must be non-negative.");
+            throw new InvalidOperationException($"Invalid index {index} for tracking. Index must be non-negative.");
 
         ref var root = ref _ptr.Get();
 
@@ -314,12 +314,12 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
                     new StackTrace(true),
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
@@ -331,7 +331,7 @@ public class NativeTrackerRepo : IDisposable
         entry.ChangeCount++;
     }
 
-    internal NativeLogLevel GetLogging(int index, ref TrackEntry entry)
+    internal NativeLogLevel GetLogging(int index, in TrackEntry entry)
     {
         if (!Check(index, in entry))
             return NativeLogLevel.Disabled;

@@ -54,10 +54,10 @@ public static unsafe class Allocator
             case NativeLogLevel.Disabled:
                 break;
             case NativeLogLevel.Enabled:
-                NativeLogging.Logger.LogDebug("[C#] FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                NativeLogging.Logger.LogDebug("FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
                 break;
             case NativeLogLevel.EnableStacktrace:
-                NativeLogging.Logger.LogDebug("[C#] FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                NativeLogging.Logger.LogDebug("FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
                 NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
                 break;
             default:

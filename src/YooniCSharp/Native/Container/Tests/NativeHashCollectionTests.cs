@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
@@ -9,7 +10,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestInitialize(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         Assert.AreEqual(0, collection.Count);
         Assert.GreaterOrEqual(collection.Capacity, 0);
 
@@ -20,7 +21,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestInsert(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         Assert.AreEqual(0, collection.Count);
         var entry = collection.Insert(123, 1, 0.123f);
         Assert.AreEqual(1, collection.Count);
@@ -40,7 +41,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestGetKey(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         var entry = collection.Insert(123, 1, 0.123f);
         Assert.AreEqual(123, entry.Get().Key);
 
@@ -51,7 +52,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestGetValue(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         var entry = collection.Insert(123, 1, 0.123f);
         Assert.AreEqual(0.123f, entry.Get().Value);
 
@@ -62,7 +63,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestRemove(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         Assert.AreEqual(0, collection.Count);
 
         collection.Insert(1, 1, 1.1f);
@@ -90,7 +91,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestFind(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         Assert.AreEqual(0, collection.Count);
         var entry = collection.Insert(123, 1, 0.123f);
         collection.Insert(234, 2, 0.123f);
@@ -111,7 +112,7 @@ public class NativeHashCollectionTests
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestClear(int initialCapacity)
     {
-        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal);
+        var collection = new NativeHashCollection<int, float>(initialCapacity, AllocatorKind.Marshal, NativeLogLevel.Disabled);
         Assert.AreEqual(0, collection.Count);
         collection.Insert(123, 1, 0.123f);
         collection.Insert(234, 2, 0.123f);
