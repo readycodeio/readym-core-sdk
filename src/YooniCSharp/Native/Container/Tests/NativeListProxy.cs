@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
@@ -18,7 +20,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(DisposeArgs))
         {
-            Console.WriteLine($"Invalid argument size for Dispose: expected {sizeof(DisposeArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Dispose: expected {Args}, got {SizeBytes}", sizeof(DisposeArgs), sizeBytes);
             return 1;
         }
 
@@ -40,7 +42,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(IsCreatedArgs))
         {
-            Console.WriteLine($"Invalid argument size for IsCreated: expected {sizeof(IsCreatedArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for IsCreated: expected {Args}, got {SizeBytes}", sizeof(IsCreatedArgs), sizeBytes);
             return 1;
         }
 
@@ -62,7 +64,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(GetCountArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCount: expected {sizeof(GetCountArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCount: expected {Args}, got {SizeBytes}", sizeof(GetCountArgs), sizeBytes);
             return 1;
         }
 
@@ -84,7 +86,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(GetCapacityArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCapacity: expected {sizeof(GetCapacityArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCapacity: expected {Args}, got {SizeBytes}", sizeof(GetCapacityArgs), sizeBytes);
             return 1;
         }
 
@@ -107,7 +109,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(GetItemArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetItem: expected {sizeof(GetItemArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetItem: expected {Args}, got {SizeBytes}", sizeof(GetItemArgs), sizeBytes);
             return 1;
         }
 
@@ -130,7 +132,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(SetItemArgs))
         {
-            Console.WriteLine($"Invalid argument size for SetItem: expected {sizeof(SetItemArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for SetItem: expected {Args}, got {SizeBytes}", sizeof(SetItemArgs), sizeBytes);
             return 1;
         }
 
@@ -153,7 +155,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(AddArgs))
         {
-            Console.WriteLine($"Invalid argument size for Add: expected {sizeof(AddArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Add: expected {Args}, got {SizeBytes}", sizeof(AddArgs), sizeBytes);
             return 1;
         }
 
@@ -176,7 +178,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(InsertArgs))
         {
-            Console.WriteLine($"Invalid argument size for Insert: expected {sizeof(InsertArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Insert: expected {Args}, got {SizeBytes}", sizeof(InsertArgs), sizeBytes);
             return 1;
         }
 
@@ -200,7 +202,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(InsertRangeValueArgs))
         {
-            Console.WriteLine($"Invalid argument size for InsertRangeValue: expected {sizeof(InsertRangeValueArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for InsertRangeValue: expected {Args}, got {SizeBytes}", sizeof(InsertRangeValueArgs), sizeBytes);
             return 1;
         }
 
@@ -223,7 +225,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(InsertRangeListArgs))
         {
-            Console.WriteLine($"Invalid argument size for InsertRangeList: expected {sizeof(InsertRangeListArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for InsertRangeList: expected {Args}, got {SizeBytes}", sizeof(InsertRangeListArgs), sizeBytes);
             return 1;
         }
 
@@ -247,7 +249,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(RemoveAtArgs))
         {
-            Console.WriteLine($"Invalid argument size for RemoveAt: expected {sizeof(RemoveAtArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for RemoveAt: expected {Args}, got {SizeBytes}", sizeof(RemoveAtArgs), sizeBytes);
             return 1;
         }
 
@@ -270,7 +272,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(RemoveSwapBackArgs))
         {
-            Console.WriteLine($"Invalid argument size for RemoveSwapBack: expected {sizeof(RemoveSwapBackArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for RemoveSwapBack: expected {Args}, got {SizeBytes}", sizeof(RemoveSwapBackArgs), sizeBytes);
             return 1;
         }
 
@@ -293,7 +295,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(RemoveRangeArgs))
         {
-            Console.WriteLine($"Invalid argument size for RemoveRange: expected {sizeof(RemoveRangeArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for RemoveRange: expected {Args}, got {SizeBytes}", sizeof(RemoveRangeArgs), sizeBytes);
             return 1;
         }
 
@@ -314,7 +316,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(ClearArgs))
         {
-            Console.WriteLine($"Invalid argument size for Clear: expected {sizeof(ClearArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Clear: expected {Args}, got {SizeBytes}", sizeof(ClearArgs), sizeBytes);
             return 1;
         }
 
@@ -337,7 +339,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(EnsureLengthArgs))
         {
-            Console.WriteLine($"Invalid argument size for EnsureLength: expected {sizeof(EnsureLengthArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for EnsureLength: expected {Args}, got {SizeBytes}", sizeof(EnsureLengthArgs), sizeBytes);
             return 1;
         }
 
@@ -359,7 +361,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(ResizeArgs))
         {
-            Console.WriteLine($"Invalid argument size for Resize: expected {sizeof(ResizeArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Resize: expected {Args}, got {SizeBytes}", sizeof(ResizeArgs), sizeBytes);
             return 1;
         }
 
@@ -382,7 +384,7 @@ public static unsafe class NativeListProxy<T>
     {
         if (sizeBytes != sizeof(ZeroMemoryArgs))
         {
-            Console.WriteLine($"Invalid argument size for ZeroMemory: expected {sizeof(ZeroMemoryArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for ZeroMemory: expected {Args}, got {SizeBytes}", sizeof(ZeroMemoryArgs), sizeBytes);
             return 1;
         }
 

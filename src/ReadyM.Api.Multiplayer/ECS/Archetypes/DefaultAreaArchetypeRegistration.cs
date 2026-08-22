@@ -14,10 +14,17 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
         public void AcceptComponent<T>(IAreaComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add(defaultValue);
+            if (registry.TryGetValueFactory<T>(out var factory))
+            {
+                builder.Add(factory.Invoke());
+            }
+            else
+            {
+                builder.Add<T>();
+            }
         }
     }
-    
+
     public ArchetypeId AreaArchetype { get; private set; }
 
     public void Register(IArchetypeRegistry registry)

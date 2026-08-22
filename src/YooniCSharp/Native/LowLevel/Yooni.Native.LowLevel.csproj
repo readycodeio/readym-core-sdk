@@ -9,6 +9,9 @@
         <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\Logging\Yooni.Native.Logging.csproj" />
     </ItemGroup>
 </Project>

@@ -5,14 +5,19 @@ using System.Runtime.InteropServices;
 namespace Yooni.Native.LowLevel;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
+public unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
     where T : unmanaged
 {
-    private readonly void* _ptr;
+    private void* _ptr;
 
     public TypedPtr(void* ptr)
     {
         _ptr = ptr;
+    }
+
+    public TypedPtr(IntPtr ptr)
+    {
+        _ptr = (void*)ptr;
     }
 
     public TypedPtr(ref T value)
@@ -31,7 +36,7 @@ public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
 
     public override int GetHashCode()
         => unchecked((int)(long)_ptr);
-    
+
     public bool IsNull
         => _ptr == null;
 
@@ -43,7 +48,7 @@ public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
 
     public static int operator -(TypedPtr<T> ptr, TypedPtr<T> other)
         => (int)((((byte*)ptr._ptr) - (byte*)other._ptr) / sizeof(T));
-    
+
     public static TypedPtr<T> operator ++(TypedPtr<T> c)
         => new(((byte*)c._ptr) + sizeof(T));
 
@@ -55,31 +60,31 @@ public readonly unsafe struct TypedPtr<T> : IEquatable<TypedPtr<T>>
 
     public static bool operator !=(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr != y._ptr;
-    
+
     public static bool operator <(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr < y._ptr;
-    
+
     public static bool operator >(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr > y._ptr;
-    
+
     public static bool operator <=(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr <= y._ptr;
-    
+
     public static bool operator >=(TypedPtr<T> x, TypedPtr<T> y)
         => x._ptr >= y._ptr;
-    
+
     public static TypedPtr<T> Null
         => default;
-    
+
     public static TypedPtr<T> Alloc(AllocatorKind kind)
         => new(Allocator.Alloc(sizeof(T), kind));
-    
+
     public void Free(AllocatorKind kind)
-        => Allocator.Free(_ptr, kind);
+        => Allocator.Free(ref _ptr, kind);
 
     public void* GetPointer()
         => _ptr;
-    
+
     public IntPtr GetIntPtr()
         => new(_ptr);
 }

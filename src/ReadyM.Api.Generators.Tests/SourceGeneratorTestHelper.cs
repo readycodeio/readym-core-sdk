@@ -24,7 +24,7 @@ internal static class SourceGeneratorTestHelper
         public Compilation OutputCompilation { get; } = outputCompilation ?? throw new ArgumentNullException(nameof(outputCompilation));
 
         public GeneratorDriverRunResult DriverRunResult { get; } = driverRunResult;
-        
+
         public ImmutableArray<Diagnostic> InputDiagnostics => InputCompilation.GetDiagnostics();
 
         public ImmutableArray<Diagnostic> OutputDiagnostics => OutputCompilation.GetDiagnostics();
@@ -145,7 +145,7 @@ internal static class SourceGeneratorTestHelper
         {
             output.WriteLine($"DIAGNOSTIC: {diagnostic}");
         }
-        
+
         output.WriteLine("===== GENERATED FILES =====");
         output.WriteLine(string.Empty);
 
