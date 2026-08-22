@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
 
-namespace Yooni.Native.LowLevel;
+namespace Yooni.Native.Logging;
 
 public class DefaultNativeLogger : ILogger
 {

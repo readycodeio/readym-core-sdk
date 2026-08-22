@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
@@ -134,7 +135,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     }
 
     // ReSharper disable once ConvertToPrimaryConstructor
-    public NativeList(int initialCapacity, AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
+    public NativeList(int initialCapacity, AllocatorKind kind, NativeLogLevel trackLevel = NativeLogLevel.Disabled)
     {
         if (initialCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
@@ -156,7 +157,7 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
         _allocator = default;
     }
 
-    public void TryCreate(AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
+    public void TryCreate(AllocatorKind kind, NativeLogLevel trackLevel = NativeLogLevel.Disabled)
     {
         if (IsCreated)
         {
@@ -580,6 +581,6 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     internal void MarkChange()
         => _tracker.MarkChange();
 
-    public void LogTracking(LogTrackingLevel level = LogTrackingLevel.Enabled)
+    public void LogTracking(NativeLogLevel level = NativeLogLevel.Enabled)
         => _tracker.SetLogging(level);
 }

@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Yooni.Native.Logging;
 
 namespace Yooni.Native.Container;
 
@@ -18,7 +19,7 @@ public struct NativeTracker
     public int ChangeCount
         => _entry.ChangeCount;
 
-    public static NativeTracker Alloc(LogTrackingLevel level)
+    public static NativeTracker Alloc(NativeLogLevel level)
     {
         NativeTracker result;
         result._index = NativeTrackerRepo.Instance.TrackAlloc(out result._entry, level);
@@ -37,9 +38,9 @@ public struct NativeTracker
     public void MarkChangeNoCheck()
         => NativeTrackerRepo.Instance.MarkChangeNoCheck(_index, ref _entry);
 
-    public LogTrackingLevel GetLogging()
+    public NativeLogLevel GetLogging()
         => NativeTrackerRepo.Instance.GetLogging(_index, ref _entry);
 
-    public void SetLogging(LogTrackingLevel level)
+    public void SetLogging(NativeLogLevel level)
         => NativeTrackerRepo.Instance.SetLogging(_index, ref _entry, level);
 }

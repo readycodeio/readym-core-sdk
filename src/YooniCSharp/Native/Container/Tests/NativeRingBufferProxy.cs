@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
@@ -35,7 +36,7 @@ public class NativeTrackerRepo : IDisposable
     internal struct TrackEntryEx
     {
         public TrackEntry Entry;
-        public LogTrackingLevel Logging;
+        public NativeLogLevel Logging;
 
         public int AllocVersion
         {
@@ -109,7 +110,7 @@ public class NativeTrackerRepo : IDisposable
         _disposed = true;
     }
 
-    internal int TrackAlloc(out TrackEntry entry, LogTrackingLevel level)
+    internal int TrackAlloc(out TrackEntry entry, NativeLogLevel level)
     {
         if (!_alreadyInit)
         {
@@ -138,14 +139,14 @@ public class NativeTrackerRepo : IDisposable
 
         switch (root.Entries[index].Logging)
         {
-            case LogTrackingLevel.Disabled:
+            case NativeLogLevel.Disabled:
                 break;
-            case LogTrackingLevel.Enabled:
+            case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking ALLOC {Index}, version: {Version}",
                     index, entry.AllocVersion);
                 break;
-            case LogTrackingLevel.EnableStacktrace:
+            case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking ALLOC {Index}, version: {Version}\n{Trace}",
                     index, entry.AllocVersion, new StackTrace(true));
@@ -166,14 +167,14 @@ public class NativeTrackerRepo : IDisposable
 
         switch (root.Entries[index].Logging)
         {
-            case LogTrackingLevel.Disabled:
+            case NativeLogLevel.Disabled:
                 break;
-            case LogTrackingLevel.Enabled:
+            case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking FREE {Index}, version: {Version}",
                     index, entry.AllocVersion);
                 break;
-            case LogTrackingLevel.EnableStacktrace:
+            case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking FREE {Index}, version: {Version}\n{Trace}",
                     index, entry.AllocVersion, new StackTrace(true));
@@ -276,14 +277,14 @@ public class NativeTrackerRepo : IDisposable
 
         switch (root.Entries[index].Logging)
         {
-            case LogTrackingLevel.Disabled:
+            case NativeLogLevel.Disabled:
                 break;
-            case LogTrackingLevel.Enabled:
+            case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
-            case LogTrackingLevel.EnableStacktrace:
+            case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
                     new StackTrace(true),
@@ -309,14 +310,14 @@ public class NativeTrackerRepo : IDisposable
 
         switch (root.Entries[index].Logging)
         {
-            case LogTrackingLevel.Disabled:
+            case NativeLogLevel.Disabled:
                 break;
-            case LogTrackingLevel.Enabled:
+            case NativeLogLevel.Enabled:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
                     index, entry.ChangeCount, entry.ChangeCount + 1);
                 break;
-            case LogTrackingLevel.EnableStacktrace:
+            case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
                     "[C#] Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
                     new StackTrace(true),
@@ -330,17 +331,17 @@ public class NativeTrackerRepo : IDisposable
         entry.ChangeCount++;
     }
 
-    internal LogTrackingLevel GetLogging(int index, ref TrackEntry entry)
+    internal NativeLogLevel GetLogging(int index, ref TrackEntry entry)
     {
         if (!Check(index, in entry))
-            return LogTrackingLevel.Disabled;
+            return NativeLogLevel.Disabled;
 
         ref var root = ref _ptr.Get();
 
         return root.Entries[index].Logging;
     }
 
-    internal void SetLogging(int index, ref TrackEntry entry, LogTrackingLevel logging)
+    internal void SetLogging(int index, ref TrackEntry entry, NativeLogLevel logging)
     {
         if (!Check(index, in entry))
             return;

@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
 
 namespace Yooni.Native.LowLevel;
 
 public static unsafe class Allocator
 {
+    private static NativeLogLevel _level = NativeLogLevel.Disabled;
+
     public static void* Alloc(int size, AllocatorKind kind)
     {
         void* result;
@@ -27,15 +30,39 @@ public static unsafe class Allocator
                 throw new InvalidOperationException($"Invalid allocator kind: {kind}");
         }
 
-        NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Alloc: {Result:X} size {Size} bytes", kind, (long)result, size);
-        // NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+        switch (_level)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug("ALLOC 0x{Result:x} AllocatorKind.{AllocatorKind} size {Size} bytes", kind, (long)result, size);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug("ALLOC 0x{Result:x} AllocatorKind.{AllocatorKind} size {Size} bytes", kind, (long)result, size);
+                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
         return result;
     }
 
     public static void Free(ref void* ptr, AllocatorKind kind)
     {
-        NativeLogging.Logger.LogDebug("[C#] AllocatorKind.{AllocatorKind} Free: {Ptr:X}", kind, (long)ptr);
-        // NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+        switch (_level)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug("[C#] FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug("[C#] FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
 
         switch (kind)
         {
@@ -56,5 +83,10 @@ public static unsafe class Allocator
         }
 
         ptr = null;
+    }
+
+    public static void SetLogging(NativeLogLevel level)
+    {
+        _level = level;
     }
 }

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace Yooni.Native.LowLevel;
+namespace Yooni.Native.Logging;
 
 public static class NativeLogging
 {

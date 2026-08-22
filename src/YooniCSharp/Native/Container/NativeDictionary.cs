@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
@@ -158,7 +159,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     }
 
     // ReSharper disable once ConvertToPrimaryConstructor
-    public NativeDictionary(int initialCapacity, AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
+    public NativeDictionary(int initialCapacity, AllocatorKind kind, NativeLogLevel trackLevel = NativeLogLevel.Disabled)
     {
         if (initialCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Initial capacity must be non-negative");
@@ -174,7 +175,7 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
         _impl.Dispose();
     }
 
-    public void TryCreate(AllocatorKind kind, LogTrackingLevel trackLevel = LogTrackingLevel.Disabled)
+    public void TryCreate(AllocatorKind kind, NativeLogLevel trackLevel = NativeLogLevel.Disabled)
     {
         if (_impl.IsCreated)
         {
@@ -569,6 +570,6 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public void Check()
         => _tracker.Check();
 
-    public void LogTracking(LogTrackingLevel level = LogTrackingLevel.Enabled)
+    public void LogTracking(NativeLogLevel level = NativeLogLevel.Enabled)
         => _tracker.SetLogging(level);
 }
