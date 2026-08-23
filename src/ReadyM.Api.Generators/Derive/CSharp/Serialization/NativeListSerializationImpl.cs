@@ -15,8 +15,10 @@ internal class NativeListSerializationImpl : CSharpTypeSerializationImplBase
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native list type");
 
         var itemVar = context.MethodState.NewVarName("item");
-        context.AppendLine($"writer.Put({context.State.CurrentVar}.Count);");
-        context.AppendLine($"if({context.State.CurrentVar}.Count > 0)");
+        var countVar = context.MethodState.NewVarName("count");
+        context.AppendLine($"var {countVar} = {context.State.CurrentVar}.IsCreated ? {context.State.CurrentVar}.Count : 0;");
+        context.AppendLine($"writer.Put({countVar});");
+        context.AppendLine($"if({countVar} > 0)");
         using (context.WithCodeBlock())
         {
             context.AppendLine($"foreach (var {itemVar} in {context.State.CurrentVar})");
