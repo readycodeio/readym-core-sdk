@@ -305,17 +305,20 @@ using {ns};
 
     private void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
-        sb.AppendLine("/// <exclude />");
-        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
-        sb.AppendLine("public void ClearApiFlag() => _apiMask = 0;");
-        sb.AppendLine("/// <exclude />");
-        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
-        sb.AppendLine($"public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));");
-        sb.AppendLine("/// <exclude />");
-        sb.AppendLine("public readonly bool ChangedFromApi => _apiMask != 0;");
-        sb.AppendLine("/// <exclude />");
-        sb.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
-        sb.AppendLine("public void MarkChangedFromApi() => _apiMask = _dirtyMask;");
+        sb.AppendLine($"""
+    /// <exclude />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ClearApiFlag() => _apiMask = 0;
+    /// <exclude />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ClearApiFlag(int field) => _apiMask = ({model.MaskInfo!.Type.Name})(_apiMask & ~(({model.MaskInfo!.Type.Name})1 << field));
+    /// <exclude />
+    public readonly bool ChangedFromApi => _apiMask != 0;
+    /// <exclude />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void MarkChangedFromApi() => _apiMask = _dirtyMask;
+
+""");
     }
 
     private void EmitSerialize(

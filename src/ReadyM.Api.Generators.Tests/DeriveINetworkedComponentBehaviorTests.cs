@@ -3,6 +3,7 @@ using System.Reflection;
 using LiteNetLib.Utils;
 using Microsoft.CodeAnalysis;
 using Xunit;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 using static ReadyM.Api.Generators.Tests.DeriveTestAssert;
 
@@ -2402,13 +2403,9 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
     private static object CreateNativeDictionary(Type dictionaryType, params (object Key, object Value)[] items)
     {
         var ctor = dictionaryType.GetConstructors()
-            .Single(c => c.GetParameters().Length == 2);
+            .Single(c => c.GetParameters().Length == 3);
 
-        var ctorParameters = ctor.GetParameters();
-        var allocatorKindType = ctorParameters[1].ParameterType;
-        var allocatorValue = Enum.ToObject(allocatorKindType, AllocatorKind.Marshal);
-
-        var dictionary = ctor.Invoke([items.Length, allocatorValue]);
+        var dictionary = ctor.Invoke([items.Length, AllocatorKind.Marshal, NativeLogLevel.Disabled]);
 
         var addMethod = dictionaryType.GetMethods()
             .Single(m =>
@@ -2427,13 +2424,9 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
     private static object CreateNativeList(Type listType, params object[] items)
     {
         var ctor = listType.GetConstructors()
-            .Single(c => c.GetParameters().Length == 2);
+            .Single(c => c.GetParameters().Length == 3);
 
-        var ctorParameters = ctor.GetParameters();
-        var allocatorKindType = ctorParameters[1].ParameterType;
-        var allocatorValue = Enum.ToObject(allocatorKindType, AllocatorKind.Marshal);
-
-        var list = ctor.Invoke([items.Length, allocatorValue]);
+        var list = ctor.Invoke([items.Length, AllocatorKind.Marshal, NativeLogLevel.Disabled]);
 
         var addMethod = listType.GetMethod("Add", [listType.GetGenericArguments()[0]]);
         Assert.NotNull(addMethod);
