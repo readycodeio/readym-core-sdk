@@ -14,13 +14,13 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     where T : struct, INetworkedComponent
 {
     protected readonly NetworkedComponentId ComponentId;
-    private readonly bool _clearDirty;
+    private readonly bool _clearFlags;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;
 
-    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearDirty)
+    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearFlags)
     {
         ComponentId = componentId;
-        _clearDirty = clearDirty;
+        _clearFlags = clearFlags;
         _queryCache = new QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>>(
             context => context.ScopeEntity,
             context =>
@@ -130,8 +130,11 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
                 AppendDelta(others, meta.NetId, ref comp, maxPacketSize, false, owner, context);
 
-                if (_clearDirty)
+                if (_clearFlags)
+                {
                     comp.ClearDirty();
+                    comp.ClearApiFlag();
+                }
             }
         }
 
