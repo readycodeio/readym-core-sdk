@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container;
@@ -117,13 +118,13 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     private TypedArrayPtr<TypedPtr<Entry>> _buckets;
     private TypedPtr<Entry> _freeHead;
     private TypedArrayPtr<Entry> _entries;
-    private AllocatorKind _allocator;
+    private TrackedAllocator _allocator;
 
     public bool IsCreated
         => !_buckets.IsNull;
 
     public AllocatorKind Allocator
-        => _allocator;
+        => _allocator.Kind;
 
     public Enumerator GetEnumerator()
         => new(this);
@@ -150,10 +151,11 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         throw new InvalidOperationException($"HashCollection can't get larger than {_primes[_primes.Length - 1]}");
     }
 
-    public NativeHashCollection(int initialCapacity, AllocatorKind kind)
+    public NativeHashCollection(int initialCapacity, AllocatorKind kind, NativeLogLevel logLevel)
     {
         _count = GetNextPrime(initialCapacity);
 
+        _allocator = new TrackedAllocator(kind, logLevel);
         _buckets = TypedArrayPtr<TypedPtr<Entry>>.Alloc(_count, kind);
         _entries = TypedArrayPtr<Entry>.Alloc(_count, kind);
         _buckets.ZeroMemory(_count);
@@ -162,14 +164,20 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
         _freeHead = TypedPtr<Entry>.Null;
         _freeCount = 0;
         _usedCount = 0;
-
-        _allocator = kind;
     }
 
     public void Dispose()
     {
-        _buckets.Free(_allocator);
-        _entries.Free(_allocator);
+        _count = 0;
+
+        var kind = _allocator.Kind;
+        _allocator.Free();
+        _buckets.Free(kind);
+        _entries.Free(kind);
+
+        _freeHead = TypedPtr<Entry>.Null;
+        _freeCount = 0;
+        _usedCount = 0;
     }
 
     public int Count => _usedCount - _freeCount;
@@ -301,10 +309,10 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     {
         var capacity = GetNextPrime(_count + 1);
 
-        var newBuckets = TypedArrayPtr<TypedPtr<Entry>>.Alloc(capacity, _allocator);
+        var newBuckets = TypedArrayPtr<TypedPtr<Entry>>.Alloc(capacity, _allocator.Kind);
         newBuckets.ZeroMemory(capacity);
 
-        var newEntries = TypedArrayPtr<Entry>.Alloc(capacity, _allocator);
+        var newEntries = TypedArrayPtr<Entry>.Alloc(capacity, _allocator.Kind);
         newEntries.ZeroMemory(capacity);
         newEntries.CopyMemory(_entries, _count);
 
@@ -328,8 +336,8 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
             }
         }
 
-        _buckets.Free(_allocator);
-        _entries.Free(_allocator);
+        _buckets.Free(_allocator.Kind);
+        _entries.Free(_allocator.Kind);
 
         _buckets = newBuckets;
         _entries = newEntries;
@@ -339,4 +347,16 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     [Pure]
     internal IntPtr GetRawBucketsPointer()
         => _buckets.GetPointer(0).GetIntPtr();
+
+    public readonly void Check()
+        => _allocator.Check();
+
+    public void MarkChange()
+        => _allocator.MarkChange();
+
+    public void MarkChangeNoCheck()
+        => _allocator.MarkChangeNoCheck();
+
+    public void SetLogging(NativeLogLevel level)
+        => _allocator.SetLogging(level);
 }

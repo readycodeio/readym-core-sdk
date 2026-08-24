@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
@@ -50,6 +53,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     private readonly INetworkedComponentRegistry _netComponentRegistry;
 
     private readonly SystemGroup _clearDirtySystemGroup;
+    private readonly Dictionary<NetworkId, PlayerId> _pendingOwnershipTransfers = [];
 
     protected SystemGroup ReceiveSystemGroup { get; }
 
@@ -76,7 +80,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient = relayClient;
         Logger = logger;
         this.serializationJobRegistry = serializationJobRegistry;
-        
+
         // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
         // server.
@@ -90,7 +94,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 #if DEBUG
         SyncSystemGroup.SetMonitorPerf(true);
 #endif
-        
+
 
         SendSystemGroup = new SystemGroup("Send");
 #if DEBUG
@@ -121,9 +125,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
-        // sent to the server. 
+        // sent to the server.
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
-        
+
         _ecsLoop.AddSystem(ReceiveSystemGroup);
         _ecsLoop.AddSystem(SyncSystemGroup);
         _ecsLoop.AddSystem(SendSystemGroup);
@@ -167,6 +171,19 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     [ThreadStatic]
     private static int _skipEcsEventMessages;
 
+    private void ApplyPendingOwnershipTransfer(NetworkId netId)
+    {
+        if (!_pendingOwnershipTransfers.Remove(netId, out var owner))
+            return;
+
+        if (!NetEntity.TryGetEntityByNetworkId(netId, out var entity))
+            return;
+
+        entity.Value.GetComponent<MetadataComponent>().Owner = owner;
+        OnOwnershipChanged(entity.Value);
+        Logger.LogInformation("Applied parked ownership transfer for entity {Id}", netId);
+    }
+
     protected void OnEcsSnapshotMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         _receiveSystem.Scheduler.Schedule(static (_, self, readerCopy) =>
@@ -179,6 +196,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 Entity? scopeEntity = null;
 
                 var entityCount = readerCopy.GetUInt();
+
                 for (var i = 0; i < entityCount; i++)
                 {
                     var meta = MetadataComponent.Deserialize(readerCopy);
@@ -186,6 +204,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var _))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
+                        self.ApplyPendingOwnershipTransfer(meta.NetId);
                     }
                     else
                     {
@@ -229,7 +248,8 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                     else
                     {
-                        self.Logger.LogWarning("Received ownership transfer event for non-existent entity: {Id}", netId);
+                        self._pendingOwnershipTransfers[netId] = newOwner;
+                        self.Logger.LogInformation("Parked ownership transfer for not yet created entity: {Id}", netId);
                     }
                 }
             }
@@ -270,7 +290,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 if (scopeNetId != default)
                 {
                     if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId, out scopeEntity))
-                        throw new InvalidOperationException($"Scope entity with NetId {scopeNetId} not found");
+                    {
+                        // NOTE: This situation is possible when a new client enters the game and is forwarded entities
+                        // created by another player before receiving the corresponding snapshot
+                        self.Logger.LogDebug("Scope entity with NetId {Scope} not found", scopeNetId);
+                        return;
+                    }
                 }
 
                 var queryCount = readerCopy.GetUInt();
@@ -280,6 +305,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
+                        self.ApplyPendingOwnershipTransfer(meta.NetId);
                     }
                     else
                     {
@@ -305,6 +331,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             try
             {
                 _skipEcsEventMessages++;
+                self._pendingOwnershipTransfers.Remove(netId0);
                 if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
                 {
                     self.Logger.LogDebug("Deleting remote entity: {Id}", netId0);

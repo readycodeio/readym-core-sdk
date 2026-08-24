@@ -1,26 +1,69 @@
-﻿namespace Yooni.Native.LowLevel;
+﻿using System;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
+
+namespace Yooni.Native.LowLevel;
 
 public static unsafe class Allocator
 {
+    private static NativeLogLevel _level = NativeLogLevel.Disabled;
+
     public static void* Alloc(int size, AllocatorKind kind)
     {
+        void* result;
         switch (kind)
         {
             case AllocatorKind.InternalCall:
-                return InternalCallAllocatorImpl.AllocMemory(size);
+                result = InternalCallAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.NativeUnity:
-                return NativeUnityAllocatorImpl.AllocMemory(size);
+                result = NativeUnityAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.Marshal:
-                return MarshalAllocatorImpl.AllocMemory(size);
+                result = MarshalAllocatorImpl.AllocMemory(size);
+                break;
             case AllocatorKind.Cpp:
-                return CppAllocatorImpl.AllocMemory(size);
+                result = CppAllocatorImpl.AllocMemory(size);
+                break;
             default:
-                return null;
+                throw new InvalidOperationException($"Invalid allocator kind: {kind}");
         }
+
+        switch (_level)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug("ALLOC 0x{Result:x} AllocatorKind.{AllocatorKind} size {Size} bytes", kind, (long)result, size);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug("ALLOC 0x{Result:x} AllocatorKind.{AllocatorKind} size {Size} bytes", kind, (long)result, size);
+                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+        return result;
     }
 
-    public static void Free(void* ptr, AllocatorKind kind)
+    public static void Free(ref void* ptr, AllocatorKind kind)
     {
+        switch (_level)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug("FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug("FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
+                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
         switch (kind)
         {
             case AllocatorKind.InternalCall:
@@ -36,7 +79,14 @@ public static unsafe class Allocator
                 CppAllocatorImpl.FreeMemory(ptr);
                 break;
             default:
-                break;
+                throw new InvalidOperationException($"Invalid allocator kind: {kind}");
         }
+
+        ptr = null;
+    }
+
+    public static void SetLogging(NativeLogLevel level)
+    {
+        _level = level;
     }
 }

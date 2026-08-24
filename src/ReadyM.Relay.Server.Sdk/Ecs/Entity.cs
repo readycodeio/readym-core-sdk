@@ -20,6 +20,8 @@ public readonly struct Entity
         _registry = registry;
     }
 
+    public int Id => _id;
+
     /// <summary>
     /// Gets a reference to the component of type T associated with this entity.
     /// </summary>

@@ -5,16 +5,16 @@ using System.Runtime.InteropServices;
 namespace Yooni.Native.LowLevel;
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
+public unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
     where T : unmanaged
 {
-    private readonly void* _ptr;
+    private void* _ptr;
 
     public TypedArrayPtr(void* ptr)
     {
         _ptr = ptr;
     }
-    
+
     public TypedArrayPtr(ref T value)
     {
         _ptr = Unsafe.AsPointer(ref value);
@@ -31,7 +31,7 @@ public readonly unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
 
     public override int GetHashCode()
         => unchecked((int)(long)_ptr);
-        
+
     public bool IsNull
         => _ptr == null;
 
@@ -40,27 +40,27 @@ public readonly unsafe struct TypedArrayPtr<T> : IEquatable<TypedArrayPtr<T>>
 
     public static bool operator !=(TypedArrayPtr<T> x, TypedArrayPtr<T> y)
         => x._ptr != y._ptr;
-    
+
     public static bool operator <(TypedArrayPtr<T> x, TypedArrayPtr<T> y)
         => x._ptr < y._ptr;
-    
+
     public static bool operator >(TypedArrayPtr<T> x, TypedArrayPtr<T> y)
         => x._ptr > y._ptr;
-    
+
     public static bool operator <=(TypedArrayPtr<T> x, TypedArrayPtr<T> y)
         => x._ptr <= y._ptr;
-    
+
     public static bool operator >=(TypedArrayPtr<T> x, TypedArrayPtr<T> y)
         => x._ptr >= y._ptr;
-    
+
     public static TypedArrayPtr<T> Null
         => default;
 
     public static TypedArrayPtr<T> Alloc(int count, AllocatorKind kind)
         => new(Allocator.Alloc(sizeof(T) * count, kind));
-    
+
     public void Free(AllocatorKind kind)
-        => Allocator.Free(_ptr, kind);
+        => Allocator.Free(ref _ptr, kind);
 
     public void ZeroMemory(int count)
         => MemoryUtils.ZeroMemory((byte*)_ptr, sizeof(T) * count);

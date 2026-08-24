@@ -15,6 +15,8 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// </summary>
 public class EcsApi
 {
+    private readonly Query1WithIdsDelegate _query1WithIds;
+    private readonly Query2WithIdsDelegate _query2WithIds;
     private readonly Query1Delegate _query1;
     private readonly Query2Delegate _query2;
     private readonly Query3Delegate _query3;
@@ -22,12 +24,20 @@ public class EcsApi
     private readonly Query5Delegate _query5;
     private readonly Query6Delegate _query6;
     private readonly CreateNetworkedEntityDelegate _createNetworkedEntity;
+    private readonly CreateLocalEntityDelegate _createLocalEntity;
+    private readonly DeleteNetworkedEntityDelegate _deleteNetworkedEntity;
+    private readonly DeleteEntityTreeDelegate _deleteEntityTree;
+    private readonly SetParentDelegate _setParent;
+    private readonly GetParentDelegate _getParent;
+    private readonly GetChildrenDelegate _getChildren;
     private readonly GetComponentPointerDelegate _getComponentPointer;
     private readonly ComponentRegistry _registry;
 
     internal EcsApi(EcsApiPointers pointers, ComponentRegistry registry)
     {
         _registry = registry;
+        _query1WithIds = Marshal.GetDelegateForFunctionPointer<Query1WithIdsDelegate>(pointers.Query1WithIds);
+        _query2WithIds = Marshal.GetDelegateForFunctionPointer<Query2WithIdsDelegate>(pointers.Query2WithIds);
         _query1 = Marshal.GetDelegateForFunctionPointer<Query1Delegate>(pointers.Query1);
         _query2 = Marshal.GetDelegateForFunctionPointer<Query2Delegate>(pointers.Query2);
         _query3 = Marshal.GetDelegateForFunctionPointer<Query3Delegate>(pointers.Query3);
@@ -35,12 +45,182 @@ public class EcsApi
         _query5 = Marshal.GetDelegateForFunctionPointer<Query5Delegate>(pointers.Query5);
         _query6 = Marshal.GetDelegateForFunctionPointer<Query6Delegate>(pointers.Query6);
         _createNetworkedEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedEntityDelegate>(pointers.CreateNetworkedEntity);
+        _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
+        _deleteNetworkedEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
+        _deleteEntityTree = Marshal.GetDelegateForFunctionPointer<DeleteEntityTreeDelegate>(pointers.DeleteEntityTree);
+        _setParent = Marshal.GetDelegateForFunctionPointer<SetParentDelegate>(pointers.SetParent);
+        _getParent = Marshal.GetDelegateForFunctionPointer<GetParentDelegate>(pointers.GetParent);
+        _getChildren = Marshal.GetDelegateForFunctionPointer<GetChildrenDelegate>(pointers.GetChildren);
         _getComponentPointer = Marshal.GetDelegateForFunctionPointer<GetComponentPointerDelegate>(pointers.GetComponentPointer);
     }
 
     public Entity CreateEntity(ArchetypeId archetypeId)
     {
         return new Entity(_createNetworkedEntity(archetypeId), _getComponentPointer, _registry);
+    }
+
+    /// <summary>Creates a server-only entity: never replicated, invisible to clients.</summary>
+    public Entity CreateLocalEntity(ArchetypeId archetypeId)
+    {
+        return new Entity(_createLocalEntity(archetypeId), _getComponentPointer, _registry);
+    }
+
+    /// <inheritdoc cref="CreateLocalEntity(ArchetypeId)"/>
+    /// <param name="parentId">The entity that owns the new one. Deleting it with
+    /// <see cref="DeleteEntityTree"/> deletes the new one too.</param>
+    public Entity CreateLocalEntity(ArchetypeId archetypeId, int parentId)
+    {
+        var entity = CreateLocalEntity(archetypeId);
+        _setParent(entity.Id, parentId);
+        return entity;
+    }
+
+    public bool DeleteEntity(in Entity entity)
+    {
+        return DeleteEntity(entity.Id);
+    }
+
+    public bool DeleteEntity(int entityId)
+    {
+        return _deleteNetworkedEntity(entityId) != 0;
+    }
+
+    /// <summary>
+    /// Deletes an entity together with everything below it. Deleting a parent on its own leaves its
+    /// children behind without one, so this is the call to use for anything that owns other entities.
+    /// </summary>
+    /// <returns>How many entities were deleted.</returns>
+    public int DeleteEntityTree(int entityId)
+    {
+        return _deleteEntityTree(entityId);
+    }
+
+    /// <summary>
+    /// Makes the child belong to the parent, replacing whatever parent it had.
+    /// </summary>
+    /// <returns>The index the child took among the parent's children, or -1 if it already was one.</returns>
+    public int SetParent(int childId, int parentId)
+    {
+        return _setParent(childId, parentId);
+    }
+
+    /// <summary>0 when the entity has no parent.</summary>
+    public int GetParent(int childId)
+    {
+        return _getParent(childId);
+    }
+
+    /// <summary>
+    /// The children of an entity. This one allocates, so call it outside a query callback, where a
+    /// no-GC region is held over raw component pointers.
+    /// </summary>
+    public int[] GetChildren(int parentId)
+    {
+        Span<int> probe = stackalloc int[16];
+        var count = FillChildren(parentId, probe);
+
+        if (count == 0)
+            return [];
+
+        if (count <= probe.Length)
+            return probe[..count].ToArray();
+
+        var children = new int[count];
+        FillChildren(parentId, children);
+        return children;
+    }
+
+    private unsafe int FillChildren(int parentId, Span<int> into)
+    {
+        fixed (int* buffer = into)
+            return _getChildren(parentId, (IntPtr)buffer, into.Length);
+    }
+
+    public delegate void EmbedForEachEntity<T1>(ref T1 c1, int entityId) where T1 : struct;
+
+    public delegate void EmbedForEachEntity<T1, T2>(ref T1 c1, ref T2 c2, int entityId)
+        where T1 : struct where T2 : struct;
+
+    /// <summary>Iterates a component along with the entity id it belongs to.</summary>
+    public void QueryWithEntity<T>(EmbedForEachEntity<T> callback) where T : struct
+    {
+        var id = _registry.ResolveComponentId<T>();
+        _tlsState.Callback = callback;
+        try
+        {
+            _query1WithIds(id, static (ids, d, count, s) => IterateChunkWithIds1<T>(ids, d, count, s));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
+    }
+
+    /// <inheritdoc cref="QueryWithEntity{T}"/>
+    public void QueryWithEntity<T1, T2>(EmbedForEachEntity<T1, T2> callback)
+        where T1 : struct where T2 : struct
+    {
+        var id1 = _registry.ResolveComponentId<T1>();
+        var id2 = _registry.ResolveComponentId<T2>();
+        _tlsState.Callback = callback;
+        try
+        {
+            _query2WithIds(id1, id2,
+                static (ids, d1, d2, count, s1, s2) => IterateChunkWithIds2<T1, T2>(ids, d1, d2, count, s1, s2));
+        }
+        finally
+        {
+            _tlsState.Callback = null;
+        }
+    }
+
+    private static unsafe void IterateChunkWithIds1<T>(IntPtr ids, IntPtr d, int count, int s)
+        where T : struct
+    {
+        var cb = (EmbedForEachEntity<T>)_tlsState.Callback!;
+        var p = (byte*)d;
+        var entityIds = (int*)ids;
+        for (var i = 0; i < count; i++)
+            cb(ref Unsafe.AsRef<T>(p + i * s), entityIds[i]);
+    }
+
+    private static unsafe void IterateChunkWithIds2<T1, T2>(IntPtr ids, IntPtr d1, IntPtr d2, int count,
+        int s1, int s2) where T1 : struct where T2 : struct
+    {
+        var cb = (EmbedForEachEntity<T1, T2>)_tlsState.Callback!;
+        var p1 = (byte*)d1;
+        var p2 = (byte*)d2;
+        var entityIds = (int*)ids;
+        for (var i = 0; i < count; i++)
+            cb(ref Unsafe.AsRef<T1>(p1 + i * s1), ref Unsafe.AsRef<T2>(p2 + i * s2), entityIds[i]);
+    }
+
+    /// <summary>Writes a component by entity id.</summary>
+    public void SetComponent<T>(int entityId, in T component) where T : struct
+        => GetComponentRef<T>(entityId) = component;
+
+    /// <summary>False when the entity is gone or does not carry the component.</summary>
+    public unsafe bool TryGetComponent<T>(int entityId, out T component) where T : struct
+    {
+        var compId = _registry.ResolveComponentId<T>();
+        var ptr = _getComponentPointer(entityId, compId);
+
+        if (ptr == IntPtr.Zero)
+        {
+            component = default;
+            return false;
+        }
+
+        component = Unsafe.AsRef<T>((void*)ptr);
+        return true;
+    }
+
+    public unsafe ref T GetComponentRef<T>(int entityId) where T : struct
+    {
+        var compId = _registry.ResolveComponentId<T>();
+        var ptr = _getComponentPointer(entityId, compId);
+
+        return ref Unsafe.AsRef<T>((void*)ptr);
     }
 
     [ThreadStatic]
@@ -766,4 +946,9 @@ public class EcsApi
     }
 
     #endregion
+
+    internal Entity EntityFrom(int entityId)
+    {
+        return new Entity(entityId, _getComponentPointer, _registry);
+    }
 }

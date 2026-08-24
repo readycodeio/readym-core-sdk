@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
+using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Generators;
 using ReadyM.Api.Idents;
@@ -14,6 +16,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^Count$")]
 [WrapperInclude("^GetCommandBuffer$")] // TODO: Wrap to disable entity creation
 [WrapperInclude("^GetEntityBy.*")]
+[WrapperInclude("^TryGetEntityById$")]
 [WrapperInclude("^OnEntit.*")] // TODO: Events expose underlying EntityStore
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
@@ -25,6 +28,8 @@ internal sealed partial class Store : IArchetypeRegistry
         public Action<EntityBuilder> Constructor;
     }
 
+    private ILogger _logger;
+
     private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
@@ -33,9 +38,11 @@ internal sealed partial class Store : IArchetypeRegistry
 
     // TODO: the ArchetypeId on client and server are only in sync because the order of registration is the same
     // This is fragile and should be fixed. It's only a coincidence that the DI injection order is the same.
-    public Store(EntityStore wrapped, IEnumerable<IArchetypeRegistration> registrations)
+    public Store(EntityStore wrapped, ILogger logger, IEnumerable<IArchetypeRegistration> registrations)
     {
         _wrapped = wrapped;
+        _logger = logger;
+
         SystemRoot = new SystemRoot();
         SystemRoot.AddStore(wrapped);
 #if DEBUG
@@ -71,6 +78,9 @@ internal sealed partial class Store : IArchetypeRegistry
         {
             Constructor = build
         };
+
+        _logger.LogDebug("Registering archetype {ArchetypeId} {Target}:{Method}", archetypeId, build.Target, build.Method);
+
         return archetypeId;
     }
 
@@ -80,6 +90,8 @@ internal sealed partial class Store : IArchetypeRegistry
         {
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
         }
+
+        _logger.LogDebug("Modifying archetype {ArchetypeId} {Target}:{Method}", archetypeId, build.Target, build.Method);
 
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
@@ -120,7 +132,7 @@ internal sealed partial class Store : IArchetypeRegistry
 
     /// <summary>
     /// Returns the index for indexed components to search entities with a specific component value in O(1).<br/>
-    /// Executes in O(1). 
+    /// Executes in O(1).
     /// </summary>
     public ComponentIndex<TIndexedComponent, TValue> ComponentIndex<TIndexedComponent, TValue>()
         where TIndexedComponent : struct, IIndexedComponent<TValue>
@@ -130,7 +142,7 @@ internal sealed partial class Store : IArchetypeRegistry
 
     /// <summary>
     /// Returns the index for link components to search entities with a specific entity in O(1).<br/>
-    /// Executes in O(1). 
+    /// Executes in O(1).
     /// </summary>
     public LinkComponentIndex<TLinkComponent> LinkComponentIndex<TLinkComponent>()
         where TLinkComponent : struct, ILinkComponent

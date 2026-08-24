@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -15,7 +16,7 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
     {
         if (_insideUpdate)
             return false;
-        
+
         EnsureThread();
 
         try
@@ -32,7 +33,14 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
             {
                 var group = _oldQueue[i];
                 _oldQueue[i] = null;
-                group!.Update();
+                try
+                {
+                    group!.Update();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error while updating pending action group {GroupName}", group);
+                }
             }
 
             return queueCount > 0;

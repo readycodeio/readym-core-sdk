@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
 using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
@@ -20,7 +22,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(GetCountArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCount: expected {sizeof(GetCountArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCount: expected {Args}, got {SizeBytes}", sizeof(GetCountArgs), sizeBytes);
             return 1;
         }
 
@@ -42,7 +44,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(GetCapacityArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetCapacity: expected {sizeof(GetCapacityArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetCapacity: expected {Args}, got {SizeBytes}", sizeof(GetCapacityArgs), sizeBytes);
             return 1;
         }
 
@@ -63,7 +65,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(ClearArgs))
         {
-            Console.WriteLine($"Invalid argument size for Clear: expected {sizeof(ClearArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Clear: expected {Args}, got {SizeBytes}", sizeof(ClearArgs), sizeBytes);
             return 1;
         }
 
@@ -86,7 +88,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(PushArgs))
         {
-            Console.WriteLine($"Invalid argument size for Push: expected {sizeof(PushArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Push: expected {Args}, got {SizeBytes}", sizeof(PushArgs), sizeBytes);
             return 1;
         }
 
@@ -107,7 +109,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(PopArgs))
         {
-            Console.WriteLine($"Invalid argument size for Pop: expected {sizeof(PopArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for Pop: expected {Args}, got {SizeBytes}", sizeof(PopArgs), sizeBytes);
             return 1;
         }
 
@@ -130,7 +132,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(GetItemArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetItem: expected {sizeof(GetItemArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetItem: expected {Args}, got {SizeBytes}", sizeof(GetItemArgs), sizeBytes);
             return 1;
         }
 
@@ -153,7 +155,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(SetItemArgs))
         {
-            Console.WriteLine($"Invalid argument size for SetItem: expected {sizeof(SetItemArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for SetItem: expected {Args}, got {SizeBytes}", sizeof(SetItemArgs), sizeBytes);
             return 1;
         }
 
@@ -175,7 +177,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(GetNewestArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetNewest: expected {sizeof(GetNewestArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetNewest: expected {Args}, got {SizeBytes}", sizeof(GetNewestArgs), sizeBytes);
             return 1;
         }
 
@@ -197,7 +199,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(SetNewestArgs))
         {
-            Console.WriteLine($"Invalid argument size for SetNewest: expected {sizeof(SetNewestArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for SetNewest: expected {Args}, got {SizeBytes}", sizeof(SetNewestArgs), sizeBytes);
             return 1;
         }
 
@@ -219,7 +221,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(GetOldestArgs))
         {
-            Console.WriteLine($"Invalid argument size for GetOldest: expected {sizeof(GetOldestArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for GetOldest: expected {Args}, got {SizeBytes}", sizeof(GetOldestArgs), sizeBytes);
             return 1;
         }
 
@@ -241,7 +243,7 @@ public static unsafe class NativeRingBufferProxy<T, TStorage>
     {
         if (sizeBytes != sizeof(SetOldestArgs))
         {
-            Console.WriteLine($"Invalid argument size for SetOldest: expected {sizeof(SetOldestArgs)}, got {sizeBytes}");
+            NativeLogging.Logger.LogError("Invalid argument size for SetOldest: expected {Args}, got {SizeBytes}", sizeof(SetOldestArgs), sizeBytes);
             return 1;
         }
 

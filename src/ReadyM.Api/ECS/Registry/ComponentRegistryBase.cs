@@ -9,6 +9,8 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     private readonly List<Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>> _acceptCallbacks = [];
     private byte _componentTypes;
 
+    public bool HasComponents => GetNextComponentId() > 0;
+
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
         var registry = (TRegistry)(object)this;
@@ -31,6 +33,14 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
             throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
         }
 
+        if (defaultValue is IDisposable && !defaultValue.Equals(default(T)))
+        {
+            throw new InvalidOperationException(
+                $"Component {typeof(T).Name} was registered with a constructed default, whose native buffers "
+                + "every entity would then share. Register the type without a value and let each entity allocate "
+                + "its own on first write");
+        }
+
         _componentTypes++;
         _acceptCallbacks.Add(callback =>
         {
@@ -39,7 +49,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 
         return (TRegistry)(object)this;
     }
-    
+
     protected TRegistry RegisterWithoutCallbacks()
     {
         if (_componentTypes == byte.MaxValue)

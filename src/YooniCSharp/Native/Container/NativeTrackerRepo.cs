@@ -1,0 +1,353 @@
+﻿using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
+using Yooni.Native.Logging;
+using Yooni.Native.LowLevel;
+
+namespace Yooni.Native.Container;
+
+public class NativeTrackerRepo : IDisposable
+{
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TrackEntry
+    {
+        // AllocVersion == 0
+        // ChangeCount == -1  | uninitialized or deallocated
+
+        // AllocVersion > 0
+        // ChangeCount >= 0   | active
+
+        // AllocVersion < 0   | corrupted
+
+        // ChangeCount < -1   | corrupted
+
+        public int AllocVersion;
+        private int _changeCount;
+
+        public int ChangeCount
+        {
+            get => _changeCount - 1;
+            set => _changeCount = value + 1;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TrackEntryEx
+    {
+        public TrackEntry Entry;
+        public NativeLogLevel Logging;
+
+        public int AllocVersion
+        {
+            get => Entry.AllocVersion;
+            set => Entry.AllocVersion = value;
+        }
+
+        public int ChangeCount
+        {
+            get => Entry.ChangeCount;
+            set => Entry.ChangeCount = value;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct EntryList
+    {
+        public NativeList<TrackEntryEx> Entries;
+        public NativeList<int> FreeList;
+    }
+
+    private TypedPtr<EntryList> _ptr;
+    private AllocatorKind _allocator;
+    private bool _alreadyInit;
+    private bool _disposed;
+
+    internal static readonly NativeTrackerRepo Instance = new();
+
+    public static void Init(AllocatorKind allocatorKind)
+        => Instance.DoInit(allocatorKind);
+
+    public static void Init(IntPtr trackerPtr, AllocatorKind allocatorKind)
+        => Instance.DoInit(trackerPtr, allocatorKind);
+
+    public static void Dispose()
+        => ((IDisposable)Instance).Dispose();
+
+    internal void DoInit(AllocatorKind allocatorKind)
+    {
+        if (_alreadyInit)
+            throw new InvalidOperationException("Tracker already initialized");
+
+        _ptr = TypedPtr<EntryList>.Alloc(allocatorKind);
+        _allocator = allocatorKind;
+        ref var root = ref _ptr.Get();
+        root.Entries = new NativeList<TrackEntryEx>(1024, allocatorKind);
+        root.FreeList = new NativeList<int>(1024, allocatorKind);
+        _alreadyInit = true;
+        _disposed = false;
+    }
+
+    internal void DoInit(IntPtr trackerPtr, AllocatorKind allocatorKind)
+    {
+        if (_alreadyInit)
+            throw new InvalidOperationException("Tracker already initialized");
+
+        _ptr = new TypedPtr<EntryList>(trackerPtr);
+        _allocator = allocatorKind;
+        _alreadyInit = true;
+        _disposed = false;
+    }
+
+    void IDisposable.Dispose()
+    {
+        ref var root = ref _ptr.Get();
+        root.Entries.Dispose();
+        root.FreeList.Dispose();
+        _ptr.Free(_allocator);
+        _allocator = default;
+        _alreadyInit = false;
+        _disposed = true;
+    }
+
+    internal int TrackAlloc(out TrackEntry entry, NativeLogLevel level)
+    {
+        if (!_alreadyInit)
+        {
+            entry = default;
+            return -1; // Untracked because we're not done setting up yet
+        }
+
+        ref var root = ref _ptr.Get();
+        int index;
+
+        if (root.FreeList.Count > 0)
+        {
+            index = root.FreeList[root.FreeList.Count - 1];
+            root.FreeList.RemoveAt(root.FreeList.Count - 1);
+            root.Entries[index].AllocVersion++;
+            root.Entries[index].ChangeCount = 0;
+        }
+        else
+        {
+            index = root.Entries.Count;
+            root.Entries.Add(new TrackEntryEx { AllocVersion = 1, ChangeCount = 0 });
+        }
+
+        root.Entries[index].Logging = level;
+        entry = root.Entries[index].Entry;
+
+        switch (root.Entries[index].Logging)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking ALLOC {Index}, version: {Version}",
+                    index, entry.AllocVersion);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking ALLOC {Index}, version: {Version}\n{Trace}",
+                    index, entry.AllocVersion, new StackTrace(true));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        return index;
+    }
+
+    internal void TrackFree(int index, ref TrackEntry entry)
+    {
+        if (!Check(index, in entry))
+            return; // This is an untracked entry, nothing to do
+
+        ref var root = ref _ptr.Get();
+
+        switch (root.Entries[index].Logging)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking FREE {Index}, version: {Version}",
+                    index, entry.AllocVersion);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking FREE {Index}, version: {Version}\n{Trace}",
+                    index, entry.AllocVersion, new StackTrace(true));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        root.Entries[index].ChangeCount = -1; // NOTE: Special value to denote freed
+        entry.ChangeCount = -1;
+
+        root.FreeList.Add(index);
+    }
+
+    // NOTE: Returns whether this is a tracked entry
+    internal bool Check(int index, in TrackEntry entry)
+    {
+        if (_disposed)
+            return false;
+
+        if (!_alreadyInit)
+            return false; // Untracked because we're not done setting up yet
+
+        if (index == -1)
+            return false; // Untracked because we didn't set up an entry to track (e.g. alloc during tracker init)
+
+        if (index < 0)
+            throw new InvalidOperationException($"Invalid index {index} for tracking. Index must be non-negative.");
+
+        ref var root = ref _ptr.Get();
+
+        if (index >= root.Entries.Count)
+            throw new InvalidOperationException(
+                $"Invalid index {index} for tracking. Current entry count: {root.Entries.Count}");
+
+        if (entry.AllocVersion <= 0)
+            throw new InvalidOperationException(
+                $"Invalid tracked entry {index} caller alloc version: {entry.AllocVersion}. " +
+                $"Possibly caller's memory got corrupted");
+
+        if (entry.ChangeCount == -1)
+            throw new InvalidOperationException(
+                $"Corruption: tracked entry {index} caller's entry is marked as freed. This is " +
+                $"a potential use-after-free or use-uninitialized bug. Caller " +
+                $"alloc version: {entry.AllocVersion}");
+
+        if (entry.ChangeCount < 0)
+            throw new InvalidOperationException(
+                $"THIS SHOULD NOT HAPPEN! tracked entry {index} caller's entry is broken. This is " +
+                $"a potential use-uninitialized bug or a memory corruption bug. Caller " +
+                $"alloc version: {entry.AllocVersion}, caller change count: {entry.ChangeCount}");
+
+        ref var currentEntry = ref root.Entries[index];
+
+        if (currentEntry.AllocVersion <= 0)
+            throw new InvalidOperationException(
+                $"THIS SHOULD NOT HAPPEN! Invalid tracked entry {index} current alloc version: {currentEntry.AllocVersion}. " +
+                $"Possibly tracker's memory got corrupted");
+
+        if (currentEntry.AllocVersion != entry.AllocVersion)
+            throw new InvalidOperationException(
+                $"Corruption: tracked entry {index} has already been freed (then index was reused) but the " +
+                $"caller holds a stale copy. Stale alloc version: {entry.AllocVersion}, " +
+                $"stale change count: #{entry.ChangeCount}, current alloc version: {currentEntry.AllocVersion}");
+
+        if (currentEntry.ChangeCount == -1)
+            throw new InvalidOperationException(
+                $"Corruption: tracked entry {index} has already been freed but the " +
+                $"caller holds a stale copy. Stale alloc version: {entry.AllocVersion} change count #{entry.ChangeCount}");
+
+        if (currentEntry.ChangeCount < -1)
+            throw new InvalidOperationException(
+                $"THIS SHOULD NOT HAPPEN! something seems to have overwritten tracked entry {index} current change " +
+                $"count with an invalid value. Alloc version: {entry.AllocVersion}, " +
+                $"caller change count: #{entry.ChangeCount}, current change count: #{currentEntry.ChangeCount}");
+
+        if (currentEntry.ChangeCount > entry.ChangeCount)
+            throw new InvalidOperationException(
+                $"Corruption: tracked entry {index} has been modified but the caller holds a " +
+                $"stale copy that didn't see that change. Caller alloc version: {entry.AllocVersion}, " +
+                $"stale change count: #{entry.ChangeCount}, current change count: #{currentEntry.ChangeCount}");
+
+        if (currentEntry.ChangeCount < entry.ChangeCount)
+            throw new InvalidOperationException(
+                $"THIS SHOULD NOT HAPPEN! current tracked entry {index} has a lower change count than the caller's " +
+                $"change count. This could be due to memory corruption, accidental overwrite. " +
+                $"Caller alloc version: {entry.AllocVersion}, caller change count: #{entry.ChangeCount}, " +
+                $"current change count: #{currentEntry.ChangeCount}");
+
+        // NOTE: Check successful
+        return true;
+    }
+
+    internal void MarkChange(int index, ref TrackEntry entry)
+    {
+        if (!Check(index, in entry))
+            return;
+
+        ref var root = ref _ptr.Get();
+
+        switch (root.Entries[index].Logging)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    new StackTrace(true),
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        root.Entries[index].ChangeCount++;
+        entry.ChangeCount++;
+    }
+
+    internal void MarkChangeNoCheck(int index, ref TrackEntry entry)
+    {
+        if (_disposed || !_alreadyInit || index == -1)
+            return;
+
+        if (index < 0)
+            throw new InvalidOperationException($"Invalid index {index} for tracking. Index must be non-negative.");
+
+        ref var root = ref _ptr.Get();
+
+        switch (root.Entries[index].Logging)
+        {
+            case NativeLogLevel.Disabled:
+                break;
+            case NativeLogLevel.Enabled:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            case NativeLogLevel.EnableStacktrace:
+                NativeLogging.Logger.LogDebug(
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
+                    new StackTrace(true),
+                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        root.Entries[index].ChangeCount++;
+        entry.ChangeCount++;
+    }
+
+    internal NativeLogLevel GetLogging(int index, in TrackEntry entry)
+    {
+        if (!Check(index, in entry))
+            return NativeLogLevel.Disabled;
+
+        ref var root = ref _ptr.Get();
+
+        return root.Entries[index].Logging;
+    }
+
+    internal void SetLogging(int index, ref TrackEntry entry, NativeLogLevel logging)
+    {
+        if (!Check(index, in entry))
+            return;
+
+        ref var root = ref _ptr.Get();
+
+        root.Entries[index].Logging = logging;
+    }
+}

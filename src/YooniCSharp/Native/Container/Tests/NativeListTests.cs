@@ -1,10 +1,23 @@
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Yooni.Native.LowLevel;
 
 namespace Yooni.Native.Container.Tests;
 
 public class NativeListTests
 {
+    [SetUp]
+    public void SetUp()
+    {
+        NativeTrackerRepo.Init(AllocatorKind.Default);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        NativeTrackerRepo.Dispose();
+    }
+
     [Test, Category("Native"), Category("NativeList")]
     [TestCase(0), TestCase(1), TestCase(2), TestCase(3), TestCase(10), TestCase(123)]
     public void TestAdd(int initialCapacity)

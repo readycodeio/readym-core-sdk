@@ -13,6 +13,8 @@ public static class NativeListExtensions
         where T : unmanaged
         where TComparer : IEqualityComparer<T>
     {
+        list.MarkChange();
+
         var index = -1;
         for (var i = 0; i < list.Count; ++i)
         {
@@ -34,6 +36,8 @@ public static class NativeListExtensions
     public static void Trim<T>(ref this NativeList<T> values, int count, int startIndex = 0)
         where T : unmanaged
     {
+        values.MarkChange();
+
         if (startIndex < 0)
             throw new ArgumentException();
         if (values.Count < startIndex + count)
@@ -53,6 +57,8 @@ public static class NativeListExtensions
     public static void Trim<T>(ref this NativeList<T> values, in NativeList<T> source, int count, int startIndex = 0)
         where T : unmanaged
     {
+        values.MarkChange();
+
         if (startIndex < 0)
             throw new ArgumentException();
         if (source.Count < startIndex + count)
