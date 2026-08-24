@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
-using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
-using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.Extensions;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -74,8 +71,12 @@ internal class ApplyDeltaJob<T>(
 
                     if (playerId == owner)
                     {
-                        // Owner-directed deltas are always server overrides; keep the API flag so the
-                        // sync copies it to the game actor, and clear dirty so we don't echo it back.
+                        // NOTE: Client never receives deltas for its owned entities UNLESS they come from the server
+                        // BECAUSE of the server-authoritative from API changes. If that's the case we "forward" that
+                        // change to the client. So on the client side we no longer want to have dirtyMask set (because
+                        // this change already came from the server, so there's no need to propagate it back to the
+                        // server), and we want to set "from API" flag because we want to treat that situation as if
+                        // something got changed "from API" on the client side.
                         comp.MarkChangedFromApi();
                         comp.ClearDirty();
                     }
@@ -89,8 +90,7 @@ internal class ApplyDeltaJob<T>(
 
                     if (playerId == owner)
                     {
-                        // Owner-directed deltas are always server overrides; keep the API flag so the
-                        // sync copies it to the game actor, and clear dirty so we don't echo it back.
+                        // NOTE: See analogous comment above on the other branch.
                         comp.MarkChangedFromApi();
                         comp.ClearDirty();
                     }
@@ -109,10 +109,11 @@ internal class ApplyDeltaJob<T>(
                 }
 
                 ref var component = ref entity.Value.GetComponent<T>();
-                component.ReadDelta(reader);
+                component.ReadDeltaTracking(reader, entity.Value.Id);
 
                 if (playerId == owner)
                 {
+                    // NOTE: See analogous comment above on the other branch.
                     component.MarkChangedFromApi();
                     component.ClearDirty();
                 }
