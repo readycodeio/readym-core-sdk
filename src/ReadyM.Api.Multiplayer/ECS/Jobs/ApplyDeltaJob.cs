@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Linq;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
-using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Extensions;
@@ -13,7 +13,8 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 internal class ApplyDeltaJob<T>(INetworkedEntityManager netEntity, IPlayerIdProvider playerIdProvider, ILogger logger) : IJob<NetDataReader>
     where T : struct, INetworkedComponent
 {
-    private readonly bool _useSetComponent = typeof(IForceSetComponent).IsAssignableFrom(typeof(T));
+    private readonly bool _useSetComponent = 
+        typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
 
     [ThreadStatic]
     private static T _skipinstance;

@@ -318,7 +318,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
@@ -428,7 +428,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
@@ -544,7 +544,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
@@ -666,7 +666,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
@@ -794,7 +794,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
@@ -928,7 +928,7 @@ public class EcsApi
         {
             fixed (TState* sp = &state)
             {
-                IntPtr statePtr = (IntPtr)sp;
+                var statePtr = (IntPtr)sp;
 
                 _tlsState.Callback = callback;
                 _tlsState.State = statePtr;
