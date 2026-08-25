@@ -1,6 +1,4 @@
-﻿using ReadyM.Api.Multiplayer;
-
-namespace ReadyM.Relay.Server.Sdk.Ecs.Systems;
+﻿namespace ReadyM.Relay.Server.Sdk.Ecs.Systems;
 
 /// <summary>
 /// A base class for server-side mod systems that need to perform updates each tick.
@@ -20,16 +18,6 @@ public abstract class ModSystemBase
 
         /// <summary> The time at the beginning of the current frame since application start. </summary>
         public readonly float Time = time;
-
-        /// <summary> The time in seconds since the last tick. </summary>
-        // FIXME: This will be made obsolete
-        public float deltaTime
-            => DeltaTime;
-
-        /// <summary> The time at the beginning of the current frame since application start. </summary>
-        // FIXME: This will be made obsolete
-        public float time
-            => Time;
     }
 
     /// <summary>
@@ -43,7 +31,6 @@ public abstract class ModSystemBase
     /// </summary>
     /// <param name="deltaTime">Time since last tick, in seconds.</param>
     /// <param name="time">Total time since server start, in seconds.</param>
-    /// <param name="netTicks">The number of server authority network ticks since server start.</param>
     public void Update(float deltaTime, float time)
     {
         OnUpdate(new UpdateTick(deltaTime, time));
