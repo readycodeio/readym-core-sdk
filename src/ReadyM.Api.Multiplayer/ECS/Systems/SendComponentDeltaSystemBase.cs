@@ -3,6 +3,7 @@ using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Values;
@@ -13,14 +14,16 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T>
     where T : struct, INetworkedComponent
 {
+    private readonly INetworkTime _networkTime;
     protected readonly NetworkedComponentId ComponentId;
     private readonly bool _clearFlags;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;
 
-    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearFlags)
+    protected SendComponentDeltaSystemBase(INetworkTime networkTime, NetworkedComponentId componentId, bool clearFlags)
     {
         ComponentId = componentId;
         _clearFlags = clearFlags;
+        _networkTime = networkTime;
         _queryCache = new QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>>(
             context => context.ScopeEntity,
             context =>
@@ -53,9 +56,10 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     /// Owner-directed send used for API-authored deltas. Only invoked when SendApiDeltasToOwner is true.
     protected virtual void SendToOwner(PlayerId owner, NetDataWriter data, SendContext context) { }
 
-    protected virtual void CreatePacketHeader(NetDataWriter writer)
+    private void CreatePacketHeader(NetDataWriter writer)
     {
         writer.Put((byte)RelayMessageCode.EcsDelta);
+        writer.Put(_networkTime.GetCurrentTime());
         writer.Put(ComponentId);
     }
 
