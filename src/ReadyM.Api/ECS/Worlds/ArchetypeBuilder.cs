@@ -8,17 +8,8 @@ namespace ReadyM.Api.ECS.Worlds;
 
 public class ArchetypeBuilder
 {
-    private readonly List<(Type, object?)> _componentTypes = [];
-    private readonly List<(int StructIndex, int Stride)> _componentStrides = [];
-    private readonly List<Type> _tagTypes = [];
-
     private readonly List<Action<IArchetypeBuilderCallback>> _acceptCallbacks = [];
     private readonly List<IArchetypeBuilderCallback> _filters = [];
-
-    public int GetComponentCount() => _componentTypes.Count;
-    public IReadOnlyList<(Type, object?)> GetComponentTypes() => _componentTypes;
-    public IReadOnlyList<(int StructIndex, int Stride)> GetComponentStrides() => _componentStrides;
-    public IReadOnlyList<Type> GetTagTypes() => _tagTypes;
 
     public ArchetypeBuilder Add(Type componentType)
     {
@@ -38,8 +29,6 @@ public class ArchetypeBuilder
     public ArchetypeBuilder Add<T>()
         where T : struct, IComponent
     {
-        _componentTypes.Add((typeof(T), null));
-
         var accept = new Action<IArchetypeBuilderCallback>(callback =>
         {
             callback.AcceptComponentType<T>(this);
@@ -57,8 +46,6 @@ public class ArchetypeBuilder
     public ArchetypeBuilder Add<T>(T component)
         where T : struct, IComponent
     {
-        _componentTypes.Add((typeof(T), component));
-
         var accept = new Action<IArchetypeBuilderCallback>(callback =>
         {
             callback.AcceptComponentType<T>(this, component);
@@ -75,8 +62,6 @@ public class ArchetypeBuilder
 
     public ArchetypeBuilder Add(int structIndex, int stride)
     {
-        _componentStrides.Add((structIndex, stride));
-
         var accept = new Action<IArchetypeBuilderCallback>(callback =>
         {
             callback.AcceptStrideComponent(this, structIndex, stride);
@@ -94,7 +79,6 @@ public class ArchetypeBuilder
     public ArchetypeBuilder AddTag<T>()
         where T : struct, ITag
     {
-        _tagTypes.Add(typeof(T));
         _acceptCallbacks.Add(callback =>
         {
             callback.AcceptTag<T>(this);
