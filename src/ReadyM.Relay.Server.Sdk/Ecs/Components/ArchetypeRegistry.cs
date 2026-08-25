@@ -11,7 +11,7 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSettings serverSide, ComponentRegistry registry, ILogger logger) : IArchetypeRegistry
+internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentRegistry registry, ILogger logger) : IArchetypeRegistry
 {
     private struct ArchetypeEntry
     {
@@ -19,7 +19,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
         public List<int> ComponentIds;
     }
 
-    private sealed class CollectComponentIdsCallback(ComponentRegistry registry, ServerSideSettings serverSide, ILogger logger) : IArchetypeBuilderCallback
+    private sealed class CollectComponentIdsCallback(ComponentRegistry registry, ILogger logger) : IArchetypeBuilderCallback
     {
         public List<int>? ComponentIds;
 
@@ -54,7 +54,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ServerSideSe
         Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
-    private readonly CollectComponentIdsCallback _callback = new(registry, serverSide, logger);
+    private readonly CollectComponentIdsCallback _callback = new(registry, logger);
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     private List<int> GetComponentIds(int startIndex, ArchetypeBuilder builder)
