@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -87,5 +88,16 @@ internal sealed class ComponentRegistry(
         logger.LogDebug("Registered component {Component} with ID {Id}", type.FullName, id);
 
         _registered[type] = (id, stride);
+
+        var nestedTypeName = "ChangeComponent";
+        var nestedType = type.GetNestedType(nestedTypeName, BindingFlags.Public);
+
+        if (nestedType != null)
+        {
+            // call RegisterLocalComponent<ChangeComponent>() for the nested type
+            var registerMethod = typeof(ComponentRegistry).GetMethod(nameof(RegisterLocalComponent), BindingFlags.Public | BindingFlags.Instance);
+            var genericMethod = registerMethod!.MakeGenericMethod(nestedType);
+            genericMethod.Invoke(this, null);
+        }
     }
 }

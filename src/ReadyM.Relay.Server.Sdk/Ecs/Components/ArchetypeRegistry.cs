@@ -3,7 +3,7 @@ using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
@@ -11,8 +11,31 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentRegistry registry, ILogger logger) : IArchetypeRegistry
+internal sealed class ArchetypeRegistry : IArchetypeRegistry
 {
+    private readonly ILogger _logger;
+
+    private readonly RegisterArchetypeDelegate _registerArchetypeDelegate;
+    private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate;
+
+    private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
+    private readonly CollectComponentIdsCallback _callback;
+    private readonly List<IArchetypeBuilderCallback> _filters = [];
+
+    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, ILogger logger)
+    {
+        _logger = logger;
+        _callback = new CollectComponentIdsCallback(registry, _logger);
+
+        _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
+        _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
+
+        foreach (var registration in registrations)
+        {
+            registration.Register(this);
+        }
+    }
+
     private struct ArchetypeEntry
     {
         public ArchetypeBuilder Builder;
@@ -47,16 +70,6 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
             => throw new NotSupportedException("Adding tag components is not supported in the mod archetype registry.");
     }
 
-    private readonly RegisterArchetypeDelegate _registerArchetypeDelegate =
-        Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
-
-    private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate =
-        Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
-
-    private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
-    private readonly CollectComponentIdsCallback _callback = new(registry, logger);
-    private readonly List<IArchetypeBuilderCallback> _filters = [];
-
     private List<int> GetComponentIds(int startIndex, ArchetypeBuilder builder)
     {
         var componentIds = new List<int>();
@@ -79,14 +92,14 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
 
     public ArchetypeId RegisterArchetype(ArchetypeBuilder builder)
     {
-        var componentList = GetComponentIds(0, builder);
-        var nativeComponentList = ToNative(componentList);
-        var archetypeId = _registerArchetypeDelegate(nativeComponentList);
-
         foreach (var filter in _filters)
         {
             builder.RegisterFilter(filter);
         }
+
+        var componentList = GetComponentIds(0, builder);
+        var nativeComponentList = ToNative(componentList);
+        var archetypeId = _registerArchetypeDelegate(nativeComponentList);
 
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
@@ -94,7 +107,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
             ComponentIds = componentList,
         };
 
-        logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
+        _logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
 
         return archetypeId;
     }
@@ -118,7 +131,7 @@ internal sealed class ArchetypeRegistry(ArchetypePointers pointers, ComponentReg
         var newComponentList = GetComponentIds(startIndex, entry.Builder);
         entry.ComponentIds.AddRange(newComponentList);
 
-        logger.LogDebug("Modifying archetype {Archetype} {Components}", archetypeId, newComponentList);
+        _logger.LogDebug("Modifying archetype {Archetype} {Components}", archetypeId, newComponentList);
 
         var nativeNewComponentList = ToNative(newComponentList);
         _modifyArchetypeDelegate(archetypeId, nativeNewComponentList);
