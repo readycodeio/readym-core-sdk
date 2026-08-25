@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.DI;
 using ReadyM.Api.ECS.Systems;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -126,9 +127,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         // When an ECS change ownership message is received, the client updates the ownership of the entity in its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
-        // When server notifies us about the new network time
-        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.NetworkTime, OnNetworkTimeMessageHandler);
-
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
         // sent to the server.
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
@@ -157,7 +155,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         _ecsLoop.RemoveSystem(SyncSystemGroup);
         _ecsLoop.RemoveSystem(ReceiveSystemGroup);
 
-        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.NetworkTime, OnNetworkTimeMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDeleteEntity, OnEcsDeleteEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsCreateEntity, OnEcsCreateEntityMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDelta, OnEcsDeltaMessageHandler);
@@ -273,6 +270,8 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             try
             {
                 _skipEcsEventMessages++;
+                var serverTime = readerCopy.GetUInt();
+                self._netTime.SetObservedTime(serverTime);
                 self.SerializationJobRegistry.ApplyDelta(readerCopy);
             }
             finally
@@ -353,12 +352,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 _skipEcsEventMessages--;
             }
         }, this, netId);
-    }
-
-    private void OnNetworkTimeMessageHandler(ServerEventHeader header, NetDataReader reader)
-    {
-        var serverTime = reader.GetUInt();
-        _netTime.SetObservedTime(serverTime);
     }
 
     // NOTE: We deleted the entity, and we need to message the server about it

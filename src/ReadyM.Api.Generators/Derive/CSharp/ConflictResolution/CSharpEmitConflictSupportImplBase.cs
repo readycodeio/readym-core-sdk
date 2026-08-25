@@ -7,7 +7,7 @@ internal abstract class CSharpEmitConflictSupportImplBase : ICSharpEmitConflictS
     protected virtual string EmitLastChanged(ITypeSymbol symbol, CSharpEmitConflictSupportContext context, bool nullable)
     {
         var lastChangedField = context.Member.GeneratedPropertyName + "LastChanged";
-        return $"{context.ChangeStoreVar}{(nullable ? "?" : "")}.GetChangeComponent<ChangeComponent>({context.IdentVarName}).{lastChangedField}";
+        return $"({context.ChangeStoreVar}{(nullable ? "?" : "")}.GetChangeComponent<ChangeComponent>({context.IdentVarName}).{lastChangedField}{(nullable ? " ?? 0" : "")})";
     }
 
     public void EmitCanChange(ITypeSymbol symbol, CSharpEmitConflictSupportContext context, bool forceParen)
@@ -15,7 +15,7 @@ internal abstract class CSharpEmitConflictSupportImplBase : ICSharpEmitConflictS
         if (forceParen)
             context.Append("(");
 
-        context.Append($"!({context.LastObservedTimeVar} <= {EmitLastChanged(symbol, context, true)})");
+        context.Append($"!({context.LastObservedTimeVar} < {EmitLastChanged(symbol, context, true)})");
 
         if (forceParen)
             context.Append(")");
