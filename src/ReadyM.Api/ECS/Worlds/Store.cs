@@ -216,7 +216,7 @@ internal sealed partial class Store : IArchetypeRegistry
         _archetypeEntries[archetypeId] = entry;
     }
 
-    internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilderBase>? setComponents = null)
+    internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
     {
         AssertThreadId();
 

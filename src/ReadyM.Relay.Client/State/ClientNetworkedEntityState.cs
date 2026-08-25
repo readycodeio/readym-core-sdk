@@ -14,7 +14,7 @@ internal class ClientNetworkedEntityState(
     public Entity CreateEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         var (entity, _) = netEntity.CreateNetworkedEntity(archetypeId, scopeEntity, setComponents, ownerOverride);
@@ -23,13 +23,13 @@ internal class ClientNetworkedEntityState(
 
     public Entity CreateGlobalEntity(
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null)
         => CreateEntity(archetypeId, null, setComponents, ownerOverride);
 
     public Entity CreateAreaEntity(
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         if (!state.CurrentAreaEntity.HasValue)
@@ -43,7 +43,7 @@ internal class ClientNetworkedEntityState(
     public Entity CreateCellEntity(
         CellId cellId,
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
         var cellEntry = state.GetActiveCellEntry(cellId);

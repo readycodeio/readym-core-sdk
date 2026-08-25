@@ -16,7 +16,7 @@ internal interface INetworkedEntityManager
     (Entity Entity, NetworkId NetId) CreateNetworkedEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
     Entity CreateRemoteNetworkedEntity(MetadataComponent meta, Entity? scopeEntity);
     bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity);

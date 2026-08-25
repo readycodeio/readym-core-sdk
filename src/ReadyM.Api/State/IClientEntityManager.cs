@@ -10,23 +10,23 @@ internal interface IClientEntityManager
     Entity CreateEntity(
         ArchetypeId archetypeId,
         Entity? scopeEntity,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
     Entity CreateGlobalEntity(
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
     Entity CreateAreaEntity(
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
     Entity CreateCellEntity(
         CellId cellId,
         ArchetypeId archetypeId,
-        Action<EntityBuilderBase>? setComponents = null,
+        Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
     Entity CreatePlayerEntity(ArchetypeId archetypeId);
