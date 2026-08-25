@@ -566,6 +566,9 @@ public struct NativeDictionary<TKey, TValue, THash> : IDisposable, IEnumerable<K
     public void Check()
         => _impl.Check();
 
-    public void LogTracking(NativeLogLevel level = NativeLogLevel.Enabled)
-        => _impl.SetLogging(level);
+    public readonly NativeLogLevel GetLogging()
+        => _impl.GetLogging();
+
+    public void SetLogging(NativeLogLevel logLevel = NativeLogLevel.Enabled)
+        => _impl.SetLogging(logLevel);
 }

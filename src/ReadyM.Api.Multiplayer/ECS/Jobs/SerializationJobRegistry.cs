@@ -5,6 +5,7 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Compat;
 using ReadyM.Api.ECS.Jobs;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
@@ -39,6 +40,7 @@ internal sealed class SerializationJobRegistry
     private readonly Dictionary<NetworkedComponentId, IJob<EntityStore, QueryFilter, Entity?, SpanDataWriter>> _writeSnapshotJobs = [];
 
     public event Action? OnApplySnapshot;
+    public event Action<NetworkedComponentId>? OnApplyDelta;
     private readonly Dictionary<NetworkedComponentId, Action?> _onApplySnapshotByComponentId = [];
     private readonly Dictionary<NetworkedComponentId, Action?> _onApplyDeltaByComponentId = [];
 
@@ -97,6 +99,8 @@ internal sealed class SerializationJobRegistry
         {
             callback?.Invoke();
         }
+
+        OnApplyDelta?.Invoke(componentId);
     }
 
     [ThreadStatic]

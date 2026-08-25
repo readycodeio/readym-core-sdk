@@ -2,7 +2,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Worlds;
 
-internal sealed class EntityBuilder : EntityBuilderBase
+public sealed class EntityBuilder
 {
     private readonly CreateEntityBatch _wrapped;
 
@@ -11,23 +11,15 @@ internal sealed class EntityBuilder : EntityBuilderBase
         _wrapped = wrapped;
     }
 
-    public override EntityBuilderBase Add<T>()
+    public EntityBuilder Add<T>(in T value) where T : struct, IComponent
     {
-        return new EntityBuilder(_wrapped.Add<T>());
+        _wrapped.Add<T>(value);
+        return this;
     }
 
-    public override EntityBuilderBase Add<T>(in T component)
+    public EntityBuilder AddTag<T>() where T : struct, ITag
     {
-        return new EntityBuilder(_wrapped.Add(in component));
-    }
-
-    internal override EntityBuilderBase Add(int structIndex, int stride)
-    {
-        return new EntityBuilder(_wrapped.Add(structIndex, stride));
-    }
-
-    internal override EntityBuilderBase AddTag<T>()
-    {
-        return new EntityBuilder(_wrapped.AddTag<T>());
+        _wrapped.AddTag<T>();
+        return this;
     }
 }

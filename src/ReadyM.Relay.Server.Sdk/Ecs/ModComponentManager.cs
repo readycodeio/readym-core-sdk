@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
@@ -58,6 +60,19 @@ internal sealed class ModComponentManager : IDisposable
             WriteSnapshot = IntPtr.Zero,
             ReadSnapshot = IntPtr.Zero
         };
+    }
+
+    public ModComponentRegistration RegisterComponent(Type componentType)
+    {
+        var method = GetType().GetMethod(nameof(RegisterComponent), BindingFlags.Public | BindingFlags.Instance, []);
+        Debug.Assert(method != null, "RegisterComponent method not found");
+
+        var genericMethod = method.MakeGenericMethod(componentType);
+        var result = genericMethod.Invoke(this, []) as ModComponentRegistration?;
+        if (result == null)
+            throw new InvalidOperationException($"Failed to register component type {componentType.FullName}");
+
+        return result.Value;
     }
 
     /// <summary>

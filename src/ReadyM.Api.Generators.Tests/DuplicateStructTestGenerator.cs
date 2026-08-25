@@ -1,0 +1,37 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using ReadyM.Api.Generators.Duplication;
+
+namespace ReadyM.Api.Generators.Tests;
+
+/// <summary>
+/// The smallest possible driver for <see cref="TypeDuplicator"/>: reads <c>[DuplicateAs("Name")]</c> off a struct,
+/// calls the engine, adds the file. It exists only so the tests can exercise duplication end to end, from attribute
+/// to a loaded assembly. Real callers host <see cref="TypeDuplicator"/> inside their own generator instead.
+/// </summary>
+[Generator]
+internal sealed class DuplicateStructTestGenerator : IIncrementalGenerator
+{
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var sources = context.SyntaxProvider.ForAttributeWithMetadataName(
+            "ReadyM.Api.Generators.Tests.TestTypes.DuplicateAsAttribute",
+            static (node, _) => node is TypeDeclarationSyntax,
+            static (ctx, _) => (ctx.SemanticModel.Compilation, Source: (INamedTypeSymbol)ctx.TargetSymbol, ctx.Attributes[0]));
+
+        context.RegisterSourceOutput(sources, static (spc, model) =>
+        {
+            var (compilation, source, attribute) = model;
+
+            if (attribute.ConstructorArguments[0].Value is not string targetName)
+                return;
+
+            var request = new TypeDuplicationRequest(compilation, source, targetName)
+            {
+                ExcludedMemberNames = AttributeUtils.GetAttributeValue(attribute, "Exclude", new string[0])
+            };
+
+            spc.AddSource(request.TargetFullName + ".g.cs", TypeDuplicator.Duplicate(request));
+        });
+    }
+}

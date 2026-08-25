@@ -243,7 +243,7 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
         public void SetFromApi<TValue>(Field<TComponent, TValue> field, TValue value)
         {
             ref var component = ref entity.GetComponent<TComponent>();
-            field.SetFromApi(ref component, value);
+            field.SetFromApi(ref component, value, entity.Id);
         }
     }
 

@@ -8,9 +8,12 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentManager heapManager, ILogger logger) : IComponentRegistry
+internal sealed class ComponentRegistry(
+    AotPointers aotPointers,
+    ModComponentManager heapManager,
+    ILogger logger) : IComponentRegistry
 {
-    private readonly RegisterModComponentDelegate registerModComponent =
+    private readonly RegisterModComponentDelegate _registerModComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterModComponentDelegate>(aotPointers.RegisterModComponent);
 
     private readonly GetComponentIdByNameDelegate _getComponentIdByName =
@@ -50,7 +53,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterLocalComponent<T>();
-        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
+        var id = _registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
         if (id < 0)
             throw new InvalidOperationException(
@@ -58,7 +61,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
 
         _registered[type] = (id, stride);
     }
-    
+
     /// <summary>
     /// Registers a mod-defined component type with the server ECS.
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
@@ -76,7 +79,7 @@ internal sealed class ComponentRegistry(AotPointers aotPointers, ModComponentMan
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterComponent<T>();
-        var id = registerModComponent(registration, new NativeString256(typeof(T).Name, false));
+        var id = _registerModComponent(registration, new NativeString256(typeof(T).Name, false));
 
         if (id < 0)
             throw new InvalidOperationException($"Server refused to register {type.Name}: component slot limit reached.");

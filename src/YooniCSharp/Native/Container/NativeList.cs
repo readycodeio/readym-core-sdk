@@ -578,6 +578,9 @@ public struct NativeList<T> : IEnumerable<T>, IDisposable
     internal void MarkChange()
         => _allocator.MarkChange();
 
-    public void LogTracking(NativeLogLevel level = NativeLogLevel.Enabled)
-        => _allocator.SetLogging(level);
+    public readonly NativeLogLevel GetLogging()
+        => _allocator.GetLogging();
+
+    public void SetLogging(NativeLogLevel logLevel = NativeLogLevel.Enabled)
+        => _allocator.SetLogging(logLevel);
 }

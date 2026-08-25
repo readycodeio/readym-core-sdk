@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Generators;
 using ReadyM.Api.Idents;
+using Yooni.Native.LowLevel;
 
 namespace ReadyM.Api.ECS.Worlds;
 
@@ -25,14 +28,85 @@ internal sealed partial class Store : IArchetypeRegistry
 {
     private struct ArchetypeEntry
     {
-        public Action<EntityBuilder> Constructor;
+        public ArchetypeBuilder Builder;
+        public Action<CreateEntityBatch> Constructor;
+        public Action<Entity>? PostCreateInit;
     }
 
-    private ILogger _logger;
+    private class CreateEntityBatchCallback : IArchetypeBuilderCallback
+    {
+        public CreateEntityBatch? Batch;
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder)
+            where T : struct, IComponent
+            => Batch!.Add<T>();
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
+            where T : struct, IComponent
+            => Batch!.Add<T>(defaultValue);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+            => Batch!.Add(structIndex, stride);
+
+        public void AcceptTag<T>(ArchetypeBuilder builder)
+            where T : struct, ITag
+            => Batch!.AddTag<T>();
+    }
+
+    private class NativeInitCallback(ILogger logger) : IArchetypeBuilderCallback
+    {
+        public Action<Entity>? PostCreateInit;
+
+        delegate void NativeInitDelegate<T>(ref T comp, AllocatorKind allocatorKind);
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder)
+            where T : struct, IComponent
+        {
+            if (typeof(INativeInit).IsAssignableFrom(typeof(T)))
+            {
+                var method = typeof(T).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    .SingleOrDefault(m => m.Name == nameof(INativeInit.Init) && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(AllocatorKind));
+
+                if (method == null)
+                {
+                    logger.LogWarning("Component type {ComponentType} implements INativeInit but does not have a valid Init method. Skipping native init.", typeof(T));
+                    return;
+                }
+
+                var del = (NativeInitDelegate<T>)method.CreateDelegate(typeof(NativeInitDelegate<T>));
+
+                PostCreateInit = (Action<Entity>?)Delegate.Combine(PostCreateInit, new Action<Entity>(e =>
+                {
+                    ref var comp = ref e.GetComponent<T>();
+                    del.Invoke(ref comp, AllocatorKind.Default);
+                }));
+            }
+        }
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
+            where T : struct, IComponent
+            => AcceptComponentType<T>(builder);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+        {
+            // empty
+        }
+
+        public void AcceptTag<T>(ArchetypeBuilder builder)
+            where T : struct, ITag
+        {
+            // empty
+        }
+    }
+
+    private readonly ILogger _logger;
 
     private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
+    private readonly CreateEntityBatchCallback _consCallback;
+    private readonly NativeInitCallback _nativeInitCallback;
+    private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     public SystemRoot SystemRoot { get; }
 
@@ -42,6 +116,8 @@ internal sealed partial class Store : IArchetypeRegistry
     {
         _wrapped = wrapped;
         _logger = logger;
+        _consCallback = new CreateEntityBatchCallback();
+        _nativeInitCallback = new NativeInitCallback(logger);
 
         SystemRoot = new SystemRoot();
         SystemRoot.AddStore(wrapped);
@@ -70,37 +146,74 @@ internal sealed partial class Store : IArchetypeRegistry
         }
     }
 
-    public ArchetypeId RegisterArchetype(Action<EntityBuilderBase> build)
+    private Action<CreateEntityBatch> CreateConstructor(ArchetypeBuilder builder)
+    {
+        return b =>
+        {
+            try
+            {
+                _consCallback.Batch = b;
+                builder.Accept(_consCallback);
+            }
+            finally
+            {
+                _consCallback.Batch = null;
+            }
+        };
+    }
+
+    private Action<Entity>? CreatePostCreateInit(ArchetypeBuilder builder)
+    {
+        try
+        {
+            _nativeInitCallback.PostCreateInit = null;
+            builder.Accept(_nativeInitCallback);
+            var result = _nativeInitCallback.PostCreateInit;
+            return result;
+        }
+        finally
+        {
+            _nativeInitCallback.PostCreateInit = null;
+        }
+    }
+
+    public ArchetypeId RegisterArchetype(ArchetypeBuilder builder)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
+        var cons = CreateConstructor(builder);
+        var postCreateInit = CreatePostCreateInit(builder);
+
+        foreach (var filter in _filters)
+        {
+            builder.RegisterFilter(filter);
+        }
+
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
-            Constructor = build
+            Builder = builder,
+            Constructor = cons,
+            PostCreateInit = postCreateInit,
         };
 
-        _logger.LogDebug("Registering archetype {ArchetypeId} {Target}:{Method}", archetypeId, build.Target, build.Method);
+        _logger.LogDebug("Registering archetype {ArchetypeId} {Builder}", archetypeId, builder);
 
         return archetypeId;
     }
 
-    public void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build)
+    public void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback)
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
         {
             throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
         }
 
-        _logger.LogDebug("Modifying archetype {ArchetypeId} {Target}:{Method}", archetypeId, build.Target, build.Method);
+        _logger.LogDebug("Modifying archetype {ArchetypeId} {Target}:{Method}", archetypeId, entry.Builder, callback.Method);
 
-        _archetypeEntries[archetypeId] = new ArchetypeEntry
-        {
-            Constructor = builder =>
-            {
-                entry.Constructor(builder);
-                build(builder);
-            }
-        };
+        callback(entry.Builder);
+        entry.Constructor = CreateConstructor(entry.Builder);
+        entry.PostCreateInit = CreatePostCreateInit(entry.Builder);
+        _archetypeEntries[archetypeId] = entry;
     }
 
     internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
@@ -114,20 +227,11 @@ internal sealed partial class Store : IArchetypeRegistry
 
         var batch = _wrapped.Batch();
         var builder = new EntityBuilder(batch);
-        entry.Constructor.Invoke(builder);
+        entry.Constructor.Invoke(batch);
         setComponents?.Invoke(builder);
         var entity = batch.CreateEntity();
+        entry.PostCreateInit?.Invoke(entity);
         return entity;
-    }
-
-    internal Entity CreateEntity(Action<EntityBuilder>? setComponents = null)
-    {
-        AssertThreadId();
-
-        var batch = _wrapped.Batch();
-        var builder = new EntityBuilder(batch);
-        setComponents?.Invoke(builder);
-        return batch.CreateEntity();
     }
 
     /// <summary>
@@ -148,5 +252,24 @@ internal sealed partial class Store : IArchetypeRegistry
         where TLinkComponent : struct, ILinkComponent
     {
         return _wrapped.LinkComponentIndex<TLinkComponent>();
+    }
+
+    public void RegisterFilter(IArchetypeBuilderCallback filter)
+    {
+        _filters.Add(filter);
+
+        foreach (var entry in _archetypeEntries.Values)
+        {
+            entry.Builder.RegisterFilter(filter);
+        }
+    }
+
+    internal void ForceAOT<T>()
+        where T : struct, IComponent
+    {
+        default(NativeInitCallback)!.AcceptComponentType<T>(null!);
+        // ReSharper disable once SuspiciousTypeConversion.Global
+        if (default(T) is INativeInit nativeInit)
+            nativeInit.Init(default);
     }
 }

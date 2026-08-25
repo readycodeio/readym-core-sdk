@@ -11,14 +11,17 @@ public interface IArchetypeRegistry
     /// <summary>
     /// Registers a new entity archetype with the configured components.
     /// </summary>
-    /// <param name="build">An action for adding components.</param>
+    /// <param name="builder">The archetype builder with the configured components.</param>
     /// <returns>The identifier of the defined archetype.</returns>
-    ArchetypeId RegisterArchetype(Action<EntityBuilderBase> build);
-    
+    ArchetypeId RegisterArchetype(ArchetypeBuilder builder);
+
     /// <summary>
     /// Extends an existing entity archetype with additional components.
     /// </summary>
     /// <param name="archetypeId">The identifier of the archetype to modify.</param>
-    /// <param name="build">A action for adding components.</param>
-    void ModifyArchetype(ArchetypeId archetypeId, Action<EntityBuilderBase> build);
+    /// <param name="callback">This callback will be invoked immediately to modify the existing registered archetype
+    /// builder. It is NOT invoked on each call</param>
+    void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback);
+
+    void RegisterFilter(IArchetypeBuilderCallback filter);
 }

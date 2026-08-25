@@ -1,4 +1,5 @@
 ﻿using System;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.Mapping.Data;
 
@@ -7,7 +8,7 @@ public readonly struct Field<TComponent, TValue>(
     int id,
     Func<TComponent, TValue> get,
     FieldSetterDelegate<TComponent, TValue> set,
-    FieldSetterDelegate<TComponent, TValue> setFromApi,
+    FieldSetterFromApiDelegate<TComponent, TValue> setFromApi,
     Func<TComponent, bool> wasSetFromApi
 )
     where TComponent : struct
@@ -16,7 +17,7 @@ public readonly struct Field<TComponent, TValue>(
     internal readonly Func<TComponent, bool> WasSetFromApi = wasSetFromApi;
     internal readonly Func<TComponent, TValue> Get = get;
     internal readonly FieldSetterDelegate<TComponent, TValue> Set = set;
-    internal readonly FieldSetterDelegate<TComponent, TValue> SetFromApi = setFromApi;
+    internal readonly FieldSetterFromApiDelegate<TComponent, TValue> SetFromApi = setFromApi;
 
     public Field<TComponent, TValue, TContext> In<TContext>() => new(Id, Get, Set, WasSetFromApi);
 

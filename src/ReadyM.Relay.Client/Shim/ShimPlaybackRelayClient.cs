@@ -32,10 +32,9 @@ internal class ShimPlaybackRelayClient : IRelayClient
 
         ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
 
-
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AllPlayers
             => new(AllPlayers);
-        
+
         ReadOnlyList<PlayerId> IRelayClientNetworkThreadContext.AreaPlayers
             => new(AreaPlayers);
     }
@@ -43,7 +42,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     private readonly ShimReplayDependencyTracker _depTracker;
     private readonly ShimRelayMessageParser _parser;
     private readonly ILogger _logger;
-    
+
     private int _delay;
     private Stopwatch? _stopwatch;
 
@@ -63,7 +62,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
 
     public bool IsPlaying
         => _isPlaying;
-    
+
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
     public ReadOnlyList<CellId>? RequestedActiveCells { get; private set; }
@@ -128,7 +127,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        
+
         _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -138,7 +137,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
         if (maxEventCode < RelayMessageCode.MinBuiltInEvent || maxEventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        
+
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
             _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
@@ -149,7 +148,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        
+
         _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -170,7 +169,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
-        
+
         _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -180,7 +179,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
         if (maxEventCode < RelayMessageCode.MinServerRpcEvent || maxEventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
             _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
@@ -191,7 +190,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
-        
+
         _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -201,7 +200,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
         if (maxEventCode < RelayMessageCode.MinServerRpcEvent || maxEventCode > RelayMessageCode.MaxServerRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
             _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)i], handler);
@@ -212,7 +211,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -222,7 +221,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
         if (maxEventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
             _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
@@ -233,7 +232,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (eventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
     }
 
@@ -241,7 +240,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (minEventCode > RelayMessageCode.MaxClientRpcEvent)
             throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        
+
         for (var i = minEventCode; i <= maxEventCode; i++)
         {
             _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)i], handler);
@@ -257,7 +256,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         _logger = logger;
         _scheduler = new(_netThreadContext, _logger);
     }
-    
+
     public void Dispose()
     {
         Stop();
@@ -270,7 +269,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             _requestItems.Add(requestItem);
         }
     }
-    
+
     public void SetRecording(ShimRecording recording, int delay = 1_000)
     {
         if (_isRunning)
@@ -375,7 +374,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
 
         _isPlaying = false;
     }
-    
+
     public void Start()
     {
         if (_isRunning)
@@ -405,7 +404,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         }
 
         _logger.LogInformation("Running shim relay client");
-        
+
         while (!token.IsCancellationRequested)
         {
             if (!_isPlaying)
@@ -413,7 +412,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                 await Task.Delay(Constants.ClientNetworkTickRateMs, token);
                 continue;
             }
-            
+
             await ProcessLoop(token);
         }
     }
@@ -425,7 +424,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             _logger.LogInformation("Shim relay client is not running");
             return;
         }
-        
+
         _isRunning = false;
         _scheduler.SetThread(null);
 
@@ -457,14 +456,14 @@ internal class ShimPlaybackRelayClient : IRelayClient
             return;
         }
         RequestedConnect = true;
-        
+
         OnRequestedConnect?.Invoke();
-        
+
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedConnect,
         });
-        
+
         _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
     }
 
@@ -475,19 +474,19 @@ internal class ShimPlaybackRelayClient : IRelayClient
             _logger.LogError("Relay client is not running");
             return;
         }
-        
+
         if (!RequestedConnect)
         {
             _logger.LogWarning("Relay client is already disconnecting");
             return;
         }
         RequestedConnect = false;
-        
+
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedDisconnect,
         });
-        
+
         OnRequestedDisconnect?.Invoke();
     }
 
@@ -522,13 +521,13 @@ internal class ShimPlaybackRelayClient : IRelayClient
             _logger.LogWarning("Already requested to join area {AreaId}", areaId);
             return;
         }
-        
+
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedJoinArea,
             AreaId = areaId,
         });
-        
+
         OnRequestedJoinArea?.Invoke(areaId);
     }
 
@@ -574,19 +573,19 @@ internal class ShimPlaybackRelayClient : IRelayClient
             _logger.LogError("Relay client is not connected to the server");
             return;
         }
-        
+
         if (RequestedAreaId == null)
         {
             _logger.LogWarning("Already requested to leave area");
             return;
         }
         RequestedAreaId = null;
-        
+
         AddRequest(new ShimRequestItem()
         {
             Kind = ShimRequestKind.RequestedLeaveArea,
         });
-        
+
         OnRequestedLeaveArea?.Invoke();
     }
 
@@ -596,10 +595,10 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         var reader = _reader ??= new NetDataReader();
         reader.SetSource(writer.Data, 0, writer.Length);
-     
+
         var eventCode = (RelayMessageCode)reader.GetByte();
         var requestItem = new ShimRequestItem();
-        
+
         if (eventCode >= RelayMessageCode.MinBuiltInEvent)
         {
             var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
@@ -623,7 +622,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
         }
 
         requestItem.RawData = new ShimBuffer(writer.Data, 1, writer.Length);
-        
+
         AddRequest(requestItem);
     }
 
@@ -672,7 +671,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
     {
         if (_depTracker.CheckResponseShouldWait(responseItem, _netThreadContext, _requestItems))
             return false;
-        
+
         switch (responseItem.Kind)
         {
             case ShimResponseKind.Connected:
@@ -687,7 +686,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                 _netThreadContext.IsConnected = true;
                 _netThreadContext.PlayerId = playerId;
                 _netThreadContext.AllPlayers.Add(playerId);
-                
+
                 _playerIdAssignedEvent.Set();
 
                 for (var i = 0; i < responseItem.OtherPlayers!.Count; i++)
@@ -721,7 +720,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             case ShimResponseKind.OtherPlayerConnected:
             {
                 if (!_netThreadContext.IsConnected)
-                    return false;  
+                    return false;
 
                 var playerId = responseItem.PlayerId;
                 if (!_netThreadContext.AllPlayers.Contains(playerId))
@@ -738,7 +737,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             case ShimResponseKind.OtherPlayerDisconnected:
             {
                 if (!_netThreadContext.IsConnected)
-                    return false;  
+                    return false;
 
                 var playerId = responseItem.PlayerId;
                 if (_netThreadContext.AllPlayers.Contains(playerId))
@@ -761,7 +760,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
             case ShimResponseKind.JoinedArea:
             {
                 if (!_netThreadContext.IsConnected)
-                    return false;  
+                    return false;
 
                 var playerId = responseItem.PlayerId;
                 if (_netThreadContext.PlayerId == null)
@@ -784,7 +783,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                 _netThreadContext.CurrentAreaId = areaId;
                 _netThreadContext.AreaPlayers.Clear();
                 _netThreadContext.AreaPlayers.Add(playerId);
-                
+
                 for (var i = 0; i < responseItem.OtherPlayers!.Count; i++)
                 {
                     var otherPlayerId = responseItem.OtherPlayers[i];
@@ -824,7 +823,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                     _logger.LogError("Received handshake for leaving area by player {PlayerId} but not in any area", playerId);
                     break;
                 }
-                
+
                 _netThreadContext.CurrentAreaId = null;
                 _netThreadContext.AreaPlayers.Remove(playerId);
                 _netThreadContext.ActiveCells.Clear();
@@ -838,7 +837,7 @@ internal class ShimPlaybackRelayClient : IRelayClient
                     return false;
                 if (_netThreadContext.CurrentAreaId == null)
                     return false;
-                
+
                 var playerId = responseItem.PlayerId;
                 if (_netThreadContext.CurrentAreaId == null)
                 {
@@ -879,20 +878,20 @@ internal class ShimPlaybackRelayClient : IRelayClient
             {
                 if (!_netThreadContext.IsConnected)
                     return false;
-                
+
                 OnPingUpdated?.Invoke(responseItem.Ping);
                 break;
             }
             case ShimResponseKind.AnyBuiltInMessage:
             {
                 if (!_netThreadContext.IsConnected)
-                    return false;  
-                
+                    return false;
+
                 var serverHeader = responseItem.ServerHeader;
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
-                
+
                 if (serverHandler != null)
                 {
                     var position = reader.Position;
@@ -909,12 +908,12 @@ internal class ShimPlaybackRelayClient : IRelayClient
             {
                 if (!_netThreadContext.IsConnected)
                     return false;
-                
+
                 var serverHeader = responseItem.ServerHeader;
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var serverHandler = _serverMessageHandlers[(int)serverHeader.EventCode];
-                
+
                 if (serverHandler != null)
                 {
                     var position = reader.Position;
@@ -931,18 +930,18 @@ internal class ShimPlaybackRelayClient : IRelayClient
             {
                 if (!_netThreadContext.IsConnected)
                     return false;
-                
+
                 var clientHeader = responseItem.ClientHeader;
                 if (clientHeader.RelayMode is RelayMode.AreaOfInterestOthers or RelayMode.AreaOfInterestAll)
                 {
                     if (_netThreadContext.CurrentAreaId == null)
                         return false;
                 }
-                
+
                 var rawData = responseItem.RawData;
                 var reader = new NetDataReader(rawData.Data, rawData.Offset, rawData.MaxSize);
                 var clientHandler = _clientMessageHandlers[(int)clientHeader.EventCode];
-                
+
                 if (clientHandler != null)
                 {
                     var position = reader.Position;

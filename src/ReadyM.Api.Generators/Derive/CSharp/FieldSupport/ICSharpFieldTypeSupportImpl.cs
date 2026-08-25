@@ -6,11 +6,13 @@ internal interface ICSharpFieldTypeSupportImpl : IDeriveSupportImplBase<ITypeSym
 {
     void EmitDirtyMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitAccessorMethods(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
+    void EmitNotifyChangesMethods(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context);
     void EmitSerializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
-    void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
+    void EmitDeserializeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool resolveConflicts);
     void EmitWriteDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
-    void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
-    void EmitFieldEnum(ITypeSymbol sourceType, CSharpEmitFieldSupportContext context);
+    void EmitReadDeltaBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context, bool resolveConflicts);
+
+    void EmitFieldEnum(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
 
     bool HasDispose(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);
     void EmitDisposeBody(ITypeSymbol symbol, CSharpEmitFieldSupportContext context);

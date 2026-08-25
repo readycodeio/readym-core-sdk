@@ -94,8 +94,10 @@ internal static class AttributeUtils
     {
         foreach (var named in attr.NamedArguments)
         {
+            // Goes through the TypedConstant overload so array-valued named arguments work: TypedConstant.Value
+            // throws for arrays.
             if (string.Equals(named.Key, keyName))
-                return ConvertValue<T>(named.Value.Value, defaultValue);
+                return ConvertValue(named.Value, defaultValue);
         }
 
         var ctor = attr.AttributeConstructor;
