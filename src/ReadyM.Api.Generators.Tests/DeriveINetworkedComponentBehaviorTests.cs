@@ -1456,7 +1456,7 @@ using Yooni.Native.LowLevel;
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 [DeriveINetworkedComponent]
-public partial struct NativeContainerCoverageComponent : INetworkedComponent
+public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INetworkedComponent
 {
     private NativeString256 _name256;
     private NativeString64 _name64;
@@ -1782,7 +1782,7 @@ using Yooni.Native.LowLevel;
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 [DeriveINetworkedComponent]
-public partial struct NativeDictionaryCoverageComponent : INetworkedComponent
+public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : INetworkedComponent
 {
     private NativeDictionary<int, NativeString64, IntHash> _idToLabel = new(2, kind);
     private NativeDictionary<NativeString64, int, NativeStringHash64> _labelToCount = new(2, kind);
@@ -1983,7 +1983,7 @@ using Yooni.Native.LowLevel;
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 [DeriveINetworkedComponent]
-public partial struct NativeListCoverageComponent : INetworkedComponent
+public partial struct NativeListCoverageComponent(AllocatorKind kind) : INetworkedComponent
 {
     private int _revision;
     private NativeList<int> _numbers = new(2, kind);
@@ -2182,7 +2182,7 @@ using Yooni.Native.LowLevel;
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
 [DeriveINetworkedComponent]
-public partial struct NativeDictionaryCoverageComponent : INetworkedComponent
+public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : INetworkedComponent
 {
     private NativeDictionary<int, int, IntHash> _stats = new(4, kind);
     private NativeDictionary<NativeString256, float, NativeStringHash256> _weights = new(2, kind);
