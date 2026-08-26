@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <LangVersion>14</LangVersion>
+        <LangVersion>latest</LangVersion>
         <Configurations>Debug;Release;Testing</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
