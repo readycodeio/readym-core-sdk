@@ -5,7 +5,6 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Compat;
 using ReadyM.Api.ECS.Jobs;
-using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;

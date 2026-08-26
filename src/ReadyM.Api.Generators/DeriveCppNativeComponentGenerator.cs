@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -110,8 +111,11 @@ internal sealed class DeriveCppNativeComponentGenerator : IIncrementalGenerator
                     fullFileName));
 
                 Directory.CreateDirectory(cppGenPath);
-                using var file = File.CreateText(fullFileName);
-                file.Write(result.Left.Code);
+
+                if (!File.Exists(fullFileName) || !string.Equals(File.ReadAllText(fullFileName), result.Left.Code, StringComparison.Ordinal))
+                {
+                    File.WriteAllText(fullFileName, result.Left.Code);
+                }
             });
     }
 

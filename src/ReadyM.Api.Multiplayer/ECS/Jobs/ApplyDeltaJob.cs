@@ -13,9 +13,8 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 internal class ApplyDeltaJob<T>(
     INetworkedEntityManager netEntity,
     IPlayerIdProvider playerIdProvider,
-    ILogger logger)
-    : IJob<NetDataReader>
-    where T : struct, INetworkedComponent
+    ILogger logger
+) : IJob<NetDataReader> where T : struct, INetworkedComponent
 {
     private readonly bool _useSetComponent =
         typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
@@ -46,9 +45,7 @@ internal class ApplyDeltaJob<T>(
             if (authoritativeSender.HasValue && owner != authoritativeSender.Value)
             {
                 // Non-owner sender: consume the bytes to stay aligned, but do not apply/relay.
-                logger.LogWarning(
-                    "Dropping delta for {Component} entity {NetId}: sender {Sender} is not the owner {Owner}",
-                    typeof(T).Name, netId, authoritativeSender.Value, owner);
+                logger.LogWarning("Dropping delta for {Component} entity {NetId}: sender {Sender} is not the owner {Owner}", typeof(T).Name, netId, authoritativeSender.Value, owner);
                 _skipInstance.ReadDelta(reader);
                 continue;
             }

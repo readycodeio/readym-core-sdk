@@ -20,10 +20,8 @@ public enum RelayMessageCode : byte
     EcsDeleteEntity = 247,
     EcsChangeOwnership = 246,
     RequestSetActiveCellsEvent = 245,
-
-    NetworkTime = 244,
-
-    MinBuiltInEvent = NetworkTime,
+    
+    MinBuiltInEvent = RequestSetActiveCellsEvent,
     MaxAnyCustomEvent = MinBuiltInEvent - 1,
 
     MaxServerRpcEvent = MaxAnyCustomEvent,
