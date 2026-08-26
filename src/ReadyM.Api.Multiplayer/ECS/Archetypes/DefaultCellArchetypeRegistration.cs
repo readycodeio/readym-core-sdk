@@ -9,12 +9,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
 internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry cellComponentRegistry) : IArchetypeRegistration
 {
-    private class RegisterCellComponentsCallback(EntityBuilderBase builder) : ICellComponentRegistryCallback
+    private class RegisterCellComponentsCallback(ArchetypeBuilder builder) : ICellComponentRegistryCallback
     {
         public void AcceptComponent<T>(ICellComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add(defaultValue);
+            builder.Add<T>();
         }
     }
 
@@ -29,7 +29,7 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
                 .Add<InParentAreaScopeComponent>()
                 .Add<EmptyScopeDeletionComponent>()
                 .AddTag<ScopeEntityTag>()
-                cellComponentRegistry.Accept(new RegisterCellComponentsCallback(b));
+                .With(b => cellComponentRegistry.Accept(new RegisterCellComponentsCallback(b)))
         );
     }
 }
