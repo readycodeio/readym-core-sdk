@@ -1,4 +1,5 @@
 using System;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 
 namespace ReadyM.Api.Multiplayer;
 
@@ -14,22 +15,32 @@ public static class ComponentWriteContext
 {
     /// <summary>True when setter writes on the current thread should auto-set the API flag.</summary>
     [field: ThreadStatic]
-    public static bool AutoMarkApiOnWrite { get; private set; }
+    public static ComponentWriteState Current { get; private set; }
 
     /// <summary>Enables auto-marking for the scope (restored on dispose).</summary>
-    internal static Scope EnterServerAuthoring()
+    internal static Scope EnterServerAuthoring(uint currentTime, IChangeTrackingStore resolver)
     {
-        var previous = AutoMarkApiOnWrite;
-        AutoMarkApiOnWrite = true;
+        var previous = Current;
+        Current = new ComponentWriteState(true, currentTime, currentTime, resolver);
+        return new Scope(previous);
+    }
+
+    internal static Scope EnterServerApplyDelta(uint currentTime, uint lastObserved, IChangeTrackingStore resolver)
+    {
+        if (lastObserved > currentTime)
+            throw new ArgumentOutOfRangeException(nameof(lastObserved), "Last observed time cannot be greater than current time");
+
+        var previous = Current;
+        Current = new ComponentWriteState(Current.AutoMarkApiOnWrite, currentTime, lastObserved, resolver);
         return new Scope(previous);
     }
 
     internal struct Scope : IDisposable
     {
-        private readonly bool _previous;
+        private readonly ComponentWriteState _previous;
         private bool _disposed;
 
-        internal Scope(bool previous)
+        internal Scope(ComponentWriteState previous)
         {
             _previous = previous;
             _disposed = false;
@@ -41,7 +52,7 @@ public static class ComponentWriteContext
                 return;
 
             _disposed = true;
-            AutoMarkApiOnWrite = _previous;
+            Current = _previous;
         }
     }
 }

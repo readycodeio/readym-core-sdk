@@ -9,19 +9,12 @@ namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
 internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry areaComponentRegistry) : IArchetypeRegistration
 {
-    private class RegisterAreaComponentsCallback(EntityBuilderBase builder) : IAreaComponentRegistryCallback
+    private class RegisterAreaComponentsCallback(ArchetypeBuilder builder) : IAreaComponentRegistryCallback
     {
         public void AcceptComponent<T>(IAreaComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            if (registry.TryGetValueFactory<T>(out var factory))
-            {
-                builder.Add(factory.Invoke());
-            }
-            else
-            {
-                builder.Add<T>();
-            }
+            builder.Add<T>();
         }
     }
 
@@ -30,14 +23,12 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
     public void Register(IArchetypeRegistry registry)
     {
         AreaArchetype = registry.RegisterArchetype(
-            b =>
-            {
-                b.Add<MetadataComponent>();
-                b.Add<AreaScopeComponent>();
-                b.Add<EmptyScopeDeletionComponent>();
-                b.AddTag<ScopeEntityTag>();
-                areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b));
-            }
+            new ArchetypeBuilder()
+                .Add<MetadataComponent>()
+                .Add<AreaScopeComponent>()
+                .Add<EmptyScopeDeletionComponent>()
+                .AddTag<ScopeEntityTag>()
+                .With(b => areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b)))
         );
     }
 }

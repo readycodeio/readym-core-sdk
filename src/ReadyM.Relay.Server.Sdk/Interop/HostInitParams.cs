@@ -3,6 +3,7 @@
 /// <exclude/>
 public struct HostInitParams
 {
+    public required NetworkTimePointers NetworkTimePointers;
     public required EcsApiPointers EcsApiPointers;
     public required RpcApiPointers RpcApiPointers;
     public required ArchetypePointers ArchetypePointers;

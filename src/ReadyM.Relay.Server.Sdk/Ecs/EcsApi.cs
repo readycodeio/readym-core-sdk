@@ -215,6 +215,14 @@ public class EcsApi
         return true;
     }
 
+    public bool HasComponent<T>(int entityId) where T : struct
+    {
+        var compId = _registry.ResolveComponentId<T>();
+        var ptr = _getComponentPointer(entityId, compId);
+
+        return ptr != IntPtr.Zero;
+    }
+
     public unsafe ref T GetComponentRef<T>(int entityId) where T : struct
     {
         var compId = _registry.ResolveComponentId<T>();

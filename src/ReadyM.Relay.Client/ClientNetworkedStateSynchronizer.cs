@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib;
@@ -10,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.DI;
 using ReadyM.Api.ECS.Systems;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -20,6 +19,7 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Relay.Client.ConflictResolution;
 using ReadyM.Relay.Client.ECS.Systems;
 using ReadyM.Relay.Client.State;
 
@@ -36,7 +36,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
             owner.Logger.LogTrace("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, deliveryMethod, owner.RelayClient));
+            owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner._netTime, deliveryMethod, owner.RelayClient));
             owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
     }
@@ -46,7 +46,8 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     protected readonly IRelayClient RelayClient;
     protected readonly ILogger Logger;
 
-    protected readonly SerializationJobRegistry serializationJobRegistry;
+    private readonly IClientNetworkTime _netTime;
+    protected readonly SerializationJobRegistry SerializationJobRegistry;
     private readonly ClientEcsUpdateLoop _ecsLoop;
     private readonly ClientOwnershipManager _ownershipManager;
     private readonly ReceiveSystem _receiveSystem;
@@ -62,6 +63,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     protected SystemGroup SyncSystemGroup { get; }
 
     public ClientNetworkedStateSynchronizer(INetworkedEntityManager netEntity,
+        IClientNetworkTime netTime,
         ClientState state,
         SerializationJobRegistry serializationJobRegistry,
         INetworkedComponentRegistry netComponentRegistry,
@@ -72,6 +74,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         ILogger logger)
     {
         State = state;
+        _netTime = netTime;
         _receiveSystem = receiveSystem;
         _ecsLoop = ecsLoop;
         _ownershipManager = ownershipManager;
@@ -79,7 +82,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         NetEntity = netEntity;
         RelayClient = relayClient;
         Logger = logger;
-        this.serializationJobRegistry = serializationJobRegistry;
+        this.SerializationJobRegistry = serializationJobRegistry;
 
         // NOTE: when an entity is created locally on the client, it's marked with a special tag that allows it to be
         // filtered out by the `ClientSendEntityCreatedSystem`. For all newly created entities, a message is sent to the
@@ -135,7 +138,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 
         ReceiveSystemGroup.Add(_receiveSystem);
         SyncSystemGroup.Add(State.System);
-        SendSystemGroup.Add(new ClientSendEntityCreatedSystem(serializationJobRegistry, State, RelayClient));
+        SendSystemGroup.Add(new ClientSendEntityCreatedSystem(SerializationJobRegistry, State, RelayClient));
 
         // NOTE: iterates over all network components with generics without reflection
         _netComponentRegistry.Accept(new RegisterSystemCallback(this));
@@ -221,7 +224,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                 }
 
-                self.serializationJobRegistry.ApplySnapshot(readerCopy);
+                self.SerializationJobRegistry.ApplySnapshot(readerCopy);
             }
             finally
             {
@@ -267,7 +270,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             try
             {
                 _skipEcsEventMessages++;
-                self.serializationJobRegistry.ApplyDelta(readerCopy);
+                var serverTime = readerCopy.GetUInt();
+                self._netTime.SetObservedTime(serverTime);
+                self.SerializationJobRegistry.ApplyDelta(readerCopy);
             }
             finally
             {
@@ -313,7 +318,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                 }
 
-                self.serializationJobRegistry.ApplySnapshot(readerCopy);
+                self.SerializationJobRegistry.ApplySnapshot(readerCopy);
             }
             finally
             {

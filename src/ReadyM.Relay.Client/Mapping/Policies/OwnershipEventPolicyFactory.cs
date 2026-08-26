@@ -19,7 +19,7 @@ internal class OwnershipEventPolicyFactory(
     {
         Debug.Assert(contextType == typeof(Entity));
         var policyType = typeof(OwnershipEventPolicy<>).MakeGenericType(eventType);
-        return (IMappingEventPolicyBase)Activator.CreateInstance(policyType, ownership, sideChannel);
+        return (IMappingEventPolicyBase)Activator.CreateInstance(policyType, ownership, sideChannel)!;
     }
 
     public IMappingEventPolicy<TContext> CreatePolicy<TContext>(Type eventType)

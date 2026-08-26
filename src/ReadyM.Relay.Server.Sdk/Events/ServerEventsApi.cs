@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs;
-using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Events;
@@ -24,13 +24,26 @@ public sealed class ServerEventsApi : IDisposable
     public event Action<PlayerId, AreaId, CellId>? OnPlayerActivatedCell;
     public event Action<PlayerId, AreaId, CellId>? OnPlayerDeactivatedCell;
 
+    /// <summary>
+    /// Raised once, when the world entity exists. A mod's Init runs before that, so this is the earliest
+    /// point at which world components can be written.
+    /// </summary>
+    public event Action<Entity>? OnWorldEntityCreated;
+
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
     private readonly PinnedDelegateStore _pinnedDelegates = new();
     private readonly EcsApi _ecs;
+    private readonly INetworkTime _netTime;
+    private readonly IChangeTrackingStore _changeTracking;
     private readonly ILogger _logger;
 
-    internal ServerEventsApi(ServerEventsPointers pointers, EcsApi ecs, ILogger logger)
+    internal ServerEventsApi(
+        ServerEventsPointers pointers,
+        EcsApi ecs,
+        INetworkTime netTime,
+        IChangeTrackingStore changeTracking,
+        ILogger logger)
     {
         if (pointers.Subscribe == IntPtr.Zero || pointers.Unsubscribe == IntPtr.Zero)
         {
@@ -38,6 +51,8 @@ public sealed class ServerEventsApi : IDisposable
         }
 
         _ecs = ecs;
+        _netTime = netTime;
+        _changeTracking = changeTracking;
         _logger = logger;
         _unsubscribe = Marshal.GetDelegateForFunctionPointer<UnsubscribeServerEventsDelegate>(pointers.Unsubscribe);
 
@@ -58,7 +73,8 @@ public sealed class ServerEventsApi : IDisposable
     {
         try
         {
-            using var _ = ComponentWriteContext.EnterServerAuthoring();
+            // NOTE: We are on the ECS thread already (ServerEventsApi forwards ServerState)
+            using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime(), _changeTracking);
             Raise(kind, payload);
         }
         catch (Exception ex)
@@ -102,6 +118,9 @@ public sealed class ServerEventsApi : IDisposable
                 break;
             case ServerEventKind.PlayerDeactivatedCell:
                 OnPlayerDeactivatedCell?.Invoke(payload.Player, payload.Area, payload.Cell);
+                break;
+            case ServerEventKind.WorldEntityCreated:
+                OnWorldEntityCreated?.Invoke(entity);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");

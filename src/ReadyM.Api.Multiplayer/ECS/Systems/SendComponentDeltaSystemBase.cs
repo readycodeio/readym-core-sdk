@@ -3,6 +3,7 @@ using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Values;
@@ -13,14 +14,16 @@ namespace ReadyM.Api.Multiplayer.ECS.Systems;
 internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataComponent, T>
     where T : struct, INetworkedComponent
 {
-    private readonly NetworkedComponentId _componentId;
-    private readonly bool _clearDirty;
+    private readonly INetworkTime _networkTime;
+    protected readonly NetworkedComponentId ComponentId;
+    private readonly bool _clearFlags;
     private readonly QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>> _queryCache;
 
-    protected SendComponentDeltaSystemBase(NetworkedComponentId componentId, bool clearDirty)
+    protected SendComponentDeltaSystemBase(INetworkTime networkTime, NetworkedComponentId componentId, bool clearFlags)
     {
-        _componentId = componentId;
-        _clearDirty = clearDirty;
+        ComponentId = componentId;
+        _clearFlags = clearFlags;
+        _networkTime = networkTime;
         _queryCache = new QueryCacheHelper<SendContext, Entity?, ArchetypeQuery<MetadataComponent, T>>(
             context => context.ScopeEntity,
             context =>
@@ -56,7 +59,8 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     private void CreatePacketHeader(NetDataWriter writer)
     {
         writer.Put((byte)RelayMessageCode.EcsDelta);
-        writer.Put(_componentId);
+        writer.Put(_networkTime.GetCurrentTime());
+        writer.Put(ComponentId);
     }
 
     protected override void OnUpdate()
@@ -130,8 +134,11 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
                 AppendDelta(others, meta.NetId, ref comp, maxPacketSize, false, owner, context);
 
-                if (_clearDirty)
+                if (_clearFlags)
+                {
                     comp.ClearDirty();
+                    comp.ClearApiFlag();
+                }
             }
         }
 

@@ -357,6 +357,9 @@ internal struct NativeHashCollection<TKey, TValue> : IDisposable, IEnumerable<Na
     public void MarkChangeNoCheck()
         => _allocator.MarkChangeNoCheck();
 
+    public readonly NativeLogLevel GetLogging()
+        => _allocator.GetLogging();
+
     public void SetLogging(NativeLogLevel level)
         => _allocator.SetLogging(level);
 }

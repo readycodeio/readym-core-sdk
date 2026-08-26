@@ -29,7 +29,5 @@ internal interface IClientEntityManager
         Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null);
 
-    Entity CreatePlayerEntity(
-        ArchetypeId archetypeId,
-        Action<EntityBuilder>? setComponents = null);
+    Entity CreatePlayerEntity(ArchetypeId archetypeId);
 }
