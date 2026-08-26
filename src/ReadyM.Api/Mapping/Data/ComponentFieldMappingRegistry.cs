@@ -49,6 +49,23 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
             return value;
         }
     }
+    
+    public void Register<TComponent, TValue, TContext>(
+        Field<TComponent, TValue, TContext> field,
+        Action<TContext, TComponent> setter,
+        DataLoader<TComponent, TContext> loader)
+        where TComponent : struct, IComponent
+    {
+        var mapping = new ComponentFieldMapping<TComponent, TContext, TValue>(setter, Loader);
+        _mappings.Add(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), mapping);
+        return;
+
+        TValue Loader(ref TComponent cmp, TContext ctx)
+        {
+            loader(ref cmp, ctx);
+            return field.Get(cmp);
+        }
+    }
 
     public void Register<TComponent, TValue, TContext>(
         Field<TComponent, TValue, TContext> field,

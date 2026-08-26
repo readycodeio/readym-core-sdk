@@ -16,4 +16,10 @@ internal interface IComponentFieldMappingRegistryConfig
         Action<TContext, TValue> setter,
         DataLoader<TComponent, TContext> loader)
         where TComponent : struct, IComponent;
+
+    void Register<TComponent, TValue, TContext>(
+        Field<TComponent, TValue, TContext> field,
+        Action<TContext, TComponent> setter,
+        DataLoader<TComponent, TContext> loader)
+        where TComponent : struct, IComponent;
 }
