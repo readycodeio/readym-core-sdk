@@ -18,13 +18,6 @@
         <StripSymbols>false</StripSymbols>       <!-- keeps the .pdb (Windows) / .dbg (Linux) -->
         <NativeDebugSymbols>true</NativeDebugSymbols>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)' == 'Testing'">
-        <DefineConstants>$(DefineConstants);DEBUG;TESTING</DefineConstants>
-        <PlatformTarget>AnyCPU</PlatformTarget>
-        <OutputPath>bin\Testing\</OutputPath>
-        <DebugSymbols>true</DebugSymbols>
-        <IntermediateOutputPath>obj\Testing\</IntermediateOutputPath>
-    </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <DefineConstants>$(DefineConstants)</DefineConstants>
         <DebugType>none</DebugType>
