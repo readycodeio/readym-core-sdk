@@ -10,6 +10,6 @@ internal abstract class ArchetypeComponentRegistryBase<TRegistry>(IEnumerable<IC
 {
     public void RegisterComponent<T>(T defaultValue = default) where T : struct, IComponent
     {
-        base.RegisterComponentImpl<T>(defaultValue);
+        base.RegisterComponentImpl(defaultValue);
     }
 }

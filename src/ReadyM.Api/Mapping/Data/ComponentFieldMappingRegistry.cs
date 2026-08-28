@@ -84,20 +84,15 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
         }
     }
 
-    private bool TryGet<TComponent, TValue, TContext>(
-        Field<TComponent, TValue, TContext> field,
-        out FieldMapping<TComponent, TContext, TValue> mapping)
+    /// <summary>
+    /// Looks up the registered mapping without committing to a shape. A field may be registered either as a
+    /// <see cref="FieldMapping{TComponent,TContext,TValue}"/>, whose setter takes the field value alone, or as a
+    /// <see cref="ComponentFieldMapping{TComponent,TContext,TValue}"/>, whose setter takes the whole component
+    /// so it can decide based on sibling fields. Callers must handle both.
+    /// </summary>
+    private bool TryGetMapping<TComponent, TValue, TContext>(Field<TComponent, TValue, TContext> field, out object? mapping)
         where TComponent : struct, IComponent
-    {
-        if (_mappings.TryGetValue(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), out var map))
-        {
-            mapping = (FieldMapping<TComponent, TContext, TValue>)map;
-            return true;
-        }
-
-        mapping = default;
-        return false;
-    }
+        => _mappings.TryGetValue(new FieldKey(typeof(TComponent), typeof(TContext), field.Id), out mapping);
 
     public readonly ref struct SyncToGameHelper<TComponent>
         where TComponent : struct, IReadyComponent, IMappingContext<Entity>
@@ -115,7 +110,7 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
 
         public void SyncToGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
-            if (!registry.TryGet(field, out var mapping))
+            if (!registry.TryGetMapping(field, out var mapping))
             {
                 registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
                 return;
@@ -127,8 +122,19 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
             {
                 using (registry.SideChannel.PushScope<PropagatingToGameScope<TComponent>>())
                 {
-                    var value = field.Get(component);
-                    mapping.SyncToGame(value, context);
+                    switch (mapping)
+                    {
+                        case FieldMapping<TComponent, TContext, TValue> fieldMapping:
+                            fieldMapping.SyncToGame(field.Get(component), context);
+                            break;
+                        case ComponentFieldMapping<TComponent, TContext, TValue> componentMapping:
+                            componentMapping.SyncToGame(component, context);
+                            break;
+                        default:
+                            registry.Logger.LogError("Mapping for component {Component}, field {FieldId} and context {Context} has unexpected type {MappingType}", typeof(TComponent).Name, field.Id, typeof(TContext).Name, mapping?.GetType().Name);
+                            return;
+                    }
+
                     component.ClearApiFlag(field.Id);
                 }
             }
@@ -206,7 +212,7 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
 
         public void LoadFromGame<TValue, TContext>(Field<TComponent, TValue, TContext> field, TContext context)
         {
-            if (!registry.TryGet(field, out var mapping))
+            if (!registry.TryGetMapping(field, out var mapping))
             {
                 registry.Logger.LogError("Failed to find mapping for component {Component}, field {FieldId} and context {Context}", typeof(TComponent).Name, field.Id, typeof(TContext).Name);
                 return;
@@ -215,7 +221,20 @@ internal sealed class ComponentFieldMappingRegistry(IMappingPolicyDirectory poli
             using (registry.SideChannel.PushScope<PropagatingToEcsScope<TComponent>>()) // TODO: Is this even necessary?
             {
                 ref var component = ref entity.GetComponent<TComponent>();
-                mapping.LoadFromGame(ref component, context);
+
+                // Both shapes carry the same loader, only the direction towards the game differs.
+                switch (mapping)
+                {
+                    case FieldMapping<TComponent, TContext, TValue> fieldMapping:
+                        fieldMapping.LoadFromGame(ref component, context);
+                        break;
+                    case ComponentFieldMapping<TComponent, TContext, TValue> componentMapping:
+                        componentMapping.LoadFromGame(ref component, context);
+                        break;
+                    default:
+                        registry.Logger.LogError("Mapping for component {Component}, field {FieldId} and context {Context} has unexpected type {MappingType}", typeof(TComponent).Name, field.Id, typeof(TContext).Name, mapping?.GetType().Name);
+                        break;
+                }
             }
         }
 

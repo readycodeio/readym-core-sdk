@@ -14,7 +14,7 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
         public void AcceptComponent<T>(IPlayerComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add<T>();
+            builder.Add(defaultValue);
         }
     }
 

@@ -48,7 +48,7 @@ public class ArchetypeBuilder
     {
         var accept = new Action<IArchetypeBuilderCallback>(callback =>
         {
-            callback.AcceptComponentType<T>(this, component);
+            callback.AcceptComponentType(this, component);
         });
         _acceptCallbacks.Add(accept);
 

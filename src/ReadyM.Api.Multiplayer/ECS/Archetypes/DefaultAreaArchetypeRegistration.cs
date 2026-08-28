@@ -14,7 +14,7 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
         public void AcceptComponent<T>(IAreaComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add<T>();
+            builder.Add(defaultValue);
         }
     }
 
