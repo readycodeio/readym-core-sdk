@@ -155,7 +155,15 @@ internal class ClientState : IDisposable
 
     public event Action<AreaId, Entity>? OnJoinedArea;
     public event Action<AreaId, Entity>? OnLeftArea;
+    /// <summary>
+    /// Fired when a cell is activated for a player. 
+    /// FullCellId along with the Entity represents the cell, boolean indicates if the local player is the master of that cell.
+    /// </summary>
     public event Action<FullCellId, Entity, bool>? OnActivatedCell;
+    /// <summary>
+    /// Fired when a cell is deactivated for a player.
+    /// FullCellId along with the Entity represents the cell, boolean indicates if the local player was the master of that cell.
+    /// </summary>
     public event Action<FullCellId, Entity, bool>? OnDeactivatedCell;
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
