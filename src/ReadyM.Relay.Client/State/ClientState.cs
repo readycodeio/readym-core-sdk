@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
@@ -156,7 +157,7 @@ internal class ClientState : IDisposable
     public event Action<AreaId, Entity>? OnJoinedArea;
     public event Action<AreaId, Entity>? OnLeftArea;
     /// <summary>
-    /// Fired when a cell is activated for a player. 
+    /// Fired when a cell is activated for a player.
     /// FullCellId along with the Entity represents the cell, boolean indicates if the local player is the master of that cell.
     /// </summary>
     public event Action<FullCellId, Entity, bool>? OnActivatedCell;
@@ -723,6 +724,12 @@ internal class ClientState : IDisposable
                     // break; skipped on purpose
                 }
 
+                if (_currentCellEntries.Count != 0)
+                {
+                    _logger.LogError("Connected event received, but there are active cell entries. This should not happen.");
+                    // break; skipped on purpose
+                }
+
                 var playerId = pendingEvent.PlayerId;
 
                 var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
@@ -745,6 +752,7 @@ internal class ClientState : IDisposable
                 _localPlayerEntry = playerEntry;
                 _allPlayers.Add(playerId);
                 _playerEntries.Add(playerId, playerEntry);
+
                 _currentCellEntries.Clear();
 
                 OnConnected?.Invoke(playerId, playerEntity);
@@ -757,6 +765,25 @@ internal class ClientState : IDisposable
                 if (_currentAreaEntry != null)
                 {
                     var areaId = _currentAreaEntry.Value.AreaId;
+
+                    // Destroy all active cell scope entities before clearing them
+                    foreach (var cellEntry in _currentCellEntries)
+                    {
+                        // FIXME: This test should not be necessary. If this case triggers, we should do something about it, likely a sign of a deeper issue
+                        if (cellEntry.CellEntity != default)
+                        {
+                            _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
+                        }
+                        else
+                        {
+                            _logger.LogError("Cell entity was null. This shouldn't happen");
+                        }
+
+                        var wasMaster = IsLocalCellMaster(cellEntry.CellEntity);
+                        OnDeactivatedCell?.Invoke(new FullCellId(areaId, cellEntry.CellId), cellEntry.CellEntity, wasMaster);
+                    }
+                    _currentCellEntries.Clear();
+
                     for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                     {
                         var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[i];
@@ -772,8 +799,6 @@ internal class ClientState : IDisposable
                         otherPlayerEntry.CurrentAreaId = null;
                         _playerEntries[otherPlayerId] = otherPlayerEntry;
                     }
-
-                    _currentCellEntries.Clear();
 
                     OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
@@ -884,6 +909,25 @@ internal class ClientState : IDisposable
 
                 var playerId = pendingEvent.PlayerId;
                 var areaId = _currentAreaEntry.Value.AreaId;
+                _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
+
+                // Destroy all active cell scope entities before clearing them
+                foreach (var cellEntry in _currentCellEntries)
+                {
+                    // FIXME: This test should not be necessary. If this case triggers, we should do something about it, likely a sign of a deeper issue
+                    if (cellEntry.CellEntity != default)
+                    {
+                        _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
+                    }
+                    else
+                    {
+                        _logger.LogError("Cell entity was null. This shouldn't happen");
+                    }
+
+                    var wasMaster = IsLocalCellMaster(cellEntry.CellEntity);
+                    OnDeactivatedCell?.Invoke(new FullCellId(areaId, cellEntry.CellId), cellEntry.CellEntity, wasMaster);
+                }
+                _currentCellEntries.Clear();
 
                 for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                 {
@@ -900,16 +944,6 @@ internal class ClientState : IDisposable
                     otherPlayerEntry.CurrentAreaId = null;
                     _playerEntries[otherPlayerId] = otherPlayerEntry;
                 }
-
-                _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
-
-                // Destroy all active cell scope entities before clearing them
-                foreach (var cellEntry in _currentCellEntries)
-                {
-                    if (cellEntry.CellEntity != default)
-                        _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
-                }
-                _currentCellEntries.Clear();
 
                 OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
@@ -1066,10 +1100,16 @@ internal class ClientState : IDisposable
                     if (!newCellIds.Contains(existing.CellId))
                     {
                         var wasMaster = IsLocalCellMaster(existing.CellEntity);
+                        // FIXME: This test should not be necessary. If this case triggers, we should do something about it, likely a sign of a deeper issue
                         if (existing.CellEntity != default)
                         {
                             _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
                         }
+                        else
+                        {
+			                _logger.LogError("Cell entity was null. This shouldn't happen");
+                        }
+
                         OnDeactivatedCell?.Invoke(new FullCellId(areaId, existing.CellId), existing.CellEntity, wasMaster);
                     }
                 }
