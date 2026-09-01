@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="LiteNetLib" Version="1.3.5" />
         <PackageReference Include="CsCheck" Version="2.10.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
         <PackageReference Include="xunit.v3" Version="3.2.2" />
@@ -27,7 +28,6 @@
         <ProjectReference Include="..\YooniCSharp\Native\LowLevel\Yooni.Native.LowLevel.csproj" />
         <ProjectReference Include="..\YooniCSharp\Native\Serialization\Yooni.Native.Serialization.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
-        <ProjectReference Include="..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />

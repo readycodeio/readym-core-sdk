@@ -1,4 +1,4 @@
-# ReadyM Core SDK
+﻿# ReadyM Core SDK
 
 Game-agnostic runtime that ReadyM's per-game multiplayer SDKs are built on: an ECS, an RPC
 layer with source-generated handlers, the relay client and server SDKs, and native interop
@@ -42,10 +42,12 @@ git clone --recursive https://github.com/readycodeio/readym-core-sdk.git
 dotnet build src/ReadyM.Core.sln
 ```
 
-`--recursive` matters. Two submodules under `src/`:
+`--recursive` matters. One submodule under `src/`:
 
 - `Friflo.Engine.ECS`, our fork of [Friflo.Engine.ECS](https://github.com/friflo/Friflo.Engine.ECS)
-- `LiteNetLib`, upstream [LiteNetLib](https://github.com/RevenantX/LiteNetLib) pinned to a release commit
+
+[LiteNetLib](https://github.com/RevenantX/LiteNetLib) is a plain NuGet reference, since we carry
+no changes to it.
 
 `src/` has its own `Directory.Build.props` and does not inherit from anything above it, so the
 projects build the same standalone as they do inside a game SDK checkout.
