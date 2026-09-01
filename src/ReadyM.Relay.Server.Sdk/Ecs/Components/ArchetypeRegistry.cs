@@ -1,6 +1,9 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Reflection;
+using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
+using ReadyM.Api.DI;
+using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.ECS.Registry;
@@ -11,7 +14,7 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry : IArchetypeRegistry
+internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 {
     private readonly ILogger _logger;
 
@@ -19,18 +22,26 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
     private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate;
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
-    private readonly CollectComponentIdsCallback _callback;
+    private readonly CollectComponentIdsCallback _componentIdCallback;
+    private readonly NativeInitCallback _nativeInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
-    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, ILogger logger)
+    private readonly IEnumerable<IArchetypeRegistration> _registrations;
+
+    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, EcsApi ecs, ILogger logger)
     {
         _logger = logger;
-        _callback = new CollectComponentIdsCallback(registry, _logger);
+        _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
+        _nativeInitCallback = new NativeInitCallback(ecs, _logger);
+        _registrations = registrations;
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
         _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
+    }
 
-        foreach (var registration in registrations)
+    public void OnScopeStart()
+    {
+        foreach (var registration in _registrations)
         {
             registration.Register(this);
         }
@@ -40,6 +51,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
     {
         public ArchetypeBuilder Builder;
         public List<int> ComponentIds;
+        public Action<int>? PostCreateInit;
     }
 
     private sealed class CollectComponentIdsCallback(ComponentRegistry registry, ILogger logger) : IArchetypeBuilderCallback
@@ -70,12 +82,77 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
             => throw new NotSupportedException("Adding tag components is not supported in the mod archetype registry.");
     }
 
+    private class NativeInitCallback(EcsApi ecs, ILogger logger) : IArchetypeBuilderCallback
+    {
+        public Action<int>? PostCreateInit;
+
+        delegate void NativeInitDelegate<T>(ref T comp, AllocatorKind allocatorKind);
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder)
+            where T : struct, IComponent
+        {
+            if (typeof(INativeInit).IsAssignableFrom(typeof(T)))
+            {
+                var method = typeof(T).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    .SingleOrDefault(m => m.Name == nameof(INativeInit.Init) && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(AllocatorKind));
+
+                if (method == null)
+                {
+                    logger.LogWarning("Component type {ComponentType} implements INativeInit but does not have a valid Init method. Skipping native init.", typeof(T));
+                    return;
+                }
+
+                var del = (NativeInitDelegate<T>)method.CreateDelegate(typeof(NativeInitDelegate<T>));
+
+                PostCreateInit = (Action<int>?)Delegate.Combine(PostCreateInit, new Action<int>(entityId =>
+                {
+                    ref var comp = ref ecs.GetComponentRef<T>(entityId);
+                    del.Invoke(ref comp, AllocatorKind.Default);
+                }));
+            }
+        }
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
+            where T : struct, IComponent
+            => AcceptComponentType<T>(builder);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+        {
+            // empty
+        }
+
+        public void AcceptTag<T>(ArchetypeBuilder builder)
+            where T : struct, ITag
+        {
+            // empty
+        }
+    }
+
+    /// <summary>
+    /// Collects the native-init handlers for everything currently on the builder. Accept replays the builder's
+    /// components once, so the callback has to be reset around it or handlers leak into the next archetype.
+    /// </summary>
+    private Action<int>? CreatePostCreateInit(ArchetypeBuilder builder)
+    {
+        try
+        {
+            _nativeInitCallback.PostCreateInit = null;
+            builder.Accept(_nativeInitCallback);
+            return _nativeInitCallback.PostCreateInit;
+        }
+        finally
+        {
+            _nativeInitCallback.PostCreateInit = null;
+        }
+    }
+
     private List<int> GetComponentIds(int startIndex, ArchetypeBuilder builder)
     {
         var componentIds = new List<int>();
-        _callback.ComponentIds = componentIds;
-        builder.Accept(_callback);
-        _callback.ComponentIds = null;
+        _componentIdCallback.ComponentIds = componentIds;
+        builder.Accept(_componentIdCallback);
+        _componentIdCallback.ComponentIds = null;
+
         return componentIds;
     }
 
@@ -105,6 +182,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
         {
             Builder = builder,
             ComponentIds = componentList,
+            PostCreateInit = CreatePostCreateInit(builder),
         };
 
         _logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
@@ -118,23 +196,44 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
         {
             // NOTE: We're optimistically assuming that the corresponding archetype exists on the native server side.
             // This should work normally, as we're passing only the newly added components, not all.
-            entry = new ArchetypeEntry()
+            entry = new ArchetypeEntry
             {
                 Builder = new ArchetypeBuilder(),
-                ComponentIds = new List<int>(),
+                ComponentIds = [],
             };
             _archetypeEntries[archetypeId] = entry;
         }
 
         var startIndex = entry.ComponentIds.Count;
         callback(entry.Builder);
+
         var newComponentList = GetComponentIds(startIndex, entry.Builder);
         entry.ComponentIds.AddRange(newComponentList);
+
+        // The builder only holds what this mod put on the archetype, which is exactly what we are responsible for.
+        entry.PostCreateInit = CreatePostCreateInit(entry.Builder);
+        _archetypeEntries[archetypeId] = entry;
 
         _logger.LogDebug("Modifying archetype {Archetype} {Components}", archetypeId, newComponentList);
 
         var nativeNewComponentList = ToNative(newComponentList);
         _modifyArchetypeDelegate(archetypeId, nativeNewComponentList);
+    }
+    
+    public void RunPostCreateInit(ArchetypeId archetypeId, int entityId)
+    {
+        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry) || entry.PostCreateInit == null)
+            return;
+
+        try
+        {
+            entry.PostCreateInit.Invoke(entityId);
+        }
+        catch (Exception e)
+        {
+            // Throwing here would propagate across the interop border out of the host's entity creation.
+            _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entityId, archetypeId);
+        }
     }
 
     public void RegisterFilter(IArchetypeBuilderCallback filter)
@@ -145,5 +244,10 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry
         {
             entry.Builder.RegisterFilter(filter);
         }
+    }
+
+    public void Dispose()
+    {
+        // do nothing
     }
 }
