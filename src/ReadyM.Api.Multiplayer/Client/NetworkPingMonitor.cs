@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ReadyM.Api.DI;
 
 namespace ReadyM.Api.Multiplayer.Client;
@@ -8,6 +8,8 @@ internal class NetworkPingMonitor(IRelayClient relayClient) : IHostedService
     public event Action<int>? OnPingUpdated;
 
     public int CurrentPing { get; private set; }
+
+    public int PacketLossPercent => relayClient.PacketLossPercent;
 
     public void OnScopeStart()
     {
