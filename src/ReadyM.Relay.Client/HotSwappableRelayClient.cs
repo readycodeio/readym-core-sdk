@@ -313,6 +313,12 @@ internal class HotSwappableRelayClient : IRelayClient
     public void RequestReconnect()
         => _client!.RequestReconnect();
 
+    public void BeginExpectedStall()
+        => _client!.BeginExpectedStall();
+
+    public void EndExpectedStall()
+        => _client!.EndExpectedStall();
+
     public void RequestJoinArea(AreaId areaId)
         => _client!.RequestJoinArea(areaId);
 

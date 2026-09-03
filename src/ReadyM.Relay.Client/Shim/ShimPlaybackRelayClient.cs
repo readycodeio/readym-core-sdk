@@ -498,6 +498,10 @@ internal class ShimPlaybackRelayClient : IRelayClient
         RequestConnect();
     }
 
+    public void BeginExpectedStall() { }
+
+    public void EndExpectedStall() { }
+
     public void RequestJoinArea(AreaId areaId)
     {
         if (!_isRunning)

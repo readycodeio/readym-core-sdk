@@ -257,6 +257,15 @@ internal class RelayClient : IRelayClient
 
     public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
 
+    /// <summary>How long a stall is tolerated while one is expected. Bounded, so a transition that
+    /// never finishes still gets noticed, just later than usual.</summary>
+    private const int ExpectedStallDisconnectTimeoutMs = 60_000;
+
+    private readonly int _configuredDisconnectTimeoutMs;
+
+    /// Set from the user thread, read by the network loop.
+    private volatile bool _restoreDisconnectTimeoutPending;
+
     public NetPeer? Server => _client.FirstPeer;
 
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
@@ -286,14 +295,53 @@ internal class RelayClient : IRelayClient
 
         if (noDisconnect)
         {
-            _client.DisconnectTimeout = 3600_000;
+            _configuredDisconnectTimeoutMs = 3600_000;
             _client.DisconnectOnUnreachable = false;
         }
         else
         {
-            _client.DisconnectTimeout = 5000;
+            _configuredDisconnectTimeoutMs = 5000;
             _client.DisconnectOnUnreachable = true;
         }
+
+        _client.DisconnectTimeout = _configuredDisconnectTimeoutMs;
+    }
+
+    /// <summary>
+    /// Raises the disconnect timeout while a known stall is in flight, so the stall does not count
+    /// against it. Paired with <see cref="EndExpectedStall" />.
+    /// </summary>
+    public void BeginExpectedStall()
+    {
+        _restoreDisconnectTimeoutPending = false;
+        _client.DisconnectTimeout = Math.Max(_configuredDisconnectTimeoutMs, ExpectedStallDisconnectTimeoutMs);
+    }
+
+    /// <summary>
+    /// Ends the window opened by <see cref="BeginExpectedStall" />.
+    /// </summary>
+    public void EndExpectedStall()
+    {
+        _restoreDisconnectTimeoutPending = true;
+    }
+
+    private void RestoreDisconnectTimeoutWhenTrafficResumes()
+    {
+        if (!_restoreDisconnectTimeoutPending)
+        {
+            return;
+        }
+
+        // No peer means there is nothing left for the timeout to disconnect, so it is safe either way.
+        var peer = _client.FirstPeer;
+        if (peer != null && peer.TimeSinceLastPacket >= _configuredDisconnectTimeoutMs)
+        {
+            return;
+        }
+
+        _restoreDisconnectTimeoutPending = false;
+        _client.DisconnectTimeout = _configuredDisconnectTimeoutMs;
+        _logger.LogDebug("Disconnect timeout restored to {Timeout} ms", _configuredDisconnectTimeoutMs);
     }
 
     public void Dispose()
@@ -346,6 +394,8 @@ internal class RelayClient : IRelayClient
             try
             {
                 _client.PollEvents();
+
+                RestoreDisconnectTimeoutWhenTrafficResumes();
 
                 OnClientUpdate?.Invoke(_netThreadContext);
 

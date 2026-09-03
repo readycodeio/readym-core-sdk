@@ -212,6 +212,15 @@ internal interface IRelayClient : IRpcClient, IDisposable
     void RequestDisconnect();
     void RequestReconnect();
 
+    /// <summary>
+    /// Raises the disconnect timeout while a known stall is in flight, such as a level transition,
+    /// so the stall does not count against it. Paired with <see cref="EndExpectedStall" />.
+    /// </summary>
+    void BeginExpectedStall();
+
+    /// <summary>Ends the window opened by <see cref="BeginExpectedStall" />.</summary>
+    void EndExpectedStall();
+
     void RequestJoinArea(AreaId areaId);
     void RequestSetActiveCells(IEnumerable<CellId> cellIds);
     void RequestLeaveArea();
