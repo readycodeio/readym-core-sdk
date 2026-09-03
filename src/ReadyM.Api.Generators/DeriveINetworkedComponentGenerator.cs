@@ -293,6 +293,7 @@ using {ns};
     {
         sb.AppendLine($$"""
 
+    /// <exclude />
     [global::Friflo.Engine.ECS.ComponentKey("{{model.Source.Name}}.ChangeComponent")]
     public struct ChangeComponent : global::Friflo.Engine.ECS.IComponent
     {

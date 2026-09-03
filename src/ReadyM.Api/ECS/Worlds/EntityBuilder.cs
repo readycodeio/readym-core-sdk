@@ -2,7 +2,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Worlds;
 
-public sealed class EntityBuilder
+internal sealed class EntityBuilder
 {
     private readonly CreateEntityBatch _wrapped;
 

@@ -2,7 +2,7 @@ using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Worlds;
 
-public interface IArchetypeBuilderCallback
+internal interface IArchetypeBuilderCallback
 {
     void AcceptComponentType<T>(ArchetypeBuilder builder)
         where T : struct, IComponent;

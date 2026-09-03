@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
@@ -32,7 +32,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     {
         _logger = logger;
         _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
-        _componentInitCallback = new ComponentInitCallback(ecs, _logger);
+        _componentInitCallback = new ComponentInitCallback(ecs);
         _registrations = registrations;
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
@@ -77,34 +77,39 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             => throw new NotSupportedException("Adding tag components is not supported in the mod archetype registry.");
     }
 
-    private class ComponentInitCallback(EcsApi ecs, ILogger logger) : IArchetypeBuilderCallback
+    private class ComponentInitCallback(EcsApi ecs) : IArchetypeBuilderCallback
     {
         public Action<int>? PostCreateInit;
-
-        delegate void NativeInitDelegate<T>(ref T comp, AllocatorKind allocatorKind);
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder)
             where T : struct, IComponent
         {
-            if (typeof(INativeInit).IsAssignableFrom(typeof(T)))
+            if (!typeof(INativeInit).IsAssignableFrom(typeof(T)))
             {
-                var method = typeof(T).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                    .SingleOrDefault(m => m.Name == nameof(INativeInit.Init) && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(AllocatorKind));
-
-                if (method == null)
-                {
-                    logger.LogWarning("Component type {ComponentType} implements INativeInit but does not have a valid Init method. Skipping native init.", typeof(T));
-                    return;
-                }
-
-                var del = (NativeInitDelegate<T>)method.CreateDelegate(typeof(NativeInitDelegate<T>));
-
-                PostCreateInit = (Action<int>?)Delegate.Combine(PostCreateInit, new Action<int>(entityId =>
-                {
-                    ref var comp = ref ecs.GetComponentRef<T>(entityId);
-                    del.Invoke(ref comp, AllocatorKind.Default);
-                }));
+                return;
             }
+
+            // Dispatched through the interface rather than a reflected delegate. Nothing calls Init
+            // directly, so under PublishAot the reflection lookup found no method and native init was
+            // skipped with only a warning, leaving NativeList fields unallocated. An interface call is
+            // a static reference, so every implementation stays rooted with no trimming descriptor to
+            // maintain.
+            if (default(T) is not INativeInit)
+            {
+                throw new InvalidOperationException(
+                    $"Component {typeof(T)} implements {nameof(INativeInit)} but cannot be dispatched to it, "
+                    + "so its native fields would never be allocated.");
+            }
+
+            PostCreateInit = (Action<int>?)Delegate.Combine(PostCreateInit, new Action<int>(entityId =>
+            {
+                ref var comp = ref ecs.GetComponentRef<T>(entityId);
+
+                // Boxed, so Init mutates the box, then copied back into the store.
+                var init = (INativeInit)comp;
+                init.Init(AllocatorKind.Default);
+                comp = (T)init;
+            }));
         }
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)

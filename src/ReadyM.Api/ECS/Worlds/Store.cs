@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
@@ -53,34 +52,38 @@ internal sealed partial class Store : IArchetypeRegistry
             => Batch!.AddTag<T>();
     }
 
-    private class NativeInitCallback(ILogger logger) : IArchetypeBuilderCallback
+    private class NativeInitCallback : IArchetypeBuilderCallback
     {
         public Action<Entity>? PostCreateInit;
-
-        delegate void NativeInitDelegate<T>(ref T comp, AllocatorKind allocatorKind);
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder)
             where T : struct, IComponent
         {
-            if (typeof(INativeInit).IsAssignableFrom(typeof(T)))
+            if (!typeof(INativeInit).IsAssignableFrom(typeof(T)))
             {
-                var method = typeof(T).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                    .SingleOrDefault(m => m.Name == nameof(INativeInit.Init) && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(AllocatorKind));
-
-                if (method == null)
-                {
-                    logger.LogWarning("Component type {ComponentType} implements INativeInit but does not have a valid Init method. Skipping native init.", typeof(T));
-                    return;
-                }
-
-                var del = (NativeInitDelegate<T>)method.CreateDelegate(typeof(NativeInitDelegate<T>));
-
-                PostCreateInit = (Action<Entity>?)Delegate.Combine(PostCreateInit, new Action<Entity>(e =>
-                {
-                    ref var comp = ref e.GetComponent<T>();
-                    del.Invoke(ref comp, AllocatorKind.Default);
-                }));
+                return;
             }
+
+            // Dispatched through the interface rather than a reflected delegate. Nothing calls Init
+            // directly, so a trimmed or AOT build found no method and native init was skipped with only
+            // a warning, leaving NativeList fields unallocated. An interface call is a static
+            // reference, so every implementation stays rooted with no trimming descriptor to maintain.
+            if (default(T) is not INativeInit)
+            {
+                throw new InvalidOperationException(
+                    $"Component {typeof(T)} implements {nameof(INativeInit)} but cannot be dispatched to it, "
+                    + "so its native fields would never be allocated.");
+            }
+
+            PostCreateInit = (Action<Entity>?)Delegate.Combine(PostCreateInit, new Action<Entity>(e =>
+            {
+                ref var comp = ref e.GetComponent<T>();
+
+                // Boxed, so Init mutates the box, then copied back into the store.
+                var init = (INativeInit)comp;
+                init.Init(AllocatorKind.Default);
+                comp = (T)init;
+            }));
         }
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
@@ -129,7 +132,7 @@ internal sealed partial class Store : IArchetypeRegistry
         _wrapped = wrapped;
         _logger = logger;
         _consCallback = new CreateEntityBatchCallback();
-        _nativeInitCallback = new NativeInitCallback(logger);
+        _nativeInitCallback = new NativeInitCallback();
 
         SystemRoot = new SystemRoot();
         SystemRoot.AddStore(wrapped);

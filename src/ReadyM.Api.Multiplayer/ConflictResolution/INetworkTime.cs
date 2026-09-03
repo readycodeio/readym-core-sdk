@@ -1,6 +1,6 @@
 namespace ReadyM.Api.Multiplayer.ConflictResolution;
 
-public interface INetworkTime
+internal interface INetworkTime
 {
     uint GetCurrentTime();
 }

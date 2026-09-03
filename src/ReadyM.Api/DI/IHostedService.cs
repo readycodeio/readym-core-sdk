@@ -10,7 +10,7 @@ namespace ReadyM.Api.DI;
 public interface IHostedService : IDisposable
 {
     /// <summary>
-    /// Called when the DI container is initialized (on game start).
+    /// Called when the DI container is initialized (on game/server start).
     /// This allows the service to perform any necessary setup at the appropriate time, such as registering event handlers.
     /// </summary>
     void OnScopeStart();

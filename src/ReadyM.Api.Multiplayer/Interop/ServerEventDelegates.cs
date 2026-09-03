@@ -1,9 +1,6 @@
-using LiteNetLib;
-using ReadyM.Api.Idents;
-
 namespace ReadyM.Api.Multiplayer.Interop;
 
-public enum ServerEventKind : byte
+internal enum ServerEventKind : byte
 {
     PlayerConnected = 0,
     PlayerDisconnected = 1,
@@ -18,8 +15,8 @@ public enum ServerEventKind : byte
     WorldEntityCreated = 10,
 }
 
-public delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);
+internal delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);
 
-public delegate void SubscribeServerEventsDelegate(ServerEventHandlerDelegate handler);
+internal delegate void SubscribeServerEventsDelegate(ServerEventHandlerDelegate handler);
 
-public delegate void UnsubscribeServerEventsDelegate(ServerEventHandlerDelegate handler);
+internal delegate void UnsubscribeServerEventsDelegate(ServerEventHandlerDelegate handler);

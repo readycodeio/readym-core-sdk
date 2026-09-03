@@ -3,6 +3,7 @@ using ReadyM.Api.Idents;
 
 namespace ReadyM.Relay.Server.Sdk.Interop;
 
+/// <exclude />
 [StructLayout(LayoutKind.Sequential)]
 public struct PlayerEventData
 {

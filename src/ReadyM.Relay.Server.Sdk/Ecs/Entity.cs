@@ -9,18 +9,20 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// </summary>
 public readonly struct Entity
 {
-    private readonly int _id;
     private readonly GetComponentPointerDelegate _getComponentPointer;
     private readonly ComponentRegistry _registry;
 
     internal Entity(int id, GetComponentPointerDelegate getComponentPointer, ComponentRegistry registry)
     {
-        _id = id;
+        Id = id;
         _getComponentPointer = getComponentPointer;
         _registry = registry;
     }
 
-    public int Id => _id;
+    /// <summary>
+    /// The identifier of the entity.
+    /// </summary>
+    public int Id { get; }
 
     /// <summary>
     /// Gets a reference to the component of type T associated with this entity.
@@ -31,7 +33,7 @@ public readonly struct Entity
     public unsafe ref T GetComponent<T>() where T : struct
     {
         var compId = _registry.ResolveComponentId<T>();
-        var ptr = _getComponentPointer(_id, compId);
+        var ptr = _getComponentPointer(Id, compId);
         return ref Unsafe.AsRef<T>((void*)ptr);
     }
 }

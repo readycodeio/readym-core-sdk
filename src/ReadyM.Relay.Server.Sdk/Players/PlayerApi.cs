@@ -8,11 +8,14 @@ using ReadyM.Relay.Server.Sdk.Interop;
 namespace ReadyM.Relay.Server.Sdk.Players;
 
 // FIXME: ~jk: Maybe I'm mistaken but this seems to duplicate some of the functionality of the wider ServerEventsApi
+/// <summary>
+/// Provides access to player events and actions on the server.
+/// </summary>
+[Obsolete("This API is being deprecated in favor of the more general ServerEventsApi.")]
 public class PlayerApi
 {
     private readonly KickPlayerDelegate _kickPlayer;
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
-    private readonly PlayerEventHandlerDelegate _bridge;
     private readonly INetworkTime _netTime;
     private readonly IChangeTrackingStore _changeTracking;
     private readonly GetReadyMIdDelegate _getReadyMId;
@@ -24,9 +27,9 @@ public class PlayerApi
         _kickPlayer = Marshal.GetDelegateForFunctionPointer<KickPlayerDelegate>(pointers.KickPlayer);
         _getReadyMId = Marshal.GetDelegateForFunctionPointer<GetReadyMIdDelegate>(pointers.GetReadyMId);
 
-        _bridge = OnPlayerEvent;
-        _pinnedDelegateStore.PinDelegate(_bridge);
-        Marshal.GetDelegateForFunctionPointer<AddPlayerEventHandlerDelegate>(pointers.AddPlayerEventHandler)(_bridge);
+        PlayerEventHandlerDelegate bridge = OnPlayerEvent;
+        _pinnedDelegateStore.PinDelegate(bridge);
+        Marshal.GetDelegateForFunctionPointer<AddPlayerEventHandlerDelegate>(pointers.AddPlayerEventHandler)(bridge);
     }
 
     /// <summary>

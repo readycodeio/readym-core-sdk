@@ -23,5 +23,5 @@ public interface IArchetypeRegistry
     /// builder. It is NOT invoked on each call</param>
     void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback);
 
-    void RegisterFilter(IArchetypeBuilderCallback filter);
+    internal void RegisterFilter(IArchetypeBuilderCallback filter);
 }

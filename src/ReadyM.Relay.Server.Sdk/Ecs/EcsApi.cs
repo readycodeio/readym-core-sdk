@@ -60,67 +60,159 @@ public class EcsApi
         _getComponentPointer = Marshal.GetDelegateForFunctionPointer<GetComponentPointerDelegate>(pointers.GetComponentPointer);
     }
 
+    /// <summary>
+    /// Create a server-owned networked entity in no particular scope.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateEntity(ArchetypeId archetypeId)
     {
         return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
     }
 
-    public Entity CreateEntity(ArchetypeId archetypeId, PlayerId ownerOverride)
+    /// <summary>
+    /// Create a networked entity in no particular scope, with an owner override.
+    /// The owner override is used to determine which client can modify it.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="owner">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
+    public Entity CreateEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _registry);
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Global scope. The entity is owned by the server.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateGlobalEntity(ArchetypeId archetypeId)
     {
         return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
     }
 
-    public Entity CreateGlobalEntity(ArchetypeId archetypeId, PlayerId ownerOverride)
+    /// <summary>
+    /// Creates a networked entity in the Global scope, with an owner override.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="owner">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
+    public Entity CreateGlobalEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _registry);
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Player scope.
+    /// When the associated player entity is destroyed, this entity is destroyed too.
+    /// The entity is owned by the server (the player can only read it, not modify it).
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="playerId">The player in whose scope the entity is created.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId)
     {
         return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 0, default), _getComponentPointer, _registry);
     }
 
-    public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId, PlayerId ownerOverride)
+    /// <summary>
+    /// Creates a networked entity in the Player scope, with an owner override.
+    /// Usually, the player in whose scope the entity is created should be the owner.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="playerId">The player in whose scope the entity is created.</param>
+    /// <param name="owner">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
+    public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId, PlayerId owner)
     {
-        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, ownerOverride), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, owner), _getComponentPointer, _registry);
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Area scope.
+    /// When the area entity is destroyed, this entity is destroyed too.
+    /// The entity is owned by the server.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="areaId">The Area in whose scope the entity is created.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId)
     {
         return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 0, default), _getComponentPointer, _registry);
     }
 
-    public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId, PlayerId ownerOverride)
+    /// <summary>
+    /// Creates a networked entity in the Area scope, with an owner override.
+    /// When the area entity is destroyed, this entity is destroyed too.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="areaId">The Area in whose scope the entity is created.</param>
+    /// <param name="owner">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
+    public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId, PlayerId owner)
     {
-        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, ownerOverride), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, owner), _getComponentPointer, _registry);
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Cell scope.
+    /// When the cell entity is destroyed, this entity is destroyed too.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="cellId">The Cell in whose scope the entity is created.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId)
     {
         return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 0, default), _getComponentPointer, _registry);
     }
 
-    public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId, PlayerId ownerOverride)
+    /// <summary>
+    /// Creates a networked entity in the Cell scope, with an owner override.
+    /// When the cell entity is destroyed, this entity is destroyed too.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="cellId">The Cell in whose scope the entity is created.</param>
+    /// <param name="owner">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
+    public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId, PlayerId owner)
     {
-        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, ownerOverride), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, owner), _getComponentPointer, _registry);
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Cell scope.
+    /// When the cell entity is destroyed, this entity is destroyed too.
+    /// The entity is owned by the server.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="areaId">The Cell's area.</param>
+    /// <param name="cellId">The Cell in whose scope the entity is created.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, AreaId areaId, CellId cellId)
     {
         return CreateCellEntity(archetypeId, new FullCellId(areaId, cellId));
     }
 
+    /// <summary>
+    /// Creates a networked entity in the Cell scope, with an owner override.
+    /// When the cell entity is destroyed, this entity is destroyed too.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <param name="areaId">The Cell's area.</param>
+    /// <param name="cellId">The Cell in whose scope the entity is created.</param>
+    /// <param name="ownerOverride">The owner of the entity.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, AreaId areaId, CellId cellId, PlayerId ownerOverride)
     {
         return CreateCellEntity(archetypeId, new FullCellId(areaId, cellId), ownerOverride);
     }
 
-    /// <summary>Creates a server-only entity: never replicated, invisible to clients.</summary>
+    /// <summary>
+    /// Creates a server-only entity: never replicated, invisible to clients.
+    /// </summary>
+    /// <param name="archetypeId">The entity Archetype.</param>
+    /// <returns>The created entity.</returns>
     public Entity CreateLocalEntity(ArchetypeId archetypeId)
     {
         return new Entity(_createLocalEntity(archetypeId), _getComponentPointer, _registry);
@@ -136,11 +228,21 @@ public class EcsApi
         return entity;
     }
 
+    /// <summary>
+    /// Deletes a networked entity.
+    /// </summary>
+    /// <param name="entity">The entity to delete.</param>
+    /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(in Entity entity)
     {
         return DeleteEntity(entity.Id);
     }
 
+    /// <summary>
+    /// Deletes a networked entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to delete.</param>
+    /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(int entityId)
     {
         return _deleteNetworkedEntity(entityId) != 0;
@@ -150,6 +252,7 @@ public class EcsApi
     /// Deletes an entity together with everything below it. Deleting a parent on its own leaves its
     /// children behind without one, so this is the call to use for anything that owns other entities.
     /// </summary>
+    /// <param name="entityId">The ID of the entity to delete along with its children.</param>
     /// <returns>How many entities were deleted.</returns>
     public int DeleteEntityTree(int entityId)
     {
@@ -166,6 +269,8 @@ public class EcsApi
     }
 
     /// <summary>0 when the entity has no parent.</summary>
+    /// <param name="childId">The ID of the child entity.</param>
+    /// <returns>The ID of the parent entity, or 0 if there is no parent.</returns>
     public int GetParent(int childId)
     {
         return _getParent(childId);
@@ -197,12 +302,16 @@ public class EcsApi
             return _getChildren(parentId, (IntPtr)buffer, into.Length);
     }
 
+    /// <exclude />
     public delegate void EmbedForEachEntity<T1>(ref T1 c1, int entityId) where T1 : struct;
 
+    /// <exclude />
     public delegate void EmbedForEachEntity<T1, T2>(ref T1 c1, ref T2 c2, int entityId)
         where T1 : struct where T2 : struct;
 
-    /// <summary>Iterates a component along with the entity id it belongs to.</summary>
+    /// <summary>
+    /// Iterates a component along with the entity id it belongs to.
+    /// </summary>
     public void QueryWithEntity<T>(EmbedForEachEntity<T> callback) where T : struct
     {
         var id = _registry.ResolveComponentId<T>();

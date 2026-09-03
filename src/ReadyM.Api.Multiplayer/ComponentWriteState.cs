@@ -2,11 +2,13 @@
 
 namespace ReadyM.Api.Multiplayer;
 
+/// <exclude />
 public struct ComponentWriteState(
     bool autoMarkApiOnWrite,
     uint currentTime,
     uint lastObservedTime,
-    IChangeTrackingStore? conflictResolver)
+    IChangeTrackingStore? conflictResolver
+)
 {
     public readonly bool AutoMarkApiOnWrite = autoMarkApiOnWrite;
     public readonly uint CurrentTime = currentTime;

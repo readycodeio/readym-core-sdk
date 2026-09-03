@@ -11,6 +11,9 @@ using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Events;
 
+/// <summary>
+/// Provides an API for subscribing to server events.
+/// </summary>
 public sealed class ServerEventsApi : IDisposable
 {
     public event Action<PlayerId, Entity>? OnPlayerConnected;
