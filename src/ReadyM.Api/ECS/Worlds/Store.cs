@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -117,8 +117,13 @@ internal sealed partial class Store : IArchetypeRegistry
 
     public SystemRoot SystemRoot { get; }
 
-    // TODO: the ArchetypeId on client and server are only in sync because the order of registration is the same
-    // This is fragile and should be fixed. It's only a coincidence that the DI injection order is the same.
+    // TODO: ArchetypeIds are positional (RegisterArchetype hands out _nextArchetypeId++) and travel on the
+    // wire, so both sides must allocate the same archetypes in the same order. The registrations below hold
+    // up: they reach DI before any mod Init and DryIoc enumerates in registration order, so each side takes
+    // the core archetypes first and its game-specific ones next. What mods allocate afterwards does not: it
+    // comes from the same counter, and the two sides load different mod sets, so a server-only mod's
+    // archetypes sit on ids the client will hand to something else. Nothing checks this at connect. Needs
+    // name-derived ids, or a per-side id space plus a handshake.
     public Store(EntityStore wrapped, ILogger logger, IEnumerable<IArchetypeRegistration> registrations)
     {
         _wrapped = wrapped;
