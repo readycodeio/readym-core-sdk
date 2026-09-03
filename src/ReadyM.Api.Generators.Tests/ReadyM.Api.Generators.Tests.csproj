@@ -12,6 +12,9 @@
 
     <ItemGroup>
         <PackageReference Include="LiteNetLib" Version="1.3.5" />
+        <!-- This project authors a test generator, so it needs the compiler API directly.
+             ReadyM.Api.Generators keeps Roslyn private, as a generator must. -->
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
         <PackageReference Include="CsCheck" Version="2.10.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
         <PackageReference Include="xunit.v3" Version="3.2.2" />
