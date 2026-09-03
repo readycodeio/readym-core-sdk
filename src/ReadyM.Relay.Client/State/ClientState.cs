@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
@@ -136,6 +137,12 @@ internal class ClientState : IDisposable
     public CellEntry? GetActiveCellEntry(CellId cellId)
         => _currentCellEntries.FirstOrDefault(e => e.CellId == cellId) is var entry && entry.CellId == cellId ? entry : (CellEntry?)null;
 
+    private bool IsLocalCellMaster(Entity cellEntity)
+        => cellEntity != default
+           && cellEntity.HasComponent<CellScopeComponent>()
+           && LocalPlayerId is { } local
+           && cellEntity.GetComponent<CellScopeComponent>().MasterClient == local;
+
     public AreaEntry? CurrentAreaEntry
         => _currentAreaEntry;
 
@@ -149,6 +156,16 @@ internal class ClientState : IDisposable
 
     public event Action<AreaId, Entity>? OnJoinedArea;
     public event Action<AreaId, Entity>? OnLeftArea;
+    /// <summary>
+    /// Fired when a cell is activated for a player.
+    /// FullCellId along with the Entity represents the cell, boolean indicates if the local player is the master of that cell.
+    /// </summary>
+    public event Action<FullCellId, Entity, bool>? OnActivatedCell;
+    /// <summary>
+    /// Fired when a cell is deactivated for a player.
+    /// FullCellId along with the Entity represents the cell, boolean indicates if the local player was the master of that cell.
+    /// </summary>
+    public event Action<FullCellId, Entity, bool>? OnDeactivatedCell;
     public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
     public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
@@ -707,6 +724,12 @@ internal class ClientState : IDisposable
                     // break; skipped on purpose
                 }
 
+                if (_currentCellEntries.Count != 0)
+                {
+                    _logger.LogError("Connected event received, but there are active cell entries. This should not happen.");
+                    // break; skipped on purpose
+                }
+
                 var playerId = pendingEvent.PlayerId;
 
                 var playerQuery = _world.Query<PlayerScopeComponent, MetadataComponent>()
@@ -729,6 +752,7 @@ internal class ClientState : IDisposable
                 _localPlayerEntry = playerEntry;
                 _allPlayers.Add(playerId);
                 _playerEntries.Add(playerId, playerEntry);
+
                 _currentCellEntries.Clear();
 
                 OnConnected?.Invoke(playerId, playerEntity);
@@ -741,6 +765,18 @@ internal class ClientState : IDisposable
                 if (_currentAreaEntry != null)
                 {
                     var areaId = _currentAreaEntry.Value.AreaId;
+
+                    // Destroy all active cell scope entities before clearing them
+                    for (var i = _currentCellEntries.Count - 1; i >= 0; i--)
+                    {
+                        var cellEntry = _currentCellEntries[i];
+                        var wasMaster = IsLocalCellMaster(cellEntry.CellEntity);
+                        OnDeactivatedCell?.Invoke(new FullCellId(areaId, cellEntry.CellId), cellEntry.CellEntity, wasMaster);
+
+                        _currentCellEntries.RemoveAt(i);
+                        _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
+                    }
+
                     for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                     {
                         var otherPlayerId = _currentAreaEntry.Value.AreaPlayers[i];
@@ -756,8 +792,6 @@ internal class ClientState : IDisposable
                         otherPlayerEntry.CurrentAreaId = null;
                         _playerEntries[otherPlayerId] = otherPlayerEntry;
                     }
-
-                    _currentCellEntries.Clear();
 
                     OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
@@ -807,6 +841,12 @@ internal class ClientState : IDisposable
                 {
                     _logger.LogError("JoinedArea event received, but already in an area. This should not happen.");
                     _currentAreaEntry = null;
+                    // break; skipped on purpose
+                }
+
+                if (_currentCellEntries.Count != 0)
+                {
+                    _logger.LogError("JonedArea event received, but there are active cell entries. This should not happen.");
                     // break; skipped on purpose
                 }
 
@@ -868,6 +908,18 @@ internal class ClientState : IDisposable
 
                 var playerId = pendingEvent.PlayerId;
                 var areaId = _currentAreaEntry.Value.AreaId;
+                _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
+
+                // Destroy all active cell scope entities before clearing them
+                for (var i = _currentCellEntries.Count - 1; i >= 0; i--)
+                {
+                    var cellEntry = _currentCellEntries[i];
+                    var wasMaster = IsLocalCellMaster(cellEntry.CellEntity);
+                    OnDeactivatedCell?.Invoke(new FullCellId(areaId, cellEntry.CellId), cellEntry.CellEntity, wasMaster);
+
+                    _currentCellEntries.RemoveAt(i);
+                    _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
+                }
 
                 for (var i = 0; i < _currentAreaEntry.Value.AreaPlayers.Count;)
                 {
@@ -884,16 +936,6 @@ internal class ClientState : IDisposable
                     otherPlayerEntry.CurrentAreaId = null;
                     _playerEntries[otherPlayerId] = otherPlayerEntry;
                 }
-
-                _logger.LogInformation("ECS LEAVING {AreaId} by player {PlayerId}", areaId, playerId);
-
-                // Destroy all active cell scope entities before clearing them
-                foreach (var cellEntry in _currentCellEntries)
-                {
-                    if (cellEntry.CellEntity != default)
-                        _netEntity.DeleteEntitiesInScope(cellEntry.CellEntity, true, true);
-                }
-                _currentCellEntries.Clear();
 
                 OnLeftArea?.Invoke(areaId, _currentAreaEntry.Value.AreaEntity);
 
@@ -1041,17 +1083,37 @@ internal class ClientState : IDisposable
                     });
                 }
 
-                // Destroy entities in cells that are no longer active
-                foreach (var existing in _currentCellEntries)
+                // Currently active cells for diff.
+                var previousCellIds = _currentCellEntries.Select(e => e.CellId).ToHashSet();
+                var areaId = _currentAreaEntry.Value.AreaId;
+
+                for (var i = 0; i < _currentCellEntries.Count;)
                 {
-                    if (!newCellIds.Contains(existing.CellId) && existing.CellEntity != default)
+                    var existing = _currentCellEntries[i];
+
+                    if (newCellIds.Contains(existing.CellId))
                     {
+                        i++;
+                    }
+                    else
+                    {
+                        var wasMaster = IsLocalCellMaster(existing.CellEntity);
+                        OnDeactivatedCell?.Invoke(new FullCellId(areaId, existing.CellId), existing.CellEntity, wasMaster);
+
+                        _currentCellEntries.RemoveAt(i);
                         _netEntity.DeleteEntitiesInScope(existing.CellEntity, true, true);
                     }
                 }
 
-                _currentCellEntries.Clear();
-                _currentCellEntries.AddRange(newCellEntries);
+                // Notify activation for cells that were not active before.
+                foreach (var entry in newCellEntries)
+                {
+                    if (!previousCellIds.Contains(entry.CellId))
+                    {
+                        _currentCellEntries.Add(entry);
+                        OnActivatedCell?.Invoke(new FullCellId(areaId, entry.CellId), entry.CellEntity, IsLocalCellMaster(entry.CellEntity));
+                    }
+                }
 
                 var cellsString = _currentCellEntries.Aggregate("", (p, n) => p + (p == "" ? "" : ", ") + n.CellId.ToString());
                 _logger.LogInformation("ECS set {count} active cells for player {PlayerId}: {cells}", _currentCellEntries.Count, pendingEvent.PlayerId, cellsString);

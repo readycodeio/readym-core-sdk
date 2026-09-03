@@ -24,6 +24,9 @@ public class EcsApi
     private readonly Query5Delegate _query5;
     private readonly Query6Delegate _query6;
     private readonly CreateNetworkedEntityDelegate _createNetworkedEntity;
+    private readonly CreateNetworkedPlayerEntityDelegate _createNetworkedPlayerEntity;
+    private readonly CreateNetworkedAreaEntityDelegate _createNetworkedAreaEntity;
+    private readonly CreateNetworkedCellEntityDelegate _createNetworkedCellEntity;
     private readonly CreateLocalEntityDelegate _createLocalEntity;
     private readonly DeleteNetworkedEntityDelegate _deleteNetworkedEntity;
     private readonly DeleteEntityTreeDelegate _deleteEntityTree;
@@ -45,6 +48,9 @@ public class EcsApi
         _query5 = Marshal.GetDelegateForFunctionPointer<Query5Delegate>(pointers.Query5);
         _query6 = Marshal.GetDelegateForFunctionPointer<Query6Delegate>(pointers.Query6);
         _createNetworkedEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedEntityDelegate>(pointers.CreateNetworkedEntity);
+        _createNetworkedPlayerEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedPlayerEntityDelegate>(pointers.CreateNetworkedPlayerEntity);
+        _createNetworkedAreaEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedAreaEntityDelegate>(pointers.CreateNetworkedAreaEntity);
+        _createNetworkedCellEntity = Marshal.GetDelegateForFunctionPointer<CreateNetworkedCellEntityDelegate>(pointers.CreateNetworkedCellEntity);
         _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
         _deleteNetworkedEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
         _deleteEntityTree = Marshal.GetDelegateForFunctionPointer<DeleteEntityTreeDelegate>(pointers.DeleteEntityTree);
@@ -56,7 +62,62 @@ public class EcsApi
 
     public Entity CreateEntity(ArchetypeId archetypeId)
     {
-        return new Entity(_createNetworkedEntity(archetypeId), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateEntity(ArchetypeId archetypeId, PlayerId ownerOverride)
+    {
+        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateGlobalEntity(ArchetypeId archetypeId)
+    {
+        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateGlobalEntity(ArchetypeId archetypeId, PlayerId ownerOverride)
+    {
+        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _registry);
+    }
+
+    public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId)
+    {
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 0, default), _getComponentPointer, _registry);
+    }
+
+    public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId, PlayerId ownerOverride)
+    {
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, ownerOverride), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId)
+    {
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 0, default), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId, PlayerId ownerOverride)
+    {
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, ownerOverride), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId)
+    {
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 0, default), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId, PlayerId ownerOverride)
+    {
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, ownerOverride), _getComponentPointer, _registry);
+    }
+
+    public Entity CreateCellEntity(ArchetypeId archetypeId, AreaId areaId, CellId cellId)
+    {
+        return CreateCellEntity(archetypeId, new FullCellId(areaId, cellId));
+    }
+
+    public Entity CreateCellEntity(ArchetypeId archetypeId, AreaId areaId, CellId cellId, PlayerId ownerOverride)
+    {
+        return CreateCellEntity(archetypeId, new FullCellId(areaId, cellId), ownerOverride);
     }
 
     /// <summary>Creates a server-only entity: never replicated, invisible to clients.</summary>

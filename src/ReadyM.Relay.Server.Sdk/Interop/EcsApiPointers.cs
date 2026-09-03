@@ -15,6 +15,9 @@ public  struct EcsApiPointers
     public required IntPtr Query5;
     public required IntPtr Query6;
     public required IntPtr CreateNetworkedEntity;
+    public required IntPtr CreateNetworkedPlayerEntity;
+    public required IntPtr CreateNetworkedAreaEntity;
+    public required IntPtr CreateNetworkedCellEntity;
     public required IntPtr CreateLocalEntity;
     public required IntPtr DeleteNetworkedEntity;
     public required IntPtr DeleteEntityTree;

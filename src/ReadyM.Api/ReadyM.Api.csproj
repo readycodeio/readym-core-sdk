@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <LangVersion>14</LangVersion>
-        <Configurations>Debug;Release</Configurations>
+        <LangVersion>latest</LangVersion>
+        <Configurations>Debug;Release;Testing</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

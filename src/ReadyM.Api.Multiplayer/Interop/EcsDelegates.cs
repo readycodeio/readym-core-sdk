@@ -12,7 +12,10 @@ namespace ReadyM.Api.Multiplayer.Interop;
 internal delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
 internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componentsSerialized);
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
-internal delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype);
+internal delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate int CreateNetworkedPlayerEntityDelegate(ArchetypeId archetype, PlayerId playerId, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate int CreateNetworkedAreaEntityDelegate(ArchetypeId archetype, AreaId areaId, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate int CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
 
 /// <summary>Creates a server-only entity: no metadata, never replicated to clients.</summary>
 internal delegate int CreateLocalEntityDelegate(ArchetypeId archetype);
