@@ -57,11 +57,6 @@ internal class RelayClient : IRelayClient
     private readonly int _port;
     private RelayConnectionOptions _options; // should be safe
 
-    // This isn't thread-safe, but we use it for some inconsequential things. DO NOT USE it for anything important,
-    // it'll return an abnormal number of 0s when used in parallel. With the papal blessing nothing should break
-    // because of it.
-    private readonly Random _rng = new(2137);
-
     // NOTE: Stores data that can only be safely accessed from the network thread. It is disallowed to access any of
     // this state from other threads.
     private readonly NetworkThreadContext _netThreadContext = new();
@@ -886,16 +881,24 @@ internal class RelayClient : IRelayClient
     private readonly object _statLock = new();
     private long _lastBytesReceived;
     private long _lastBytesSent;
-    private DateTimeOffset _processStart = DateTimeOffset.Now;
+    private readonly DateTimeOffset _processStart = DateTimeOffset.Now;
     private DateTimeOffset _lastStatCheck = DateTimeOffset.Now;
 
     private int _pingCount;
+    private long _lastPacketLoss;
+    private long _lastPacketsSent;
+    private int _packetLossPercent;
 
-    private void OnNetworkLatencyUpdateEvent(NetPeer peer, int latency)
+    /// <inheritdoc />
+    public int PacketLossPercent => Volatile.Read(ref _packetLossPercent);
+
+    private void OnNetworkLatencyUpdateEvent(NetPeer peer, int _)
     {
-        // Round trip time. LiteNetLib reports one way latency, so we double it.
-        // We add a random jitter so that the results are not always divisible by 2.
-        OnPingUpdated?.Invoke(2 * latency + _rng.Next(2));
+        var rtt = peer.RoundTripTime;
+
+        UpdatePacketLoss();
+        _netStats.AddPing(rtt);
+        OnPingUpdated?.Invoke(rtt);
 
         // NOTE: We need to read this once so that it is atomic
         var bytesReceived = _client.Statistics.BytesReceived;
@@ -931,10 +934,25 @@ internal class RelayClient : IRelayClient
             var packetLoss = _client.Statistics.PacketLoss;
 
             var sent = _client.Statistics.PacketsSent;
-            _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, Latency: {} ms", avgRecv, avgSent, packetLoss, sent, latency);
+            _logger.LogDebug("Avg recv: {Recv} B/s, Avg sent: {Sent} B/s, Lost: {Loss} / Sent: {SentPackets}, RTT: {} ms", avgRecv, avgSent, packetLoss, sent, rtt);
         }
 
         _pingCount++;
+    }
+    
+    private void UpdatePacketLoss()
+    {
+        var packetLoss = _client.Statistics.PacketLoss;
+        var packetsSent = _client.Statistics.PacketsSent;
+
+        var lostDelta = packetLoss - _lastPacketLoss;
+        var sentDelta = packetsSent - _lastPacketsSent;
+
+        _lastPacketLoss = packetLoss;
+        _lastPacketsSent = packetsSent;
+
+        var percent = sentDelta > 0 ? (int)(100 * lostDelta / sentDelta) : 0;
+        Volatile.Write(ref _packetLossPercent, percent < 0 ? 0 : percent);
     }
 
     // NOTE: This indicates getting disconnected from the server, not other peers getting disconnected

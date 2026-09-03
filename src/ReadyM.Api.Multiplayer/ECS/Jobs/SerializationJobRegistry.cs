@@ -36,7 +36,7 @@ internal sealed class SerializationJobRegistry
 
     private readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> _applyDeltaJobs = [];
     private readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> _applySnapshotJobs = [];
-    private readonly Dictionary<NetworkedComponentId, IJob<EntityStore, QueryFilter, Entity?, SpanDataWriter>> _writeSnapshotJobs = [];
+    private readonly Dictionary<NetworkedComponentId, IJob<EntityStore, QueryFilter, Entity?, NetDataWriter>> _writeSnapshotJobs = [];
 
     public event Action? OnApplySnapshot;
     public event Action<NetworkedComponentId>? OnApplyDelta;
@@ -69,12 +69,12 @@ internal sealed class SerializationJobRegistry
 
     internal void RegisterWriteSnapshotJob(
         NetworkedComponentId componentId,
-        IJob<EntityStore, QueryFilter, Entity?, SpanDataWriter> job)
+        IJob<EntityStore, QueryFilter, Entity?, NetDataWriter> job)
     {
         _writeSnapshotJobs.Add(componentId, job);
     }
 
-    public void WriteSnapshot(EntityStore world, QueryFilter filter, Entity? scopeEntity, SpanDataWriter writer)
+    public void WriteSnapshot(EntityStore world, QueryFilter filter, Entity? scopeEntity, NetDataWriter writer)
     {
         filter = filter.FreezeFilter();
         foreach (var job in _writeSnapshotJobs.Values)

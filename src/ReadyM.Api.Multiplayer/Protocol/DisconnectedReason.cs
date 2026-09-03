@@ -51,7 +51,7 @@ public enum DisconnectedReason : byte
     Banned,
 
     /// <summary>
-    /// The  server was banned by ReadyM, so it refuses all players.
+    /// The whole server was banned by ReadyM, so it refuses all players.
     /// </summary>
     ServerBanned,
 }

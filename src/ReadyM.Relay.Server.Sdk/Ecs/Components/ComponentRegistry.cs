@@ -54,7 +54,7 @@ internal sealed class ComponentRegistry(
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterLocalComponent<T>();
-        var id = _registerModComponent(registration, new NativeString256(typeof(T).Name, false));
+        var id = _registerModComponent(registration, new NativeString256(typeof(T).FullName, false));
 
         if (id < 0)
             throw new InvalidOperationException(
@@ -80,7 +80,7 @@ internal sealed class ComponentRegistry(
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
         var registration = heapManager.RegisterComponent<T>();
-        var id = _registerModComponent(registration, new NativeString256(typeof(T).Name, false));
+        var id = _registerModComponent(registration, new NativeString256(typeof(T).FullName, false));
 
         if (id < 0)
             throw new InvalidOperationException($"Server refused to register {type.Name}: component slot limit reached.");

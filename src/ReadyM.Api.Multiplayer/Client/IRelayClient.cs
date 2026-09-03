@@ -159,10 +159,17 @@ internal interface IRelayClient : IRpcClient, IDisposable
     event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
 
     /// <summary>
-    /// Used to measure ping. Currently only measures round-trip ping to the server.
+    /// Round-trip time to the server in milliseconds, as measured by the transport. Fired once per
+    /// transport ping interval.
     /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<int>? OnPingUpdated;
+
+    /// <summary>
+    /// Percentage of packets lost since the previous <see cref="OnPingUpdated" />. Safe to read from
+    /// any thread.
+    /// </summary>
+    int PacketLossPercent { get; }
 
     /// <summary>
     /// Fired for each message successfully received by us. The following messages will be received:

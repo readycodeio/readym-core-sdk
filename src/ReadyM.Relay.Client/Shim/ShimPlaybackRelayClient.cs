@@ -100,6 +100,8 @@ internal class ShimPlaybackRelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
     public event Action<int>? OnPingUpdated;
 
+    public int PacketLossPercent => 0;
+
     public event Action<ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage
     {
         add => AddBuiltInMessageHandler(RelayMessageCode.MinBuiltInEvent, RelayMessageCode.MaxBuiltInEvent, value!);

@@ -50,7 +50,7 @@ public abstract class RpcBase : IHostedService
     /// <exclude />
     /// <summary>
     /// Schedules a callback to be run on the game thread.
-    /// Client RPC handlers use this method, it's not necessary to call it directly.
+    /// All RPC handlers are already doing this, there is no need to call this method manually.
     /// </summary>
     protected void RunOnGameThread(Action callback)
     {

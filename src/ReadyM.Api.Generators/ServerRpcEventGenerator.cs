@@ -219,7 +219,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             dispatchBranches.AppendLine(DeserializeStatement(p));
 
         var dispatchArgs = string.Join(", ", payloadParams.Select(p => p.Name));
-        dispatchBranches.AppendLine($"                On{eventName}({dispatchArgs});");
+        dispatchBranches.AppendLine($"                RunOnGameThread(() => On{eventName}({dispatchArgs}));");
         dispatchBranches.AppendLine("                break;");
         dispatchBranches.AppendLine("            }");
     }

@@ -137,6 +137,8 @@ internal class HotSwappableRelayClient : IRelayClient
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerJoinedArea;
     public event Action<IRelayClientNetworkThreadContext, PlayerId>? OnOtherPlayerLeftArea;
     public event Action<int>? OnPingUpdated;
+
+    public int PacketLossPercent => _client?.PacketLossPercent ?? 0;
     
     public event Action<ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage
     {

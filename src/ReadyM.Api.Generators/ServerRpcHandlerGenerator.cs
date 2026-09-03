@@ -77,7 +77,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
             // Class-scoped: only the legs the named contracts class declares, even when the manifest
             // covers several contract classes from the same assembly.
-            var directions = ServerRpcModel.ResolveDirections(new[] { contractsType });
+            var directions = ServerRpcModel.ResolveDirections([contractsType]);
 
             var rpcs = ServerRpcModel.ManifestNames(manifest)
                 .Where(directions.ContainsKey)

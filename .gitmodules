@@ -1,6 +1,3 @@
 [submodule "src/Friflo.Engine.ECS"]
 	path = src/Friflo.Engine.ECS
 	url = ../Friflo.Engine.ECS.git
-[submodule "src/LiteNetLib"]
-	path = src/LiteNetLib
-	url = https://github.com/RevenantX/LiteNetLib.git

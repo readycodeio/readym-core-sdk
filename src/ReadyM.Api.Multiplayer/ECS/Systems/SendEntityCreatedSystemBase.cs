@@ -46,7 +46,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
 
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
-    private static SpanDataWriter? _writer;
+    private static NetDataWriter? _writer;
 
     protected void OnUpdate(SendContext context)
     {
@@ -56,7 +56,7 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
         if (queryCount == 0)
             return;
 
-        _writer ??= new SpanDataWriter();
+        _writer ??= new NetDataWriter();
         _writer.Reset();
         CreatePacketHeader(_writer, context);
         _writer.Put((uint)queryCount);

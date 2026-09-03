@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <LangVersion>14</LangVersion>
-        <Configurations>Debug;Release</Configurations>
+        <LangVersion>latest</LangVersion>
+        <Configurations>Debug;Release;Testing</Configurations>
         <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="LiteNetLib" Version="1.3.5" />
         <PackageReference Include="DryIoc.dll" Version="5.4.3" />
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
@@ -25,7 +26,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\LiteNetLib\LiteNetLib\LiteNetLib.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS\Friflo.Engine.ECS.csproj" />
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS.Boost\Friflo.Engine.ECS.Boost.csproj" />
         <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj" />

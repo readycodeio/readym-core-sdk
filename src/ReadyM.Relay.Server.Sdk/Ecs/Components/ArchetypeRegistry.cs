@@ -23,7 +23,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly CollectComponentIdsCallback _componentIdCallback;
-    private readonly NativeInitCallback _nativeInitCallback;
+    private readonly ComponentInitCallback _componentInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     private readonly IEnumerable<IArchetypeRegistration> _registrations;
@@ -32,7 +32,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     {
         _logger = logger;
         _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
-        _nativeInitCallback = new NativeInitCallback(ecs, _logger);
+        _componentInitCallback = new ComponentInitCallback(ecs, _logger);
         _registrations = registrations;
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
@@ -67,12 +67,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         }
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue) where T : struct, IComponent
-        {
-            logger.LogError("Default value {DefaultValue} for type {ComponentType} are not set when adding a " +
-                            "component with a value. Use Add<T>() and set the values manually.", defaultValue, typeof(T).Name);
-
-            AcceptComponentType<T>(builder);
-        }
+            => AcceptComponentType<T>(builder);
 
         public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
             => throw new NotSupportedException("Adding components by struct index is not supported in the mod archetype registry.");
@@ -82,7 +77,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             => throw new NotSupportedException("Adding tag components is not supported in the mod archetype registry.");
     }
 
-    private class NativeInitCallback(EcsApi ecs, ILogger logger) : IArchetypeBuilderCallback
+    private class ComponentInitCallback(EcsApi ecs, ILogger logger) : IArchetypeBuilderCallback
     {
         public Action<int>? PostCreateInit;
 
@@ -114,7 +109,15 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue)
             where T : struct, IComponent
-            => AcceptComponentType<T>(builder);
+        {
+            // Before the native init, which allocates into the struct and would be overwritten by this assignment.
+            PostCreateInit = (Action<int>?)Delegate.Combine(PostCreateInit, new Action<int>(entityId =>
+            {
+                ecs.GetComponentRef<T>(entityId) = defaultValue;
+            }));
+
+            AcceptComponentType<T>(builder);
+        }
 
         public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
         {
@@ -129,20 +132,21 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     }
 
     /// <summary>
-    /// Collects the native-init handlers for everything currently on the builder. Accept replays the builder's
-    /// components once, so the callback has to be reset around it or handlers leak into the next archetype.
+    /// Collects the default-value and native-init handlers for everything currently on the builder. Accept replays
+    /// the builder's components once, so the callback has to be reset around it or handlers leak into the next
+    /// archetype.
     /// </summary>
     private Action<int>? CreatePostCreateInit(ArchetypeBuilder builder)
     {
         try
         {
-            _nativeInitCallback.PostCreateInit = null;
-            builder.Accept(_nativeInitCallback);
-            return _nativeInitCallback.PostCreateInit;
+            _componentInitCallback.PostCreateInit = null;
+            builder.Accept(_componentInitCallback);
+            return _componentInitCallback.PostCreateInit;
         }
         finally
         {
-            _nativeInitCallback.PostCreateInit = null;
+            _componentInitCallback.PostCreateInit = null;
         }
     }
 
