@@ -25,6 +25,11 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 
     public IEnumerable<Type> ComponentTypes => _componentTypes;
 
+    // Registration is a construction-phase activity. Once the constructor returns, a fully built registry
+    // exists and anyone holding one is entitled to assume the component set is settled, so a later
+    // registration has to fail rather than land somewhere nothing will read.
+    private bool _sealed;
+
     protected ComponentRegistryBase(IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
     {
         var registry = (TRegistry)(object)this;
@@ -32,6 +37,21 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         {
             registration.Register(registry);
         }
+
+        _sealed = true;
+    }
+
+    private void ThrowIfSealed(string what)
+    {
+        if (!_sealed)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"{typeof(TRegistry).Name} finished construction, so {what} cannot be registered any more. "
+            + "Components are registered by the registrations the registry is built from, and anything "
+            + "holding the finished registry is entitled to assume the set is complete.");
     }
 
     protected virtual TRegistry RegisterComponentImpl<T>(T defaultValue = default)
@@ -45,6 +65,8 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
                 "just cause aliasing issues but also likely cause hard-to-debug crashes. Register the type without a " +
                 "value and let each entity allocate its own on first write");
         }
+
+        ThrowIfSealed(typeof(T).Name);
 
         _componentTypes.Add(typeof(T));
 
@@ -67,8 +89,10 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     /// deferred action and does no work, so a mod component reaches every acceptor at the same point in the
     /// build as a native one rather than being acted on the moment it arrives.
     /// </summary>
-    protected virtual TRegistry RegisterModComponentImpl(ModComponentRegistration registration, string typeFullName)
+    protected virtual TRegistry RegisterModComponentImpl(ModComponentInfo registration, string typeFullName)
     {
+        ThrowIfSealed(typeFullName);
+
         if (string.IsNullOrEmpty(typeFullName))
         {
             throw new ArgumentException(

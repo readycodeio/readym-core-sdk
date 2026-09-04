@@ -12,7 +12,7 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
 {
     private class RegisterAreaComponentsCallback(ArchetypeBuilder builder) : IAreaComponentRegistryCallback
     {
-        public void AcceptModComponent(IAreaComponentRegistry registry, ModComponentRegistration registration, string typeFullName)
+        public void AcceptModComponent(IAreaComponentRegistry registry, ModComponentInfo registration, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the area archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");
