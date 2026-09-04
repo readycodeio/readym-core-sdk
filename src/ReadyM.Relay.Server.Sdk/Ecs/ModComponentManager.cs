@@ -40,11 +40,11 @@ internal sealed class ModComponentManager : IDisposable
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Registers component type T. Returns a ModComponentRegistration to hand to the
+    /// Registers component type T. Returns a ModComponentInfo to hand to the
     /// AOT relay's RegisterModComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public ModComponentRegistration RegisterLocalComponent<T>() where T : struct
+    public ModComponentInfo RegisterLocalComponent<T>() where T : struct
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -52,7 +52,7 @@ internal sealed class ModComponentManager : IDisposable
         var factory = new AllocHeapDelegate(AllocHeapImpl<T>);
         _delegateStore.PinDelegate(factory);
 
-        return new ModComponentRegistration
+        return new ModComponentInfo
         {
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,
@@ -62,13 +62,13 @@ internal sealed class ModComponentManager : IDisposable
         };
     }
 
-    public ModComponentRegistration RegisterComponent(Type componentType)
+    public ModComponentInfo RegisterComponent(Type componentType)
     {
         var method = GetType().GetMethod(nameof(RegisterComponent), BindingFlags.Public | BindingFlags.Instance, []);
         Debug.Assert(method != null, "RegisterComponent method not found");
 
         var genericMethod = method.MakeGenericMethod(componentType);
-        var result = genericMethod.Invoke(this, []) as ModComponentRegistration?;
+        var result = genericMethod.Invoke(this, []) as ModComponentInfo?;
         if (result == null)
             throw new InvalidOperationException($"Failed to register component type {componentType.FullName}");
 
@@ -80,7 +80,7 @@ internal sealed class ModComponentManager : IDisposable
     /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public unsafe ModComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
+    public unsafe ModComponentInfo RegisterComponent<T>() where T : struct, INetworkedComponent
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -172,7 +172,7 @@ internal sealed class ModComponentManager : IDisposable
         });
         var changedFromApiDelegatePtr = _delegateStore.PinDelegate(changedFromApiDelegate);
 
-        return new ModComponentRegistration
+        return new ModComponentInfo
         {
             Stride = Unsafe.SizeOf<T>(),
             IsBlittable = IsBlittable<T>() ? (byte)1 : (byte)0,

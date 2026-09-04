@@ -12,7 +12,7 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
 {
     private class RegisterWorldComponentsCallback(ArchetypeBuilder builder) : IWorldComponentRegistryCallback
     {
-        public void AcceptModComponent(IWorldComponentRegistry registry, ModComponentRegistration registration, string typeFullName)
+        public void AcceptModComponent(IWorldComponentRegistry registry, ModComponentInfo registration, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the world archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");
