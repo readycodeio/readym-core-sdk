@@ -15,7 +15,8 @@ internal static class TestEcsSchemaBootstrap
     [ModuleInitializer]
     internal static void CreateSchema()
     {
-        if (!SchemaBootstrap.IsSchemaCreated)
-            SchemaBootstrap.CreateFromLoadedAssemblies();
+        // A module initializer runs once per assembly, before any other code in it, so this is the only
+        // creator in this process. Repeated initialization is therefore left at its default: a hard failure.
+        SchemaBootstrap.InitializeFromLoadedAssemblies();
     }
 }
