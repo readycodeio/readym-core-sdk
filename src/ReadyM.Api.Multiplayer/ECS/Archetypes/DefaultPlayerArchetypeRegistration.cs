@@ -12,7 +12,7 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
 {
     private class RegisterPlayerComponentsCallback(ArchetypeBuilder builder) : IPlayerComponentRegistryCallback
     {
-        public void AcceptModComponent(IPlayerComponentRegistry registry, ModComponentInfo registration, string typeFullName)
+        public void AcceptModComponent(IPlayerComponentRegistry registry, ModComponentInfo info, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the player archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");

@@ -23,5 +23,5 @@ internal interface IComponentRegistryCallbackBase<in TRegistry, in TComponent>
     /// should throw <see cref="System.NotSupportedException"/> and say why.
     /// </para>
     /// </summary>
-    void AcceptModComponent(TRegistry registry, ModComponentInfo registration, string typeFullName);
+    void AcceptModComponent(TRegistry registry, ModComponentInfo info, string typeFullName);
 }
