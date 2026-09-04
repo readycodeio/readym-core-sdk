@@ -122,4 +122,4 @@ internal unsafe delegate void ChunkCallback(IntPtr ids, ChunkComponent* comps, i
 /// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
 internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
 
-internal delegate void RegisterModComponentDelegate(ModComponentInfo registration, NativeString256 typeFullName);
+internal delegate void RegisterModComponentDelegate(ModComponentInfo info, NativeString256 typeFullName);

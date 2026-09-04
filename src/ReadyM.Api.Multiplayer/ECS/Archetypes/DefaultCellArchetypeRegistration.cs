@@ -12,7 +12,7 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
 {
     private class RegisterCellComponentsCallback(ArchetypeBuilder builder) : ICellComponentRegistryCallback
     {
-        public void AcceptModComponent(ICellComponentRegistry registry, ModComponentInfo registration, string typeFullName)
+        public void AcceptModComponent(ICellComponentRegistry registry, ModComponentInfo info, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the cell archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");

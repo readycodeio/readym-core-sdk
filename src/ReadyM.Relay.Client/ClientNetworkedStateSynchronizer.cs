@@ -29,7 +29,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
 {
     private class RegisterSystemCallback(ClientNetworkedStateSynchronizer owner) : INetworkedComponentRegistryCallback
     {
-        public void AcceptModComponent(INetworkedComponentRegistry registry, ModComponentInfo registration, string typeFullName)
+        public void AcceptModComponent(INetworkedComponentRegistry registry, ModComponentInfo info, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the client does not load server mods, so it never sees a mod component. "
                 + $"Offending component: {typeFullName}.");

@@ -17,7 +17,7 @@ internal sealed class SerializationJobRegistry
 {
     private class RegisterJobsCallback(SerializationJobRegistry owner) : INetworkedComponentRegistryCallback
     {
-        public void AcceptModComponent(INetworkedComponentRegistry registry, ModComponentInfo registration, string typeFullName)
+        public void AcceptModComponent(INetworkedComponentRegistry registry, ModComponentInfo info, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: mod component serialization is wired separately, see ModNetworkedComponentRegistration. "
                 + $"Offending component: {typeFullName}.");

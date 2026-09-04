@@ -109,7 +109,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     /// deferred action and does no work, so a mod component reaches every acceptor at the same point in the
     /// build as a native one rather than being acted on the moment it arrives.
     /// </summary>
-    protected virtual TRegistry RegisterModComponentImpl(ModComponentInfo registration, string typeFullName)
+    protected virtual TRegistry RegisterModComponentImpl(ModComponentInfo info, string typeFullName)
     {
         ThrowIfSealed(typeFullName);
 
@@ -130,7 +130,7 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 
         var accept = new Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>(callback =>
         {
-            callback.AcceptModComponent((TRegistry)(object)this, registration, typeFullName);
+            callback.AcceptModComponent((TRegistry)(object)this, info, typeFullName);
         });
         _acceptCallbacks.Add(accept);
 
