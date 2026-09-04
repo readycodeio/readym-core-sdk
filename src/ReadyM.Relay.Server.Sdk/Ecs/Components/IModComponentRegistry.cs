@@ -5,7 +5,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 /// <summary>
 /// Allows registering components with the ECS system, both local and networked.
 /// </summary>
-public interface IComponentRegistry
+public interface IModComponentRegistry
 {
     /// <summary>
     /// Registers a local (not replicated over the network) component type with the ECS system.
