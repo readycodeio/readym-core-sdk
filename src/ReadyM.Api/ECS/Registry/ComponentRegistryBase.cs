@@ -20,6 +20,13 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     // NOTE: DO NOT use for id generation. There's a specialized `IdComponentRegistryBase` for that.
     private readonly List<Type> _componentTypes = [];
 
+    // Registering a type twice is always a mistake, so it throws. Nothing deduplicates downstream: each
+    // registration takes another component id out of a byte-wide space, and for a networked component another
+    // one for its change component. It used to pass silently and only show up as ids running short or as two
+    // entries for one type drifting apart.
+    private readonly HashSet<Type> _registeredTypes = [];
+    private readonly HashSet<string> _registeredModComponents = [];
+
     public bool HasComponents
         => _componentTypes.Count > 0;
 
@@ -68,6 +75,14 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
 
         ThrowIfSealed(typeof(T).Name);
 
+        if (!_registeredTypes.Add(typeof(T)))
+        {
+            throw new InvalidOperationException(
+                $"{typeof(T).FullName} is already registered on {typeof(TRegistry).Name}. A component type "
+                + "belongs to exactly one registration: shared components to the default one, a game's own to "
+                + "that game's, and mod-declared ones to the mod registration.");
+        }
+
         _componentTypes.Add(typeof(T));
 
         var accept = new Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>(callback =>
@@ -92,6 +107,14 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
     protected virtual TRegistry RegisterModComponentImpl(ModComponentInfo registration, string typeFullName)
     {
         ThrowIfSealed(typeFullName);
+
+        if (!string.IsNullOrEmpty(typeFullName) && !_registeredModComponents.Add(typeFullName))
+        {
+            throw new InvalidOperationException(
+                $"Mod component '{typeFullName}' is already registered on {typeof(TRegistry).Name}. Two mods "
+                + "declaring the same component type, or one mod declaring it twice, would each get their own "
+                + "component id for what the schema holds once.");
+        }
 
         if (string.IsNullOrEmpty(typeFullName))
         {
