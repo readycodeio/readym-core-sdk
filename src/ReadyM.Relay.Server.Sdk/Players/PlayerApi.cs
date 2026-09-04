@@ -18,6 +18,7 @@ public class PlayerApi
     private readonly INetworkTime _netTime;
     private readonly IChangeTrackingStore _changeTracking;
     private readonly GetReadyMIdDelegate _getReadyMId;
+    private readonly RotateCellMastersDelegate _rotateCellMasters;
 
     internal PlayerApi(PlayerApiPointers pointers, INetworkTime netTime, IChangeTrackingStore changeTracking)
     {
@@ -25,6 +26,7 @@ public class PlayerApi
         _changeTracking = changeTracking;
         _kickPlayer = Marshal.GetDelegateForFunctionPointer<KickPlayerDelegate>(pointers.KickPlayer);
         _getReadyMId = Marshal.GetDelegateForFunctionPointer<GetReadyMIdDelegate>(pointers.GetReadyMId);
+        _rotateCellMasters = Marshal.GetDelegateForFunctionPointer<RotateCellMastersDelegate>(pointers.RotateCellMasters);
 
         PlayerEventHandlerDelegate bridge = OnPlayerEvent;
         _pinnedDelegateStore.PinDelegate(bridge);
@@ -47,6 +49,12 @@ public class PlayerApi
     /// </summary>
     /// <param name="player">The player to kick.</param>
     public void Kick(PlayerId player) => _kickPlayer(player);
+
+    /// <summary>
+    /// Test tool: every cell the requester has active gets the next player in it as master client,
+    /// and every entity in that cell that allows ownership transfer follows to the new master.
+    /// </summary>
+    public void RotateCellMasters(PlayerId requester) => _rotateCellMasters(requester);
 
     /// <summary>
     /// Get the id ReadyM assigned to this player's account, or null if this server has not seen them since it started.
