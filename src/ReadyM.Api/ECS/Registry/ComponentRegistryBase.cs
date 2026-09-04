@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Registry;
 
@@ -50,6 +51,34 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
         var accept = new Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>(callback =>
         {
             callback.AcceptComponent((TRegistry)(object)this, defaultValue);
+        });
+        _acceptCallbacks.Add(accept);
+
+        foreach (var filter in _filters)
+        {
+            accept(filter);
+        }
+
+        return (TRegistry)(object)this;
+    }
+
+    /// <summary>
+    /// Collects a mod-defined component. Mirrors <see cref="RegisterComponentImpl{T}"/> exactly: it records a
+    /// deferred action and does no work, so a mod component reaches every acceptor at the same point in the
+    /// build as a native one rather than being acted on the moment it arrives.
+    /// </summary>
+    protected virtual TRegistry RegisterModComponentImpl(ModComponentRegistration registration, string typeFullName)
+    {
+        if (string.IsNullOrEmpty(typeFullName))
+        {
+            throw new ArgumentException(
+                "A mod component must be registered under its full type name. It has no managed type, so the "
+                + "name is the only thing that identifies it.", nameof(typeFullName));
+        }
+
+        var accept = new Action<IComponentRegistryCallbackBase<TRegistry, TComponent>>(callback =>
+        {
+            callback.AcceptModComponent((TRegistry)(object)this, registration, typeFullName);
         });
         _acceptCallbacks.Add(accept);
 
