@@ -17,8 +17,13 @@ internal sealed class ComponentRegistry(
     private readonly RegisterModComponentDelegate _registerModComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterModComponentDelegate>(aotPointers.RegisterModComponent);
 
-    private readonly GetComponentIdByNameDelegate _getComponentIdByName =
-        Marshal.GetDelegateForFunctionPointer<GetComponentIdByNameDelegate>(aotPointers.GetComponentIdByName);
+    // Bound in phase two. The host cannot resolve an id until it has built its component table, which is
+    // after the schema exists, so there is nothing to bind at mod load time.
+    private GetComponentIdByNameDelegate? _getComponentIdByName;
+
+    /// <summary>Hands over the host's id resolver, once the host has a component table to resolve against.</summary>
+    internal void BindComponentIdResolver(IntPtr getComponentIdByName)
+        => _getComponentIdByName = Marshal.GetDelegateForFunctionPointer<GetComponentIdByNameDelegate>(getComponentIdByName);
 
     // Component ids resolved from the server, cached per type. Filled on first use, not at registration:
     // the server only knows a mod component's id once it has run its acceptor pass, which happens after the
@@ -41,6 +46,14 @@ internal sealed class ComponentRegistry(
     {
         if (_resolvedIds.TryGetValue(typeof(T), out var cached))
             return cached;
+
+        if (_getComponentIdByName is null)
+        {
+            throw new InvalidOperationException(
+                $"Cannot resolve a component id for {typeof(T).FullName} yet: the host has not built its "
+                + "component table. Ids are available from mod initialization onwards, not while components "
+                + "are still being registered.");
+        }
 
         var id = _getComponentIdByName(new NativeString256(typeof(T).FullName, false));
         if (id < 0)

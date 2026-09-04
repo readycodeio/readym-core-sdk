@@ -25,4 +25,11 @@ public  struct EcsApiPointers
     public required IntPtr GetParent;
     public required IntPtr GetChildren;
     public required IntPtr GetComponentPointer;
+
+    /// <summary>
+    /// Resolves a component id from a full type name. Phase two, deliberately: the host cannot answer until
+    /// it has built its component table, which happens after the schema is created. Mods only ask when they
+    /// register an archetype or run a query, both of which are phase two or later.
+    /// </summary>
+    public required IntPtr GetComponentIdByName;
 }
