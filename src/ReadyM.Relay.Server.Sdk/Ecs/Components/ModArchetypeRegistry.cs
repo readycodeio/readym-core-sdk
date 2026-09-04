@@ -14,7 +14,7 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
+internal sealed class ModArchetypeRegistry : IArchetypeRegistry
 {
     private readonly ILogger _logger;
 
@@ -26,7 +26,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     private readonly ComponentInitCallback _componentInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
-    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ModComponentIds componentIds, ILogger logger)
+    public ModArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ModComponentIds componentIds, ILogger logger)
     {
         _logger = logger;
         _callback = new CollectComponentIdsCallback(componentIds, _logger);
