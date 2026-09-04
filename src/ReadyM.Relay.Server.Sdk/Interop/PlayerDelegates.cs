@@ -11,3 +11,5 @@ internal delegate void RemovePlayerEventHandlerDelegate(PlayerEventHandlerDelega
 internal delegate void KickPlayerDelegate(PlayerId playerId);
 
 internal delegate Guid GetReadyMIdDelegate(PlayerId playerId);
+
+internal delegate void RotateCellMastersDelegate(PlayerId requester);
