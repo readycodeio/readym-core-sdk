@@ -21,7 +21,7 @@ internal sealed class ModChangeComponentRegistration(ServerSideSettings serverSi
 {
     private sealed class Filter : IModComponentRegistryCallback
     {
-        public void AcceptComponent<T>(ComponentRegistry registry) where T : struct
+        public void AcceptComponent<T>(ModComponentRegistry registry) where T : struct
         {
             // Only a networked component has one. A local component is just data and nothing tracks changes
             // to it, which is also why declaring one does not reach this branch.
@@ -32,7 +32,7 @@ internal sealed class ModChangeComponentRegistration(ServerSideSettings serverSi
         }
     }
 
-    public void Register(ComponentRegistry registry)
+    public void Register(ModComponentRegistry registry)
     {
         if (serverSide.IsServerSide)
         {

@@ -13,7 +13,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 /// </para>
 /// <para>
 /// It exists only from mod initialization onwards, because the function that answers is part of the second
-/// initialization phase. That is the point of it being separate from <see cref="ComponentRegistry"/>, which
+/// initialization phase. That is the point of it being separate from <see cref="ModComponentRegistry"/>, which
 /// exists in the first phase: declaring a component and knowing its id are two different times, and keeping
 /// them in one object meant an object that was only half usable for part of its life.
 /// </para>
