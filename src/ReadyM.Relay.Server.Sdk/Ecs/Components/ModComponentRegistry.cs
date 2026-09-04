@@ -9,7 +9,7 @@ using Yooni.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ComponentRegistry(
+internal sealed class ModComponentRegistry(
     AotPointers aotPointers,
     ModComponentManager heapManager,
     ILogger logger) : IComponentRegistry
@@ -72,7 +72,7 @@ internal sealed class ComponentRegistry(
         if (!componentType.IsValueType)
             throw new ArgumentException($"{componentType.FullName} is not a value type.", nameof(componentType));
 
-        var method = typeof(ComponentRegistry)
+        var method = typeof(ModComponentRegistry)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
             .Single(m => m is { Name: nameof(RegisterLocalComponent), IsGenericMethodDefinition: true });
 

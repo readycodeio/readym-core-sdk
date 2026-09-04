@@ -6,9 +6,9 @@ namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 /// </summary>
 /// <remarks>
 /// An acceptor registered as a filter sees every component, whether it was declared before or after the filter
-/// went in. See <see cref="ComponentRegistry.RegisterFilter"/>.
+/// went in. See <see cref="ModComponentRegistry.RegisterFilter"/>.
 /// </remarks>
 internal interface IModComponentRegistryCallback
 {
-    void AcceptComponent<T>(ComponentRegistry registry) where T : struct;
+    void AcceptComponent<T>(ModComponentRegistry registry) where T : struct;
 }
