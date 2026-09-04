@@ -79,7 +79,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _componentIds);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateGlobalEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, ownerOverride), _getComponentPointer, _componentIds);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId, PlayerId owner)
     {
-        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, ownerOverride), _getComponentPointer, _componentIds);
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId, PlayerId owner)
     {
-        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, ownerOverride), _getComponentPointer, _componentIds);
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId, PlayerId owner)
     {
-        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, ownerOverride), _getComponentPointer, _componentIds);
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
