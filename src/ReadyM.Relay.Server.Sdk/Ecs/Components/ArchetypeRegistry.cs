@@ -26,14 +26,10 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     private readonly ComponentInitCallback _componentInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
-    private readonly IEnumerable<IArchetypeRegistration> _registrations;
-
-    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, EcsApi ecs, ILogger logger)
+    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ModComponentIds componentIds, ILogger logger)
     {
         _logger = logger;
-        _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
-        _componentInitCallback = new ComponentInitCallback(ecs);
-        _registrations = registrations;
+        _callback = new CollectComponentIdsCallback(componentIds, _logger);
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
         _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
@@ -54,14 +50,14 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         public Action<int>? PostCreateInit;
     }
 
-    private sealed class CollectComponentIdsCallback(ComponentRegistry registry, ILogger logger) : IArchetypeBuilderCallback
+    private sealed class CollectComponentIdsCallback(ModComponentIds componentIds, ILogger logger) : IArchetypeBuilderCallback
     {
         public List<int>? ComponentIds;
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder)
             where T : struct, IComponent
         {
-            var componentId = registry.ResolveComponentId<T>();
+            var componentId = componentIds.Resolve<T>();
             if (!ComponentIds!.Contains(componentId))
                 ComponentIds.Add(componentId);
         }

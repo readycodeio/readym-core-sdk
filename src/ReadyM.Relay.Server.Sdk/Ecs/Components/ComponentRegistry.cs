@@ -17,55 +17,9 @@ internal sealed class ComponentRegistry(
     private readonly RegisterModComponentDelegate _registerModComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterModComponentDelegate>(aotPointers.RegisterModComponent);
 
-    // Bound in phase two. The host cannot resolve an id until it has built its component table, which is
-    // after the schema exists, so there is nothing to bind at mod load time.
-    private GetComponentIdByNameDelegate? _getComponentIdByName;
-
-    /// <summary>Hands over the host's id resolver, once the host has a component table to resolve against.</summary>
-    internal void BindComponentIdResolver(IntPtr getComponentIdByName)
-        => _getComponentIdByName = Marshal.GetDelegateForFunctionPointer<GetComponentIdByNameDelegate>(getComponentIdByName);
-
-    // Component ids resolved from the server, cached per type. Filled on first use, not at registration:
-    // the server only knows a mod component's id once it has run its acceptor pass, which happens after the
-    // mod has finished registering.
-    private readonly Dictionary<Type, int> _resolvedIds = new();
-
-    // Types this mod has registered. Only a duplicate-registration guard; it says nothing about ids.
+    // Types this mod has registered. Only a duplicate-registration guard; it says nothing about ids, which
+    // the server does not assign until every mod has finished declaring. See ModComponentIds for those.
     private readonly HashSet<Type> _declared = [];
-
-    /// <summary>
-    /// The id the server assigned to a component, resolved by full type name on first use and cached.
-    /// <para>
-    /// This is the only path, including for components this mod registered itself. Registration merely tells
-    /// the server the component exists; the id is decided later, when the server registers everything into
-    /// the schema and reads the result back. So asking earlier than the first query would be asking before
-    /// there is an answer.
-    /// </para>
-    /// </summary>
-    internal int ResolveComponentId<T>() where T : struct
-    {
-        if (_resolvedIds.TryGetValue(typeof(T), out var cached))
-            return cached;
-
-        if (_getComponentIdByName is null)
-        {
-            throw new InvalidOperationException(
-                $"Cannot resolve a component id for {typeof(T).FullName} yet: the host has not built its "
-                + "component table. Ids are available from mod initialization onwards, not while components "
-                + "are still being registered.");
-        }
-
-        var id = _getComponentIdByName(new NativeString256(typeof(T).FullName, false));
-        if (id < 0)
-        {
-            throw new InvalidOperationException(
-                $"The server does not know component {typeof(T).FullName}. Either it was never registered, or "
-                + "this ran before the server finished building its component table.");
-        }
-
-        _resolvedIds.Add(typeof(T), id);
-        return id;
-    }
 
     /// <summary>
     /// Registers a mod-defined component type with the server ECS.
