@@ -20,6 +20,13 @@ public class EcsSchemaGuardTests
     [Fact]
     public void ARepeatIsAHardFailureByDefault()
     {
+        // This is a same-mechanism repeat, so unlike a mechanism conflict it is refused only because the
+        // process has not opted into tolerating repeats. That is a precondition on process-global state, so
+        // state it: if this assembly ever enables the flag, this test is asserting the wrong mode and should
+        // say so rather than fail with a bare "did not throw".
+        Assert.False(SchemaBootstrap.RepeatedInitializationAllowed,
+            "this test asserts the strict default, so this assembly must not allow repeated initialization");
+
         // Same mechanism, and a rescan here would produce the same shape, yet it still fails: tolerating
         // repeats is opt-in, and this process has not opted in.
         var ex = Assert.Throws<InvalidOperationException>(
