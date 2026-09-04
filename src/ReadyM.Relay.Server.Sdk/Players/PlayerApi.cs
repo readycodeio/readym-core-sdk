@@ -11,7 +11,6 @@ namespace ReadyM.Relay.Server.Sdk.Players;
 /// <summary>
 /// Provides access to player events and actions on the server.
 /// </summary>
-[Obsolete("This API is being deprecated in favor of the more general ServerEventsApi.")]
 public class PlayerApi
 {
     private readonly KickPlayerDelegate _kickPlayer;
@@ -35,11 +34,18 @@ public class PlayerApi
     /// <summary>
     /// Fired once the player has finished the handshake and their ECS entity exists.
     /// </summary>
+    [Obsolete("This API is being deprecated in favor of the more general ServerEventsApi.")]
+
     public event Action<PlayerConnectedEvent>? OnPlayerConnected;
 
     /// <summary>Fired when the player leaves, whichever way they left.</summary>
+    [Obsolete("This API is being deprecated in favor of the more general ServerEventsApi.")]
     public event Action<PlayerDisconnectedEvent>? OnPlayerDisconnected;
 
+    /// <summary>
+    /// Kicks the player from the server. This is a hard disconnect, and the player will not be able to reconnect until they restart the game.
+    /// </summary>
+    /// <param name="player">The player to kick.</param>
     public void Kick(PlayerId player) => _kickPlayer(player);
 
     /// <summary>
