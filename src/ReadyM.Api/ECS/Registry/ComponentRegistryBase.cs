@@ -61,6 +61,11 @@ internal abstract class ComponentRegistryBase<TRegistry, TComponent> : IComponen
             + "holding the finished registry is entitled to assume the set is complete.");
     }
 
+    /// <summary>
+    /// Collects a component compiled into this build. Records a deferred action and does no work itself, so
+    /// what an acceptor sees is decided by when the acceptor runs, not by when the registration happened.
+    /// <see cref="RegisterModComponentImpl"/> is the mod-defined counterpart.
+    /// </summary>
     protected virtual TRegistry RegisterComponentImpl<T>(T defaultValue = default)
         where T : struct, TComponent
     {

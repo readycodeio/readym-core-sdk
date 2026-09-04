@@ -17,6 +17,8 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
                 $"{nameof(AcceptModComponent)} is not supported here: the player archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");
 
+        // The archetype is fixed at build time, so every component it can carry is known here by its
+        // managed type and goes straight onto the builder.
         public void AcceptComponent<T>(IPlayerComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
