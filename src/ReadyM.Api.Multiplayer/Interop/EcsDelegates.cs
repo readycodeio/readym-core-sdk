@@ -64,7 +64,7 @@ internal delegate void ChunkCallback6(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4
 internal delegate void ChunkWithIdsCallback1(IntPtr ids, IntPtr d1, int count, int s1);
 internal delegate void ChunkWithIdsCallback2(IntPtr ids, IntPtr d1, IntPtr d2, int count, int s1, int s2);
 
-internal delegate int  RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);
+internal delegate void RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 typeFullName);
 internal delegate void Query1WithIdsDelegate(int c1, ChunkWithIdsCallback1 cb);
 internal delegate void Query2WithIdsDelegate(int c1, int c2, ChunkWithIdsCallback2 cb);
 internal delegate void Query1Delegate(int c1, ChunkCallback1 cb);
