@@ -2,6 +2,11 @@
 
 <Project>
     <PropertyGroup>
+        <ParentBuildProps>$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))</ParentBuildProps>
+    </PropertyGroup>
+    <Import Project="$(ParentBuildProps)" Condition="'$(ParentBuildProps)' != ''" />
+
+    <PropertyGroup>
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <!-- silence CS1591 warning for missing XML comments -->
