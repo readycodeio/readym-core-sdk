@@ -4,6 +4,13 @@ namespace ReadyM.Api.ECS.Registry;
 
 internal interface IComponentRegistryCallbackBase<in TRegistry, in TComponent>
 {
+    /// <summary>
+    /// A component compiled into this build. Its managed type is its identity, so <typeparamref name="T"/>
+    /// carries everything an acceptor needs and the registered default value travels with it.
+    /// <para>
+    /// Every acceptor implements this one. A registry that carries components at all carries native ones.
+    /// </para>
+    /// </summary>
     void AcceptComponent<T>(TRegistry registry, T defaultValue = default)
         where T : struct, TComponent;
 

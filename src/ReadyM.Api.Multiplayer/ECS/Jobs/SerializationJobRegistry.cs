@@ -22,6 +22,8 @@ internal sealed class SerializationJobRegistry
                 $"{nameof(AcceptModComponent)} is not supported here: mod component serialization is wired separately, see ModNetworkedComponentRegistration. "
                 + $"Offending component: {typeFullName}.");
 
+        // A managed type is what the apply and write jobs are generic over, so a native component gets its
+        // three jobs built here. A mod component's equivalents come from ModNetworkedComponentRegistration.
         public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue = default)
             where T : struct, INetworkedComponent
         {

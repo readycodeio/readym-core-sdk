@@ -17,6 +17,8 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
                 $"{nameof(AcceptModComponent)} is not supported here: the cell archetype is fixed at build time, and a mod cannot add to it. "
                 + $"Offending component: {typeFullName}.");
 
+        // The archetype is fixed at build time, so every component it can carry is known here by its
+        // managed type and goes straight onto the builder.
         public void AcceptComponent<T>(ICellComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
