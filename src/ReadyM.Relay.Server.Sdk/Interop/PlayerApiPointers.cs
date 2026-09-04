@@ -10,4 +10,5 @@ public struct PlayerApiPointers
     public required IntPtr RemovePlayerEventHandler;
     public required IntPtr KickPlayer;
     public required IntPtr GetReadyMId;
+    public required IntPtr RotateCellMasters;
 }
