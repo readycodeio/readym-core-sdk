@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -34,11 +34,11 @@ public class EcsApi
     private readonly GetParentDelegate _getParent;
     private readonly GetChildrenDelegate _getChildren;
     private readonly GetComponentPointerDelegate _getComponentPointer;
-    private readonly ComponentRegistry _registry;
+    private readonly ModComponentIds _componentIds;
 
-    internal EcsApi(EcsApiPointers pointers, ComponentRegistry registry)
+    internal EcsApi(EcsApiPointers pointers, ModComponentIds componentIds)
     {
-        _registry = registry;
+        _componentIds = componentIds;
         _query1WithIds = Marshal.GetDelegateForFunctionPointer<Query1WithIdsDelegate>(pointers.Query1WithIds);
         _query2WithIds = Marshal.GetDelegateForFunctionPointer<Query2WithIdsDelegate>(pointers.Query2WithIds);
         _query1 = Marshal.GetDelegateForFunctionPointer<Query1Delegate>(pointers.Query1);
@@ -67,7 +67,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateEntity(ArchetypeId archetypeId)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -89,7 +89,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateGlobalEntity(ArchetypeId archetypeId)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 0, default), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateGlobalEntity(ArchetypeId archetypeId, PlayerId owner)
     {
-        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedEntity(archetypeId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId)
     {
-        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 0, default), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 0, default), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreatePlayerEntity(ArchetypeId archetypeId, PlayerId playerId, PlayerId owner)
     {
-        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, owner), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedPlayerEntity(archetypeId, playerId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId)
     {
-        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 0, default), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 0, default), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateAreaEntity(ArchetypeId archetypeId, AreaId areaId, PlayerId owner)
     {
-        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, owner), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedAreaEntity(archetypeId, areaId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -164,7 +164,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId)
     {
-        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 0, default), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 0, default), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateCellEntity(ArchetypeId archetypeId, FullCellId cellId, PlayerId owner)
     {
-        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, owner), _getComponentPointer, _registry);
+        return new Entity(_createNetworkedCellEntity(archetypeId, cellId, 1, owner), _getComponentPointer, _componentIds);
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public class EcsApi
     /// <returns>The created entity.</returns>
     public Entity CreateLocalEntity(ArchetypeId archetypeId)
     {
-        return new Entity(_createLocalEntity(archetypeId), _getComponentPointer, _registry);
+        return new Entity(_createLocalEntity(archetypeId), _getComponentPointer, _componentIds);
     }
 
     /// <inheritdoc cref="CreateLocalEntity(ArchetypeId)"/>
@@ -314,7 +314,7 @@ public class EcsApi
     /// </summary>
     public void QueryWithEntity<T>(EmbedForEachEntity<T> callback) where T : struct
     {
-        var id = _registry.ResolveComponentId<T>();
+        var id = _componentIds.Resolve<T>();
         _tlsState.Callback = callback;
         try
         {
@@ -330,8 +330,8 @@ public class EcsApi
     public void QueryWithEntity<T1, T2>(EmbedForEachEntity<T1, T2> callback)
         where T1 : struct where T2 : struct
     {
-        var id1 = _registry.ResolveComponentId<T1>();
-        var id2 = _registry.ResolveComponentId<T2>();
+        var id1 = _componentIds.Resolve<T1>();
+        var id2 = _componentIds.Resolve<T2>();
         _tlsState.Callback = callback;
         try
         {
@@ -372,7 +372,7 @@ public class EcsApi
     /// <summary>False when the entity is gone or does not carry the component.</summary>
     public unsafe bool TryGetComponent<T>(int entityId, out T component) where T : struct
     {
-        var compId = _registry.ResolveComponentId<T>();
+        var compId = _componentIds.Resolve<T>();
         var ptr = _getComponentPointer(entityId, compId);
 
         if (ptr == IntPtr.Zero)
@@ -387,7 +387,7 @@ public class EcsApi
 
     public bool HasComponent<T>(int entityId) where T : struct
     {
-        var compId = _registry.ResolveComponentId<T>();
+        var compId = _componentIds.Resolve<T>();
         var ptr = _getComponentPointer(entityId, compId);
 
         return ptr != IntPtr.Zero;
@@ -395,7 +395,7 @@ public class EcsApi
 
     public unsafe ref T GetComponentRef<T>(int entityId) where T : struct
     {
-        var compId = _registry.ResolveComponentId<T>();
+        var compId = _componentIds.Resolve<T>();
         var ptr = _getComponentPointer(entityId, compId);
 
         return ref Unsafe.AsRef<T>((void*)ptr);
@@ -457,7 +457,7 @@ public class EcsApi
 
     public void Query<T>(EmbedForEach<T> callback) where T : struct
     {
-        var id = _registry.ResolveComponentId<T>();
+        var id = _componentIds.Resolve<T>();
 
         _tlsState.Callback = callback;
         try
@@ -473,7 +473,7 @@ public class EcsApi
     public void Query<T, TState>(TState state, EmbedForEachStateManaged<T, TState> callback)
         where T : struct where TState : class
     {
-        var id = _registry.ResolveComponentId<T>();
+        var id = _componentIds.Resolve<T>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -491,7 +491,7 @@ public class EcsApi
     public void Query<T, TState>(ref TState state, EmbedForEachState<T, TState> callback)
         where T : struct where TState : unmanaged
     {
-        var id = _registry.ResolveComponentId<T>();
+        var id = _componentIds.Resolve<T>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -564,8 +564,8 @@ public class EcsApi
     public void Query<T1, T2>(EmbedForEach<T1, T2> callback)
         where T1 : struct where T2 : struct
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
 
         _tlsState.Callback = callback;
         try
@@ -581,8 +581,8 @@ public class EcsApi
     public void Query<T1, T2, TState>(TState state, EmbedForEachStateManaged<T1, T2, TState> callback)
         where T1 : struct where T2 : struct where TState : class
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -600,8 +600,8 @@ public class EcsApi
     public void Query<T1, T2, TState>(ref TState state, EmbedForEachState<T1, T2, TState> callback)
         where T1 : struct where T2 : struct where TState : unmanaged
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -677,9 +677,9 @@ public class EcsApi
     public void Query<T1, T2, T3>(EmbedForEach<T1, T2, T3> callback)
         where T1 : struct where T2 : struct where T3 : struct
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
 
         _tlsState.Callback = callback;
         try
@@ -695,9 +695,9 @@ public class EcsApi
     public void Query<T1, T2, T3, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where TState : class
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -715,9 +715,9 @@ public class EcsApi
     public void Query<T1, T2, T3, TState>(ref TState state, EmbedForEachState<T1, T2, T3, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where TState : unmanaged
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -796,10 +796,10 @@ public class EcsApi
     public void Query<T1, T2, T3, T4>(EmbedForEach<T1, T2, T3, T4> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
 
         _tlsState.Callback = callback;
         try
@@ -815,10 +815,10 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where TState : class
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -836,10 +836,10 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where TState : unmanaged
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -921,11 +921,11 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5>(EmbedForEach<T1, T2, T3, T4, T5> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
 
         _tlsState.Callback = callback;
         try
@@ -941,11 +941,11 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, T5, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where TState : class
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -963,11 +963,11 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, T5, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where TState : unmanaged
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -1052,12 +1052,12 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5, T6>(EmbedForEach<T1, T2, T3, T4, T5, T6> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
-        var c6 = _registry.ResolveComponentId<T6>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
+        var c6 = _componentIds.Resolve<T6>();
 
         _tlsState.Callback = callback;
         try
@@ -1073,12 +1073,12 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5, T6, TState>(TState state, EmbedForEachStateManaged<T1, T2, T3, T4, T5, T6, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where TState : class
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
-        var c6 = _registry.ResolveComponentId<T6>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
+        var c6 = _componentIds.Resolve<T6>();
 
         _tlsState.Callback = callback;
         _tlsState.ManagedState = state;
@@ -1096,12 +1096,12 @@ public class EcsApi
     public void Query<T1, T2, T3, T4, T5, T6, TState>(ref TState state, EmbedForEachState<T1, T2, T3, T4, T5, T6, TState> callback)
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct where TState : unmanaged
     {
-        var c1 = _registry.ResolveComponentId<T1>();
-        var c2 = _registry.ResolveComponentId<T2>();
-        var c3 = _registry.ResolveComponentId<T3>();
-        var c4 = _registry.ResolveComponentId<T4>();
-        var c5 = _registry.ResolveComponentId<T5>();
-        var c6 = _registry.ResolveComponentId<T6>();
+        var c1 = _componentIds.Resolve<T1>();
+        var c2 = _componentIds.Resolve<T2>();
+        var c3 = _componentIds.Resolve<T3>();
+        var c4 = _componentIds.Resolve<T4>();
+        var c5 = _componentIds.Resolve<T5>();
+        var c6 = _componentIds.Resolve<T6>();
         unsafe
         {
             fixed (TState* sp = &state)
@@ -1127,6 +1127,6 @@ public class EcsApi
 
     internal Entity EntityFrom(int entityId)
     {
-        return new Entity(entityId, _getComponentPointer, _registry);
+        return new Entity(entityId, _getComponentPointer, _componentIds);
     }
 }

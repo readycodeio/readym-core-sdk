@@ -14,7 +14,7 @@ using Yooni.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 
-internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
+internal sealed class ModArchetypeRegistry : IArchetypeRegistry, IHostedService
 {
     private readonly ILogger _logger;
 
@@ -28,10 +28,10 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
     private readonly IEnumerable<IArchetypeRegistration> _registrations;
 
-    public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, EcsApi ecs, ILogger logger)
+    public ModArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ModComponentIds componentIds, EcsApi ecs, ILogger logger)
     {
         _logger = logger;
-        _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
+        _componentIdCallback = new CollectComponentIdsCallback(componentIds, _logger);
         _componentInitCallback = new ComponentInitCallback(ecs);
         _registrations = registrations;
 
@@ -54,14 +54,14 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         public Action<int>? PostCreateInit;
     }
 
-    private sealed class CollectComponentIdsCallback(ComponentRegistry registry, ILogger logger) : IArchetypeBuilderCallback
+    private sealed class CollectComponentIdsCallback(ModComponentIds componentIds, ILogger logger) : IArchetypeBuilderCallback
     {
         public List<int>? ComponentIds;
 
         public void AcceptComponentType<T>(ArchetypeBuilder builder)
             where T : struct, IComponent
         {
-            var componentId = registry.ResolveComponentId<T>();
+            var componentId = componentIds.Resolve<T>();
             if (!ComponentIds!.Contains(componentId))
                 ComponentIds.Add(componentId);
         }

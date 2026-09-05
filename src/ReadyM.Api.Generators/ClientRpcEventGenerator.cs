@@ -200,10 +200,13 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                 sb.AppendLine($$"""
                                     public void {{sendMethod}}({{sendParamList}})
                                     {
-                                        if (!RelayClient.PlayerId.HasValue)
+                                        // Read once: PlayerId is set on the network thread and cleared on
+                                        // disconnect, so checking it and then using it can read two values.
+                                        var senderPlayerId = RelayClient.PlayerId;
+                                        if (!senderPlayerId.HasValue)
                                             return;
                                         
-                                        var message = RelayMessage.ByRelayMode((RelayMessageCode)({{eventCodeByte}} + Offset), RelayClient.PlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                        var message = RelayMessage.ByRelayMode((RelayMessageCode)({{eventCodeByte}} + Offset), senderPlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                         var writer = message.Writer;
                                 """);
 

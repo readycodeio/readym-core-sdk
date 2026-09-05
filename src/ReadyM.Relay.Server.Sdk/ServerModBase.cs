@@ -17,7 +17,7 @@ public abstract class ServerModBase
     protected string ModDirectory { get; private set; } = null!;
 
     [UsedImplicitly]
-    public void InitializeAot(IComponentRegistry registry)
+    public void InitializeAot(IModComponentRegistry registry)
     {
         RegisterComponents(registry);
     }
@@ -64,7 +64,7 @@ public abstract class ServerModBase
     /// <summary>
     /// Any components defined in the mod must be registered here.
     /// </summary>
-    protected virtual void RegisterComponents(IComponentRegistry registry) { }
+    protected virtual void RegisterComponents(IModComponentRegistry registry) { }
 
     protected abstract void Init();
 }
