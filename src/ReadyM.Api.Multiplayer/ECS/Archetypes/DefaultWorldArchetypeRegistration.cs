@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
@@ -30,6 +30,9 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
     {
         WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
             .Add<MetadataComponent>()
+            // The world entity is the world scope, and is server-owned like every other scope entity: the
+            // tag is what stops a client deleting it, and what tells anything counting entities that this
+            // one is infrastructure rather than something a player or a mod made.
             .AddTag<ScopeEntityTag>()
             .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));
     }
