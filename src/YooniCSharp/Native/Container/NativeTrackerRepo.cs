@@ -286,9 +286,8 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
-                    new StackTrace(true),
-                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n{Trace}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1, new StackTrace(true));
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -319,9 +318,8 @@ public class NativeTrackerRepo : IDisposable
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug(
-                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n" +
-                    new StackTrace(true),
-                    index, entry.ChangeCount, entry.ChangeCount + 1);
+                    "Tracking MARK CHANGE {Index}, change count: {FromCount} -> {ToCount}\n{Trace}",
+                    index, entry.ChangeCount, entry.ChangeCount + 1, new StackTrace(true));
                 break;
             default:
                 throw new ArgumentOutOfRangeException();

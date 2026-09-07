@@ -39,7 +39,7 @@ public static unsafe class Allocator
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug("ALLOC 0x{Result:x} AllocatorKind.{AllocatorKind} size {Size} bytes", kind, (long)result, size);
-                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                NativeLogging.Logger.LogDebug("Trace: {Trace}", new StackTrace(true).ToString());
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -58,7 +58,7 @@ public static unsafe class Allocator
                 break;
             case NativeLogLevel.EnableStacktrace:
                 NativeLogging.Logger.LogDebug("FREE 0x{Ptr:x} AllocatorKind.{AllocatorKind}", kind, (long)ptr);
-                NativeLogging.Logger.LogDebug(new StackTrace(true).ToString());
+                NativeLogging.Logger.LogDebug("Trace: {Trace}", new StackTrace(true).ToString());
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
