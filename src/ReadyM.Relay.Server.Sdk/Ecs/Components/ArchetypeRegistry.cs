@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
@@ -155,7 +155,8 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         }
     }
 
-    private List<int> GetComponentIds(int startIndex, ArchetypeBuilder builder)
+    /// <summary>Every component id currently on the builder.</summary>
+    private List<int> GetComponentIds(ArchetypeBuilder builder)
     {
         var componentIds = new List<int>();
         _componentIdCallback.ComponentIds = componentIds;
@@ -163,6 +164,24 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _componentIdCallback.ComponentIds = null;
 
         return componentIds;
+    }
+
+    /// <summary>
+    /// The component ids on the builder that the host has not been told about yet. Derived by
+    /// comparing against what was already sent, because the builder always reports its whole set.
+    /// </summary>
+    private List<int> GetUnsentComponentIds(ArchetypeEntry entry)
+    {
+        var unsent = new List<int>();
+        foreach (var id in GetComponentIds(entry.Builder))
+        {
+            if (!entry.ComponentIds.Contains(id) && !unsent.Contains(id))
+            {
+                unsent.Add(id);
+            }
+        }
+
+        return unsent;
     }
 
     private NativeList<int> ToNative(List<int> lst)
@@ -183,7 +202,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             builder.RegisterFilter(filter);
         }
 
-        var componentList = GetComponentIds(0, builder);
+        var componentList = GetComponentIds(builder);
         var nativeComponentList = ToNative(componentList);
         var archetypeId = _registerArchetypeDelegate(nativeComponentList);
 
@@ -213,10 +232,9 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             _archetypeEntries[archetypeId] = entry;
         }
 
-        var startIndex = entry.ComponentIds.Count;
         callback(entry.Builder);
 
-        var newComponentList = GetComponentIds(startIndex, entry.Builder);
+        var newComponentList = GetUnsentComponentIds(entry);
         entry.ComponentIds.AddRange(newComponentList);
 
         // The builder only holds what this mod put on the archetype, which is exactly what we are responsible for.
@@ -245,13 +263,37 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         }
     }
 
+    /// <remarks>
+    /// Archetypes registered before this filter existed are already live on the host, and unlike the
+    /// AOT store, which rebuilds from the builder on every entity creation, the host here was handed a
+    /// fixed component list at registration time. So applying the filter to the builder is not enough:
+    /// whatever it adds has to be pushed across as well, or entities of that archetype come out without
+    /// it. A mod that resolves the registry inside Init instead of deferring to RegisterArchetypes hits
+    /// exactly this, because Init runs before the filters are registered.
+    /// </remarks>
     public void RegisterFilter(IArchetypeBuilderCallback filter)
     {
         _filters.Add(filter);
 
-        foreach (var entry in _archetypeEntries.Values)
+        foreach (var archetypeId in _archetypeEntries.Keys.ToList())
         {
+            var entry = _archetypeEntries[archetypeId];
             entry.Builder.RegisterFilter(filter);
+
+            var added = GetUnsentComponentIds(entry);
+            if (added.Count == 0)
+            {
+                continue;
+            }
+
+            entry.ComponentIds.AddRange(added);
+            entry.PostCreateInit = CreatePostCreateInit(entry.Builder);
+            _archetypeEntries[archetypeId] = entry;
+
+            _logger.LogDebug("Filter added {Components} to already registered archetype {Archetype}",
+                added, archetypeId);
+
+            _modifyArchetypeDelegate(archetypeId, ToNative(added));
         }
     }
 

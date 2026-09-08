@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using ReadyM.Api.Multiplayer.Interop;
+﻿using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs;
@@ -9,13 +8,13 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// </summary>
 public readonly struct Entity
 {
-    private readonly GetComponentPointerDelegate _getComponentPointer;
+    private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly ComponentRegistry _registry;
 
-    internal Entity(int id, GetComponentPointerDelegate getComponentPointer, ComponentRegistry registry)
+    internal Entity(int id, GetComponentSlotDelegate getComponentSlot, ComponentRegistry registry)
     {
         Id = id;
-        _getComponentPointer = getComponentPointer;
+        _getComponentSlot = getComponentSlot;
         _registry = registry;
     }
 
@@ -32,8 +31,8 @@ public readonly struct Entity
     /// <remarks>Attempting to access a component that does not exist on the entity's archetype will crash your mod.</remarks>
     public unsafe ref T GetComponent<T>() where T : struct
     {
-        var compId = _registry.ResolveComponentId<T>();
-        var ptr = _getComponentPointer(Id, compId);
-        return ref Unsafe.AsRef<T>((void*)ptr);
+        ComponentSlot slot;
+        _getComponentSlot(Id, _registry.ResolveComponentId<T>(), &slot);
+        return ref EcsApi.SlotRef<T>(slot);
     }
 }

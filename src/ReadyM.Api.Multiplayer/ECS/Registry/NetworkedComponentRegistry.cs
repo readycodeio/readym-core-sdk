@@ -23,7 +23,7 @@ internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistr
         ComponentIds.Add(componentType.FullName!, (id, deliveryMethod));
         NetComponentTypes.Add(id, componentType);
 
-        Logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, componentType.Name, componentType.FullName, deliveryMethod);
+        Logger.LogInformation("Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, componentType.Name, componentType.FullName, deliveryMethod);
         return base.RegisterComponentImpl(componentType);
     }
 
@@ -34,7 +34,7 @@ internal class NetworkedComponentRegistry(IEnumerable<INetworkedComponentRegistr
         ComponentIds.Add(typeof(T).FullName!, (id, deliveryMethod));
         NetComponentTypes.Add(id, typeof(T));
 
-        Logger.LogInformation("[NetComp] Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
+        Logger.LogInformation("Registered networked component {Id}: {ComponentType} ({ComponentFullName}) delivery {DeliveryMethod}", id, typeof(T).Name, typeof(T).FullName, deliveryMethod);
         return base.RegisterComponentImpl(default(T));
     }
 
