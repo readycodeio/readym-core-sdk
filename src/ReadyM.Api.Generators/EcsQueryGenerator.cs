@@ -10,13 +10,6 @@ namespace ReadyM.Api.Generators;
 /// one to six components, each in three flavours (plain, unmanaged state, managed state), plus the
 /// matching chunk loops.
 /// </summary>
-/// <remarks>
-/// That is twenty overloads and twenty near-identical loops. Written by hand it invites exactly one
-/// of them differing, and the part that would differ is the part that matters: how a chunk slot
-/// becomes a reference. Every loop here goes through the hand-written <c>ChunkBase</c>, so an
-/// AOT-owned array is read through its pinned address and a mod-owned array through a GC-tracked
-/// ref that survives relocation.
-/// </remarks>
 [Generator]
 internal class EcsQueryGenerator : IIncrementalGenerator
 {
@@ -26,8 +19,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Every project referencing this analyzer runs it, so emit only into the one that declares
-        // the partial class.
+        // Every project referencing this analyzer runs it, so emit only into the one that declares the partial class.
         var declaresEcsApi = context.CompilationProvider.Select(static (compilation, _) =>
         {
             var ecsApi = compilation.GetTypeByMetadataName(EcsApiMetadataName);

@@ -11,11 +11,17 @@ using Yooni.Native.Container;
 namespace ReadyM.Api.Multiplayer.Interop;
 
 internal delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
+
 internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componentsSerialized);
+
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
+
 internal delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedPlayerEntityDelegate(ArchetypeId archetype, PlayerId playerId, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedAreaEntityDelegate(ArchetypeId archetype, AreaId areaId, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
 
 /// <summary>Creates a server-only entity: no metadata, never replicated to clients.</summary>
@@ -41,27 +47,31 @@ internal delegate int GetParentDelegate(int childId);
 /// exceed the capacity. Nothing is written when the buffer is too small.
 /// </summary>
 internal delegate int GetChildrenDelegate(int parentId, IntPtr buffer, int capacity);
+
 /// <summary>
 /// Locates one component of one entity, the same way a chunk slot is located: by address when the
 /// AOT side owns it, by heap handle and index when a mod does.
 /// </summary>
 internal unsafe delegate void GetComponentSlotDelegate(int entityId, int componentType, ComponentSlot* slot);
+
 // The five serialization callbacks below address a mod component by its heap and index rather than
 // by address. The component lives in the embedded runtime, where the GC is free to relocate the
 // array, so only the owning side can safely turn a slot into a reference. A zero heapSelf means
 // "use your own scratch instance", which is how the AOT side drains bytes for an entity it does
 // not have.
 internal unsafe delegate int WriteSnapshotDelegate(IntPtr heapSelf, int index, byte* buffer, int bufferSize);
+
 internal unsafe delegate int WriteDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int bufferSize);
+
 internal unsafe delegate int ReadSnapshotDelegate(IntPtr heapSelf, int index, byte* buffer, int size);
+
 internal unsafe delegate int ReadDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int size, byte clearDirty);
 
 /// <summary>1 if the component was changed from the API (a server override), else 0.</summary>
 internal delegate byte ChangedFromApiDelegate(IntPtr heapSelf, int index);
 
 /// <summary>
-/// One component slot of an archetype chunk. Self-describing, so a query mixing AOT-owned and
-/// mod-owned components needs no side table: each slot says how to reach it.
+/// Single component slot of an archetype chunk.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct ChunkComponent
@@ -100,7 +110,7 @@ internal struct ComponentSlot
     /// <summary>Index within that heap. Meaningful only alongside <see cref="HeapSelf"/>.</summary>
     public int Index;
 
-    public bool Found() => Data != IntPtr.Zero || HeapSelf != IntPtr.Zero;
+    public readonly bool Found() => Data != IntPtr.Zero || HeapSelf != IntPtr.Zero;
 }
 
 /// <summary>
@@ -112,4 +122,4 @@ internal unsafe delegate void ChunkCallback(IntPtr ids, ChunkComponent* comps, i
 /// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
 internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
 
-internal delegate int  RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);
+internal delegate int RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);
