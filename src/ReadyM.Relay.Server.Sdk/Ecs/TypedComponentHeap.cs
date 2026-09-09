@@ -2,7 +2,6 @@
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Interop;
-using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs;
 
@@ -21,14 +20,12 @@ internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
     private readonly PinnedDelegateStore _delegateStore;
 
     // One field per delegate so the same instance is always registered in the store.
-    private readonly HeapGetCountDelegate   _dGetLength;
-    private readonly HeapResizeDelegate     _dResize;
-    private readonly HeapMoveDelegate       _dMove;
-    private readonly HeapCopyToDelegate     _dCopyTo;
+    private readonly HeapGetCountDelegate _dGetLength;
+    private readonly HeapResizeDelegate _dResize;
+    private readonly HeapMoveDelegate _dMove;
+    private readonly HeapCopyToDelegate _dCopyTo;
     private readonly HeapSetDefaultDelegate _dSetDefault;
     private readonly HeapClearRangeDelegate _dSetRangeDefault;
-
-    public int Stride => Unsafe.SizeOf<T>();
 
     /// <summary>
     /// A tracked reference to an element, for walking the heap from inside this runtime. Unlike a
@@ -94,11 +91,10 @@ internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
     private void SetDefaultImpl(int index) => _components[index] = default;
 
     private void SetRangeDefaultImpl(int start, int count) => Array.Clear(_components, start, count);
-    
+
     // -------------------------------------------------------------------------
     // Managed-side accessors (for use from other CoreCLR code, not AOT)
     // -------------------------------------------------------------------------
-
 
     public T GetComponent(int index) => _components[index];
     public void SetComponent(int index, T value) => _components[index] = value; // write barrier fires
@@ -114,7 +110,7 @@ internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
     public AOTHeapPointers GetPointers() => new()
     {
         Self = GCHandle.ToIntPtr(_selfHandle),
-        Stride = Stride,
+        Stride = Unsafe.SizeOf<T>(),
         GetLength = _delegateStore.PinDelegate(_dGetLength),
         Resize = _delegateStore.PinDelegate(_dResize),
         Move = _delegateStore.PinDelegate(_dMove),

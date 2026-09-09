@@ -1,12 +1,11 @@
-﻿using System.Reflection;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.DI;
 using ReadyM.Api.ECS.Components;
+using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
-using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
@@ -262,15 +261,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entityId, archetypeId);
         }
     }
-
-    /// <remarks>
-    /// Archetypes registered before this filter existed are already live on the host, and unlike the
-    /// AOT store, which rebuilds from the builder on every entity creation, the host here was handed a
-    /// fixed component list at registration time. So applying the filter to the builder is not enough:
-    /// whatever it adds has to be pushed across as well, or entities of that archetype come out without
-    /// it. A mod that resolves the registry inside Init instead of deferring to RegisterArchetypes hits
-    /// exactly this, because Init runs before the filters are registered.
-    /// </remarks>
+    
     public void RegisterFilter(IArchetypeBuilderCallback filter)
     {
         _filters.Add(filter);
