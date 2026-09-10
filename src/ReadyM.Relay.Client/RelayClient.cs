@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -261,10 +262,23 @@ internal class RelayClient : IRelayClient
     /// never finishes still gets noticed, just later than usual.</summary>
     private const int ExpectedStallDisconnectTimeoutMs = 60_000;
 
+    /// <summary>Silence short enough to mean packets are flowing again. One ping interval, so it
+    /// clears as soon as the peer is genuinely talking to us.</summary>
+    private const int TrafficResumedSilenceMs = 1000;
+
+    /// <summary>How long to keep waiting for traffic after a stall ends. If nothing arrives by
+    /// then the connection really is gone, so hand the timeout back and let it say so.</summary>
+    private const int TrafficResumeGraceMs = 10_000;
+
     private readonly int _configuredDisconnectTimeoutMs;
 
     /// Set from the user thread, read by the network loop.
     private volatile bool _restoreDisconnectTimeoutPending;
+
+    /// Monotonic clock for the grace period above.
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+
+    private long _stallEndedAtMs;
 
     public NetPeer? Server => _client.FirstPeer;
 
@@ -322,9 +336,16 @@ internal class RelayClient : IRelayClient
     /// </summary>
     public void EndExpectedStall()
     {
+        _stallEndedAtMs = _clock.ElapsedMilliseconds;
         _restoreDisconnectTimeoutPending = true;
     }
 
+    /// <remarks>
+    /// The silence counter only advances while the network loop runs, so right after a stall it is
+    /// still catching up on the time that passed. Restoring then would re-arm the short timeout on
+    /// a peer that is already most of the way through it, and the next tick would report a timeout
+    /// on a connection that is actually fine. So wait for a packet to prove traffic is flowing.
+    /// </remarks>
     private void RestoreDisconnectTimeoutWhenTrafficResumes()
     {
         if (!_restoreDisconnectTimeoutPending)
@@ -334,9 +355,14 @@ internal class RelayClient : IRelayClient
 
         // No peer means there is nothing left for the timeout to disconnect, so it is safe either way.
         var peer = _client.FirstPeer;
-        if (peer != null && peer.TimeSinceLastPacket >= _configuredDisconnectTimeoutMs)
+        if (peer != null && peer.TimeSinceLastPacket > TrafficResumedSilenceMs)
         {
-            return;
+            if (_clock.ElapsedMilliseconds - _stallEndedAtMs < TrafficResumeGraceMs)
+            {
+                return;
+            }
+
+            _logger.LogWarning("No traffic for {Silence} ms after the stall ended, restoring the disconnect timeout anyway", peer.TimeSinceLastPacket);
         }
 
         _restoreDisconnectTimeoutPending = false;

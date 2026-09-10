@@ -3,6 +3,7 @@
 // -------------------------------------------------------------------------
 
 using System;
+using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
 using Yooni.Native.Container;
@@ -10,11 +11,17 @@ using Yooni.Native.Container;
 namespace ReadyM.Api.Multiplayer.Interop;
 
 internal delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
+
 internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componentsSerialized);
+
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
+
 internal delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedPlayerEntityDelegate(ArchetypeId archetype, PlayerId playerId, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedAreaEntityDelegate(ArchetypeId archetype, AreaId areaId, byte hasOwnerOverride, PlayerId ownerOverride);
+
 internal delegate int CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
 
 /// <summary>Creates a server-only entity: no metadata, never replicated to clients.</summary>
@@ -40,36 +47,79 @@ internal delegate int GetParentDelegate(int childId);
 /// exceed the capacity. Nothing is written when the buffer is too small.
 /// </summary>
 internal delegate int GetChildrenDelegate(int parentId, IntPtr buffer, int capacity);
-internal delegate IntPtr GetComponentPointerDelegate(int entityId, int componentType);
-internal unsafe delegate int WriteSnapshotDelegate(IntPtr componentPtr, byte* buffer, int bufferSize);
-internal unsafe delegate int WriteDeltaDelegate(IntPtr componentPtr, byte* buffer, int bufferSize);
-internal unsafe delegate int ReadSnapshotDelegate(IntPtr componentPtr, byte* buffer, int size);
-internal unsafe delegate int ReadDeltaDelegate(IntPtr componentPtr, byte* buffer, int size, byte clearDirty);
+
+/// <summary>
+/// Locates one component of one entity, the same way a chunk slot is located: by address when the
+/// AOT side owns it, by heap handle and index when a mod does.
+/// </summary>
+internal unsafe delegate void GetComponentSlotDelegate(int entityId, int componentType, ComponentSlot* slot);
+
+// The five serialization callbacks below address a mod component by its heap and index rather than
+// by address. The component lives in the embedded runtime, where the GC is free to relocate the
+// array, so only the owning side can safely turn a slot into a reference. A zero heapSelf means
+// "use your own scratch instance", which is how the AOT side drains bytes for an entity it does
+// not have.
+internal unsafe delegate int WriteSnapshotDelegate(IntPtr heapSelf, int index, byte* buffer, int bufferSize);
+
+internal unsafe delegate int WriteDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int bufferSize);
+
+internal unsafe delegate int ReadSnapshotDelegate(IntPtr heapSelf, int index, byte* buffer, int size);
+
+internal unsafe delegate int ReadDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int size, byte clearDirty);
 
 /// <summary>1 if the component was changed from the API (a server override), else 0.</summary>
-internal delegate byte ChangedFromApiDelegate(IntPtr componentPtr);
+internal delegate byte ChangedFromApiDelegate(IntPtr heapSelf, int index);
 
+/// <summary>
+/// Single component slot of an archetype chunk.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ChunkComponent
+{
+    /// <summary>
+    /// Address of element 0, set when the AOT side owns the array. Those live in the pinned object
+    /// heap, so the address stays valid for as long as the mod side holds it.
+    /// </summary>
+    public IntPtr Data;
 
-// Mod query chunk callbacks: (data ptr, entity count, stride per element).
-// Same format for both AOT and mod components on the mod (CoreCLR) side.
-internal delegate void ChunkCallback1(IntPtr d1, int count, int s1);
-internal delegate void ChunkCallback2(IntPtr d1, IntPtr d2, int count, int s1, int s2);
-internal delegate void ChunkCallback3(IntPtr d1, IntPtr d2, IntPtr d3, int count, int s1, int s2, int s3);
-internal delegate void ChunkCallback4(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4, int count, int s1, int s2, int s3, int s4);
-internal delegate void ChunkCallback5(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4, IntPtr d5, int count, int s1, int s2, int s3, int s4, int s5);
-internal delegate void ChunkCallback6(IntPtr d1, IntPtr d2, IntPtr d3, IntPtr d4, IntPtr d5, IntPtr d6, int count, int s1, int s2, int s3, int s4, int s5, int s6);
+    /// <summary>
+    /// GCHandle of the mod's own <c>TypedComponentHeap</c>, set when the mod owns the array. Zero
+    /// otherwise. A mod component may hold managed references and therefore cannot be pinned, so no
+    /// address for it is allowed to leave its runtime. The mod side resolves this handle and walks
+    /// the array through a tracked ref, which the GC updates if it relocates the array.
+    /// </summary>
+    public IntPtr HeapSelf;
 
-// Same, but the chunk also carries the entity id of each element, so a system can address the row
-// it is looking at without the component having to store its own id.
-internal delegate void ChunkWithIdsCallback1(IntPtr ids, IntPtr d1, int count, int s1);
-internal delegate void ChunkWithIdsCallback2(IntPtr ids, IntPtr d1, IntPtr d2, int count, int s1, int s2);
+    /// <summary>Bytes per element as the owning side sees it.</summary>
+    public int Stride;
+}
 
-internal delegate int  RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);
-internal delegate void Query1WithIdsDelegate(int c1, ChunkWithIdsCallback1 cb);
-internal delegate void Query2WithIdsDelegate(int c1, int c2, ChunkWithIdsCallback2 cb);
-internal delegate void Query1Delegate(int c1, ChunkCallback1 cb);
-internal delegate void Query2Delegate(int c1, int c2, ChunkCallback2 cb);
-internal delegate void Query3Delegate(int c1, int c2, int c3, ChunkCallback3 cb);
-internal delegate void Query4Delegate(int c1, int c2, int c3, int c4, ChunkCallback4 cb);
-internal delegate void Query5Delegate(int c1, int c2, int c3, int c4, int c5, ChunkCallback5 cb);
-internal delegate void Query6Delegate(int c1, int c2, int c3, int c4, int c5, int c6, ChunkCallback6 cb);
+/// <summary>
+/// One component of one entity, located the same way a <see cref="ChunkComponent"/> is. Both fields
+/// zero means the entity is gone or does not carry the component.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ComponentSlot
+{
+    /// <summary>Address of the component, set when the AOT side owns it.</summary>
+    public IntPtr Data;
+
+    /// <summary>GCHandle of the mod's own <c>TypedComponentHeap</c>, set when a mod owns it.</summary>
+    public IntPtr HeapSelf;
+
+    /// <summary>Index within that heap. Meaningful only alongside <see cref="HeapSelf"/>.</summary>
+    public int Index;
+
+    public readonly bool Found() => Data != IntPtr.Zero || HeapSelf != IntPtr.Zero;
+}
+
+/// <summary>
+/// Chunk callback for a query of any arity. <paramref name="comps"/> holds <paramref name="n"/>
+/// slots in the order the components were requested.
+/// </summary>
+internal unsafe delegate void ChunkCallback(IntPtr ids, ChunkComponent* comps, int n, int count);
+
+/// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
+internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
+
+internal delegate int RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);

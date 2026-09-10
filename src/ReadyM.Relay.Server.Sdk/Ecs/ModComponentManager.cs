@@ -6,10 +6,7 @@ using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Api.Multiplayer.ECS.Jobs;
-using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.Interop;
-using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs;
 
@@ -95,10 +92,26 @@ internal sealed class ModComponentManager : IDisposable
         var readBuffer = new byte[1024 * 1024];
         var reader = new NetDataReader(readBuffer);
 
-        var writeSnapshotDelegate = new WriteSnapshotDelegate((ptr, buffer, bufferSize) =>
+        // Stands in for the component when the AOT side has no entity to apply to and only needs
+        // the byte count. Per-registration, and the serialization callbacks never run concurrently
+        // for one component type.
+        var scratch = new T[1];
+
+        // The array is the mod runtime's own, so a ref into it is GC-tracked and stays valid.
+        // Nothing here ever hands an address back across the boundary.
+        ref T Slot(IntPtr heapSelf, int index)
+        {
+            if (heapSelf == IntPtr.Zero)
+                return ref scratch[0];
+
+            var heap = (TypedComponentHeap<T>)GCHandle.FromIntPtr(heapSelf).Target!;
+            return ref heap.GetRef(index);
+        }
+
+        var writeSnapshotDelegate = new WriteSnapshotDelegate((heapSelf, index, buffer, bufferSize) =>
         {
             writer.Reset();
-            var data = Unsafe.AsRef<T>((void*)ptr);
+            var data = Slot(heapSelf, index);
             writer.Put(data);
             var bytes = writer.Data;
 
@@ -110,7 +123,7 @@ internal sealed class ModComponentManager : IDisposable
         });
         var writeSnapshotDelegatePtr = _delegateStore.PinDelegate(writeSnapshotDelegate);
 
-        var readSnapshotDelegate = new ReadSnapshotDelegate((comp, buffer, bufferSize) =>
+        var readSnapshotDelegate = new ReadSnapshotDelegate((heapSelf, index, buffer, bufferSize) =>
         {
             // TODO: Replace with a span
             if (bufferSize > readBuffer.Length)
@@ -118,15 +131,14 @@ internal sealed class ModComponentManager : IDisposable
 
             Marshal.Copy((IntPtr)buffer, readBuffer, 0, bufferSize);
             reader.SetPosition(0);
-            var data = reader.Get<T>();
-            Unsafe.Write((void*)comp, data);
+            Slot(heapSelf, index) = reader.Get<T>();
             return reader.Position;
         });
         var readSnapshotDelegatePtr = _delegateStore.PinDelegate(readSnapshotDelegate);
 
-        var writeDeltaDelegate = new WriteDeltaDelegate((ptr, buffer, bufferSize) =>
+        var writeDeltaDelegate = new WriteDeltaDelegate((heapSelf, index, buffer, bufferSize) =>
         {
-            ref var data = ref Unsafe.AsRef<T>((void*)ptr);
+            ref var data = ref Slot(heapSelf, index);
 
             if (!data.IsDirty)
                 return 0;
@@ -145,7 +157,7 @@ internal sealed class ModComponentManager : IDisposable
         });
         var writeDeltaDelegatePtr = _delegateStore.PinDelegate(writeDeltaDelegate);
 
-        var readDeltaDelegate = new ReadDeltaDelegate((comp, buffer, bufferSize, clearDirty) =>
+        var readDeltaDelegate = new ReadDeltaDelegate((heapSelf, index, buffer, bufferSize, clearDirty) =>
         {
             // TODO: Replace with a span
             if (bufferSize > readBuffer.Length)
@@ -153,7 +165,7 @@ internal sealed class ModComponentManager : IDisposable
 
             Marshal.Copy((IntPtr)buffer, readBuffer, 0, bufferSize);
             reader.SetPosition(0);
-            ref var data = ref Unsafe.AsRef<T>((void*)comp);
+            ref var data = ref Slot(heapSelf, index);
             data.ReadDelta(reader);
 
             if (clearDirty == 1)
@@ -165,9 +177,9 @@ internal sealed class ModComponentManager : IDisposable
         });
         var readDeltaDelegatePtr = _delegateStore.PinDelegate(readDeltaDelegate);
 
-        var changedFromApiDelegate = new ChangedFromApiDelegate(ptr =>
+        var changedFromApiDelegate = new ChangedFromApiDelegate((heapSelf, index) =>
         {
-            ref var data = ref Unsafe.AsRef<T>((void*)ptr);
+            ref var data = ref Slot(heapSelf, index);
             return data.ChangedFromApi ? (byte)1 : (byte)0;
         });
         var changedFromApiDelegatePtr = _delegateStore.PinDelegate(changedFromApiDelegate);
