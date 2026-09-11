@@ -82,7 +82,7 @@ internal class RelayClient : IRelayClient
     public bool RequestedConnect { get; private set; }
     public AreaId? RequestedAreaId { get; private set; }
     CellId[]? _requestedActiveCells;
-    public ReadOnlyList<CellId>? RequestedActiveCells => _requestedActiveCells == null ? null : new (_requestedActiveCells.ToList()); //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
+    public ReadOnlyList<CellId>? RequestedActiveCells => _requestedActiveCells == null ? null : new(_requestedActiveCells.ToList()); //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
 
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
@@ -1015,7 +1015,7 @@ internal class RelayClient : IRelayClient
 
         _pingCount++;
     }
-    
+
     private void UpdatePacketLoss()
     {
         var packetLoss = _client.Statistics.PacketLoss;
