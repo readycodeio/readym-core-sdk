@@ -48,7 +48,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
     {
         sb.AppendLine($"        var ids = stackalloc int[{n}];");
         foreach (var i in Slots(n))
-            sb.AppendLine($"        ids[{i - 1}] = _registry.ResolveComponentId<T{i}>();");
+            sb.AppendLine($"        ids[{i - 1}] = _componentIds.Resolve<T{i}>();");
     }
 
     private static void ChunkBases(StringBuilder sb, int n)
