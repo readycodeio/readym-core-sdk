@@ -27,6 +27,8 @@ internal sealed class ModChangeComponentRegistration(ServerSideSettings serverSi
             // to it, which is also why declaring one does not reach this branch.
             if (default(T) is INetworkedComponent netComp)
             {
+                ReadyM.Relay.Server.Sdk.ConflictResolution.ChangeTrackingStore.Trace(
+                    $"declaring change component {netComp.GetChangeComponent()} for {typeof(T)}");
                 registry.RegisterLocalComponent(netComp.GetChangeComponent());
             }
         }

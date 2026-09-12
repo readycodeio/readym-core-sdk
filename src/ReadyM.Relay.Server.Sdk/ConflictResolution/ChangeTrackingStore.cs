@@ -24,7 +24,7 @@ public class ChangeTrackingStore(EcsApi ecs) : IChangeTrackingStore
     }
 
     /// <summary>TEMPORARY DIAGNOSTIC, REMOVE BEFORE MERGE. Set READYM_CHANGE_TRACE to a path to enable.</summary>
-    private static void Trace(string message)
+    internal static void Trace(string message)
     {
         var path = Environment.GetEnvironmentVariable("READYM_CHANGE_TRACE");
         if (string.IsNullOrEmpty(path))

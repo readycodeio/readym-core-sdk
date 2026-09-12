@@ -213,6 +213,8 @@ internal sealed class ModArchetypeRegistry : IArchetypeRegistry, IHostedService
         };
 
         _logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
+        ReadyM.Relay.Server.Sdk.ConflictResolution.ChangeTrackingStore.Trace(
+            $"archetype {archetypeId} components=[{string.Join(",", componentList)}] filters={_filters.Count}");
 
         return archetypeId;
     }
