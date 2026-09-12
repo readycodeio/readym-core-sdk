@@ -1,3 +1,4 @@
+using System;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
@@ -11,6 +12,11 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
 {
     private class RegisterWorldComponentsCallback(ArchetypeBuilder builder) : IWorldComponentRegistryCallback
     {
+        public void AcceptModComponent(IWorldComponentRegistry registry, ModComponentInfo info, string typeFullName)
+            => throw new NotSupportedException(
+                $"{nameof(AcceptModComponent)} is not supported here: the world archetype is fixed at build time, and a mod cannot add to it. "
+                + $"Offending component: {typeFullName}.");
+
         public void AcceptComponent<T>(IWorldComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
@@ -24,6 +30,9 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
     {
         WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
             .Add<MetadataComponent>()
+            // The world entity is the world scope, and is server-owned like every other scope entity: the
+            // tag is what stops a client deleting it, and what tells anything counting entities that this
+            // one is infrastructure rather than something a player or a mod made.
             .AddTag<ScopeEntityTag>()
             .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));
     }

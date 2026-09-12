@@ -9,13 +9,13 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 public readonly struct Entity
 {
     private readonly GetComponentSlotDelegate _getComponentSlot;
-    private readonly ComponentRegistry _registry;
+    private readonly ModComponentIds _componentIds;
 
-    internal Entity(int id, GetComponentSlotDelegate getComponentSlot, ComponentRegistry registry)
+    internal Entity(int id, GetComponentSlotDelegate getComponentSlot, ModComponentIds componentIds)
     {
         Id = id;
         _getComponentSlot = getComponentSlot;
-        _registry = registry;
+        _componentIds = componentIds;
     }
 
     /// <summary>
@@ -32,7 +32,7 @@ public readonly struct Entity
     public unsafe ref T GetComponent<T>() where T : struct
     {
         ComponentSlot slot;
-        _getComponentSlot(Id, _registry.ResolveComponentId<T>(), &slot);
+        _getComponentSlot(Id, _componentIds.Resolve<T>(), &slot);
         return ref EcsApi.SlotRef<T>(slot);
     }
 }
