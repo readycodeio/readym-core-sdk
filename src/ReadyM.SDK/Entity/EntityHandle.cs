@@ -2,7 +2,7 @@ using System.ComponentModel;
 using Friflo.Engine.ECS;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK;
+namespace ReadyM.SDK.Entity;
 
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct EntityHandle(RawEntity rawEntity, IEntityApi api)

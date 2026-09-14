@@ -1,5 +1,7 @@
 using Friflo.Engine.ECS;
-using ReadyM.SDK.Attributes;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 
@@ -11,13 +13,20 @@ public readonly partial struct ReadyObject;
 public readonly partial struct ReadyObject : IArchetype
 {
     private readonly EntityHandle _handle;
-    EntityHandle IArchetype.Handle => _handle;
+
+    EntityHandle IArchetype.Handle
+    {
+        get => _handle;
+        init => _handle = value;
+    }
 
     public ReadyObject(EntityHandle handle)
     {
         _handle = handle;
     }
-    
+
+    public ComponentTypes ComponentTypes => new();
+
     public bool IsValid => _handle.IsAlive();
 
     public bool Has<T>() where T : struct, ITag => _handle.HasTag<T>();

@@ -2,7 +2,7 @@ using System.ComponentModel;
 using Friflo.Engine.ECS;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK;
+namespace ReadyM.SDK.Entity;
 
 [EditorBrowsable(EditorBrowsableState.Never)]
 public interface IEntityApi
@@ -14,4 +14,5 @@ public interface IEntityApi
     bool IsAlive(RawEntity rawEntity);
     bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag;
     void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag;
+    internal void Playback();
 }

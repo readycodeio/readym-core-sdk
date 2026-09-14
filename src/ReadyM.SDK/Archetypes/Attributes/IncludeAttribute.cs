@@ -1,4 +1,4 @@
-namespace ReadyM.SDK.Attributes;
+namespace ReadyM.SDK.Archetypes.Attributes;
 
 /// <summary>
 /// Include a mixin into this archetype.

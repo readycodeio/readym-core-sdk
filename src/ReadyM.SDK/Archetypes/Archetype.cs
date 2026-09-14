@@ -1,4 +1,6 @@
-namespace ReadyM.SDK;
+using ReadyM.SDK.Entity;
+
+namespace ReadyM.SDK.Archetypes;
 
 public static class Archetype
 {

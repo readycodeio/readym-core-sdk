@@ -4,10 +4,10 @@ using ReadyM.SDK.Archetypes.Attributes;
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 
 [Tag]
-public partial struct Hostile;
+public partial struct Sleeping;
 
 #region Generated
 
-public partial struct Hostile : ITag;
+public partial struct Sleeping : ITag;
 
 #endregion

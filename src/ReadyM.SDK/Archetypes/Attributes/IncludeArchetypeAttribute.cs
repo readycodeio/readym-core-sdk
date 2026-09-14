@@ -1,4 +1,4 @@
-namespace ReadyM.SDK.Attributes;
+namespace ReadyM.SDK.Archetypes.Attributes;
 
 /// <summary>
 /// Include all of another archetype's fields into this archetype.

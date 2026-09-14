@@ -1,5 +1,6 @@
 using Friflo.Engine.ECS;
-using ReadyM.SDK.Attributes;
+using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 

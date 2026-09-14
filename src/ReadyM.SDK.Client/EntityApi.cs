@@ -1,12 +1,26 @@
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client;
 
-public class EntityApi(EntityStore store) : IEntityApi
+internal class EntityApi : IEntityApi
 {
+    private readonly CommandBuffer _buffer;
+    private readonly EntityStore _store;
+
+    public EntityApi(EntityStore store)
+    {
+        _store = store;
+
+        _buffer = store.GetCommandBuffer();
+        _buffer.ReuseBuffer = true;
+    }
+
+    public void Playback() => _buffer.Playback();
+
     public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
 
@@ -15,7 +29,7 @@ public class EntityApi(EntityStore store) : IEntityApi
 
     public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
 
@@ -24,7 +38,7 @@ public class EntityApi(EntityStore store) : IEntityApi
 
     public bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
 
@@ -33,21 +47,21 @@ public class EntityApi(EntityStore store) : IEntityApi
 
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
-
-        entity.AddComponent<T>();
+        
+        _buffer.AddComponent<T>(rawEntity.Id);
     }
 
     public bool IsAlive(RawEntity rawEntity)
     {
-        return !store.GetEntityByRawEntity(rawEntity).IsNull;
+        return !_store.GetEntityByRawEntity(rawEntity).IsNull;
     }
 
     public bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
 
@@ -56,17 +70,17 @@ public class EntityApi(EntityStore store) : IEntityApi
 
     public void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
 
         if (set)
         {
-            entity.AddTag<T>();
+            _buffer.AddTag<T>(rawEntity.Id);
         }
         else
         {
-            entity.RemoveTag<T>();
+            _buffer.RemoveTag<T>(rawEntity.Id);
         }
     }
 }

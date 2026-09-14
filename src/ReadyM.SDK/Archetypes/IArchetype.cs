@@ -1,10 +1,13 @@
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Entity;
 
-namespace ReadyM.SDK;
+namespace ReadyM.SDK.Archetypes;
 
 public interface IArchetype
 {
-    EntityHandle Handle { get; }
+    EntityHandle Handle { get; init; }
+
+    ComponentTypes ComponentTypes { get; }
 
     bool IsValid { get; }
 

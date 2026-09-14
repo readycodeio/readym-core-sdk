@@ -1,3 +1,5 @@
+using ReadyM.SDK.Entity;
+using ReadyM.SDK.Services;
 using ReadyM.SDK.Tests.Examples.Declarations;
 
 namespace ReadyM.SDK.Tests.Examples;
@@ -46,5 +48,41 @@ public static class Examples
         {
             npc.Set<Hostile>(false);
         }
+    }
+}
+
+[Service]
+public partial class Regeneration(IEntities entities)
+{
+    [UpdateHandler]
+    private void Regenerate()
+    {
+        foreach (var c in entities.Query<MainCharacter>())
+        {
+            if (c.Hp < c.MaxHp)
+            {
+                c.Hp += 1f;
+            }
+        }
+
+        foreach (var npc in entities.Query<Npc>().With<Hostile>().Without<Sleeping>())
+        {
+            // do something
+        }
+
+        entities.Query<MainCharacter>().ForEach(npc => npc.Hp = npc.MaxHp);
+
+        foreach (var npc in entities.Query<Npc>().With<Hostile>())
+        {
+            if (npc.Hp <= 0f)
+            {
+                npc.Set<Hostile>(false); // CommandBuffer, applied on foreach block end
+            }
+        }
+
+        entities.Query<Npc>().ForEach(npc =>
+        {
+            npc.Set<Hostile>(false); // CommandBuffer, applied on ForEach method end
+        });
     }
 }

@@ -1,6 +1,8 @@
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
-using ReadyM.SDK.Attributes;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 
@@ -24,12 +26,19 @@ internal struct MainCharacterComponent : IComponent
 public readonly partial struct MainCharacter : IArchetype
 {
     private readonly EntityHandle _handle;
-    EntityHandle IArchetype.Handle => _handle;
+
+    EntityHandle IArchetype.Handle
+    {
+        get  => _handle;
+        init  => _handle = value;
+    }
 
     public MainCharacter(EntityHandle handle)
     {
         _handle = handle;
     }
+
+    public ComponentTypes ComponentTypes => ComponentTypes.Get<MainCharacterComponent, VitalsComponent, EquipmentComponent>();
 
     public bool IsValid => _handle.IsAlive();
 

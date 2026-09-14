@@ -1,3 +1,3 @@
-namespace ReadyM.SDK;
+namespace ReadyM.SDK.Entity;
 
 public class InvalidEntityException : Exception;

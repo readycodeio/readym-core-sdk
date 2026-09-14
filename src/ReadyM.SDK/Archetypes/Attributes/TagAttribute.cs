@@ -1,4 +1,4 @@
-namespace ReadyM.SDK.Attributes;
+namespace ReadyM.SDK.Archetypes.Attributes;
 
 /// <summary>
 /// Declares a tag that can be attached to entities.
