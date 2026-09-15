@@ -30,7 +30,9 @@ internal class CSharpFieldSupportRegistry
         new NativeStringSerializationImpl(),
         new CustomMethodSerializationImpl(),
     ];
-    
+
+    internal static readonly ICSharpSerializationCodec NetDataCodec = new NetDataSerializationCodec();
+
     internal static readonly DeriveTypeSupportVisitorBase<ICSharpFieldTypeSupportImpl> FieldTypeSupportVisitor = new(
         CSharpFieldSupportImpls,
         new FallbackFieldTypeSupportImpl()
