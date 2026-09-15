@@ -6,18 +6,9 @@ namespace ReadyM.SDK.Client.Entity;
 
 internal class ClientEntityApi : IEntityApi
 {
-    private readonly CommandBuffer _buffer;
     private readonly EntityStore _store;
 
-    public ClientEntityApi(EntityStore store)
-    {
-        _store = store;
-
-        _buffer = store.GetCommandBuffer();
-        _buffer.ReuseBuffer = true;
-    }
-
-    public void Playback() => _buffer.Playback();
+    public ClientEntityApi(EntityStore store) => _store = store;
 
     public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
     {
@@ -51,8 +42,8 @@ internal class ClientEntityApi : IEntityApi
         var entity = _store.GetEntityByRawEntity(rawEntity);
         if (entity.IsNull)
             throw new InvalidEntityException();
-        
-        _buffer.AddComponent<T>(rawEntity.Id);
+
+        entity.AddComponent<T>();
     }
 
     public bool HasComponents(RawEntity rawEntity, ComponentSet components)
@@ -86,11 +77,11 @@ internal class ClientEntityApi : IEntityApi
 
         if (set)
         {
-            _buffer.AddTag<T>(rawEntity.Id);
+            entity.AddTag<T>();
         }
         else
         {
-            _buffer.RemoveTag<T>(rawEntity.Id);
+            entity.RemoveTag<T>();
         }
     }
 }

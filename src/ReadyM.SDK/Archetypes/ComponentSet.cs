@@ -48,7 +48,7 @@ public sealed class ComponentSet
             if (!types.Contains(type))
                 types.Add(type);
 
-        return types.Count == 0 ? Empty : new ComponentSet(types.ToArray());
+        return types.Count == 0 ? Empty : new ComponentSet([.. types]);
     }
 
     public override string ToString() => string.Join(", ", Types.Select(type => type.Name));

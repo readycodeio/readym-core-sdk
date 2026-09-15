@@ -21,3 +21,4 @@ src/ReadyM.Relay.Server.Oblivion/wwwroot
 # Reusable commit-message scratch file (never committed)
 .commit/
 src/.claude
+src/BenchmarkDotNet.Artifacts

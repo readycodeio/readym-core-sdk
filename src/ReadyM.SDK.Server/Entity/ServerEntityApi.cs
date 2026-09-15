@@ -89,11 +89,6 @@ internal sealed class ServerEntityApi : IEntityApi
     public void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag
         => throw new NotSupportedException($"Tag {typeof(T).Name} has no server representation.");
 
-    void IEntityApi.Playback()
-    {
-        // TODO: Implement when there are any structural changes
-    }
-
     internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {
         var ids = ResolveIds(components);
@@ -138,7 +133,7 @@ internal sealed class ServerEntityApi : IEntityApi
     private static EntityBuffer? _collecting;
 
     private static readonly unsafe ChunkCallback Collect =
-        static (entities, _, _, count) => _collecting!.Append((RawEntity*)entities, count);
+        static (entities, _, _, count) => new ReadOnlySpan<RawEntity>((void*)entities, count).CopyTo(_collecting!.Reserve(count));
 
     private unsafe ComponentSlot Locate<T>(RawEntity rawEntity) where T : struct
     {

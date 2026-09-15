@@ -4,6 +4,7 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
+/// A query over every entity of one archetype or mixin.
 public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
 {
     private readonly ArchetypeQuery _query;
@@ -41,36 +42,28 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         return new QueryBuilder<T>(newQuery, _api);
     }
 
+    public Enumerator GetEnumerator() => new(_query, _api);
+
     public struct Enumerator : IDisposable
     {
         private readonly IEntityApi _api;
-        private EntitiesEnumerator _enumerator;
+        private readonly EntityBuffer _buffer;
+        private int _index;
 
         internal Enumerator(ArchetypeQuery query, IEntityApi api)
         {
             _api = api;
-            _enumerator = query.Entities.GetEnumerator();
+            _buffer = EntityBuffer.Fill(query);
+            _index = -1;
         }
 
         public T Current => new()
         {
-            Handle = new EntityHandle(_enumerator.Current.RawEntity, _api)
+            Handle = new EntityHandle(_buffer[_index], _api)
         };
 
-        public bool MoveNext()
-        {
-            return _enumerator.MoveNext();
-        }
+        public bool MoveNext() => ++_index < _buffer.Count;
 
-        public void Dispose()
-        {
-            _enumerator.Dispose();
-            _api.Playback();
-        }
-    }
-
-    public Enumerator GetEnumerator()
-    {
-        return new Enumerator(_query, _api);
+        public void Dispose() => _buffer.Return();
     }
 }

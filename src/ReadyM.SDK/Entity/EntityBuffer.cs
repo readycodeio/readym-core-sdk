@@ -1,6 +1,6 @@
 using Friflo.Engine.ECS;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Entity;
 
 /// The entities a query matched when the loop started.
 /// <remarks>
@@ -17,6 +17,17 @@ internal sealed class EntityBuffer
     public int Count { get; private set; }
 
     public RawEntity this[int index] => _entities[index];
+
+    /// Snapshots what a query matched, so the loop body is free to change the world.
+    public static EntityBuffer Fill(ArchetypeQuery query)
+    {
+        var buffer = Rent();
+
+        foreach (var entity in query.Entities)
+            buffer.Append(entity.RawEntity);
+
+        return buffer;
+    }
 
     public static EntityBuffer Rent()
     {
@@ -38,7 +49,16 @@ internal sealed class EntityBuffer
         _free = this;
     }
 
-    public unsafe void Append(RawEntity* entities, int count)
+    public void Append(RawEntity entity)
+    {
+        if (Count == _entities.Length)
+            Array.Resize(ref _entities, _entities.Length * 2);
+
+        _entities[Count++] = entity;
+    }
+
+    /// Reserves room for count more entities and returns the window to write them into.
+    public Span<RawEntity> Reserve(int count)
     {
         var required = Count + count;
 
@@ -49,12 +69,8 @@ internal sealed class EntityBuffer
             Array.Resize(ref _entities, capacity);
         }
 
-        fixed (RawEntity* destination = _entities)
-        {
-            var size = sizeof(RawEntity);
-            Buffer.MemoryCopy(entities, destination + Count, (_entities.Length - Count) * size, count * size);
-        }
-
+        var window = new Span<RawEntity>(_entities, Count, count);
         Count = required;
+        return window;
     }
 }

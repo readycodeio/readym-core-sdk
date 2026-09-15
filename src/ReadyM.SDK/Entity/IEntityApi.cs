@@ -16,5 +16,4 @@ internal interface IEntityApi
     bool HasComponents(RawEntity rawEntity, ComponentSet components);
     bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag;
     void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag;
-    internal void Playback();
 }

@@ -10,7 +10,7 @@ namespace ReadyM.SDK.Tests.Client;
 public class StructuralChangeTests : ClientSdkTest
 {
     [Fact]
-    public void A_tag_set_inside_a_loop_is_applied_when_the_loop_ends()
+    public void A_tag_set_inside_a_loop_is_visible_to_the_loop_body()
     {
         SpawnMonster();
 
@@ -18,16 +18,16 @@ public class StructuralChangeTests : ClientSdkTest
         {
             monster.Set<Enraged>(true);
 
-            // Deferred, so the loop body does not see its own change. shape-by-example.md
-            // (2026-09-08-query-service) asks for this to be immediate.
-            Assert.False(monster.Has<Enraged>());
+            // Immediate, as shape-by-example.md (2026-09-08-query-service) asks: the loop walks a
+            // snapshot of identities, so nothing it does can disturb the iteration.
+            Assert.True(monster.Has<Enraged>());
         }
 
         Assert.Equal(1, Count(Entities.Query<Monster>().With<Enraged>()));
     }
 
     [Fact]
-    public void A_tag_cleared_inside_a_loop_is_applied_when_the_loop_ends()
+    public void A_tag_cleared_inside_a_loop_is_applied()
     {
         var monster = SpawnMonster();
         AddTag<Enraged, Monster>(monster);
@@ -57,7 +57,7 @@ public class StructuralChangeTests : ClientSdkTest
     }
 
     [Fact]
-    public void ForEach_plays_back_when_it_returns()
+    public void ForEach_applies_what_its_body_changed()
     {
         SpawnMonster();
 
@@ -106,25 +106,25 @@ public class StructuralChangeTests : ClientSdkTest
         Assert.Equal(2, replacement.Level);
     }
 
-    /// <summary>
-    /// Known limitation. The command buffer lives on the entity API rather than on the enumerator, so
-    /// an inner loop plays back the outer loop's pending changes, and it does so while the outer
-    /// enumerator still holds the store's read lock.
-    /// </summary>
     [Fact]
-    public void A_nested_query_throws_when_the_outer_loop_has_queued_a_change()
+    public void A_nested_query_runs_while_the_outer_loop_has_a_change_queued()
     {
-        SpawnMonster();
+        SpawnMonster(level: 1);
+        SpawnMonster(level: 2);
 
-        Assert.Throws<LockRecursionException>(() =>
+        var inner = 0;
+
+        foreach (var outer in Entities.Query<Monster>())
         {
-            foreach (var outer in Entities.Query<Monster>())
-            {
-                outer.Set<Enraged>(true);
+            outer.Set<Enraged>(true);
 
-                foreach (var inner in Entities.Query<Monster>())
-                    _ = inner.Level;
-            }
-        });
+            foreach (var nested in Entities.Query<Monster>())
+                inner += nested.Level;
+        }
+
+        // Only the outermost loop plays back, so the inner one never takes a write lock under the
+        // outer one's read lock, and the outer one's changes are not applied early.
+        Assert.Equal(6, inner);
+        Assert.Equal(2, Count(Entities.Query<Monster>().With<Enraged>()));
     }
 }

@@ -4,9 +4,10 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
+/// A query over every entity that includes the two mixins.
 public readonly ref struct QueryBuilder<T1, T2>
-    where T1 : struct, IArchetypeQueryable
-    where T2 : struct, IArchetypeQueryable
+    where T1 : struct, IArchetypeMixin
+    where T2 : struct, IArchetypeMixin
 {
     private readonly ArchetypeQuery _query;
     private readonly IEntityApi _api;
@@ -47,36 +48,28 @@ public readonly ref struct QueryBuilder<T1, T2>
         return new QueryBuilder<T1, T2>(newQuery, _api);
     }
 
+    public Enumerator GetEnumerator() => new(_query, _api);
+
     public struct Enumerator : IDisposable
     {
         private readonly IEntityApi _api;
-        private EntitiesEnumerator _enumerator;
+        private readonly EntityBuffer _buffer;
+        private int _index;
 
         internal Enumerator(ArchetypeQuery query, IEntityApi api)
         {
             _api = api;
-            _enumerator = query.Entities.GetEnumerator();
+            _buffer = EntityBuffer.Fill(query);
+            _index = -1;
         }
 
         public (T1, T2) Current => (
-            new T1 { Handle = new EntityHandle(_enumerator.Current.RawEntity, _api) },
-            new T2 { Handle = new EntityHandle(_enumerator.Current.RawEntity, _api) }
+            new T1 { Handle = new EntityHandle(_buffer[_index], _api) },
+            new T2 { Handle = new EntityHandle(_buffer[_index], _api) }
         );
 
-        public bool MoveNext()
-        {
-            return _enumerator.MoveNext();
-        }
+        public bool MoveNext() => ++_index < _buffer.Count;
 
-        public void Dispose()
-        {
-            _enumerator.Dispose();
-            _api.Playback();
-        }
-    }
-
-    public Enumerator GetEnumerator()
-    {
-        return new Enumerator(_query, _api);
+        public void Dispose() => _buffer.Return();
     }
 }

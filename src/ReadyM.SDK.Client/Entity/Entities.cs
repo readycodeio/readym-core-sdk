@@ -11,6 +11,6 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         => new(store, api);
 
     public QueryBuilder<T1, T2> Query<T1, T2>()
-        where T1 : struct, IArchetypeQueryable where T2 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin where T2 : struct, IArchetypeMixin
         => new(store, api);
 }

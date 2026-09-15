@@ -48,27 +48,23 @@ public class ArchetypeTests : ClientSdkTest
         var monster = SpawnMonster();
 
         monster.Set<Enraged>(true);
-        Api.Playback();
         Assert.True(monster.Has<Enraged>());
 
         monster.Set<Enraged>(false);
-        Api.Playback();
         Assert.False(monster.Has<Enraged>());
     }
 
     [Fact]
-    public void Set_outside_a_query_does_nothing_until_something_plays_the_buffer_back()
+    public void Set_outside_a_query_is_visible_to_the_next_statement()
     {
-        // Nothing but a query enumerator calls Playback today, so a tag toggled outside a loop sits
-        // in the command buffer until the next query happens to end.
+        // Deferring only happens while a query iterates, so a tag toggled anywhere else lands at once
+        // rather than waiting for some unrelated loop to end.
         var monster = SpawnMonster();
 
         monster.Set<Enraged>(true);
-        Assert.False(monster.Has<Enraged>());
-
-        foreach (var _ in Entities.Query<Monster>()) { }
 
         Assert.True(monster.Has<Enraged>());
+        Assert.Equal(1, Count(Entities.Query<Monster>().With<Enraged>()));
     }
 
     [Fact]
@@ -141,24 +137,35 @@ public class ArchetypeTests : ClientSdkTest
         Assert.Equal(2, Count(Entities.Query<Chest>()));
     }
 
-    /// <summary>
-    /// Known limitation. EnsureX adds a component, which the client defers to the command buffer, so
-    /// the handle it returns points at a component that does not exist yet.
-    /// </summary>
     [Fact]
-    public void EnsureX_does_not_produce_a_usable_handle_yet()
+    public void EnsureX_gives_a_usable_handle_outside_a_query()
     {
         var chest = SpawnChest();
 
         var loot = chest.EnsureLoot();
-        Assert.Throws<NullReferenceException>(() => loot.Rarity = 1);
+        loot.Rarity = 5;
 
-        // It lands once something plays the buffer back.
-        foreach (var _ in Entities.Query<Chest>()) { }
-
-        Assert.Equal(0, chest.Rarity);
-        chest.RequireLoot().Rarity = 5;
         Assert.Equal(5, chest.Rarity);
+    }
+
+    [Fact]
+    public void EnsureX_on_an_entity_that_already_has_the_mixin_keeps_its_values()
+    {
+        var chest = SpawnChest(rarity: 3);
+
+        Assert.Equal(3, chest.EnsureLoot().Rarity);
+    }
+
+    [Fact]
+    public void EnsureX_works_inside_a_query()
+    {
+        SpawnChest();
+
+        foreach (var chest in Entities.Query<Chest>())
+            chest.EnsureLoot().Rarity = 4;
+
+        foreach (var chest in Entities.Query<Chest>())
+            Assert.Equal(4, chest.Rarity);
     }
 
     /// <summary>
