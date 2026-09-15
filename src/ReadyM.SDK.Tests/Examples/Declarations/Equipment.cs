@@ -22,12 +22,12 @@ public readonly partial struct Equipment(EntityHandle handle) : IArchetypeMixin
 {
     EntityHandle IArchetypeQueryable.Handle
     {
-        get  => handle;
-        init  => handle = value;
+        get => handle;
+        init => handle = value;
     }
 
     public ComponentSet Components => ComponentSet.Of<EquipmentComponent>();
-    
+
     public partial string Weapon
     {
         get => handle.GetComponent<EquipmentComponent>().weapon;

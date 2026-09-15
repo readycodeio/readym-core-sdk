@@ -1,4 +1,5 @@
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
@@ -52,6 +53,15 @@ internal class ClientEntityApi : IEntityApi
             throw new InvalidEntityException();
         
         _buffer.AddComponent<T>(rawEntity.Id);
+    }
+
+    public bool HasComponents(RawEntity rawEntity, ComponentSet components)
+    {
+        var entity = _store.GetEntityByRawEntity(rawEntity);
+        if (entity.IsNull)
+            throw new InvalidEntityException();
+
+        return entity.Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
     }
 
     public bool IsAlive(RawEntity rawEntity)

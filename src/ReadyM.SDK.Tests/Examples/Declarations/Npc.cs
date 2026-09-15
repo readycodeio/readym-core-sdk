@@ -38,6 +38,10 @@ public readonly partial struct Npc : IArchetype
         _handle.SetTag<T>(set);
     }
     
+    public bool Is<T>() where T : struct, IArchetype => _handle.Is<T>();
+    
+    public bool TryAs<T>(out T archetype) where T : struct, IArchetype => _handle.TryAs(out archetype);
+
     // vitals
 
     public float Hp

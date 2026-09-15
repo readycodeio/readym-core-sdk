@@ -34,8 +34,8 @@ public readonly partial struct MainCharacter : IArchetype
 
     EntityHandle IArchetypeQueryable.Handle
     {
-        get  => _handle;
-        init  => _handle = value;
+        get => _handle;
+        init => _handle = value;
     }
 
     public ComponentSet Components => ComponentSet.Of<MainCharacterComponent, VitalsComponent>();
@@ -48,6 +48,10 @@ public readonly partial struct MainCharacter : IArchetype
     {
         _handle.SetTag<T>(set);
     }
+    
+    public bool Is<T>() where T : struct, IArchetype => _handle.Is<T>();
+    
+    public bool TryAs<T>(out T archetype) where T : struct, IArchetype => _handle.TryAs(out archetype);
 
     // own component
 

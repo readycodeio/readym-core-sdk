@@ -26,12 +26,12 @@ public readonly partial struct Vitals(EntityHandle handle) : IArchetypeMixin
 {
     EntityHandle IArchetypeQueryable.Handle
     {
-        get  => handle;
-        init  => handle = value;
+        get => handle;
+        init => handle = value;
     }
 
     public ComponentSet Components => ComponentSet.Of<VitalsComponent>();
-    
+
     public partial float Hp
     {
         get => handle.GetComponent<VitalsComponent>().hp;

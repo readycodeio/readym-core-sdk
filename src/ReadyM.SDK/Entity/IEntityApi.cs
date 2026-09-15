@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Entity;
@@ -12,6 +13,9 @@ public interface IEntityApi
     bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent;
     void AddComponent<T>(RawEntity entity) where T : struct, IComponent;
     bool IsAlive(RawEntity rawEntity);
+
+    /// <summary>Whether the entity carries every component of the set. An empty set matches anything.</summary>
+    bool HasComponents(RawEntity rawEntity, ComponentSet components);
     bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag;
     void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag;
     internal void Playback();

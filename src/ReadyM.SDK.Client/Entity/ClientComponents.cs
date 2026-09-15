@@ -1,21 +1,22 @@
+using System.Collections.Concurrent;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 
 namespace ReadyM.SDK.Client.Entity;
 
-/// Resolves a <see cref="ComponentSet"/> to the store's component bitset.
+/// <summary>
+/// Resolves a <see cref="ComponentSet"/> to the store's own component identity.
+/// </summary>
 internal static class ClientComponents
 {
-    private static readonly Dictionary<ComponentSet, ComponentTypes> Resolved = new();
+    private static readonly ConcurrentDictionary<ComponentSet, ComponentTypes> Resolved = new();
 
-    public static ComponentTypes Resolve(ComponentSet components)
+    public static ComponentTypes Resolve(ComponentSet components) => Resolved.GetOrAdd(components, static set =>
     {
-        if (Resolved.TryGetValue(components, out var types))
-            return types;
-
         var schema = EntityStore.GetEntitySchema();
+        var types = default(ComponentTypes);
 
-        foreach (var type in components.Types)
+        foreach (var type in set.Types)
         {
             if (!schema.ComponentTypeByType.TryGetValue(type, out var componentType))
                 throw new InvalidOperationException($"{type.FullName} is not a registered component type.");
@@ -23,7 +24,6 @@ internal static class ClientComponents
             types.Add(new ComponentTypes(componentType));
         }
 
-        Resolved[components] = types;
         return types;
-    }
+    });
 }

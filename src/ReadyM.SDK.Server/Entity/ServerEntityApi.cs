@@ -29,6 +29,26 @@ internal sealed class ServerEntityApi : IEntityApi
 
     public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity, MatchRevision) != 0;
 
+    public unsafe bool HasComponents(RawEntity rawEntity, ComponentSet components)
+    {
+        if (!IsAlive(rawEntity))
+            throw new InvalidEntityException($"Entity {rawEntity.Id} is gone.");
+
+        if (components.Types.Length == 0)
+            return true;
+
+        foreach (var componentId in ResolveIds(components))
+        {
+            ComponentSlot slot;
+            _getComponentSlot(rawEntity, MatchRevision, componentId, &slot);
+
+            if (!slot.Found())
+                return false;
+        }
+
+        return true;
+    }
+
     public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
         => Locate<T>(rawEntity).Found();
 
