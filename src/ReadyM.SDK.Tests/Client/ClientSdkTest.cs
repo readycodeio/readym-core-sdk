@@ -84,6 +84,9 @@ public abstract class ClientSdkTest : IDisposable
         where TArchetype : struct, IArchetypeQueryable
         => Store.GetEntityByRawEntity(EntityHandle.Of(entity).RawEntity).AddTag<TTag>();
 
+    /// <summary>Components is an explicit interface implementation, so it is reached through the constraint.</summary>
+    protected static ComponentSet ComponentsOf<T>() where T : struct, IArchetypeQueryable => default(T).Components;
+
     protected int Count<T>(QueryBuilder<T> query) where T : struct, IArchetypeQueryable
     {
         var count = 0;

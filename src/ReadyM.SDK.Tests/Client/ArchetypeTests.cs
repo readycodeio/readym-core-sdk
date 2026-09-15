@@ -1,4 +1,3 @@
-using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
@@ -14,22 +13,22 @@ public class ArchetypeTests : ClientSdkTest
     {
         Assert.Equal(
             ["MonsterComponent", "HealthComponent", "PlacementComponent"],
-            default(Monster).Components.Types.Select(type => type.Name));
+            ComponentsOf<Monster>().Types.Select(type => type.Name));
 
         // An optional include is not part of what the archetype requires.
         Assert.Equal(
             ["ChestComponent", "HealthComponent", "PlacementComponent"],
-            default(Chest).Components.Types.Select(type => type.Name));
+            ComponentsOf<Chest>().Types.Select(type => type.Name));
 
-        Assert.Equal(["HealthComponent"], default(Health).Components.Types.Select(type => type.Name));
+        Assert.Equal(["HealthComponent"], ComponentsOf<Health>().Types.Select(type => type.Name));
     }
 
     [Fact]
     public void Components_is_the_same_instance_every_time_it_is_read()
     {
         // The query path caches resolved component ids against this reference, so it has to be stable.
-        Assert.Same(default(Monster).Components, default(Monster).Components);
-        Assert.Same(default(Creature).Components, default(Health).Components);
+        Assert.Same(ComponentsOf<Monster>(), ComponentsOf<Monster>());
+        Assert.Same(ComponentsOf<Creature>(), ComponentsOf<Health>());
     }
 
     [Fact]
