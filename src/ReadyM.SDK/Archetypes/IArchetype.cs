@@ -1,14 +1,9 @@
 using Friflo.Engine.ECS;
-using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Archetypes;
 
-public interface IArchetype
+public interface IArchetype : IArchetypeQueryable
 {
-    EntityHandle Handle { get; init; }
-
-    ComponentTypes ComponentTypes { get; }
-
     bool IsValid { get; }
 
     bool Has<T>() where T : struct, ITag;

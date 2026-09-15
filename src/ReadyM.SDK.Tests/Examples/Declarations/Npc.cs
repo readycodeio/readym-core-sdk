@@ -16,7 +16,7 @@ public readonly partial struct Npc : IArchetype
 {
     private readonly EntityHandle _handle;
 
-    EntityHandle IArchetype.Handle
+    EntityHandle IArchetypeQueryable.Handle
     {
         get => _handle;
         init => _handle = value;

@@ -1,11 +1,12 @@
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Attributes;
 using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 
 [ArchetypeMixin]
-public ref partial struct Equipment
+public readonly partial struct Equipment
 {
     public partial string Weapon { get; set; }
 }
@@ -17,8 +18,16 @@ internal struct EquipmentComponent : IComponent
     public string weapon;
 }
 
-public ref partial struct Equipment(EntityHandle handle)
+public readonly partial struct Equipment(EntityHandle handle) : IArchetypeMixin
 {
+    EntityHandle IArchetypeQueryable.Handle
+    {
+        get  => handle;
+        init  => handle = value;
+    }
+
+    public ComponentTypes ComponentTypes => ComponentTypes.Get<EquipmentComponent>();
+    
     public partial string Weapon
     {
         get => handle.GetComponent<EquipmentComponent>().weapon;

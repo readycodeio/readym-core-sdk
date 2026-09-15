@@ -4,14 +4,20 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
-public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
+public readonly ref struct QueryBuilder<T1, T2>
+    where T1 : struct, IArchetypeQueryable
+    where T2 : struct, IArchetypeQueryable
 {
     private readonly ArchetypeQuery _query;
     private readonly IEntityApi _api;
 
     internal QueryBuilder(EntityStore store, IEntityApi api)
     {
-        _query = store.Query(new QueryFilter().AllComponents(default(T).ComponentTypes));
+        _query = store.Query(new QueryFilter().AllComponents(new ComponentTypes
+        {
+            default(T1).ComponentTypes,
+            default(T2).ComponentTypes
+        }));
         _api = api;
     }
 
@@ -21,34 +27,34 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         _api = api;
     }
 
-    public void ForEach(Action<T> action)
+    public void ForEach(Action<T1, T2> action)
     {
-        foreach (var component in this)
+        foreach (var (c1, c2) in this)
         {
-            action(component);
+            action(c1, c2);
         }
     }
 
-    public QueryBuilder<T> With<TTag>() where TTag : struct, ITag
+    public QueryBuilder<T1, T2> With<TTag>() where TTag : struct, ITag
     {
         var newQuery = _query.AllTags(Tags.Get<TTag>());
-        return new QueryBuilder<T>(newQuery, _api);
+        return new QueryBuilder<T1, T2>(newQuery, _api);
     }
 
-    public QueryBuilder<T> Without<TTag>() where TTag : struct, ITag
+    public QueryBuilder<T1, T2> Without<TTag>() where TTag : struct, ITag
     {
         var newQuery = _query.WithoutAnyTags(Tags.Get<TTag>());
-        return new QueryBuilder<T>(newQuery, _api);
+        return new QueryBuilder<T1, T2>(newQuery, _api);
     }
 
     public struct Enumerator(ArchetypeQuery query, IEntityApi api) : IDisposable
     {
         private EntitiesEnumerator _enumerator = query.Entities.GetEnumerator();
 
-        public T Current => new()
-        {
-            Handle = new EntityHandle(_enumerator.Current.RawEntity, api)
-        };
+        public (T1, T2) Current => (
+            new T1 { Handle = new EntityHandle(_enumerator.Current.RawEntity, api) },
+            new T2 { Handle = new EntityHandle(_enumerator.Current.RawEntity, api) }
+        );
 
         public bool MoveNext()
         {

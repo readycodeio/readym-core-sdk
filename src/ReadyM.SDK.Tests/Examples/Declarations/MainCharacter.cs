@@ -27,15 +27,15 @@ public readonly partial struct MainCharacter : IArchetype
 {
     private readonly EntityHandle _handle;
 
-    EntityHandle IArchetype.Handle
-    {
-        get  => _handle;
-        init  => _handle = value;
-    }
-
     public MainCharacter(EntityHandle handle)
     {
         _handle = handle;
+    }
+
+    EntityHandle IArchetypeQueryable.Handle
+    {
+        get  => _handle;
+        init  => _handle = value;
     }
 
     public ComponentTypes ComponentTypes => ComponentTypes.Get<MainCharacterComponent, VitalsComponent, EquipmentComponent>();

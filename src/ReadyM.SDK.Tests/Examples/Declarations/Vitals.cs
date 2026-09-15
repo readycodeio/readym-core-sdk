@@ -1,11 +1,12 @@
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Attributes;
 using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 
 [ArchetypeMixin]
-public ref partial struct Vitals
+public readonly partial struct Vitals
 {
     public partial float Hp { get; set; }
     public partial float MaxHp { get; set; }
@@ -21,21 +22,29 @@ internal struct VitalsComponent : IComponent
     public bool isDead;
 }
 
-public ref partial struct Vitals(RawEntity entity, IEntityApi entityApi)
+public readonly partial struct Vitals(EntityHandle handle) : IArchetypeMixin
 {
+    EntityHandle IArchetypeQueryable.Handle
+    {
+        get  => handle;
+        init  => handle = value;
+    }
+
+    public ComponentTypes ComponentTypes => ComponentTypes.Get<VitalsComponent>();
+    
     public partial float Hp
     {
-        get => entityApi.GetComponent<VitalsComponent>(entity).hp;
-        set => entityApi.GetComponent<VitalsComponent>(entity).hp = value;
+        get => handle.GetComponent<VitalsComponent>().hp;
+        set => handle.GetComponent<VitalsComponent>().hp = value;
     }
 
     public partial float MaxHp
     {
-        get => entityApi.GetComponent<VitalsComponent>(entity).maxHp;
-        set => entityApi.GetComponent<VitalsComponent>(entity).maxHp = value;
+        get => handle.GetComponent<VitalsComponent>().maxHp;
+        set => handle.GetComponent<VitalsComponent>().maxHp = value;
     }
 
-    public partial bool IsDead => entityApi.GetComponent<VitalsComponent>(entity).isDead;
+    public partial bool IsDead => handle.GetComponent<VitalsComponent>().isDead;
 }
 
 #endregion

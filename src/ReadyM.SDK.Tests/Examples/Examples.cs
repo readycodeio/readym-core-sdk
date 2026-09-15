@@ -1,4 +1,4 @@
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Client.Entity;
 using ReadyM.SDK.Services;
 using ReadyM.SDK.Tests.Examples.Declarations;
 
@@ -83,6 +83,22 @@ public partial class Regeneration(IEntities entities)
         entities.Query<Npc>().ForEach(npc =>
         {
             npc.Set<Hostile>(false); // CommandBuffer, applied on ForEach method end
+        });
+
+        foreach (var (vitals, eq) in entities.Query<Vitals, Equipment>())
+        {
+            if (vitals.Hp <= 0f)
+            {
+                eq.Weapon = "spear";
+            }
+        }
+
+        entities.Query<Vitals, Equipment>().ForEach((vitals, eq) =>
+        {
+            if (vitals.Hp <= 0f)
+            {
+                eq.Weapon = "maul";
+            }
         });
     }
 }

@@ -21,6 +21,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
+      <ProjectReference Include="..\ReadyM.SDK.Client\ReadyM.SDK.Client.csproj" />
       <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj" />
     </ItemGroup>
 
