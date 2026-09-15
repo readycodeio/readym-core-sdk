@@ -1,3 +1,4 @@
+using Friflo.Engine.ECS;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
 using ReadyM.SDK.Archetypes.Attributes;
 
@@ -73,3 +74,39 @@ public readonly partial struct Morale
 [Include(typeof(Purse))]
 [Include(typeof(Morale))]
 public readonly partial struct Hero;
+
+/// The v0 shape over five components, as the control for the five-component comparison.
+public readonly struct V0Hero(FrifloEntity entity)
+{
+    public float Endurance => entity.GetComponent<StaminaComponent>().endurance;
+    public int Rating => entity.GetComponent<ArmorComponent>().rating;
+    public float Pace => entity.GetComponent<SpeedComponent>().pace;
+    public int Gold => entity.GetComponent<PurseComponent>().gold;
+    public float Spirit => entity.GetComponent<MoraleComponent>().spirit;
+}
+
+/// <summary>
+/// The v1 path with the interface taken out: same handle-plus-api shape, but the api is the concrete
+/// type, so the generic call can devirtualize. Splits "interface dispatch" from "extra node lookup".
+/// </summary>
+internal readonly struct ConcreteApiHero(RawEntity raw, ReadyM.SDK.Client.Entity.ClientEntityApi api)
+{
+    public float Endurance => api.GetComponent<StaminaComponent>(raw).endurance;
+    public int Rating => api.GetComponent<ArmorComponent>(raw).rating;
+    public float Pace => api.GetComponent<SpeedComponent>(raw).pace;
+    public int Gold => api.GetComponent<PurseComponent>(raw).gold;
+    public float Spirit => api.GetComponent<MoraleComponent>(raw).spirit;
+}
+
+/// <summary>
+/// The v1 path with the api taken out entirely: resolve the entity once, then read each component.
+/// This is what per-entity resolution caching would amount to.
+/// </summary>
+public readonly struct ResolvedHero(FrifloEntity entity)
+{
+    public float Endurance => entity.GetComponent<StaminaComponent>().endurance;
+    public int Rating => entity.GetComponent<ArmorComponent>().rating;
+    public float Pace => entity.GetComponent<SpeedComponent>().pace;
+    public int Gold => entity.GetComponent<PurseComponent>().gold;
+    public float Spirit => entity.GetComponent<MoraleComponent>().spirit;
+}

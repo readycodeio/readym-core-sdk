@@ -4,7 +4,7 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
-internal class ClientEntityApi : IEntityApi
+internal sealed class ClientEntityApi : IEntityApi
 {
     private readonly EntityStore _store;
 

@@ -29,9 +29,9 @@ internal static class AccessorEmitter
             var component = model.QualifiedComponent;
 
             writer.Line();
-            writer.Line($"public static bool Has({ArchetypeNames.EntityHandle} handle) => handle.HasComponent<{component}>();");
+            writer.Line($"public static bool Has(in {ArchetypeNames.EntityHandle} handle) => handle.HasComponent<{component}>();");
             writer.Line();
-            writer.Line($"public static void Add({ArchetypeNames.EntityHandle} handle) => handle.AddComponent<{component}>();");
+            writer.Line($"public static void Add(in {ArchetypeNames.EntityHandle} handle) => handle.AddComponent<{component}>();");
 
             foreach (var accessor in model.Accessors)
                 Members(writer, accessor, component);
@@ -43,18 +43,18 @@ internal static class AccessorEmitter
         var read = $"handle.GetComponent<{component}>().{accessor.Field}";
 
         writer.Line();
-        writer.Line($"public static {accessor.Type} Get{accessor.Name}({ArchetypeNames.EntityHandle} handle) => {read};");
+        writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {ArchetypeNames.EntityHandle} handle) => {read};");
 
         if (accessor.HasSetter)
         {
             writer.Line();
-            writer.Line($"public static void Set{accessor.Name}({ArchetypeNames.EntityHandle} handle, {accessor.Type} value)");
+            writer.Line($"public static void Set{accessor.Name}(in {ArchetypeNames.EntityHandle} handle, {accessor.Type} value)");
             writer.Line($"    => {read} = value;");
         }
 
         writer.Line();
 
-        var signature = $"public static bool TryGet{accessor.Name}({ArchetypeNames.EntityHandle} handle, out {accessor.Type} value)";
+        var signature = $"public static bool TryGet{accessor.Name}(in {ArchetypeNames.EntityHandle} handle, out {accessor.Type} value)";
 
         using (writer.Braces(signature))
         {

@@ -20,6 +20,7 @@ public class FiveComponentBenchmarks
     public int Entities { get; set; }
 
     private IEntities _sdk = null!;
+    private ClientEntityApi _concreteApi = null!;
     private ArchetypeQuery<StaminaComponent, ArmorComponent, SpeedComponent, PurseComponent, MoraleComponent> _friflo = null!;
     private ForEachEntity<StaminaComponent, ArmorComponent, SpeedComponent, PurseComponent, MoraleComponent> _lambda = null!;
     private float _sink;
@@ -37,7 +38,8 @@ public class FiveComponentBenchmarks
                 new PurseComponent { gold = 4 },
                 new MoraleComponent { spirit = 5f });
 
-        _sdk = new SdkEntities(store, new ClientEntityApi(store));
+        _concreteApi = new ClientEntityApi(store);
+        _sdk = new SdkEntities(store, _concreteApi);
         _friflo = store.Query<StaminaComponent, ArmorComponent, SpeedComponent, PurseComponent, MoraleComponent>();
 
         // Cached, so the delegate allocation does not land inside the measured region.
@@ -71,6 +73,49 @@ public class FiveComponentBenchmarks
         _sink = 0f;
         _friflo.ForEachEntity(_lambda);
         return _sink;
+    }
+
+    [Benchmark(Description = "Friflo entities")]
+    public float FrifloEntities()
+    {
+        var total = 0f;
+
+        foreach (var entity in _friflo.Entities)
+            total += entity.GetComponent<StaminaComponent>().endurance
+                     + entity.GetComponent<ArmorComponent>().rating
+                     + entity.GetComponent<SpeedComponent>().pace
+                     + entity.GetComponent<PurseComponent>().gold
+                     + entity.GetComponent<MoraleComponent>().spirit;
+
+        return total;
+    }
+
+    [Benchmark(Description = "v0 wrapper")]
+    public float V0Wrapper()
+    {
+        var total = 0f;
+
+        foreach (var entity in _friflo.Entities)
+        {
+            var hero = new V0Hero(entity);
+            total += hero.Endurance + hero.Rating + hero.Pace + hero.Gold + hero.Spirit;
+        }
+
+        return total;
+    }
+
+    [Benchmark(Description = "v1 shape, concrete api")]
+    public float ConcreteApi()
+    {
+        var total = 0f;
+
+        foreach (var entity in _friflo.Entities)
+        {
+            var hero = new ConcreteApiHero(entity.RawEntity, _concreteApi);
+            total += hero.Endurance + hero.Rating + hero.Pace + hero.Gold + hero.Spirit;
+        }
+
+        return total;
     }
 
     [Benchmark(Description = "v1 Query<Hero>")]
