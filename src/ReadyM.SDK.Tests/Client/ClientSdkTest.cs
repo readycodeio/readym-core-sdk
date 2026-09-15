@@ -43,6 +43,20 @@ public abstract class ClientSdkTest : IDisposable
 
     protected IEntities Entities { get; }
 
+    /// <summary>
+    /// Creates an entity carrying exactly what the archetype needs, without naming its components.
+    /// </summary>
+    /// <remarks>
+    /// The typed helpers below write component values directly, which only works for components this
+    /// assembly declared. This one goes through the component set, so it also works for an archetype
+    /// whose components belong to another assembly.
+    /// </remarks>
+    protected T Spawn<T>() where T : struct, IArchetypeQueryable
+    {
+        var archetype = Store.GetArchetype(ClientComponents.Resolve(ComponentsOf<T>()));
+        return new T { Handle = new EntityHandle(archetype.CreateEntity().RawEntity, Api) };
+    }
+
     protected Monster SpawnMonster(int level = 1, float hp = 50f, float maxHp = 100f, float x = 0f, float y = 0f)
     {
         var entity = Store.CreateEntity(

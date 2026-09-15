@@ -12,15 +12,20 @@ internal enum IncludeKind
 }
 
 /// <summary>One partial property an author declared on a mixin or archetype.</summary>
-internal sealed class AccessorModel(IPropertySymbol property)
+internal sealed class AccessorModel(string name, string type, bool hasSetter)
 {
-    public string Name { get; } = property.Name;
+    public AccessorModel(IPropertySymbol property)
+        : this(property.Name, property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), property.SetMethod is not null)
+    {
+    }
 
-    public string Type { get; } = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+    public string Name { get; } = name;
 
-    public bool HasSetter { get; } = property.SetMethod is not null;
+    public string Type { get; } = type;
 
-    public string Field { get; } = ArchetypeNames.FieldOf(property.Name);
+    public bool HasSetter { get; } = hasSetter;
+
+    public string Field { get; } = ArchetypeNames.FieldOf(name);
 }
 
 /// <summary>One entry of an <c>[Include]</c> or <c>[IncludeArchetype]</c> on an archetype.</summary>
@@ -36,7 +41,8 @@ internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind, bool
 
     public string Parameter { get; } = type.Name.ToLowerFirst();
 
-    public string Component { get; } = ArchetypeNames.QualifiedComponentOf(type);
+    /// <summary>The class a consumer goes through, wherever the declaration was compiled.</summary>
+    public string Accessors { get; } = ArchetypeNames.QualifiedAccessorsOf(type);
 }
 
 /// <summary>
@@ -71,50 +77,11 @@ internal sealed class DeclarationModel
 
     public string QualifiedComponent => ArchetypeNames.QualifiedComponentOf(Symbol);
 
+    public string QualifiedAccessors => ArchetypeNames.QualifiedAccessorsOf(Symbol);
+
     public string QualifiedName => Namespace.Length == 0 ? $"global::{Name}" : $"global::{Namespace}.{Name}";
 
     public static DeclarationModel For(INamedTypeSymbol symbol) => new(symbol);
-
-    /// <summary>
-    /// Every component an entity of this archetype carries, its own first, then whatever it includes.
-    /// </summary>
-    /// <remarks>
-    /// Optional includes are left out on purpose: they are what an entity may carry, not what a query
-    /// has to match. Including an archetype pulls in that archetype's components too, so this walks.
-    /// </remarks>
-    public IReadOnlyList<string> RequiredComponents()
-    {
-        var components = new List<string>();
-
-        if (HasOwnComponent)
-            components.Add(QualifiedComponent);
-
-        Collect(this, components, new HashSet<string>());
-        return components;
-    }
-
-    private static void Collect(DeclarationModel model, List<string> into, HashSet<string> seen)
-    {
-        foreach (var include in model.Includes)
-        {
-            if (include.Optional || include.Kind == IncludeKind.Tag)
-                continue;
-
-            if (include.Kind == IncludeKind.Archetype)
-            {
-                var included = For(include.Type);
-
-                if (included.HasOwnComponent && seen.Add(included.QualifiedComponent))
-                    into.Add(included.QualifiedComponent);
-
-                Collect(included, into, seen);
-                continue;
-            }
-
-            if (seen.Add(include.Component))
-                into.Add(include.Component);
-        }
-    }
 
     /// <summary>
     /// The accessors a mixin contributes, flattened onto whatever includes it, transitively through
@@ -144,7 +111,7 @@ internal sealed class DeclarationModel
                 var included = For(include.Type);
 
                 foreach (var accessor in included.Accessors.Where(accessor => taken.Add(accessor.Name)))
-                    into.Add((new IncludeModel(included.Symbol, IncludeKind.Archetype, false), accessor));
+                    into.Add((include, accessor));
 
                 Flatten(included, into, taken);
                 continue;
@@ -155,19 +122,45 @@ internal sealed class DeclarationModel
         }
     }
 
+    /// <summary>
+    /// The accessors declared directly on a type, never the ones it inherited by including something.
+    /// </summary>
+    /// <remarks>
+    /// A declaration in this compilation states them as partial properties. One that arrived as
+    /// metadata has them compiled, and its flattened accessors look exactly the same, so the accessor
+    /// class is what tells them apart: it carries a Get method per accessor the type owns.
+    /// </remarks>
     private static IReadOnlyList<AccessorModel> ReadAccessors(INamedTypeSymbol symbol)
-        => symbol.GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(IsAccessor)
-            .Select(property => new AccessorModel(property))
-            .ToList();
+        => symbol.DeclaringSyntaxReferences.IsEmpty
+            ? FromAccessorClass(symbol)
+            : symbol.GetMembers()
+                .OfType<IPropertySymbol>()
+                .Where(property => property.IsPartialDefinition)
+                .Select(property => new AccessorModel(property))
+                .ToList();
 
-    // A declaration in this compilation states its accessors as partial properties. One that arrived
-    // as metadata has them compiled already, so the interface members are what has to be skipped.
-    private static bool IsAccessor(IPropertySymbol property)
-        => property is { IsStatic: false, ExplicitInterfaceImplementations.IsEmpty: true }
-           && property.Name is not ("Handle" or "Components" or "IsValid")
-           && (property.IsPartialDefinition || property.DeclaredAccessibility == Accessibility.Public);
+    private static IReadOnlyList<AccessorModel> FromAccessorClass(INamedTypeSymbol symbol)
+    {
+        var accessorClass = symbol.ContainingNamespace?
+            .GetTypeMembers(AccessorEmitter.ClassNameOf(symbol.Name))
+            .FirstOrDefault();
+
+        if (accessorClass is null)
+            return [];
+
+        var methods = accessorClass.GetMembers().OfType<IMethodSymbol>().Where(method => method.IsStatic).ToList();
+        var setters = new HashSet<string>(methods
+            .Where(method => method.Name.StartsWith("Set", System.StringComparison.Ordinal))
+            .Select(method => method.Name.Substring(3)));
+
+        return methods
+            .Where(method => method.Name.StartsWith("Get", System.StringComparison.Ordinal) && method.Parameters.Length == 1)
+            .Select(method => new AccessorModel(
+                method.Name.Substring(3),
+                method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                setters.Contains(method.Name.Substring(3))))
+            .ToList();
+    }
 
     private static IReadOnlyList<IncludeModel> ReadIncludes(INamedTypeSymbol symbol)
     {

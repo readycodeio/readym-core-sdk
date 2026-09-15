@@ -38,6 +38,14 @@ internal static class ArchetypeNames
         return ns.Length == 0 ? "global::" + ComponentOf(declaration) : $"global::{ns}.{ComponentOf(declaration)}";
     }
 
+    /// <summary>The accessor class a consumer in any assembly goes through.</summary>
+    public static string QualifiedAccessorsOf(INamedTypeSymbol declaration)
+    {
+        var ns = NamespaceOf(declaration);
+        var name = declaration.Name + "Accessors";
+        return ns.Length == 0 ? "global::" + name : $"global::{ns}.{name}";
+    }
+
     public static string NamespaceOf(INamedTypeSymbol symbol)
         => symbol.ContainingNamespace.IsGlobalNamespace ? string.Empty : symbol.ContainingNamespace.ToDisplayString();
 

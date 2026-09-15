@@ -36,11 +36,13 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         HandleEmitter.File(writer, model);
         ComponentEmitter.Emit(writer, model.Component, model.Accessors);
         writer.Line();
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model));
+        writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}"))
         {
             HandleEmitter.Handle(writer, model);
-            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedComponent, partial: true);
+            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
         }
 
         return ($"{symbol.Name}.Mixin.g.cs", writer.ToString());

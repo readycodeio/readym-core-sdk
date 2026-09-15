@@ -42,11 +42,14 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             writer.Line();
         }
 
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model));
+        writer.Line();
+
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}"))
         {
             HandleEmitter.Handle(writer, model);
             EmitIdentity(writer);
-            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedComponent, partial: true);
+            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
             EmitIncluded(writer, model);
             EmitOptional(writer, model);
             EmitConversions(writer, model);
@@ -79,16 +82,14 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
             if (!include.Optional)
             {
-                HandleEmitter.Accessor(writer, accessor, include.Component, partial: false);
+                HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false);
                 continue;
             }
 
             // An absent optional mixin reads as null rather than throwing. Writing through it needs
             // the narrower handle below, which is what keeps a plain assignment from ever failing.
             writer.Line($"public {accessor.Type}? {accessor.Name}");
-            writer.Line($"    => _handle.TryGetComponent<{include.Component}>(out var component)");
-            writer.Line($"        ? component.{accessor.Field}");
-            writer.Line("        : null;");
+            writer.Line($"    => {include.Accessors}.TryGet{accessor.Name}(_handle, out var value) ? value : null;");
         }
     }
 
@@ -103,7 +104,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
             using (writer.Braces($"public bool {ArchetypeNames.TryGetOf(include.Type)}(out {mixin} {include.Parameter})"))
             {
-                using (writer.Braces($"if (_handle.HasComponent<{include.Component}>())"))
+                using (writer.Braces($"if ({include.Accessors}.Has(_handle))"))
                 {
                     writer.Line($"{include.Parameter} = new {mixin}(_handle);");
                     writer.Line("return true;");
@@ -118,7 +119,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
             using (writer.Braces($"public {mixin} {ArchetypeNames.RequireOf(include.Type)}()"))
             {
-                writer.Line($"if (!_handle.HasComponent<{include.Component}>())");
+                writer.Line($"if (!{include.Accessors}.Has(_handle))");
                 writer.Line($"    throw new global::System.InvalidOperationException($\"{{_handle}} does not carry {name}.\");");
                 writer.Line();
                 writer.Line($"return new {mixin}(_handle);");
@@ -128,8 +129,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
             using (writer.Braces($"public {mixin} {ArchetypeNames.EnsureOf(include.Type)}()"))
             {
-                writer.Line($"if (!_handle.HasComponent<{include.Component}>())");
-                writer.Line($"    _handle.AddComponent<{include.Component}>();");
+                writer.Line($"if (!{include.Accessors}.Has(_handle))");
+                writer.Line($"    {include.Accessors}.Add(_handle);");
                 writer.Line();
                 writer.Line($"return new {mixin}(_handle);");
             }

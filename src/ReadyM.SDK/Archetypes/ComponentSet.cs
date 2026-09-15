@@ -38,6 +38,18 @@ public sealed class ComponentSet
     public static ComponentSet Of<T1, T2, T3, T4, T5, T6>()
         where T1 : struct where T2 : struct where T3 : struct where T4 : struct where T5 : struct where T6 : struct
         => Cache<T1, T2, T3, T4, T5, T6>.Set;
+    
+    public static ComponentSet Combine(params ComponentSet[] sets)
+    {
+        var types = new List<Type>();
+
+        foreach (var set in sets)
+        foreach (var type in set.Types)
+            if (!types.Contains(type))
+                types.Add(type);
+
+        return types.Count == 0 ? Empty : new ComponentSet(types.ToArray());
+    }
 
     public override string ToString() => string.Join(", ", Types.Select(type => type.Name));
 

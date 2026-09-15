@@ -24,6 +24,7 @@
       <ProjectReference Include="..\ReadyM.SDK.Client\ReadyM.SDK.Client.csproj" />
       <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj" />
       <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+      <ProjectReference Include="..\ReadyM.SDK.Tests.ExternalMod\ReadyM.SDK.Tests.ExternalMod.csproj" />
     </ItemGroup>
 
 </Project>

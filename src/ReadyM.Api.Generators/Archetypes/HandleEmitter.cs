@@ -3,7 +3,8 @@ using System.Collections.Generic;
 namespace ReadyM.Api.Generators.Archetypes;
 
 /// <summary>
-/// The parts a mixin and an archetype share: the handle they wrap, and accessors reading one component.
+/// The parts a mixin and an archetype share: the handle they wrap, and accessors that read through
+/// the accessor class rather than the component.
 /// </summary>
 internal static class HandleEmitter
 {
@@ -34,51 +35,51 @@ internal static class HandleEmitter
         }
 
         writer.Line();
-        writer.Line($"{ArchetypeNames.ComponentSet} {ArchetypeNames.Queryable}.Components => {ComponentSet(model)};");
+        writer.Line($"{ArchetypeNames.ComponentSet} {ArchetypeNames.Queryable}.Components => {model.QualifiedAccessors}.Components;");
     }
 
+    /// <summary>The set an accessor class exposes: its own component plus whatever it includes.</summary>
     public static string ComponentSet(DeclarationModel model)
     {
-        var components = model.RequiredComponents();
+        var sets = AccessorEmitter.Sets(model);
 
-        if (components.Count == 0)
-            return $"{ArchetypeNames.ComponentSet}.Empty";
-
-        return $"{ArchetypeNames.ComponentSet}.Of<{string.Join(", ", components)}>()";
+        return sets.Count switch
+        {
+            0 => $"{ArchetypeNames.ComponentSet}.Empty",
+            1 => sets[0],
+            _ => $"{ArchetypeNames.ComponentSet}.Combine({string.Join(", ", sets)})"
+        };
     }
 
-    /// <summary>An accessor reading and writing one field of one component the entity always carries.</summary>
-    public static void Accessor(SourceWriter writer, AccessorModel accessor, string component, bool partial)
+    public static void Accessor(SourceWriter writer, AccessorModel accessor, string accessors, bool partial)
     {
         var declaration = partial
             ? $"public partial {accessor.Type} {accessor.Name}"
             : $"public {accessor.Type} {accessor.Name}";
 
-        var read = $"_handle.GetComponent<{component}>().{accessor.Field}";
-
         if (!accessor.HasSetter)
         {
-            writer.Line($"{declaration} => {read};");
+            writer.Line($"{declaration} => {accessors}.Get{accessor.Name}(_handle);");
             return;
         }
 
         using (writer.Braces(declaration))
         {
-            writer.Line($"get => {read};");
-            writer.Line($"set => {read} = value;");
+            writer.Line($"get => {accessors}.Get{accessor.Name}(_handle);");
+            writer.Line($"set => {accessors}.Set{accessor.Name}(_handle, value);");
         }
     }
 
     public static void Accessors(
         SourceWriter writer,
         IReadOnlyList<AccessorModel> accessors,
-        string component,
+        string accessorClass,
         bool partial)
     {
         foreach (var accessor in accessors)
         {
             writer.Line();
-            Accessor(writer, accessor, component, partial);
+            Accessor(writer, accessor, accessorClass, partial);
         }
     }
 }
