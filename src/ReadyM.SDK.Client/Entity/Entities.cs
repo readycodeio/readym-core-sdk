@@ -4,7 +4,7 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
-public class Entities(EntityStore store, IEntityApi api) : IEntities
+internal class Entities(EntityStore store, IEntityApi api) : IEntities
 {
     public QueryBuilder<T> Query<T>()
         where T : struct, IArchetypeQueryable

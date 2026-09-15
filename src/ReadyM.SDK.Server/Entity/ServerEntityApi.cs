@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
@@ -17,7 +18,7 @@ internal sealed class ServerEntityApi : IEntityApi
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly ComponentRegistry _registry;
-    private readonly Dictionary<ComponentSet, int[]> _componentIds = new();
+    private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
 
     internal ServerEntityApi(EcsApiPointers pointers, ComponentRegistry registry)
     {
@@ -116,22 +117,18 @@ internal sealed class ServerEntityApi : IEntityApi
         return buffer;
     }
 
-    private int[] ResolveIds(ComponentSet components)
+    private int[] ResolveIds(ComponentSet components) => _componentIds.GetOrAdd(components, static (set, self) =>
     {
-        if (_componentIds.TryGetValue(components, out var ids))
-            return ids;
-
-        if (components.Types.Length == 0)
+        if (set.Types.Length == 0)
             throw new NotSupportedException(
                 "An archetype with no components cannot be queried on the server: its identity there is its component set.");
 
-        ids = new int[components.Types.Length];
+        var ids = new int[set.Types.Length];
         for (var i = 0; i < ids.Length; i++)
-            ids[i] = _registry.ResolveComponentId(components.Types[i]);
+            ids[i] = self._registry.ResolveComponentId(set.Types[i]);
 
-        _componentIds[components] = ids;
         return ids;
-    }
+    }, this);
 
     // A v1 handle always carries the revision it was created with, so every call opts into the
     // check. The relay reports an identity whose id now holds another entity as gone.

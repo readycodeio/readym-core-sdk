@@ -41,13 +41,20 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         return new QueryBuilder<T>(newQuery, _api);
     }
 
-    public struct Enumerator(ArchetypeQuery query, IEntityApi api) : IDisposable
+    public struct Enumerator : IDisposable
     {
-        private EntitiesEnumerator _enumerator = query.Entities.GetEnumerator();
+        private readonly IEntityApi _api;
+        private EntitiesEnumerator _enumerator;
+
+        internal Enumerator(ArchetypeQuery query, IEntityApi api)
+        {
+            _api = api;
+            _enumerator = query.Entities.GetEnumerator();
+        }
 
         public T Current => new()
         {
-            Handle = new EntityHandle(_enumerator.Current.RawEntity, api)
+            Handle = new EntityHandle(_enumerator.Current.RawEntity, _api)
         };
 
         public bool MoveNext()
@@ -58,7 +65,7 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         public void Dispose()
         {
             _enumerator.Dispose();
-            api.Playback();
+            _api.Playback();
         }
     }
 

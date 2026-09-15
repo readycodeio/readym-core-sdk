@@ -1,16 +1,19 @@
+using System.ComponentModel;
+
 namespace ReadyM.SDK.Archetypes;
 
 /// <summary>
 /// Represents a set of component types that make up an archetype or mixin.
 /// A general class like this is required since the client uses ComponentTypes and the server uses numeric IDs.
 /// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class ComponentSet
 {
     public static readonly ComponentSet Empty = new([]);
 
     private ComponentSet(Type[] types) => Types = types;
 
-    public Type[] Types { get; }
+    internal Type[] Types { get; }
 
     public static ComponentSet Of<T1>()
         where T1 : struct

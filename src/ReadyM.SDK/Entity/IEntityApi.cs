@@ -1,12 +1,10 @@
-using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Entity;
 
-[EditorBrowsable(EditorBrowsableState.Never)]
-public interface IEntityApi
+internal interface IEntityApi
 {
     public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent;
     public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent;

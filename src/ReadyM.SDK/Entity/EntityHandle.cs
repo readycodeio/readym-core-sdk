@@ -22,8 +22,13 @@ public readonly struct EntityHandle
     /// <summary>Identity including the revision, which tells this entity apart from a later one that took its id.</summary>
     internal RawEntity RawEntity => _rawEntity;
 
-    /// <summary>The handle behind an archetype or mixin struct, without boxing it.</summary>
-    internal static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable => archetype.Handle;
+    /// <summary>
+    /// The handle behind an archetype or mixin struct, without boxing it. Generated conversions read
+    /// it out of the struct they convert from.
+    /// </summary>
+    public static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable => archetype.Handle;
+
+    public override string ToString() => $"entity {_rawEntity.Id}";
 
     public bool IsAlive() => _api.IsAlive(_rawEntity);
 

@@ -80,7 +80,7 @@ public readonly partial struct Chest : IArchetype
     public Loot RequireLoot()
     {
         if (!_handle.HasComponent<LootComponent>())
-            throw new InvalidOperationException($"Entity {_handle.Id} does not carry Loot.");
+            throw new InvalidOperationException($"{_handle} does not carry Loot.");
 
         return new Loot(_handle);
     }

@@ -39,7 +39,7 @@ public abstract class ClientSdkTest : IDisposable
 
     protected EntityStore Store { get; }
 
-    protected IEntityApi Api { get; }
+    internal IEntityApi Api { get; }
 
     protected IEntities Entities { get; }
 
