@@ -32,6 +32,7 @@ internal class CSharpFieldSupportRegistry
     ];
 
     internal static readonly ICSharpSerializationCodec NetDataCodec = new NetDataSerializationCodec();
+    internal static readonly ICSharpSerializationCodec SaveCodec = new SaveSerializationCodec();
 
     internal static readonly DeriveTypeSupportVisitorBase<ICSharpFieldTypeSupportImpl> FieldTypeSupportVisitor = new(
         CSharpFieldSupportImpls,
