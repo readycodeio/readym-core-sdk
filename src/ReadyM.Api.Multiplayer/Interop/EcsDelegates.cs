@@ -16,22 +16,29 @@ internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componen
 
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 
-internal delegate int CreateNetworkedEntityDelegate(ArchetypeId archetype, byte hasOwnerOverride, PlayerId ownerOverride);
+// Entity identity crosses the boundary as a RawEntity, id plus revision, because the relay world
+// recycles ids: the id freed by a delete is the next one handed out. A caller that kept an identity
+// across ticks and passes matchRevision = 1 is told the entity is gone; one that passes 0 addresses
+// whatever holds the id now, which is what the v0 API can offer and all it ever offered.
+internal delegate RawEntity CreateNetworkedEntityDelegate(ArchetypeId archetype, byte hasOwnerOverride, PlayerId ownerOverride);
 
-internal delegate int CreateNetworkedPlayerEntityDelegate(ArchetypeId archetype, PlayerId playerId, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate RawEntity CreateNetworkedPlayerEntityDelegate(ArchetypeId archetype, PlayerId playerId, byte hasOwnerOverride, PlayerId ownerOverride);
 
-internal delegate int CreateNetworkedAreaEntityDelegate(ArchetypeId archetype, AreaId areaId, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate RawEntity CreateNetworkedAreaEntityDelegate(ArchetypeId archetype, AreaId areaId, byte hasOwnerOverride, PlayerId ownerOverride);
 
-internal delegate int CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
+internal delegate RawEntity CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
 
 /// <summary>Creates a server-only entity: no metadata, never replicated to clients.</summary>
-internal delegate int CreateLocalEntityDelegate(ArchetypeId archetype);
+internal delegate RawEntity CreateLocalEntityDelegate(ArchetypeId archetype);
 
 /// <summary>1 if the entity existed and was deleted, else 0.</summary>
-internal delegate int DeleteNetworkedEntityDelegate(int entityId);
+internal delegate int DeleteNetworkedEntityDelegate(RawEntity entity, byte matchRevision);
 
 /// <summary>Deletes an entity together with every entity below it in the tree.</summary>
-internal delegate int DeleteEntityTreeDelegate(int entityId);
+internal delegate int DeleteEntityTreeDelegate(RawEntity entity, byte matchRevision);
+
+// The tree calls below still take bare ids. They are v0 only, and relationships on the v1 surface
+// are still open in the spec, so they get revisions when that lands.
 
 /// <summary>
 /// Makes the child belong to the parent. Returns the index it took among the parent's children,
@@ -50,13 +57,13 @@ internal delegate int GetChildrenDelegate(int parentId, IntPtr buffer, int capac
 
 /// <summary>1 when the entity is in the world, else 0. The mod host has no store of its own, so
 /// validity of a handle it kept across ticks can only be answered here.</summary>
-internal delegate byte IsEntityAliveDelegate(int entityId);
+internal delegate byte IsEntityAliveDelegate(RawEntity entity, byte matchRevision);
 
 /// <summary>
 /// Locates one component of one entity, the same way a chunk slot is located: by address when the
 /// AOT side owns it, by heap handle and index when a mod does.
 /// </summary>
-internal unsafe delegate void GetComponentSlotDelegate(int entityId, int componentType, ComponentSlot* slot);
+internal unsafe delegate void GetComponentSlotDelegate(RawEntity entity, byte matchRevision, int componentType, ComponentSlot* slot);
 
 // The five serialization callbacks below address a mod component by its heap and index rather than
 // by address. The component lives in the embedded runtime, where the GC is free to relocate the
@@ -119,9 +126,10 @@ internal struct ComponentSlot
 
 /// <summary>
 /// Chunk callback for a query of any arity. <paramref name="comps"/> holds <paramref name="n"/>
-/// slots in the order the components were requested.
+/// slots in the order the components were requested, and <paramref name="entities"/> points at
+/// <paramref name="count"/> <see cref="RawEntity"/> values.
 /// </summary>
-internal unsafe delegate void ChunkCallback(IntPtr ids, ChunkComponent* comps, int n, int count);
+internal unsafe delegate void ChunkCallback(IntPtr entities, ChunkComponent* comps, int n, int count);
 
 /// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
 internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);

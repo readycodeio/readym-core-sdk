@@ -36,10 +36,10 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
     public struct Enumerator : IDisposable
     {
         private readonly ServerEntityApi _api;
-        private readonly EntityIdBuffer _buffer;
+        private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal Enumerator(ServerEntityApi api, EntityIdBuffer buffer)
+        internal Enumerator(ServerEntityApi api, EntityBuffer buffer)
         {
             _api = api;
             _buffer = buffer;

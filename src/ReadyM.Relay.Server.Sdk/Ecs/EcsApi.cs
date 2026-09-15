@@ -1,5 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
@@ -220,7 +221,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(in Entity entity)
     {
-        return DeleteEntity(entity.Id);
+        return _deleteNetworkedEntity(entity.RawEntity, 1) != 0;
     }
 
     /// <summary>
@@ -230,7 +231,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(int entityId)
     {
-        return _deleteNetworkedEntity(entityId) != 0;
+        return _deleteNetworkedEntity(RawEntities.FromId(entityId), 0) != 0;
     }
 
     /// <summary>
@@ -241,7 +242,7 @@ public partial class EcsApi
     /// <returns>How many entities were deleted.</returns>
     public int DeleteEntityTree(int entityId)
     {
-        return _deleteEntityTree(entityId);
+        return _deleteEntityTree(RawEntities.FromId(entityId), 0);
     }
 
     /// <summary>
@@ -312,7 +313,7 @@ public partial class EcsApi
     private unsafe ComponentSlot Locate<T>(int entityId) where T : struct
     {
         ComponentSlot slot;
-        _getComponentSlot(entityId, _registry.ResolveComponentId<T>(), &slot);
+        _getComponentSlot(RawEntities.FromId(entityId), 0, _registry.ResolveComponentId<T>(), &slot);
         return slot;
     }
 
@@ -373,8 +374,8 @@ public partial class EcsApi
         return ref Unsafe.AsRef<T>((void*)slot.Data);
     }
 
-    internal Entity EntityFrom(int entityId)
+    internal Entity EntityFrom(RawEntity rawEntity)
     {
-        return new Entity(entityId, _getComponentSlot, _registry);
+        return new Entity(rawEntity, _getComponentSlot, _registry);
     }
 }

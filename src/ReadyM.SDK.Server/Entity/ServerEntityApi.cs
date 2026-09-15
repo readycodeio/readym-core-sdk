@@ -27,24 +27,24 @@ internal sealed class ServerEntityApi : IEntityApi
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
     }
 
-    public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity.Id) != 0;
+    public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity, MatchRevision) != 0;
 
     public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-        => Locate<T>(rawEntity.Id).Found();
+        => Locate<T>(rawEntity).Found();
 
     public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent
     {
-        var slot = Locate<T>(rawEntity.Id);
+        var slot = Locate<T>(rawEntity);
 
         if (!slot.Found())
-            throw Missing<T>(rawEntity.Id);
+            throw Missing<T>(rawEntity);
 
         return ref SlotRef<T>(slot);
     }
 
     public bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent
     {
-        var slot = Locate<T>(rawEntity.Id);
+        var slot = Locate<T>(rawEntity);
 
         if (!slot.Found())
         {
@@ -73,10 +73,10 @@ internal sealed class ServerEntityApi : IEntityApi
         // TODO: Implement when there are any structural changes
     }
 
-    internal unsafe EntityIdBuffer CollectMatching(ComponentSet components)
+    internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {
         var ids = ResolveIds(components);
-        var buffer = EntityIdBuffer.Rent();
+        var buffer = EntityBuffer.Rent();
 
         var previous = _collecting;
         _collecting = buffer;
@@ -113,16 +113,20 @@ internal sealed class ServerEntityApi : IEntityApi
         return ids;
     }
 
+    // A v1 handle always carries the revision it was created with, so every call opts into the
+    // check. The relay reports an identity whose id now holds another entity as gone.
+    private const byte MatchRevision = 1;
+
     [ThreadStatic]
-    private static EntityIdBuffer? _collecting;
+    private static EntityBuffer? _collecting;
 
     private static readonly unsafe ChunkCallback Collect =
-        static (ids, _, _, count) => _collecting!.Append((int*)ids, count);
+        static (entities, _, _, count) => _collecting!.Append((RawEntity*)entities, count);
 
-    private unsafe ComponentSlot Locate<T>(int entityId) where T : struct
+    private unsafe ComponentSlot Locate<T>(RawEntity rawEntity) where T : struct
     {
         ComponentSlot slot;
-        _getComponentSlot(entityId, _registry.ResolveComponentId<T>(), &slot);
+        _getComponentSlot(rawEntity, MatchRevision, _registry.ResolveComponentId<T>(), &slot);
         return slot;
     }
 
@@ -137,6 +141,6 @@ internal sealed class ServerEntityApi : IEntityApi
         return ref Unsafe.AsRef<T>((void*)slot.Data);
     }
 
-    private static ComponentNotFoundException Missing<T>(int entityId)
-        => new($"Entity {entityId} is gone or does not carry {typeof(T).Name}.");
+    private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
+        => new($"Entity {rawEntity.Id} is gone or does not carry {typeof(T).Name}.");
 }
