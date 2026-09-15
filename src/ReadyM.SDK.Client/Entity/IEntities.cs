@@ -1,6 +1,6 @@
 using ReadyM.SDK.Archetypes;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Client.Entity;
 
 public interface IEntities
 {

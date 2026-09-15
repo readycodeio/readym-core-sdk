@@ -1,7 +1,7 @@
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Entity;
 
-namespace ReadyM.SDK.Client;
+namespace ReadyM.SDK.Client.Entity;
 
 internal class EntityApi : IEntityApi
 {
