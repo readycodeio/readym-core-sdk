@@ -3,12 +3,12 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
-internal class EntityApi : IEntityApi
+internal class ClientEntityApi : IEntityApi
 {
     private readonly CommandBuffer _buffer;
     private readonly EntityStore _store;
 
-    public EntityApi(EntityStore store)
+    public ClientEntityApi(EntityStore store)
     {
         _store = store;
 

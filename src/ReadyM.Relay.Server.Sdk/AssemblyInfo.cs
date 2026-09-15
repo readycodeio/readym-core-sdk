@@ -5,3 +5,4 @@
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Wukong")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Oblivion")]
+[assembly: InternalsVisibleTo("ReadyM.SDK.Server")]
