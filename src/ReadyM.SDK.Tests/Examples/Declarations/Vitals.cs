@@ -30,7 +30,7 @@ public readonly partial struct Vitals(EntityHandle handle) : IArchetypeMixin
         init  => handle = value;
     }
 
-    public ComponentTypes ComponentTypes => ComponentTypes.Get<VitalsComponent>();
+    public ComponentSet Components => ComponentSet.Of<VitalsComponent>();
     
     public partial float Hp
     {

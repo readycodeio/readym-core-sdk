@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace ReadyM.Relay.Server.Sdk.Interop;
 
@@ -20,4 +20,5 @@ public  struct EcsApiPointers
     public required IntPtr GetParent;
     public required IntPtr GetChildren;
     public required IntPtr GetComponentSlot;
+    public required IntPtr IsEntityAlive;
 }

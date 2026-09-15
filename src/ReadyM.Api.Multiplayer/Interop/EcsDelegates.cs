@@ -1,4 +1,4 @@
-﻿// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Delegates and pointers - simplified now that IDs are plain ints
 // -------------------------------------------------------------------------
 
@@ -47,6 +47,10 @@ internal delegate int GetParentDelegate(int childId);
 /// exceed the capacity. Nothing is written when the buffer is too small.
 /// </summary>
 internal delegate int GetChildrenDelegate(int parentId, IntPtr buffer, int capacity);
+
+/// <summary>1 when the entity is in the world, else 0. The mod host has no store of its own, so
+/// validity of a handle it kept across ticks can only be answered here.</summary>
+internal delegate byte IsEntityAliveDelegate(int entityId);
 
 /// <summary>
 /// Locates one component of one entity, the same way a chunk slot is located: by address when the

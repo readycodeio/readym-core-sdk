@@ -29,7 +29,7 @@ public readonly partial struct Npc : IArchetype
 
     public bool IsValid => _handle.IsAlive();
 
-    public ComponentTypes ComponentTypes => new();
+    public ComponentSet Components => ComponentSet.Of<VitalsComponent>();
 
     public bool Has<T>() where T : struct, ITag => _handle.HasTag<T>();
 

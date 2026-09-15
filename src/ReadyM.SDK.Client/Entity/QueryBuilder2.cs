@@ -15,8 +15,8 @@ public readonly ref struct QueryBuilder<T1, T2>
     {
         _query = store.Query(new QueryFilter().AllComponents(new ComponentTypes
         {
-            default(T1).ComponentTypes,
-            default(T2).ComponentTypes
+            ClientComponents.Resolve(default(T1).Components),
+            ClientComponents.Resolve(default(T2).Components)
         }));
         _api = api;
     }

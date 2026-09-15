@@ -23,16 +23,18 @@ internal sealed class ComponentRegistry(
     // Maps mod struct type → component ID assigned by the server registry.
     private readonly Dictionary<Type, (int ComponentId, int Stride)> _registered = new();
 
-    internal int ResolveComponentId<T>() where T : struct
+    internal int ResolveComponentId<T>() where T : struct => ResolveComponentId(typeof(T));
+
+    internal int ResolveComponentId(Type type)
     {
-        if (_registered.TryGetValue(typeof(T), out var entry))
+        if (_registered.TryGetValue(type, out var entry))
         {
             // found locally
             return entry.ComponentId;
         }
 
-        var id = _getComponentIdByName(new NativeString256(typeof(T).FullName, false));
-        _registered.Add(typeof(T), (id, -1));
+        var id = _getComponentIdByName(new NativeString256(type.FullName, false));
+        _registered.Add(type, (id, -1));
 
         return id;
     }

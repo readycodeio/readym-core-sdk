@@ -11,7 +11,7 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
 
     internal QueryBuilder(EntityStore store, IEntityApi api)
     {
-        _query = store.Query(new QueryFilter().AllComponents(default(T).ComponentTypes));
+        _query = store.Query(new QueryFilter().AllComponents(ClientComponents.Resolve(default(T).Components)));
         _api = api;
     }
 

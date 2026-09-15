@@ -1,0 +1,142 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.Interop;
+using ReadyM.Relay.Server.Sdk.Ecs;
+using ReadyM.Relay.Server.Sdk.Ecs.Components;
+using ReadyM.Relay.Server.Sdk.Interop;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entity;
+using IComponent = Friflo.Engine.ECS.IComponent;
+
+namespace ReadyM.SDK.Server.Entity;
+
+internal sealed class ServerEntityApi : IEntityApi
+{
+    private readonly QueryDelegate _query;
+    private readonly GetComponentSlotDelegate _getComponentSlot;
+    private readonly IsEntityAliveDelegate _isEntityAlive;
+    private readonly ComponentRegistry _registry;
+    private readonly Dictionary<ComponentSet, int[]> _componentIds = new();
+
+    internal ServerEntityApi(EcsApiPointers pointers, ComponentRegistry registry)
+    {
+        _registry = registry;
+        _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
+        _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
+        _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
+    }
+
+    public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity.Id) != 0;
+
+    public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
+        => Locate<T>(rawEntity.Id).Found();
+
+    public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent
+    {
+        var slot = Locate<T>(rawEntity.Id);
+
+        if (!slot.Found())
+            throw Missing<T>(rawEntity.Id);
+
+        return ref SlotRef<T>(slot);
+    }
+
+    public bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent
+    {
+        var slot = Locate<T>(rawEntity.Id);
+
+        if (!slot.Found())
+        {
+            component = default;
+            return false;
+        }
+
+        component = SlotRef<T>(slot);
+        return true;
+    }
+
+    // TODO
+    public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
+        => throw new NotSupportedException($"Cannot add {typeof(T).Name} to entity {rawEntity.Id}: the server fixes an entity's components at creation.");
+
+    // TODO
+    public bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag
+        => throw new NotSupportedException($"Tag {typeof(T).Name} has no server representation.");
+
+    // TODO
+    public void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag
+        => throw new NotSupportedException($"Tag {typeof(T).Name} has no server representation.");
+
+    void IEntityApi.Playback()
+    {
+        // TODO: Implement when there are any structural changes
+    }
+
+    internal unsafe EntityIdBuffer CollectMatching(ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var buffer = EntityIdBuffer.Rent();
+
+        var previous = _collecting;
+        _collecting = buffer;
+
+        try
+        {
+            fixed (int* componentIds = ids)
+            {
+                _query(componentIds, ids.Length, Collect);
+            }
+        }
+        finally
+        {
+            _collecting = previous;
+        }
+
+        return buffer;
+    }
+
+    private int[] ResolveIds(ComponentSet components)
+    {
+        if (_componentIds.TryGetValue(components, out var ids))
+            return ids;
+
+        if (components.Types.Length == 0)
+            throw new NotSupportedException(
+                "An archetype with no components cannot be queried on the server: its identity there is its component set.");
+
+        ids = new int[components.Types.Length];
+        for (var i = 0; i < ids.Length; i++)
+            ids[i] = _registry.ResolveComponentId(components.Types[i]);
+
+        _componentIds[components] = ids;
+        return ids;
+    }
+
+    [ThreadStatic]
+    private static EntityIdBuffer? _collecting;
+
+    private static readonly unsafe ChunkCallback Collect =
+        static (ids, _, _, count) => _collecting!.Append((int*)ids, count);
+
+    private unsafe ComponentSlot Locate<T>(int entityId) where T : struct
+    {
+        ComponentSlot slot;
+        _getComponentSlot(entityId, _registry.ResolveComponentId<T>(), &slot);
+        return slot;
+    }
+
+    private static unsafe ref T SlotRef<T>(scoped in ComponentSlot slot) where T : struct
+    {
+        if (slot.HeapSelf != IntPtr.Zero)
+        {
+            var heap = (TypedComponentHeap<T>)GCHandle.FromIntPtr(slot.HeapSelf).Target!;
+            return ref heap.GetRef(slot.Index);
+        }
+
+        return ref Unsafe.AsRef<T>((void*)slot.Data);
+    }
+
+    private static ComponentNotFoundException Missing<T>(int entityId)
+        => new($"Entity {entityId} is gone or does not carry {typeof(T).Name}.");
+}

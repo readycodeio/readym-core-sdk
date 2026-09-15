@@ -25,7 +25,7 @@ public readonly partial struct ReadyObject : IArchetype
         _handle = handle;
     }
 
-    public ComponentTypes ComponentTypes => new();
+    public ComponentSet Components => ComponentSet.Empty;
 
     public bool IsValid => _handle.IsAlive();
 

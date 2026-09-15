@@ -38,7 +38,7 @@ public readonly partial struct MainCharacter : IArchetype
         init  => _handle = value;
     }
 
-    public ComponentTypes ComponentTypes => ComponentTypes.Get<MainCharacterComponent, VitalsComponent, EquipmentComponent>();
+    public ComponentSet Components => ComponentSet.Of<MainCharacterComponent, VitalsComponent>();
 
     public bool IsValid => _handle.IsAlive();
 

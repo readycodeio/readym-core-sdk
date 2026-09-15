@@ -26,7 +26,7 @@ public readonly partial struct Equipment(EntityHandle handle) : IArchetypeMixin
         init  => handle = value;
     }
 
-    public ComponentTypes ComponentTypes => ComponentTypes.Get<EquipmentComponent>();
+    public ComponentSet Components => ComponentSet.Of<EquipmentComponent>();
     
     public partial string Weapon
     {
