@@ -31,7 +31,10 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var chunks = model.SupportsChunks ? ChunkNames.Resolve(context.SemanticModel.Compilation) : null;
+        // Accessors reachable from a chunk go on whenever the server SDK is there, because another
+        // declaration may include this one. The view itself needs this shape to be walkable.
+        var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
+        var view = model.SupportsChunks ? chunks : null;
 
         var writer = new SourceWriter();
 
@@ -47,12 +50,12 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
         }
 
-        if (chunks is not null)
+        if (view is not null)
         {
             writer.Line();
-            ChunkViewEmitter.Emit(writer, model, chunks);
+            ChunkViewEmitter.Emit(writer, model, view);
             writer.Line();
-            ChunkViewEmitter.EmitQueryBinding(writer, model, chunks);
+            ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
         return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString());

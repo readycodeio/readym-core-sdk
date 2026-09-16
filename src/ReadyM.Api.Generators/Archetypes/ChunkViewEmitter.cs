@@ -141,17 +141,7 @@ internal static class ChunkViewEmitter
 
     /// The component set's order, which is what the query asks the owning side for.
     private static IReadOnlyList<Slot> Slots(DeclarationModel model)
-    {
-        var slots = new List<Slot>();
-
-        if (model.HasOwnComponent)
-            slots.Add(new Slot(slots.Count, null));
-
-        foreach (var include in model.ChunkIncludes)
-            slots.Add(new Slot(slots.Count, include));
-
-        return slots;
-    }
+        => model.ComponentOwners().Select((owner, index) => new Slot(index, owner)).ToList();
 
     private static string Parameter(string field) => field.TrimStart('_');
 
@@ -161,6 +151,8 @@ internal static class ChunkViewEmitter
 
         public IncludeModel? Include { get; } = include;
 
-        public string Field { get; } = include is null ? "_own" : "_" + include.Parameter;
+        // Named by position rather than by the include, because two declarations in different
+        // namespaces can share a simple name and the fields would collide.
+        public string Field { get; } = include is null ? "_own" : $"_slot{index}";
     }
 }

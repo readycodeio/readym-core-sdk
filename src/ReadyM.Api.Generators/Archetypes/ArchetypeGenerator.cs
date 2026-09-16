@@ -49,7 +49,10 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var chunks = model.SupportsChunks ? ChunkNames.Resolve(context.SemanticModel.Compilation) : null;
+        // Accessors reachable from a chunk go on whenever the server SDK is there, because another
+        // declaration may include this one. The view itself needs this shape to be walkable.
+        var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
+        var view = model.SupportsChunks ? chunks : null;
 
         var writer = new SourceWriter();
 
@@ -74,12 +77,12 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitConversions(writer, model);
         }
 
-        if (chunks is not null)
+        if (view is not null)
         {
             writer.Line();
-            ChunkViewEmitter.Emit(writer, model, chunks);
+            ChunkViewEmitter.Emit(writer, model, view);
             writer.Line();
-            ChunkViewEmitter.EmitQueryBinding(writer, model, chunks);
+            ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
         return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString());
@@ -94,9 +97,9 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         writer.Line();
         writer.Line($"public void Set<T>(bool set) where T : struct, {ArchetypeNames.Tag} => _handle.SetTag<T>(set);");
         writer.Line();
-        writer.Line($"public bool Is<T>() where T : struct, {ArchetypeNames.Archetype} => _handle.Is<T>();");
+        writer.Line($"public bool Is<T>() where T : struct, {ArchetypeNames.Queryable} => _handle.Is<T>();");
         writer.Line();
-        writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Archetype}");
+        writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Queryable}");
         writer.Line("    => _handle.TryAs(out archetype);");
     }
 

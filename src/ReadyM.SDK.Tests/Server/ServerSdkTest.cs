@@ -32,6 +32,7 @@ public abstract class ServerSdkTest
         Relay.RegisterBlittable<SpeedComponent>();
         Relay.RegisterManaged<WealthComponent>();
         Relay.RegisterBlittable<MoodComponent>();
+        Relay.RegisterBlittable<QuestGiverComponent>();
 
         Api = Relay.CreateEntityApi();
         Entities = new ServerEntities(Api);

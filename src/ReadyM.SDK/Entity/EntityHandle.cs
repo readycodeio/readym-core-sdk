@@ -36,9 +36,9 @@ public readonly struct EntityHandle
 
     public bool IsAlive() => _api.IsAlive(_rawEntity);
 
-    public bool Is<T>() where T : struct, IArchetype => _api.HasComponents(_rawEntity, default(T).Components);
+    public bool Is<T>() where T : struct, IArchetypeQueryable => _api.HasComponents(_rawEntity, default(T).Components);
 
-    public bool TryAs<T>(out T archetype) where T : struct, IArchetype
+    public bool TryAs<T>(out T archetype) where T : struct, IArchetypeQueryable
     {
         if (Is<T>())
         {

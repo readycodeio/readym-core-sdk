@@ -82,24 +82,97 @@ internal sealed class DeclarationModel
     public string QualifiedName => Namespace.Length == 0 ? $"global::{Name}" : $"global::{Namespace}.{Name}";
 
     /// <summary>
-    /// The includes that contribute a component to a chunk, in component set order. Duplicates are
-    /// dropped because the set dedupes them too, and the two orders have to agree exactly.
+    /// Every declaration contributing a component, in the order the component set lists them: this
+    /// one's own component first, then each include expanded the same way.
     /// </summary>
-    public IReadOnlyList<IncludeModel> ChunkIncludes => Includes
-        .Where(include => include is { Optional: false, Kind: IncludeKind.Mixin })
-        .GroupBy(include => include.TypeName)
-        .Select(group => group.First())
-        .ToList();
+    /// <remarks>
+    /// Null stands for this declaration's own component; anything else is the include that owns it.
+    /// Duplicates are dropped keeping the first, because <c>ComponentSet.Combine</c> does the same
+    /// and the two orders have to agree exactly or a chunk view reads the wrong bytes.
+    /// </remarks>
+    public IReadOnlyList<IncludeModel?> ComponentOwners()
+    {
+        var owners = new List<IncludeModel?>();
+
+        Collect(this, null, owners, new HashSet<string>());
+        return owners;
+    }
+
+    private static void Collect(
+        DeclarationModel model,
+        IncludeModel? owner,
+        List<IncludeModel?> owners,
+        HashSet<string> seen)
+    {
+        if (model.HasOwnComponent && seen.Add(model.QualifiedName))
+            owners.Add(owner);
+
+        foreach (var include in model.Includes)
+        {
+            if (include.Optional || include.Kind == IncludeKind.Tag)
+                continue;
+
+            if (include.Kind == IncludeKind.Archetype)
+            {
+                Collect(For(include.Type), include, owners, seen);
+                continue;
+            }
+
+            var mixin = For(include.Type);
+
+            if (mixin.HasOwnComponent && seen.Add(mixin.QualifiedName))
+                owners.Add(include);
+        }
+    }
 
     /// <summary>
-    /// Whether every component this shape carries is known at compile time, and in what order. An
-    /// optional mixin may be absent from a matching chunk and an included archetype contributes an
-    /// unknown number of components, so either one leaves this shape on the buffered path only.
+    /// Whether every component this shape carries is known at compile time, and in what order.
     /// </summary>
+    /// <remarks>
+    /// An optional mixin may be absent from a matching chunk, so its slot cannot be placed. An
+    /// included archetype is fine: its components are flattened in the order its own set lists them.
+    /// </remarks>
     public bool SupportsChunks
-        => Includes.All(include => include.Kind == IncludeKind.Tag
-                                   || include is { Kind: IncludeKind.Mixin, Optional: false })
-           && (HasOwnComponent || ChunkIncludes.Count > 0);
+        => Includes.All(include => include.Kind == IncludeKind.Tag || !include.Optional)
+           && Includes
+               .Where(include => include.Kind == IncludeKind.Archetype)
+               .All(include => For(include.Type).SupportsChunks)
+           && ComponentOwners().Count > 0
+           && Contributors().All(contributor => contributor.HasChunkAccessors);
+
+    /// <summary>Every declaration whose component this shape carries, itself included.</summary>
+    private IEnumerable<DeclarationModel> Contributors()
+    {
+        yield return this;
+
+        foreach (var owner in ComponentOwners())
+            if (owner is not null)
+                yield return For(owner.Type);
+    }
+
+    /// <summary>
+    /// Whether this declaration's values can be reached from a chunk at all.
+    /// </summary>
+    /// <remarks>
+    /// One declared here will have the accessors emitted alongside it. One that arrived as metadata
+    /// only has them if the assembly that declared it was itself compiled against the server SDK, so
+    /// the accessor class is what has to be asked.
+    /// </remarks>
+    private bool HasChunkAccessors
+        => !Symbol.DeclaringSyntaxReferences.IsEmpty || AccessorClassTakesChunks(Symbol);
+
+    private static bool AccessorClassTakesChunks(INamedTypeSymbol symbol)
+    {
+        var accessors = symbol.ContainingNamespace?
+            .GetTypeMembers(AccessorEmitter.ClassNameOf(symbol.Name))
+            .FirstOrDefault();
+
+        return accessors is not null && accessors.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Any(method => method.IsStatic
+                           && method.Parameters.Length > 1
+                           && method.Parameters[0].Type.Name == "ComponentChunk");
+    }
 
     public static DeclarationModel For(INamedTypeSymbol symbol) => new(symbol);
 

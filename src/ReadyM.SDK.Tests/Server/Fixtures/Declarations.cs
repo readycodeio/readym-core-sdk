@@ -84,3 +84,18 @@ public readonly partial struct Mood
 [Include(typeof(Wealth))]
 [Include(typeof(Mood))]
 public readonly partial struct Adventurer;
+
+// Composition instead of an optional include: the narrower shape includes the wider one.
+
+[ArchetypeMixin]
+public readonly partial struct QuestGiver
+{
+    public partial int QuestId { get; set; }
+}
+
+/// Everything an Npc is, plus a quest. A query for Npc reaches these too; one for QuestNpc does not
+/// reach a plain Npc.
+[Archetype]
+[IncludeArchetype(typeof(Npc))]
+[Include(typeof(QuestGiver))]
+public readonly partial struct QuestNpc;
