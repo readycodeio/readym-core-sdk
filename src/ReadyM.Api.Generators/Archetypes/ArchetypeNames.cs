@@ -75,9 +75,6 @@ internal static class ArchetypeNames
 
     public static string FieldOf(string accessorName) => accessorName.ToLowerFirst();
 
-    public static string TryGetOf(INamedTypeSymbol mixin) => "TryGet" + mixin.Name;
 
-    public static string RequireOf(INamedTypeSymbol mixin) => "Require" + mixin.Name;
 
-    public static string EnsureOf(INamedTypeSymbol mixin) => "Ensure" + mixin.Name;
 }

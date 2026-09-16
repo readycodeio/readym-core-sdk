@@ -22,6 +22,9 @@ internal abstract class FakeHeap
     internal abstract void SetValue(int row, object value);
 
     internal abstract object GetValue(int row);
+
+    /// Deleting swaps the last row into the hole, which is what keeps a chunk contiguous.
+    internal void Move(int from, int to) => SetValue(to, GetValue(from));
 }
 
 /// <summary>

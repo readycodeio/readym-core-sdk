@@ -2,11 +2,14 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
+using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
+using Yooni.Native.Container;
+using Yooni.Native.LowLevel;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Server.Entity.Chunks;
 using IComponent = Friflo.Engine.ECS.IComponent;
@@ -18,15 +21,44 @@ internal sealed class ServerEntityApi : IEntityApi
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
+    private readonly CreateLocalEntityDelegate _createLocalEntity;
+    private readonly DeleteNetworkedEntityDelegate _deleteEntity;
+    private readonly RegisterArchetypeDelegate _registerArchetype;
+    private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
     private readonly ComponentRegistry _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
 
-    internal ServerEntityApi(EcsApiPointers pointers, ComponentRegistry registry)
+    internal ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ComponentRegistry registry)
     {
         _registry = registry;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
+        _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
+        _deleteEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
+        _registerArchetype = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(archetypes.RegisterArchetype);
+    }
+
+    /// <summary>
+    /// A server-only entity of the shape. Never replicated, which is all the v1 surface offers yet:
+    /// the networked variants take a scope and an owner, and that shape is still open in the spec.
+    /// </summary>
+    internal RawEntity Create(ComponentSet components)
+        => _createLocalEntity(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this));
+
+    /// <summary>Whether the entity was there to delete.</summary>
+    internal bool Delete(RawEntity entity) => _deleteEntity(entity, MatchRevision) != 0;
+
+    /// The relay assigns one id per component set, so it is worth doing once.
+    private ArchetypeId Register(ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var native = new NativeList<int>(ids.Length, AllocatorKind.Default);
+
+        foreach (var id in ids)
+            native.Add(id);
+
+        return _registerArchetype(native);
     }
 
     public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity, MatchRevision) != 0;

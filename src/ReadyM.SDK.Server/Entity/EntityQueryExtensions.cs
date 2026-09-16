@@ -19,41 +19,45 @@ public static class EntityQueryExtensions
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public static QueryBuilder<T1, T2>.Enumerator GetEnumerator<T1, T2>(this EntityQuery<T1, T2> query)
-        where T1 : struct, IArchetypeQueryable
-        where T2 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin
+        where T2 : struct, IArchetypeMixin
         => query.Identities();
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public static QueryBuilder<T1, T2, T3>.Enumerator GetEnumerator<T1, T2, T3>(this EntityQuery<T1, T2, T3> query)
-        where T1 : struct, IArchetypeQueryable
-        where T2 : struct, IArchetypeQueryable
-        where T3 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin
+        where T2 : struct, IArchetypeMixin
+        where T3 : struct, IArchetypeMixin
         => query.Identities();
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public static QueryBuilder<T1, T2, T3, T4>.Enumerator GetEnumerator<T1, T2, T3, T4>(this EntityQuery<T1, T2, T3, T4> query)
-        where T1 : struct, IArchetypeQueryable
-        where T2 : struct, IArchetypeQueryable
-        where T3 : struct, IArchetypeQueryable
-        where T4 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin
+        where T2 : struct, IArchetypeMixin
+        where T3 : struct, IArchetypeMixin
+        where T4 : struct, IArchetypeMixin
         => query.Identities();
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public static QueryBuilder<T1, T2, T3, T4, T5>.Enumerator GetEnumerator<T1, T2, T3, T4, T5>(this EntityQuery<T1, T2, T3, T4, T5> query)
-        where T1 : struct, IArchetypeQueryable
-        where T2 : struct, IArchetypeQueryable
-        where T3 : struct, IArchetypeQueryable
-        where T4 : struct, IArchetypeQueryable
-        where T5 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin
+        where T2 : struct, IArchetypeMixin
+        where T3 : struct, IArchetypeMixin
+        where T4 : struct, IArchetypeMixin
+        where T5 : struct, IArchetypeMixin
         => query.Identities();
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public static QueryBuilder<T1, T2, T3, T4, T5, T6>.Enumerator GetEnumerator<T1, T2, T3, T4, T5, T6>(this EntityQuery<T1, T2, T3, T4, T5, T6> query)
-        where T1 : struct, IArchetypeQueryable
-        where T2 : struct, IArchetypeQueryable
-        where T3 : struct, IArchetypeQueryable
-        where T4 : struct, IArchetypeQueryable
-        where T5 : struct, IArchetypeQueryable
-        where T6 : struct, IArchetypeQueryable
+        where T1 : struct, IArchetypeMixin
+        where T2 : struct, IArchetypeMixin
+        where T3 : struct, IArchetypeMixin
+        where T4 : struct, IArchetypeMixin
+        where T5 : struct, IArchetypeMixin
+        where T6 : struct, IArchetypeMixin
         => query.Identities();
 }

@@ -103,69 +103,49 @@ public class ArchetypeTests : ClientSdkTest
     }
 
     [Fact]
-    public void An_absent_optional_mixin_reads_as_null()
+    public void A_chest_without_loot_is_not_a_looted_chest()
     {
         var chest = SpawnChest();
 
-        Assert.Null(chest.Rarity);
-        Assert.False(chest.TryGetLoot(out _));
-        Assert.Throws<InvalidOperationException>(() => chest.RequireLoot());
+        Assert.False(chest.Is<LootedChest>());
+        Assert.False(chest.TryAs<LootedChest>(out _));
+        Assert.False(EntityHandle.Of(chest).TryAs<Loot>(out _));
     }
 
     [Fact]
-    public void A_present_optional_mixin_reads_and_writes_through_the_narrower_handle()
+    public void A_looted_chest_reads_and_writes_through_the_narrower_shape()
     {
-        var chest = SpawnChest(rarity: 4);
+        var looted = Entities.Create<LootedChest>();
 
-        Assert.Equal(4, chest.Rarity);
+        looted.Rarity = 4;
 
-        Assert.True(chest.TryGetLoot(out var loot));
+        Assert.Equal(4, looted.Rarity);
+        Assert.True(EntityHandle.Of(looted).TryAs<Loot>(out var loot));
+
         loot.Rarity = 9;
-        Assert.Equal(9, chest.Rarity);
-
-        var required = chest.RequireLoot();
-        required.Rarity = 11;
-        Assert.Equal(11, chest.Rarity);
+        Assert.Equal(9, looted.Rarity);
     }
 
+    /// The wider shape still reaches the narrower one, which is what the optional include was for.
     [Fact]
-    public void An_optional_mixin_does_not_change_which_entities_a_query_matches()
+    public void A_query_for_the_wider_shape_reaches_both()
     {
-        SpawnChest(rarity: 1);
         SpawnChest();
+        Entities.Create<LootedChest>();
 
         Assert.Equal(2, Count(Entities.Query<Chest>()));
+        Assert.Equal(1, Count(Entities.Query<LootedChest>()));
     }
 
     [Fact]
-    public void EnsureX_gives_a_usable_handle_outside_a_query()
+    public void A_looted_chest_converts_up_to_a_chest()
     {
-        var chest = SpawnChest();
+        var looted = Entities.Create<LootedChest>();
 
-        var loot = chest.EnsureLoot();
-        loot.Rarity = 5;
+        Chest chest = looted;
 
-        Assert.Equal(5, chest.Rarity);
-    }
-
-    [Fact]
-    public void EnsureX_on_an_entity_that_already_has_the_mixin_keeps_its_values()
-    {
-        var chest = SpawnChest(rarity: 3);
-
-        Assert.Equal(3, chest.EnsureLoot().Rarity);
-    }
-
-    [Fact]
-    public void EnsureX_works_inside_a_query()
-    {
-        SpawnChest();
-
-        foreach (var chest in Entities.Query<Chest>())
-            chest.EnsureLoot().Rarity = 4;
-
-        foreach (var chest in Entities.Query<Chest>())
-            Assert.Equal(4, chest.Rarity);
+        Assert.Equal(EntityHandle.Of(looted).Id, EntityHandle.Of(chest).Id);
+        Assert.True(chest.Is<LootedChest>());
     }
 
     /// <summary>

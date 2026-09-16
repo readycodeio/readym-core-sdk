@@ -28,7 +28,11 @@ public abstract class ServerSdkTest
         Relay.RegisterManaged<NamedComponent>();
         Relay.RegisterBlittable<NpcComponent>();
         Relay.RegisterManaged<BoulderComponent>();
-        Relay.RegisterBlittable<WandererComponent>();
+        Relay.RegisterBlittable<PeddlerComponent>();
+
+        // Peddler reaches a mixin in another assembly, whose component this one cannot name.
+        foreach (var component in ComponentsOf<Peddler>().Types)
+            Relay.RegisterUnnamed(component);
         Relay.RegisterBlittable<SpeedComponent>();
         Relay.RegisterManaged<WealthComponent>();
         Relay.RegisterBlittable<MoodComponent>();

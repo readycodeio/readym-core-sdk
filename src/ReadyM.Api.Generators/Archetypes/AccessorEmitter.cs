@@ -112,7 +112,7 @@ internal static class AccessorEmitter
 
         foreach (var include in model.Includes)
         {
-            if (include.Optional || include.Kind == IncludeKind.Tag)
+            if (include.Kind == IncludeKind.Tag)
                 continue;
 
             sets.Add($"{include.Accessors}.Components");

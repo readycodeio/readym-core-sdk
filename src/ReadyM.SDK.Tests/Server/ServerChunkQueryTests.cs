@@ -179,23 +179,24 @@ public class ServerChunkQueryTests : ServerSdkTest
     }
 
     /// <summary>
-    /// A shape with an optional include cannot be walked by chunk, and still works: the loop binds
-    /// the general extension and walks identities instead of failing to compile.
+    /// A shape reaching into an assembly compiled without the server SDK cannot be walked by chunk,
+    /// and still works: the loop binds the general extension and walks identities instead of failing
+    /// to compile. That is now the only thing that causes the fallback.
     /// </summary>
     [Fact]
     public void A_shape_without_a_chunk_view_falls_back_to_identities()
     {
         for (var i = 0; i < 4; i++)
-            Spawn<Wanderer>();
+            Entities.Create<Peddler>();
 
         Relay.ResetCounters();
 
         var count = 0;
 
-        foreach (var wanderer in Entities.Query<Wanderer>())
+        foreach (var peddler in Entities.Query<Peddler>())
         {
             count++;
-            _ = wanderer.X;
+            _ = peddler.X;
         }
 
         Assert.Equal(4, count);

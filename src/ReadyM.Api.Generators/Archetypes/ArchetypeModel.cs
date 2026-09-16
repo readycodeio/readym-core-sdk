@@ -29,13 +29,11 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter)
 }
 
 /// <summary>One entry of an <c>[Include]</c> or <c>[IncludeArchetype]</c> on an archetype.</summary>
-internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind, bool optional)
+internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
 {
     public INamedTypeSymbol Type { get; } = type;
 
     public IncludeKind Kind { get; } = kind;
-
-    public bool Optional { get; } = optional;
 
     public string TypeName { get; } = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -109,7 +107,7 @@ internal sealed class DeclarationModel
 
         foreach (var include in model.Includes)
         {
-            if (include.Optional || include.Kind == IncludeKind.Tag)
+            if (include.Kind == IncludeKind.Tag)
                 continue;
 
             if (include.Kind == IncludeKind.Archetype)
@@ -126,24 +124,29 @@ internal sealed class DeclarationModel
     }
 
     /// <summary>
-    /// Whether every component this shape carries is known at compile time, and in what order.
+    /// Whether every component this shape carries can be reached from a chunk.
     /// </summary>
     /// <remarks>
-    /// An optional mixin may be absent from a matching chunk, so its slot cannot be placed. An
-    /// included archetype is fine: its components are flattened in the order its own set lists them.
+    /// The order is always known, since there are no optional includes and an included archetype is
+    /// flattened in the order its own set lists them. What can still stop it is a contributor
+    /// declared in an assembly compiled without the server SDK, which has no chunk accessors.
     /// </remarks>
     public bool SupportsChunks
-        => Includes.All(include => include.Kind == IncludeKind.Tag || !include.Optional)
-           && Includes
-               .Where(include => include.Kind == IncludeKind.Archetype)
-               .All(include => For(include.Type).SupportsChunks)
-           && ComponentOwners().Count > 0
+        => ComponentOwners().Count > 0
            && Contributors().All(contributor => contributor.HasChunkAccessors);
 
-    /// <summary>Every declaration whose component this shape carries, itself included.</summary>
+    /// <summary>
+    /// Every declaration whose component this shape carries, itself included when it has one.
+    /// </summary>
+    /// <remarks>
+    /// Walks includes transitively, so a contributor from an assembly without the server SDK is
+    /// caught however deep it sits. Including an archetype that has no components of its own is not
+    /// a problem: it simply contributes nothing.
+    /// </remarks>
     private IEnumerable<DeclarationModel> Contributors()
     {
-        yield return this;
+        if (HasOwnComponent)
+            yield return this;
 
         foreach (var owner in ComponentOwners())
             if (owner is not null)
@@ -269,17 +272,14 @@ internal sealed class DeclarationModel
 
             if (name == ArchetypeNames.IncludeArchetypeAttribute)
             {
-                includes.Add(new IncludeModel(included, IncludeKind.Archetype, false));
+                includes.Add(new IncludeModel(included, IncludeKind.Archetype));
                 continue;
             }
 
             if (name != ArchetypeNames.IncludeAttribute)
                 continue;
 
-            var optional = attribute.ConstructorArguments.Length > 1 &&
-                           attribute.ConstructorArguments[1].Value is true;
-
-            includes.Add(new IncludeModel(included, KindOf(included), optional));
+            includes.Add(new IncludeModel(included, KindOf(included)));
         }
 
         return includes;

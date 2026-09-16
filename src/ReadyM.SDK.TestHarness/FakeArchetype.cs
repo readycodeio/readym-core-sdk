@@ -33,6 +33,23 @@ internal sealed class FakeArchetype(int[] componentIds, FakeHeap[] heaps)
         return Count++;
     }
 
+    /// <summary>Removes a row by moving the last one into it, and says which entity moved.</summary>
+    internal RawEntity RemoveRow(int row)
+    {
+        var last = --Count;
+
+        if (row == last)
+            return default;
+
+        foreach (var heap in heaps)
+            heap.Move(last, row);
+
+        var moved = Entities[last];
+        Entities[row] = moved;
+
+        return moved;
+    }
+
     internal FakeHeap HeapOf(int componentId)
         => HeapOrNull(componentId) ?? throw new InvalidOperationException($"No component {componentId} here.");
 

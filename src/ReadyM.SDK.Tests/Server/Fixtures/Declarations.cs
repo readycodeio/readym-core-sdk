@@ -46,11 +46,14 @@ public readonly partial struct Boulder
 [Include(typeof(Position))]
 public readonly partial struct Placed;
 
-/// An optional include means a matching chunk may not carry it, so this shape gets no chunk view.
+/// <summary>
+/// Includes a mixin from an assembly compiled without the server SDK, so that mixin has no accessors
+/// reachable from a chunk and this shape stays on the identity path.
+/// </summary>
 [Archetype]
 [Include(typeof(Position))]
-[Include(typeof(Vitals), Optional: true)]
-public readonly partial struct Wanderer
+[Include(typeof(global::ReadyM.SDK.Tests.ExternalMod.Wallet))]
+public readonly partial struct Peddler
 {
     public partial int Steps { get; set; }
 }

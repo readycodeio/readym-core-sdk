@@ -4,6 +4,7 @@ using ReadyM.Api.Multiplayer.Interop;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
+using ReadyM.Api.Idents;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Server.Entity;
 using Yooni.Native.Container;
@@ -33,6 +34,12 @@ internal sealed class FakeRelay
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
     private readonly RegisterModComponentDelegate _registerModComponent;
+    private readonly RegisterArchetypeDelegate _registerArchetype;
+    private readonly CreateLocalEntityDelegate _createLocalEntity;
+    private readonly DeleteNetworkedEntityDelegate _deleteEntity;
+
+    // Keyed by the id itself, because ArchetypeId keeps its byte to itself.
+    private readonly Dictionary<ArchetypeId, int[]> _archetypeShapes = [];
 
     internal unsafe FakeRelay()
     {
@@ -41,6 +48,9 @@ internal sealed class FakeRelay
         _isEntityAlive = IsEntityAliveImpl;
         _getComponentIdByName = GetComponentIdByNameImpl;
         _registerModComponent = static (_, _) => -1;
+        _registerArchetype = RegisterArchetypeImpl;
+        _createLocalEntity = CreateLocalEntityImpl;
+        _deleteEntity = DeleteEntityImpl;
     }
 
     internal int QueryCalls { get; private set; }
@@ -49,23 +59,33 @@ internal sealed class FakeRelay
 
     internal int AliveCalls { get; private set; }
 
-    internal void ResetCounters() => (QueryCalls, SlotCalls, AliveCalls) = (0, 0, 0);
+    internal int CreateCalls { get; private set; }
+
+    internal int DeleteCalls { get; private set; }
+
+    internal void ResetCounters() => (QueryCalls, SlotCalls, AliveCalls, CreateCalls, DeleteCalls) = (0, 0, 0, 0, 0);
 
     internal EcsApiPointers Pointers => new()
     {
         Query = Marshal.GetFunctionPointerForDelegate(_query),
         GetComponentSlot = Marshal.GetFunctionPointerForDelegate(_getComponentSlot),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
+        CreateLocalEntity = Marshal.GetFunctionPointerForDelegate(_createLocalEntity),
+        DeleteNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_deleteEntity),
         CreateNetworkedEntity = IntPtr.Zero,
         CreateNetworkedPlayerEntity = IntPtr.Zero,
         CreateNetworkedAreaEntity = IntPtr.Zero,
         CreateNetworkedCellEntity = IntPtr.Zero,
-        CreateLocalEntity = IntPtr.Zero,
-        DeleteNetworkedEntity = IntPtr.Zero,
         DeleteEntityTree = IntPtr.Zero,
         SetParent = IntPtr.Zero,
         GetParent = IntPtr.Zero,
         GetChildren = IntPtr.Zero
+    };
+
+    internal ArchetypePointers Archetypes => new()
+    {
+        RegisterArchetype = Marshal.GetFunctionPointerForDelegate(_registerArchetype),
+        ModifyArchetype = IntPtr.Zero
     };
 
     internal AotPointers Aot => new()
@@ -82,16 +102,30 @@ internal sealed class FakeRelay
     /// A component a mod owns: reachable only through its heap handle, so managed fields are allowed.
     internal void RegisterManaged<T>() where T : struct => Register<T>(static () => new ManagedHeap<T>());
 
+    /// <summary>
+    /// Registers a component this assembly cannot name, which is any component belonging to another
+    /// mod. Reflection is fine here: registration happens once, at setup.
+    /// </summary>
+    internal void RegisterUnnamed(Type component)
+    {
+        if (_idsByName.ContainsKey(component.FullName!))
+            return;
+
+        var heap = typeof(PinnedHeap<>).MakeGenericType(component);
+
+        _idsByName[component.FullName!] = _heapFactories.Count;
+        _heapFactories.Add(() => (FakeHeap)Activator.CreateInstance(heap, nonPublic: true)!);
+    }
+
     private void Register<T>(Func<FakeHeap> factory) where T : struct
     {
         _idsByName[typeof(T).FullName!] = _heapFactories.Count;
         _heapFactories.Add(factory);
     }
 
-    internal RawEntity Create(params Type[] componentTypes)
+    private RawEntity Create(int[] componentIds)
     {
-        var ids = componentTypes.Select(IdOf).OrderBy(id => id).ToArray();
-        var archetype = GetOrCreateArchetype(ids);
+        var archetype = GetOrCreateArchetype(componentIds);
         var row = archetype.AppendRow();
         var entity = RawEntities.From(_entities.Count, 1);
 
@@ -100,6 +134,9 @@ internal sealed class FakeRelay
 
         return entity;
     }
+
+    internal RawEntity Create(params Type[] componentTypes)
+        => Create(componentTypes.Select(IdOf).OrderBy(id => id).ToArray());
 
     internal void Kill(RawEntity entity) => _entities[entity.Id] = _entities[entity.Id] with { Alive = false };
 
@@ -134,7 +171,7 @@ internal sealed class FakeRelay
 
     /// The v1 server api bound to this relay, wired the way the mod host wires it.
     internal ServerEntityApi CreateEntityApi()
-        => new(Pointers, new ComponentRegistry(Aot, new ModComponentManager(), NullLogger.Instance));
+        => new(Pointers, Archetypes, new ComponentRegistry(Aot, new ModComponentManager(), NullLogger.Instance));
 
     /// The id the relay assigned, for a caller that drives Query itself rather than through the SDK.
     internal int ComponentId<T>() where T : struct => IdOf(typeof(T));
@@ -156,6 +193,47 @@ internal sealed class FakeRelay
     }
 
     // -- the entry points the v1 server SDK binds ----------------------------------------------
+
+    private ArchetypeId RegisterArchetypeImpl(NativeList<int> componentIds)
+    {
+        var ids = new int[componentIds.Count];
+
+        for (var i = 0; i < ids.Length; i++)
+            ids[i] = componentIds[i];
+
+        Array.Sort(ids);
+
+        foreach (var (id, shape) in _archetypeShapes)
+            if (shape.AsSpan().SequenceEqual(ids))
+                return id;
+
+        var assigned = new ArchetypeId((byte)(_archetypeShapes.Count + 1));
+
+        _archetypeShapes[assigned] = ids;
+        return assigned;
+    }
+
+    private RawEntity CreateLocalEntityImpl(ArchetypeId archetype)
+    {
+        CreateCalls++;
+        return Create(_archetypeShapes[archetype]);
+    }
+
+    private int DeleteEntityImpl(RawEntity entity, byte matchRevision)
+    {
+        DeleteCalls++;
+
+        if (!Resolve(entity, matchRevision, out var slot))
+            return 0;
+
+        var moved = slot.Archetype.RemoveRow(slot.Row);
+
+        if (moved.Id != 0)
+            _entities[moved.Id] = _entities[moved.Id] with { Row = slot.Row };
+
+        _entities[entity.Id] = slot with { Alive = false };
+        return 1;
+    }
 
     private byte IsEntityAliveImpl(RawEntity entity, byte matchRevision)
     {

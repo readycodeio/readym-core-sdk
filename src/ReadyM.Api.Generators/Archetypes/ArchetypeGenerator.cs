@@ -73,7 +73,6 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitIdentity(writer);
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
             EmitIncluded(writer, model);
-            EmitOptional(writer, model);
             EmitConversions(writer, model);
         }
 
@@ -109,61 +108,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
             writer.Line();
-
-            if (!include.Optional)
-            {
-                HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false);
-                continue;
-            }
-
-            // An absent optional mixin reads as null rather than throwing. Writing through it needs
-            // the narrower handle below, which is what keeps a plain assignment from ever failing.
-            writer.Line($"public {accessor.Type}? {accessor.Name}");
-            writer.Line($"    => {include.Accessors}.TryGet{accessor.Name}(_handle, out var value) ? value : null;");
-        }
-    }
-
-    private static void EmitOptional(SourceWriter writer, DeclarationModel model)
-    {
-        foreach (var include in model.Includes.Where(i => i is { Optional: true, Kind: IncludeKind.Mixin }))
-        {
-            var mixin = include.TypeName;
-            var name = include.Type.Name;
-
-            writer.Line();
-
-            using (writer.Braces($"public bool {ArchetypeNames.TryGetOf(include.Type)}(out {mixin} {include.Parameter})"))
-            {
-                using (writer.Braces($"if ({include.Accessors}.Has(_handle))"))
-                {
-                    writer.Line($"{include.Parameter} = new {mixin}(_handle);");
-                    writer.Line("return true;");
-                }
-
-                writer.Line();
-                writer.Line($"{include.Parameter} = default;");
-                writer.Line("return false;");
-            }
-
-            writer.Line();
-
-            using (writer.Braces($"public {mixin} {ArchetypeNames.RequireOf(include.Type)}()"))
-            {
-                writer.Line($"if (!{include.Accessors}.Has(_handle))");
-                writer.Line($"    throw new global::System.InvalidOperationException($\"{{_handle}} does not carry {name}.\");");
-                writer.Line();
-                writer.Line($"return new {mixin}(_handle);");
-            }
-
-            writer.Line();
-
-            using (writer.Braces($"public {mixin} {ArchetypeNames.EnsureOf(include.Type)}()"))
-            {
-                writer.Line($"if (!{include.Accessors}.Has(_handle))");
-                writer.Line($"    {include.Accessors}.Add(_handle);");
-                writer.Line();
-                writer.Line($"return new {mixin}(_handle);");
-            }
+            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false);
         }
     }
 

@@ -18,18 +18,11 @@ public static class Examples
         var hp = character.Hp;
         character.MaxHp = 100;
 
-        // access the Equipment
-        var maybeWeapon = character.Weapon ?? "unknown"; // nullable get-only
-        if (character.TryGetEquipment(out var equipment))
+        // equipment lives on a narrower shape rather than an optional include
+        if (character.TryAs<EquippedCharacter>(out var equipped))
         {
-            equipment.Weapon = "sword";
+            equipped.Weapon = "sword";
         }
-
-        var required = character.RequireEquipment();
-        required.Weapon = "axe";
-
-        var ensured = character.EnsureEquipment(); // TODO: This is a structural change
-        ensured.Weapon = "mace";
 
         // casting
 
