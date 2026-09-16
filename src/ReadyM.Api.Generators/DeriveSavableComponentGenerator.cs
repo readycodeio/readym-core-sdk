@@ -73,7 +73,8 @@ internal sealed class DeriveSavableComponentGenerator : IIncrementalGenerator
 
             var symbol = DeriveUtils.GetTargetSymbol(context, ct);
             var model = DeriveComponentUtils.GetTargetModel(false, symbol, context);
-            var code = GenerateSavableComponent(model);
+            var isComponent = AttributeUtils.HasAttribute(symbol, "DeriveSavableComponentAttribute");
+            var code = GenerateSavableComponent(model, isComponent);
             var name = DeriveUtils.GetGeneratedFileName(symbol);
 
             return TransformResult.Success(name, code);
@@ -84,21 +85,22 @@ internal sealed class DeriveSavableComponentGenerator : IIncrementalGenerator
         }
     }
 
-    private string GenerateSavableComponent(DeriveTargetModel model)
+    private string GenerateSavableComponent(DeriveTargetModel model, bool isComponent)
     {
         var info = model.Source;
         var access = info.Symbol.DeclaredAccessibility.ToString().ToLower();
+        var contract = isComponent ? "ISavableComponent" : "ISaveSerializable";
 
         var sb = new StringBuilder();
         var moduleState = new CSharpModuleState();
         var classState = new CSharpClassState(moduleState);
-        moduleState.AddUsing("ReadyM.Api.Multiplayer.Serialization");
-        moduleState.AddUsing("ReadyM.Api.Multiplayer.Extensions");
+        moduleState.AddUsing("ReadyM.Api.Saves");
+        moduleState.AddUsing("ReadyM.Api.Extensions");
 
         sb.Append($$"""
 namespace {{info.Namespace}};
 
-{{access}} partial struct {{info.Name}}
+{{access}} partial struct {{info.Name}} : {{contract}}
 {
 
 """);
@@ -111,6 +113,15 @@ namespace {{info.Namespace}};
     #error Savable member '{member.Source.Name}' is a raw Entity. Persist a cross-entity reference as a PersistentId (resolved via the guid index).
 """);
             }
+        }
+
+        if (isComponent)
+        {
+            sb.AppendLine($$"""
+    public readonly string SaveName => "{{ResolveSaveName(info.Symbol)}}";
+    public readonly ushort SaveVersion => {{ResolveSaveVersion(info.Symbol)}};
+
+""");
         }
 
         EmitWriteSave(sb, model, classState);
@@ -144,8 +155,8 @@ namespace {{info.Namespace}};
 
     private void EmitWriteSave(StringBuilder sb, DeriveTargetModel model, CSharpClassState classState)
     {
-        sb.AppendLine($$"""
-    public static void WriteSave(ISaveWriter writer, in {{model.Source.Name}} value)
+        sb.AppendLine("""
+    public void WriteSave(ISaveWriter writer)
     {
         writer.BeginObject();
 """);
@@ -162,7 +173,7 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"writer.Name(\"{SaveKey(member.Source.Name)}\");");
-            context.EmitSerializeVar($"value.{member.Source.Name}", member.Source.Type);
+            context.EmitSerializeVar(member.Source.Name, member.Source.Type);
         }
 
         sb.AppendLine("""
@@ -174,8 +185,8 @@ namespace {{info.Namespace}};
 
     private void EmitReadSave(StringBuilder sb, DeriveTargetModel model, CSharpClassState classState)
     {
-        sb.AppendLine($$"""
-    public static void ReadSave(ref {{model.Source.Name}} value, ISaveReader reader)
+        sb.AppendLine("""
+    public void ReadSave(ISaveReader reader)
     {
         reader.BeginObject();
 """);
@@ -192,7 +203,7 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"reader.Name(\"{SaveKey(member.Source.Name)}\");");
-            context.EmitDeserializeVar($"value.{member.Source.Name}", member.Source.Type);
+            context.EmitDeserializeVar(member.Source.Name, member.Source.Type);
         }
 
         sb.AppendLine("""
@@ -217,6 +228,30 @@ namespace {{info.Namespace}};
         => fieldName.Length > 1 && fieldName[0] == '_'
             ? char.ToUpperInvariant(fieldName[1]) + fieldName.Substring(2)
             : fieldName;
+
+    // The [SaveName] override baked at generation time, else the type name.
+    private static string ResolveSaveName(ISymbol symbol)
+    {
+        var attr = symbol.GetAttributes().FirstOrDefault(a =>
+            a.AttributeClass?.Name is "SaveName" or "SaveNameAttribute");
+
+        if (attr is { ConstructorArguments.Length: > 0 } && attr.ConstructorArguments[0].Value is string name && name.Length > 0)
+            return name;
+
+        return symbol.Name;
+    }
+
+    // The [SaveVersion] override baked at generation time, else 1.
+    private static ushort ResolveSaveVersion(ISymbol symbol)
+    {
+        var attr = symbol.GetAttributes().FirstOrDefault(a =>
+            a.AttributeClass?.Name is "SaveVersion" or "SaveVersionAttribute");
+
+        if (attr is { ConstructorArguments.Length: > 0 } && attr.ConstructorArguments[0].Value is ushort version)
+            return version;
+
+        return 1;
+    }
 
     private struct TransformResult(string genName, string genCode, Exception? exception)
     {
