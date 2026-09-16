@@ -19,6 +19,14 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             static (node, _) => node is StructDeclarationSyntax,
             Emit);
 
+        // A reference to the server SDK without its chunk types means they moved or were renamed.
+        // Saying so beats turning the fast path off and letting a profiler find it months later.
+        context.RegisterSourceOutput(context.CompilationProvider, static (spc, compilation) =>
+        {
+            if (ChunkNames.ServerReferenced(compilation) && ChunkNames.Resolve(compilation) is null)
+                spc.ReportDiagnostic(Diagnostic.Create(ChunkTypesMissing, Location.None));
+        });
+
         context.RegisterSourceOutput(archetypes, static (spc, generated) =>
         {
             if (generated is not null)
@@ -26,12 +34,23 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         });
     }
 
+    private static readonly DiagnosticDescriptor ChunkTypesMissing = new(
+        "READYM001",
+        "Chunk fast path disabled",
+        $"{ChunkNames.ServerAssembly} is referenced but its chunk types were not found, so every query "
+        + "walks identities instead of chunks. They were probably moved or renamed.",
+        "ReadyM",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     private static (string HintName, string Source)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
-        if (context.TargetSymbol is not INamedTypeSymbol symbol || symbol.ContainingType is not null)
+        if (context.TargetSymbol is not INamedTypeSymbol { ContainingType: null } symbol)
             return null;
 
         var model = DeclarationModel.For(symbol);
+        var chunks = model.SupportsChunks ? ChunkNames.Resolve(context.SemanticModel.Compilation) : null;
+
         var writer = new SourceWriter();
 
         HandleEmitter.File(writer, model);
@@ -42,7 +61,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             writer.Line();
         }
 
-        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model));
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}"))
@@ -55,7 +74,15 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitConversions(writer, model);
         }
 
-        return ($"{symbol.Name}.Archetype.g.cs", writer.ToString());
+        if (chunks is not null)
+        {
+            writer.Line();
+            ChunkViewEmitter.Emit(writer, model, chunks);
+            writer.Line();
+            ChunkViewEmitter.EmitQueryBinding(writer, model, chunks);
+        }
+
+        return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString());
     }
 
     private static void EmitIdentity(SourceWriter writer)

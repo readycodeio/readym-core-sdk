@@ -35,6 +35,6 @@ internal class TagGenerator : IIncrementalGenerator
         HandleEmitter.File(writer, model);
         writer.Line($"{model.Header} : {ArchetypeNames.Tag};");
 
-        return ($"{symbol.Name}.Tag.g.cs", writer.ToString());
+        return (ArchetypeNames.HintOf(symbol, "Tag"), writer.ToString());
     }
 }

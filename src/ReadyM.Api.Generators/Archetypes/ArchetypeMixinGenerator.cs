@@ -31,12 +31,14 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             return null;
 
         var model = DeclarationModel.For(symbol);
+        var chunks = model.SupportsChunks ? ChunkNames.Resolve(context.SemanticModel.Compilation) : null;
+
         var writer = new SourceWriter();
 
         HandleEmitter.File(writer, model);
         ComponentEmitter.Emit(writer, model.Component, model.Accessors);
         writer.Line();
-        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model));
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}"))
@@ -45,6 +47,14 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
         }
 
-        return ($"{symbol.Name}.Mixin.g.cs", writer.ToString());
+        if (chunks is not null)
+        {
+            writer.Line();
+            ChunkViewEmitter.Emit(writer, model, chunks);
+            writer.Line();
+            ChunkViewEmitter.EmitQueryBinding(writer, model, chunks);
+        }
+
+        return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString());
     }
 }

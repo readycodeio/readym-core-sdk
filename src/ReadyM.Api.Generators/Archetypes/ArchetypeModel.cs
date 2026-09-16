@@ -81,6 +81,26 @@ internal sealed class DeclarationModel
 
     public string QualifiedName => Namespace.Length == 0 ? $"global::{Name}" : $"global::{Namespace}.{Name}";
 
+    /// <summary>
+    /// The includes that contribute a component to a chunk, in component set order. Duplicates are
+    /// dropped because the set dedupes them too, and the two orders have to agree exactly.
+    /// </summary>
+    public IReadOnlyList<IncludeModel> ChunkIncludes => Includes
+        .Where(include => include is { Optional: false, Kind: IncludeKind.Mixin })
+        .GroupBy(include => include.TypeName)
+        .Select(group => group.First())
+        .ToList();
+
+    /// <summary>
+    /// Whether every component this shape carries is known at compile time, and in what order. An
+    /// optional mixin may be absent from a matching chunk and an included archetype contributes an
+    /// unknown number of components, so either one leaves this shape on the buffered path only.
+    /// </summary>
+    public bool SupportsChunks
+        => Includes.All(include => include.Kind == IncludeKind.Tag
+                                   || include is { Kind: IncludeKind.Mixin, Optional: false })
+           && (HasOwnComponent || ChunkIncludes.Count > 0);
+
     public static DeclarationModel For(INamedTypeSymbol symbol) => new(symbol);
 
     /// <summary>

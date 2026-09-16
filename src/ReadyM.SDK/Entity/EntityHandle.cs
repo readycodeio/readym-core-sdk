@@ -23,6 +23,10 @@ public readonly struct EntityHandle
     /// <summary>The handle behind an archetype or mixin struct, without boxing it.</summary>
     public static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable => archetype.Handle;
 
+    /// <summary>The same reach into the world, pointed at another entity.</summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public EntityHandle For(RawEntity entity) => new(entity, _api);
+
     internal int Id => _rawEntity.Id;
 
     internal RawEntity RawEntity => _rawEntity;

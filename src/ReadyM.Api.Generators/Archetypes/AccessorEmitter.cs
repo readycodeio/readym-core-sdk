@@ -15,7 +15,7 @@ internal static class AccessorEmitter
 {
     public static string ClassNameOf(string declaration) => declaration + "Accessors";
 
-    public static void Emit(SourceWriter writer, DeclarationModel model, string componentSet)
+    public static void Emit(SourceWriter writer, DeclarationModel model, string componentSet, ChunkNames? chunks = null)
     {
         writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
 
@@ -35,7 +35,33 @@ internal static class AccessorEmitter
 
             foreach (var accessor in model.Accessors)
                 Members(writer, accessor, component);
+
+            if (chunks is null)
+                return;
+
+            foreach (var accessor in model.Accessors)
+                ChunkMembers(writer, accessor, component, chunks);
         }
+    }
+
+    /// <summary>
+    /// The same values reached off a chunk instead of an entity. Only the declaring assembly can
+    /// name the component, which is why the reinterpret happens here rather than in the view.
+    /// </summary>
+    private static void ChunkMembers(SourceWriter writer, AccessorModel accessor, string component, ChunkNames chunks)
+    {
+        var read = $"chunk.As<{component}>(index).{accessor.Field}";
+
+        writer.Line();
+        writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {chunks.ComponentChunk} chunk, int index)");
+        writer.Line($"    => {read};");
+
+        if (!accessor.HasSetter)
+            return;
+
+        writer.Line();
+        writer.Line($"public static void Set{accessor.Name}(in {chunks.ComponentChunk} chunk, int index, {accessor.Type} value)");
+        writer.Line($"    => {read} = value;");
     }
 
     private static void Members(SourceWriter writer, AccessorModel accessor, string component)

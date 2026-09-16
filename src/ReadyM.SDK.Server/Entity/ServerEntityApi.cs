@@ -8,6 +8,7 @@ using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
+using ReadyM.SDK.Server.Entity.Chunks;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Server.Entity;
@@ -111,6 +112,56 @@ internal sealed class ServerEntityApi : IEntityApi
 
         return buffer;
     }
+
+    /// <summary>
+    /// Every matching chunk, described rather than copied: one crossing for the whole query.
+    /// </summary>
+    /// <remarks>
+    /// The relay pushes chunks at a callback and a foreach has to pull, so the descriptors are
+    /// captured here and walked after the call returns. That is sound because the relay hands out
+    /// chunks for the world as it stands and nothing on this side can change it until the call is
+    /// over, and because queries never overlap: everything that runs mod code is scheduled on the
+    /// one thread.
+    /// </remarks>
+    internal unsafe ChunkBuffer CollectChunks(ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var buffer = ChunkBuffer.Rent(ids.Length);
+
+        var previous = _collectingChunks;
+        _collectingChunks = buffer;
+
+        try
+        {
+            fixed (int* componentIds = ids)
+            {
+                _query(componentIds, ids.Length, CollectChunk);
+            }
+        }
+        finally
+        {
+            _collectingChunks = previous;
+        }
+
+        return buffer;
+    }
+
+    [ThreadStatic]
+    private static ChunkBuffer? _collectingChunks;
+
+    private static readonly unsafe ChunkCallback CollectChunk = static (entities, comps, n, count) =>
+    {
+        var slots = _collectingChunks!.Append(entities, count);
+
+        for (var i = 0; i < n; i++)
+        {
+            ref readonly var comp = ref comps[i];
+
+            slots[i] = comp.HeapSelf != IntPtr.Zero
+                ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride)
+                : new ChunkSlot(comp.Data, comp.Stride);
+        }
+    };
 
     private int[] ResolveIds(ComponentSet components) => _componentIds.GetOrAdd(components, static (set, self) =>
     {

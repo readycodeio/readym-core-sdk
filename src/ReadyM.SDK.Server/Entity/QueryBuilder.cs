@@ -25,14 +25,6 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         }
     }
     
-    // TODO
-    public QueryBuilder<T> With<TTag>() where TTag : struct, ITag
-        => throw new NotSupportedException($"Cannot filter by {typeof(TTag).Name}: the server has no tags.");
-
-    // TODO
-    public QueryBuilder<T> Without<TTag>() where TTag : struct, ITag
-        => throw new NotSupportedException($"Cannot filter by {typeof(TTag).Name}: the server has no tags.");
-
     public struct Enumerator : IDisposable
     {
         private readonly ServerEntityApi _api;
