@@ -43,6 +43,15 @@ internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
     public string Accessors { get; } = ArchetypeNames.QualifiedAccessorsOf(type);
 }
 
+/// <summary>One entry in a shape's component set: a declaration's component, or its marker.</summary>
+internal sealed class ComponentOwner(IncludeModel? include, bool marker)
+{
+    /// <summary>Null when it belongs to the declaration itself rather than to something it includes.</summary>
+    public IncludeModel? Include { get; } = include;
+
+    public bool IsMarker { get; } = marker;
+}
+
 /// <summary>
 /// What the generators need to know about one declaration, read from symbols only.
 /// </summary>
@@ -73,6 +82,14 @@ internal sealed class DeclarationModel
 
     public string Component => ArchetypeNames.ComponentOf(Symbol);
 
+    public string Marker => ArchetypeNames.MarkerOf(Symbol);
+
+    public string QualifiedMarker => ArchetypeNames.QualifiedMarkerOf(Symbol);
+
+    /// <summary>Only an archetype gets a marker: a mixin is found by the component it carries.</summary>
+    public bool IsArchetype => Symbol.GetAttributes().Any(attribute
+        => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ArchetypeAttribute);
+
     public string QualifiedComponent => ArchetypeNames.QualifiedComponentOf(Symbol);
 
     public string QualifiedAccessors => ArchetypeNames.QualifiedAccessorsOf(Symbol);
@@ -88,9 +105,9 @@ internal sealed class DeclarationModel
     /// Duplicates are dropped keeping the first, because <c>ComponentSet.Combine</c> does the same
     /// and the two orders have to agree exactly or a chunk view reads the wrong bytes.
     /// </remarks>
-    public IReadOnlyList<IncludeModel?> ComponentOwners()
+    public IReadOnlyList<ComponentOwner> ComponentOwners()
     {
-        var owners = new List<IncludeModel?>();
+        var owners = new List<ComponentOwner>();
 
         Collect(this, null, owners, new HashSet<string>());
         return owners;
@@ -99,11 +116,14 @@ internal sealed class DeclarationModel
     private static void Collect(
         DeclarationModel model,
         IncludeModel? owner,
-        List<IncludeModel?> owners,
+        List<ComponentOwner> owners,
         HashSet<string> seen)
     {
         if (model.HasOwnComponent && seen.Add(model.QualifiedName))
-            owners.Add(owner);
+            owners.Add(new ComponentOwner(owner, marker: false));
+
+        if (model.IsArchetype && seen.Add(model.QualifiedName + " marker"))
+            owners.Add(new ComponentOwner(owner, marker: true));
 
         foreach (var include in model.Includes)
         {
@@ -119,7 +139,7 @@ internal sealed class DeclarationModel
             var mixin = For(include.Type);
 
             if (mixin.HasOwnComponent && seen.Add(mixin.QualifiedName))
-                owners.Add(include);
+                owners.Add(new ComponentOwner(include, marker: false));
         }
     }
 
@@ -148,9 +168,10 @@ internal sealed class DeclarationModel
         if (HasOwnComponent)
             yield return this;
 
+        // A marker has no accessors, so nothing about it can be unreachable.
         foreach (var owner in ComponentOwners())
-            if (owner is not null)
-                yield return For(owner.Type);
+            if (owner is { IsMarker: false, Include: not null })
+                yield return For(owner.Include.Type);
     }
 
     /// <summary>

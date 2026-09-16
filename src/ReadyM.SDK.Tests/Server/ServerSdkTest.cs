@@ -1,4 +1,5 @@
 using Friflo.Engine.ECS;
+using IComponent = Friflo.Engine.ECS.IComponent;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Server.Entity;
@@ -23,24 +24,32 @@ public abstract class ServerSdkTest
     {
         Relay = new FakeRelay();
 
+        // Split across both heap kinds on purpose, so an ordinary test covers both branches of
+        // slot resolution without saying so.
         Relay.RegisterBlittable<PositionComponent>();
         Relay.RegisterManaged<VitalsComponent>();
         Relay.RegisterManaged<NamedComponent>();
         Relay.RegisterBlittable<NpcComponent>();
         Relay.RegisterManaged<BoulderComponent>();
-        Relay.RegisterBlittable<PeddlerComponent>();
-
-        // Peddler reaches a mixin in another assembly, whose component this one cannot name.
-        foreach (var component in ComponentsOf<Peddler>().Types)
-            Relay.RegisterUnnamed(component);
         Relay.RegisterBlittable<SpeedComponent>();
         Relay.RegisterManaged<WealthComponent>();
         Relay.RegisterBlittable<MoodComponent>();
-        Relay.RegisterBlittable<QuestGiverComponent>();
+
+        // Everything else a fixture needs, which is the archetype markers and any component
+        // belonging to another assembly. Whatever is already registered above keeps its kind.
+        foreach (var component in ComponentsOfEveryFixture())
+            Relay.RegisterUnnamed(component);
 
         Api = Relay.CreateEntityApi();
         Entities = new ServerEntities(Api);
     }
+
+    /// Found rather than listed, so a new fixture does not need remembering here.
+    private static IEnumerable<Type> ComponentsOfEveryFixture()
+        => typeof(Npc).Assembly
+            .GetTypes()
+            .Where(type => type.IsValueType && typeof(IComponent).IsAssignableFrom(type))
+            .Concat(ComponentsOf<Peddler>().Types);
 
     internal FakeRelay Relay { get; }
 

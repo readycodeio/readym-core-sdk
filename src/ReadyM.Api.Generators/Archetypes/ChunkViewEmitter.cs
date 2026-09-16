@@ -19,7 +19,7 @@ internal static class ChunkViewEmitter
         var view = ArchetypeNames.ViewOf(model.Symbol);
         var qualified = ArchetypeNames.QualifiedViewOf(model.Symbol);
         var slots = Slots(model);
-        var fields = slots.Select(slot => slot.Field).ToList();
+        var fields = Held(slots).Select(slot => slot.Field).ToList();
 
         writer.Line("/// Walks this shape by chunk. Valid only inside the loop that produced it.");
 
@@ -80,7 +80,7 @@ internal static class ChunkViewEmitter
 
     private static void EmitBinding(SourceWriter writer, DeclarationModel model, string qualified, IReadOnlyList<Slot> slots, ChunkNames chunks)
     {
-        var arguments = slots
+        var arguments = Held(slots)
             .Select(slot => $"new {chunks.ComponentChunk}(slots[{slot.Index}])")
             .Concat(["entities", "prototype", "0"]);
 
@@ -96,7 +96,7 @@ internal static class ChunkViewEmitter
         writer.Line($"    => new({string.Join(", ", arguments)});");
         writer.Line();
 
-        var moved = slots.Select(slot => slot.Field).Concat(["_entities", "_prototype", "index"]);
+        var moved = Held(slots).Select(slot => slot.Field).Concat(["_entities", "_prototype", "index"]);
 
         writer.Line("[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
         writer.Line($"public {qualified} At(int index) => new({string.Join(", ", moved)});");
@@ -107,7 +107,7 @@ internal static class ChunkViewEmitter
 
     private static void EmitAccessors(SourceWriter writer, DeclarationModel model, IReadOnlyList<Slot> slots)
     {
-        var own = slots.FirstOrDefault(slot => slot.Include is null);
+        var own = slots.FirstOrDefault(slot => slot is { Include: null, IsMarker: false });
 
         if (own is not null)
             foreach (var accessor in model.Accessors)
@@ -115,7 +115,8 @@ internal static class ChunkViewEmitter
 
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
-            var slot = slots.FirstOrDefault(candidate => candidate.Include?.TypeName == include.TypeName);
+            var slot = slots.FirstOrDefault(candidate =>
+                !candidate.IsMarker && candidate.Include?.TypeName == include.TypeName);
 
             if (slot is not null)
                 Property(writer, accessor, include.Accessors, slot.Field);
@@ -143,16 +144,23 @@ internal static class ChunkViewEmitter
     private static IReadOnlyList<Slot> Slots(DeclarationModel model)
         => model.ComponentOwners().Select((owner, index) => new Slot(index, owner)).ToList();
 
+    /// <summary>The slots the view actually holds: a marker takes an index but no field.</summary>
+    private static IReadOnlyList<Slot> Held(IReadOnlyList<Slot> slots)
+        => slots.Where(slot => !slot.IsMarker).ToList();
+
     private static string Parameter(string field) => field.TrimStart('_');
 
-    private sealed class Slot(int index, IncludeModel? include)
+    private sealed class Slot(int index, ComponentOwner owner)
     {
         public int Index { get; } = index;
 
-        public IncludeModel? Include { get; } = include;
+        public IncludeModel? Include { get; } = owner.Include;
+
+        /// <summary>A marker takes a slot but holds nothing, so the view never reads it.</summary>
+        public bool IsMarker { get; } = owner.IsMarker;
 
         // Named by position rather than by the include, because two declarations in different
         // namespaces can share a simple name and the fields would collide.
-        public string Field { get; } = include is null ? "_own" : $"_slot{index}";
+        public string Field { get; } = owner.Include is null ? "_own" : $"_slot{index}";
     }
 }

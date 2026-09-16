@@ -110,6 +110,10 @@ internal static class AccessorEmitter
         if (model.HasOwnComponent)
             sets.Add($"{ArchetypeNames.ComponentSet}.Of<{model.QualifiedComponent}>()");
 
+        // Right after the own component, matching the order ComponentOwners walks.
+        if (model.IsArchetype)
+            sets.Add($"{ArchetypeNames.ComponentSet}.Of<{model.QualifiedMarker}>()");
+
         foreach (var include in model.Includes)
         {
             if (include.Kind == IncludeKind.Tag)

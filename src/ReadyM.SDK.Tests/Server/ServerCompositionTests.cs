@@ -124,4 +124,48 @@ public class ServerCompositionTests : ServerSdkTest
         Assert.True(widened.Is<QuestNpc>());
         Assert.False(plain.Is<QuestNpc>());
     }
+
+    /// <summary>
+    /// An archetype with no components of its own is still a shape, and its marker is what makes it
+    /// one. Before markers it had an empty component set and could not be queried at all.
+    /// </summary>
+    [Fact]
+    public void An_archetype_with_no_components_is_queryable()
+    {
+        Entities.Create<Landmark>();
+        Entities.Create<Landmark>();
+        Entities.Create<PlacedLandmark>();
+        Entities.Create<Npc>();
+
+        Relay.ResetCounters();
+
+        var landmarks = 0;
+
+        foreach (var _ in Entities.Query<Landmark>())
+            landmarks++;
+
+        Assert.Equal(3, landmarks);
+        Assert.Equal(1, Relay.QueryCalls);
+        Assert.Equal(0, Relay.SlotCalls);
+    }
+
+    [Fact]
+    public void The_narrower_landmark_is_reached_only_by_its_own_query()
+    {
+        Entities.Create<Landmark>();
+
+        var placed = Entities.Create<PlacedLandmark>();
+
+        placed.X = 9f;
+
+        var count = 0;
+
+        foreach (var landmark in Entities.Query<PlacedLandmark>())
+        {
+            Assert.Equal(9f, landmark.X);
+            count++;
+        }
+
+        Assert.Equal(1, count);
+    }
 }

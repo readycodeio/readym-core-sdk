@@ -102,3 +102,13 @@ public readonly partial struct QuestGiver
 [IncludeArchetype(typeof(Npc))]
 [Include(typeof(QuestGiver))]
 public readonly partial struct QuestNpc;
+
+/// Carries nothing at all. Only its marker makes it findable, which is the point of having one.
+[Archetype]
+public readonly partial struct Landmark;
+
+/// Everything a Landmark is, plus a position.
+[Archetype]
+[IncludeArchetype(typeof(Landmark))]
+[Include(typeof(Position))]
+public readonly partial struct PlacedLandmark;

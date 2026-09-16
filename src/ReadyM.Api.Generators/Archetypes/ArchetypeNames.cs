@@ -42,6 +42,22 @@ internal static class ArchetypeNames
         return ns.Length == 0 ? "global::" + name : $"global::{ns}.{name}";
     }
 
+    /// <summary>
+    /// The component that says an entity was created as this archetype, or as one including it.
+    /// </summary>
+    /// <remarks>
+    /// A component rather than a tag because the server has no tags yet. It is generated and
+    /// internal, so swapping it for one later is invisible to a mod.
+    /// </remarks>
+    public static string MarkerOf(INamedTypeSymbol declaration) => declaration.Name + "ArchetypeMarker";
+
+    public static string QualifiedMarkerOf(INamedTypeSymbol declaration)
+    {
+        var ns = NamespaceOf(declaration);
+        var name = MarkerOf(declaration);
+        return ns.Length == 0 ? "global::" + name : $"global::{ns}.{name}";
+    }
+
     /// <summary>The component holding the values of a mixin, or an archetype's own accessors.</summary>
     public static string ComponentOf(INamedTypeSymbol declaration) => declaration.Name + "Component";
 

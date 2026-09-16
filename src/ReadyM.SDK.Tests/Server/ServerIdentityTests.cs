@@ -68,7 +68,11 @@ public class ServerIdentityTests : ServerSdkTest
     {
         var npc = Spawn<Npc>();
 
-        Assert.True(EntityHandle.Of(npc).TryAs<Placed>(out var placed));
-        Assert.Equal(IdentityOf(npc).Id, EntityHandle.Of(placed).Id);
+        // Placed shares Position with Npc but is a different archetype, so identity says no.
+        Assert.False(EntityHandle.Of(npc).TryAs<Placed>(out _));
+
+        // A mixin is matched by its component, so that still holds.
+        Assert.True(EntityHandle.Of(npc).TryAs<Position>(out var position));
+        Assert.Equal(IdentityOf(npc).Id, EntityHandle.Of(position).Id);
     }
 }

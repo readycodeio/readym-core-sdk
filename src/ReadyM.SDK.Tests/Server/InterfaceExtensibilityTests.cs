@@ -81,7 +81,8 @@ public class InterfaceExtensibilityTests : ServerSdkTest
 
         Assert.True(npc.IsValid);
         Assert.True(npc.Is<Fixtures.Position>());
-        Assert.True(npc.TryAs<Placed>(out _));
+        Assert.False(npc.TryAs<Placed>(out _));
+        Assert.True(npc.TryAs<Npc>(out _));
     }
 
     // -- the server interface: a member may be added, provided it has a body ----------------------

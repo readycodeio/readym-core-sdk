@@ -52,16 +52,15 @@ public class QueryTests : ClientSdkTest
     }
 
     [Fact]
-    public void An_archetype_query_matches_any_entity_carrying_its_components()
+    public void An_archetype_query_matches_the_entities_created_as_it()
     {
-        // Prop is Placement only, which Monster and Chest both include, so all three match. Archetype
-        // identity is not part of the filter today; the spec's "every entity of that archetype" would
-        // need the query to exclude supersets.
+        // Prop is Placement only, which Monster and Chest carry too, but the marker keeps them out:
+        // a query for an archetype is every entity of that archetype, and of ones including it.
         SpawnProp();
         SpawnMonster();
         SpawnChest();
 
-        Assert.Equal(3, Count(Entities.Query<Prop>()));
+        Assert.Equal(1, Count(Entities.Query<Prop>()));
         Assert.Equal(1, Count(Entities.Query<Monster>()));
         Assert.Equal(1, Count(Entities.Query<Chest>()));
     }

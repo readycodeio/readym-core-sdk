@@ -32,14 +32,17 @@ public class ArchetypeCastTests : ClientSdkTest
         Assert.False(monster.Is<Chest>());
     }
 
+    /// <summary>
+    /// Identity, not shape. Prop is Placement only, which Monster carries too, but nothing relates
+    /// the two declarations and the generated marker is what says so.
+    /// </summary>
     [Fact]
-    public void Is_holds_for_any_archetype_whose_components_the_entity_carries()
+    public void Is_does_not_hold_for_an_archetype_that_merely_shares_components()
     {
-        // Prop is Placement only, which Monster includes, so a monster can be viewed as one even
-        // though nothing relates the two declarations. Archetype identity would say no here.
         var monster = SpawnMonster();
 
-        Assert.True(monster.Is<Prop>());
+        Assert.False(monster.Is<Prop>());
+        Assert.True(monster.Is<Monster>());
     }
 
     [Fact]
@@ -88,8 +91,7 @@ public class ArchetypeCastTests : ClientSdkTest
     [Fact]
     public void An_explicit_cast_down_throws_when_the_entity_is_not_one()
     {
-        var chest = SpawnChest();
-        Assert.True(chest.TryAs(out Creature creature));
+        var creature = Entities.Create<Creature>();
 
         Assert.Throws<InvalidCastException>(() => (Monster)creature);
     }
@@ -110,7 +112,7 @@ public class ArchetypeCastTests : ClientSdkTest
     public void Casts_work_on_entities_a_query_handed_out()
     {
         SpawnMonster(level: 1);
-        SpawnChest();
+        Entities.Create<Creature>();
 
         var creatures = 0;
         var monsters = 0;

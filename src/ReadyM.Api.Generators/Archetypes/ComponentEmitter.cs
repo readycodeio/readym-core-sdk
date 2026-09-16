@@ -14,6 +14,14 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// </remarks>
 internal static class ComponentEmitter
 {
+    /// <summary>
+    /// Carries no values: its presence is the whole message, which is that the entity was created as
+    /// this archetype or as one including it. That is what makes an archetype with no components of
+    /// its own queryable, and what makes asking whether an entity is one mean something.
+    /// </summary>
+    public static void EmitMarker(SourceWriter writer, string name)
+        => writer.Line($"internal struct {name} : {ArchetypeNames.Component};");
+
     public static void Emit(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
     {
         using (writer.Braces($"internal struct {name} : {ArchetypeNames.Component}"))

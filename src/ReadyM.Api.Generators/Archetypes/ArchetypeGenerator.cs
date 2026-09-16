@@ -64,6 +64,9 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             writer.Line();
         }
 
+        ComponentEmitter.EmitMarker(writer, model.Marker);
+        writer.Line();
+
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 

@@ -11,15 +11,17 @@ public class ArchetypeTests : ClientSdkTest
     [Fact]
     public void Components_names_the_required_components_of_the_archetype()
     {
+        // An archetype also carries a marker, and one for every archetype it includes, which is what
+        // makes asking whether an entity is one mean identity rather than shape.
         Assert.Equal(
-            ["MonsterComponent", "HealthComponent", "PlacementComponent"],
+            ["MonsterComponent", "MonsterArchetypeMarker", "CreatureArchetypeMarker", "HealthComponent", "PlacementComponent"],
             ComponentsOf<Monster>().Types.Select(type => type.Name));
 
-        // An optional include is not part of what the archetype requires.
         Assert.Equal(
-            ["ChestComponent", "HealthComponent", "PlacementComponent"],
+            ["ChestComponent", "ChestArchetypeMarker", "HealthComponent", "PlacementComponent"],
             ComponentsOf<Chest>().Types.Select(type => type.Name));
 
+        // A mixin is found by the component it carries, so it needs no marker.
         Assert.Equal(["HealthComponent"], ComponentsOf<Health>().Types.Select(type => type.Name));
     }
 
@@ -28,7 +30,7 @@ public class ArchetypeTests : ClientSdkTest
     {
         // The query path caches resolved component ids against this reference, so it has to be stable.
         Assert.Same(ComponentsOf<Monster>(), ComponentsOf<Monster>());
-        Assert.Same(ComponentsOf<Creature>(), ComponentsOf<Health>());
+        Assert.Same(ComponentsOf<Health>(), ComponentsOf<Health>());
     }
 
     [Fact]

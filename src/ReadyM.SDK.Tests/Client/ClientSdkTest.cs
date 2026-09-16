@@ -59,31 +59,42 @@ public abstract class ClientSdkTest : IDisposable
 
     protected Monster SpawnMonster(int level = 1, float hp = 50f, float maxHp = 100f, float x = 0f, float y = 0f)
     {
-        var entity = Store.CreateEntity(
-            new MonsterComponent { level = level },
-            new HealthComponent { hp = hp, maxHp = maxHp },
-            new PlacementComponent { x = x, y = y });
+        var monster = Entities.Create<Monster>();
 
-        return new Monster(new EntityHandle(entity.RawEntity, Api));
+        monster.Level = level;
+        monster.Hp = hp;
+        monster.MaxHp = maxHp;
+        monster.X = x;
+        monster.Y = y;
+
+        return monster;
     }
 
+    /// <summary>Loot is a shape of its own, so asking for it spawns the narrower archetype.</summary>
     protected Chest SpawnChest(int gold = 10, float hp = 20f, float maxHp = 20f, float x = 0f, float y = 0f, int? rarity = null)
     {
-        var entity = Store.CreateEntity(
-            new ChestComponent { gold = gold },
-            new HealthComponent { hp = hp, maxHp = maxHp },
-            new PlacementComponent { x = x, y = y });
+        var chest = rarity.HasValue ? Entities.Create<LootedChest>() : Entities.Create<Chest>();
 
-        if (rarity.HasValue)
-            entity.AddComponent(new LootComponent { rarity = rarity.Value });
+        chest.Gold = gold;
+        chest.Hp = hp;
+        chest.MaxHp = maxHp;
+        chest.X = x;
+        chest.Y = y;
 
-        return new Chest(new EntityHandle(entity.RawEntity, Api));
+        if (rarity.HasValue && EntityHandle.Of(chest).TryAs<Loot>(out var loot))
+            loot.Rarity = rarity.Value;
+
+        return chest;
     }
 
     protected Prop SpawnProp(float x = 0f, float y = 0f)
     {
-        var entity = Store.CreateEntity(new PlacementComponent { x = x, y = y });
-        return new Prop(new EntityHandle(entity.RawEntity, Api));
+        var prop = Entities.Create<Prop>();
+
+        prop.X = x;
+        prop.Y = y;
+
+        return prop;
     }
 
     /// <summary>
