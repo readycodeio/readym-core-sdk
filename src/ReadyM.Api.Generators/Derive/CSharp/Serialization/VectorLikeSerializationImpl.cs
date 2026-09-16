@@ -8,8 +8,8 @@ internal sealed class VectorLikeSerializationImpl : CSharpTypeSerializationImplB
         => SerializationHelper.IsVectorLike(type);
 
     protected override void EmitSerialize(ITypeSymbol symbol, CSharpEmitSerializeContext context)
-        => context.Codec.WriteSelf(context);
+        => context.Codec.WriteVector(context);
 
     protected override void EmitDeserialize(ITypeSymbol symbol, CSharpEmitDeserializeContext context)
-        => context.Codec.ReadSelf(context);
+        => context.Codec.ReadVector(context);
 }

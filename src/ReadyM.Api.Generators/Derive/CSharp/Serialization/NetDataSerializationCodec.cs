@@ -40,6 +40,12 @@ internal sealed class NetDataSerializationCodec : ICSharpSerializationCodec
         context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
     }
 
+    public void WriteVector(CSharpEmitSerializeContext context)
+        => context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
+
+    public void ReadVector(CSharpEmitDeserializeContext context)
+        => context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
+
     public void WriteSelf(CSharpEmitSerializeContext context)
         => context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
 
@@ -72,6 +78,47 @@ internal sealed class NetDataSerializationCodec : ICSharpSerializationCodec
         using (context.WithCodeBlock())
         {
             emitElement();
+        }
+    }
+
+    public void SerializeDictionary(
+        CSharpEmitSerializeContext context, string sourceVar, string iterVar,
+        string keyVar, string valueVar, Action emitKey, Action emitValue)
+    {
+        var countVar = context.MethodState.NewVarName("count");
+        context.AppendLine($"var {countVar} = {sourceVar}.IsCreated ? {sourceVar}.Count : 0;");
+        context.AppendLine($"writer.Put({countVar});");
+        context.AppendLine($"if ({countVar} > 0)");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine($"foreach (var {iterVar} in {sourceVar})");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine($"var {keyVar} = {iterVar}.Key;");
+                context.AppendLine($"var {valueVar} = {iterVar}.Value;");
+                emitKey();
+                emitValue();
+            }
+        }
+    }
+
+    public void DeserializeDictionary(
+        CSharpEmitDeserializeContext context, string targetVar,
+        string keyVar, string keyTypeFqn, Action emitKeyRead,
+        string valueVar, string valueTypeFqn, Action emitValueRead)
+    {
+        var indexVar = context.MethodState.NewVarName("index");
+        var countVar = context.MethodState.NewVarName("count");
+        context.AppendLine($"var {countVar} = reader.GetInt();");
+        context.AppendLine($"{targetVar}.Clear();");
+        context.AppendLine($"for (var {indexVar} = 0; {indexVar} < {countVar}; {indexVar}++)");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine($"var {keyVar} = default({keyTypeFqn});");
+            context.AppendLine($"var {valueVar} = default({valueTypeFqn});");
+            emitKeyRead();
+            emitValueRead();
+            context.AppendLine($"{targetVar}.Add({keyVar}, {valueVar});");
         }
     }
 }

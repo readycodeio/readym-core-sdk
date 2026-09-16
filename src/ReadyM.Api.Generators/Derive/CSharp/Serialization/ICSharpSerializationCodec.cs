@@ -17,12 +17,30 @@ internal interface ICSharpSerializationCodec
     void WriteNativeString(CSharpEmitSerializeContext context);
     void ReadNativeString(CSharpEmitDeserializeContext context);
 
+    /// <summary>A System.Numerics vector (Vector2/3/4).</summary>
+    void WriteVector(CSharpEmitSerializeContext context);
+    void ReadVector(CSharpEmitDeserializeContext context);
+
+    /// <summary>A value type that serialises itself (custom method / save-serializable).</summary>
     void WriteSelf(CSharpEmitSerializeContext context);
     void ReadSelf(CSharpEmitDeserializeContext context);
 
-    /// <summary>Frames a collection and iterates its elements; <paramref name="emitElement"/> writes one element.</summary>
+    /// <summary>Frames a list and iterates its elements; <paramref name="emitElement"/> writes one element.</summary>
     void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement);
 
-    /// <summary>Frames a collection and loops; <paramref name="emitElement"/> reads and adds one element.</summary>
+    /// <summary>Frames a list and loops; <paramref name="emitElement"/> reads and adds one element.</summary>
     void DeserializeCollection(CSharpEmitDeserializeContext context, string targetVar, Action emitElement);
+
+    /// <summary>
+    /// Frames a dictionary. The codec declares the key/value locals from <paramref name="iterVar"/> and calls the
+    /// emit callbacks; a keyed format can wrap each entry so its reader advances one entry at a time.
+    /// </summary>
+    void SerializeDictionary(
+        CSharpEmitSerializeContext context, string sourceVar, string iterVar,
+        string keyVar, string valueVar, Action emitKey, Action emitValue);
+
+    void DeserializeDictionary(
+        CSharpEmitDeserializeContext context, string targetVar,
+        string keyVar, string keyTypeFqn, Action emitKeyRead,
+        string valueVar, string valueTypeFqn, Action emitValueRead);
 }

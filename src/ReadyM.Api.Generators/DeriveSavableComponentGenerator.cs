@@ -92,7 +92,8 @@ internal sealed class DeriveSavableComponentGenerator : IIncrementalGenerator
         var sb = new StringBuilder();
         var moduleState = new CSharpModuleState();
         var classState = new CSharpClassState(moduleState);
-        moduleState.AddUsing("ReadyM.Relay.Common.Oblivion.Save");
+        moduleState.AddUsing("ReadyM.Api.Multiplayer.Serialization");
+        moduleState.AddUsing("ReadyM.Api.Multiplayer.Extensions");
 
         sb.Append($$"""
 namespace {{info.Namespace}};

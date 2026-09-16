@@ -18,13 +18,9 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
         var itemVar = context.MethodState.NewVarName("d");
         var keyVar = context.MethodState.NewVarName("key");
         var valueVar = context.MethodState.NewVarName("value");
-        context.Codec.SerializeCollection(context, sourceVar, itemVar, () =>
-        {
-            context.AppendLine($"var {keyVar} = {itemVar}.Key;");
-            context.AppendLine($"var {valueVar} = {itemVar}.Value;");
-            context.EmitSerializeVar(keyVar, keyType);
-            context.EmitSerializeVar(valueVar, valueType);
-        });
+        context.Codec.SerializeDictionary(context, sourceVar, itemVar, keyVar, valueVar,
+            () => context.EmitSerializeVar(keyVar, keyType),
+            () => context.EmitSerializeVar(valueVar, valueType));
     }
 
     protected override void EmitDeserialize(ITypeSymbol symbol, CSharpEmitDeserializeContext context)
@@ -33,15 +29,10 @@ internal class NativeDictionarySerializationImpl : CSharpTypeSerializationImplBa
             throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native dictionary type");
 
         var targetVar = context.State.CurrentVar;
-        context.Codec.DeserializeCollection(context, targetVar, () =>
-        {
-            var keyVar = context.MethodState.NewVarName("key");
-            var valueVar = context.MethodState.NewVarName("value");
-            context.AppendLine($"var {keyVar} = default({FullyQualifiedTypeName(keyType)});");
-            context.AppendLine($"var {valueVar} = default({FullyQualifiedTypeName(valueType)});");
-            context.EmitDeserializeVar(keyVar, keyType);
-            context.EmitDeserializeVar(valueVar, valueType);
-            context.AppendLine($"{targetVar}.Add({keyVar}, {valueVar});");
-        });
+        var keyVar = context.MethodState.NewVarName("key");
+        var valueVar = context.MethodState.NewVarName("value");
+        context.Codec.DeserializeDictionary(context, targetVar,
+            keyVar, FullyQualifiedTypeName(keyType), () => context.EmitDeserializeVar(keyVar, keyType),
+            valueVar, FullyQualifiedTypeName(valueType), () => context.EmitDeserializeVar(valueVar, valueType));
     }
 }

@@ -59,6 +59,12 @@ internal sealed class SaveSerializationCodec : ICSharpSerializationCodec
         context.AppendLine("reader.EndObject();");
     }
 
+    public void WriteVector(CSharpEmitSerializeContext context)
+        => context.AppendLine($"{context.State.CurrentVar}.WriteSave(writer);");
+
+    public void ReadVector(CSharpEmitDeserializeContext context)
+        => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader);");
+
     public void WriteSelf(CSharpEmitSerializeContext context)
         => context.AppendLine($"{FullyQualifiedTypeName(context.State.CurrentType)}.WriteSave(writer, in {context.State.CurrentVar});");
 
@@ -90,6 +96,55 @@ internal sealed class SaveSerializationCodec : ICSharpSerializationCodec
         using (context.WithCodeBlock())
         {
             emitElement();
+        }
+        context.AppendLine("reader.EndArray();");
+    }
+
+    public void SerializeDictionary(
+        CSharpEmitSerializeContext context, string sourceVar, string iterVar,
+        string keyVar, string valueVar, Action emitKey, Action emitValue)
+    {
+        var countVar = context.MethodState.NewVarName("count");
+        context.AppendLine($"var {countVar} = {sourceVar}.IsCreated ? {sourceVar}.Count : 0;");
+        context.AppendLine($"writer.BeginArray({countVar});");
+        context.AppendLine($"if ({countVar} > 0)");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine($"foreach (var {iterVar} in {sourceVar})");
+            using (context.WithCodeBlock())
+            {
+                context.AppendLine($"var {keyVar} = {iterVar}.Key;");
+                context.AppendLine($"var {valueVar} = {iterVar}.Value;");
+                context.AppendLine("writer.BeginObject();");
+                context.AppendLine("writer.Name(\"k\");");
+                emitKey();
+                context.AppendLine("writer.Name(\"v\");");
+                emitValue();
+                context.AppendLine("writer.EndObject();");
+            }
+        }
+        context.AppendLine("writer.EndArray();");
+    }
+
+    public void DeserializeDictionary(
+        CSharpEmitDeserializeContext context, string targetVar,
+        string keyVar, string keyTypeFqn, Action emitKeyRead,
+        string valueVar, string valueTypeFqn, Action emitValueRead)
+    {
+        context.AppendLine("reader.BeginArray();");
+        context.AppendLine($"{targetVar}.Clear();");
+        context.AppendLine("while (reader.HasMoreElements())");
+        using (context.WithCodeBlock())
+        {
+            context.AppendLine("reader.BeginObject();");
+            context.AppendLine($"var {keyVar} = default({keyTypeFqn});");
+            context.AppendLine($"var {valueVar} = default({valueTypeFqn});");
+            context.AppendLine("reader.Name(\"k\");");
+            emitKeyRead();
+            context.AppendLine("reader.Name(\"v\");");
+            emitValueRead();
+            context.AppendLine("reader.EndObject();");
+            context.AppendLine($"{targetVar}.Add({keyVar}, {valueVar});");
         }
         context.AppendLine("reader.EndArray();");
     }
