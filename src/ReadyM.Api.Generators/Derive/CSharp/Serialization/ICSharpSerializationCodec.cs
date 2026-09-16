@@ -17,10 +17,6 @@ internal interface ICSharpSerializationCodec
     void WriteNativeString(CSharpEmitSerializeContext context);
     void ReadNativeString(CSharpEmitDeserializeContext context);
 
-    /// <summary>A System.Numerics vector (Vector2/3/4).</summary>
-    void WriteVector(CSharpEmitSerializeContext context);
-    void ReadVector(CSharpEmitDeserializeContext context);
-
     /// <summary>A value type that serialises itself (custom method / save-serializable).</summary>
     void WriteSelf(CSharpEmitSerializeContext context);
     void ReadSelf(CSharpEmitDeserializeContext context);

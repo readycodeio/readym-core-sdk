@@ -40,12 +40,6 @@ internal sealed class NetDataSerializationCodec : ICSharpSerializationCodec
         context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
     }
 
-    public void WriteVector(CSharpEmitSerializeContext context)
-        => context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
-
-    public void ReadVector(CSharpEmitDeserializeContext context)
-        => context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
-
     public void WriteSelf(CSharpEmitSerializeContext context)
         => context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
 

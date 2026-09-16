@@ -59,17 +59,11 @@ internal sealed class SaveSerializationCodec : ICSharpSerializationCodec
         context.AppendLine("reader.EndObject();");
     }
 
-    public void WriteVector(CSharpEmitSerializeContext context)
+    public void WriteSelf(CSharpEmitSerializeContext context)
         => context.AppendLine($"{context.State.CurrentVar}.WriteSave(writer);");
 
-    public void ReadVector(CSharpEmitDeserializeContext context)
-        => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader);");
-
-    public void WriteSelf(CSharpEmitSerializeContext context)
-        => context.AppendLine($"{FullyQualifiedTypeName(context.State.CurrentType)}.WriteSave(writer, in {context.State.CurrentVar});");
-
     public void ReadSelf(CSharpEmitDeserializeContext context)
-        => context.AppendLine($"{FullyQualifiedTypeName(context.State.CurrentType)}.ReadSave(ref {context.State.CurrentVar}, reader);");
+        => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader);");
 
     public void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement)
     {
