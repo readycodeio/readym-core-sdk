@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks>
         <LangVersion>latest</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -9,6 +9,22 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj" />
+    </ItemGroup>
+
+
+    <!-- The chunk fast path needs ref fields, allows ref struct and static abstract interface
+         members, none of which netstandard2.0 has. An ns2.0 client keeps the identity path, and the
+         generator emits no view for it because it cannot see these types. -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+        <Compile Remove="Chunks\**"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
     </ItemGroup>
 
 </Project>

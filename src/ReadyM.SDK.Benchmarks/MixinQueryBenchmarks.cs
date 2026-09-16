@@ -24,10 +24,10 @@ public class MixinQueryBenchmarks : ServerWorld
         // v0's loop: bases once per chunk, then a delegate per entity.
         _v0Chunk = (entities, comps, n, count) =>
         {
-            ref var stamina = ref Chunks.Base<StaminaComponent>(comps[0]);
+            ref var stamina = ref ChunkAccess.Base<StaminaComponent>(comps[0]);
 
             for (var i = 0; i < count; i++)
-                _v0Body(ref Chunks.At(ref stamina, i, comps[0].Stride));
+                _v0Body(ref ChunkAccess.At(ref stamina, i, comps[0].Stride));
         };
     }
 
@@ -41,11 +41,11 @@ public class MixinQueryBenchmarks : ServerWorld
 
     private unsafe void Accumulate(IntPtr entities, ChunkComponent* comps, int n, int count)
     {
-        ref var stamina = ref Chunks.Base<StaminaComponent>(comps[0]);
+        ref var stamina = ref ChunkAccess.Base<StaminaComponent>(comps[0]);
         var total = 0f;
 
         for (var i = 0; i < count; i++)
-            total += Chunks.At(ref stamina, i, comps[0].Stride).endurance;
+            total += ChunkAccess.At(ref stamina, i, comps[0].Stride).endurance;
 
         _sink += total;
     }

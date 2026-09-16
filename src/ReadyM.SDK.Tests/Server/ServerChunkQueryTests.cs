@@ -1,5 +1,3 @@
-using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
 using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.Tests.Server.Fixtures;
 

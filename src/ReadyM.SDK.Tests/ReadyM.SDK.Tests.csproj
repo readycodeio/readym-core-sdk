@@ -3,6 +3,7 @@
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <IsPackable>false</IsPackable>
         <OutputType>Library</OutputType>
         <TargetFramework>net10.0</TargetFramework>
@@ -24,6 +25,7 @@
       <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
       <ProjectReference Include="..\ReadyM.SDK.Client\ReadyM.SDK.Client.csproj" />
       <ProjectReference Include="..\ReadyM.SDK.Server\ReadyM.SDK.Server.csproj" />
+      <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj" />
       <ProjectReference Include="..\ReadyM.SDK.TestHarness\ReadyM.SDK.TestHarness.csproj" />
       <ProjectReference Include="..\ReadyM.Relay.Server.Sdk\ReadyM.Relay.Server.Sdk.csproj" />
       <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />

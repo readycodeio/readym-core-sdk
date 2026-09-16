@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using JetBrains.Annotations;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Server.Entity.Chunks;
+using ReadyM.SDK.Chunks;
 
 namespace ReadyM.SDK.Server.Entity;
 

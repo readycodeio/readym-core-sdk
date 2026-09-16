@@ -1,6 +1,8 @@
+using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
-namespace ReadyM.SDK.Server.Entity.Chunks;
+namespace ReadyM.SDK.Chunks;
 
 /// <summary>
 /// A query that walks chunks rather than identities: one crossing for the whole query instead of one
@@ -14,11 +16,11 @@ namespace ReadyM.SDK.Server.Entity.Chunks;
 public readonly ref struct ChunkQuery<TView>
     where TView : IArchetypeChunkView<TView>, allows ref struct
 {
-    private readonly ServerEntityApi _api;
+    private readonly IChunkSource _source;
 
-    internal ChunkQuery(ServerEntityApi api) => _api = api;
+    internal ChunkQuery(IChunkSource source) => _source = source;
 
-    public Enumerator GetEnumerator() => new(_api);
+    public Enumerator GetEnumerator() => new(_source);
 
     public ref struct Enumerator
     {
@@ -30,10 +32,10 @@ public readonly ref struct ChunkQuery<TView>
         private int _index;
         private int _count;
 
-        internal Enumerator(ServerEntityApi api)
+        internal Enumerator(IChunkSource source)
         {
-            _buffer = api.CollectChunks(TView.Components);
-            _prototype = new EntityHandle(default, api);
+            _buffer = source.Collect(TView.Components);
+            _prototype = source.Prototype;
             _chunk = default!;
             _chunkIndex = -1;
             _index = 0;
@@ -60,4 +62,20 @@ public readonly ref struct ChunkQuery<TView>
 
         public readonly void Dispose() => _buffer.Return();
     }
+}
+
+/// <summary>
+/// Whichever half is behind a query: it knows how to find the chunks a shape matches.
+/// </summary>
+/// <remarks>
+/// The two halves find them very differently, one by asking the relay across the interop boundary
+/// and one by walking the store it already has, but a loop over the result is the same either way,
+/// which is what lets one generated view serve both.
+/// </remarks>
+public interface IChunkSource
+{
+    internal ChunkBuffer Collect(ComponentSet components);
+
+    /// <summary>A handle carrying this half's api, which a view rebases onto each entity.</summary>
+    internal EntityHandle Prototype { get; }
 }

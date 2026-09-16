@@ -14,7 +14,7 @@ namespace ReadyM.SDK.TestHarness;
 /// be pinned, and resolving it here yields a reference the GC tracks. An AOT-owned slot is already
 /// pinned, so its address is used as-is.
 /// </remarks>
-internal static class Chunks
+internal static class ChunkAccess
 {
     internal static unsafe ref T Base<T>(in ChunkComponent comp) where T : struct
     {

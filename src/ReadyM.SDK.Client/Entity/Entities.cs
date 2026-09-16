@@ -6,9 +6,11 @@ namespace ReadyM.SDK.Client.Entity;
 
 internal class Entities(EntityStore store, IEntityApi api) : IEntities
 {
-    public QueryBuilder<T> Query<T>()
+    private readonly ClientEntityContext _context = new(store, api);
+
+    public EntityQuery<T> Query<T>()
         where T : struct, IArchetypeQueryable
-        => new(store, api);
+        => new(_context);
 
     public T Create<T>() where T : struct, IArchetype
     {
@@ -16,9 +18,11 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         return new T { Handle = new EntityHandle(archetype.CreateEntity().RawEntity, api) };
     }
 
-    public bool Delete<T>(in T shape) where T : struct, IArchetype
+    public bool Delete<T>(in T shape) where T : struct, IArchetype => Delete(EntityHandle.Of(shape));
+
+    public bool Delete(EntityHandle handle)
     {
-        var entity = store.GetEntityByRawEntity(EntityHandle.Of(shape).RawEntity);
+        var entity = store.GetEntityByRawEntity(handle.RawEntity);
 
         if (entity.IsNull)
             return false;
@@ -27,7 +31,8 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         return true;
     }
 
-    public QueryBuilder<T1, T2> Query<T1, T2>()
-        where T1 : struct, IArchetypeMixin where T2 : struct, IArchetypeMixin
-        => new(store, api);
+    public EntityQuery<T1, T2> Query<T1, T2>()
+        where T1 : struct, IArchetypeQueryable
+        where T2 : struct, IArchetypeQueryable
+        => new(_context);
 }

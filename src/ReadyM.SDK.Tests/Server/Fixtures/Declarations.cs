@@ -1,4 +1,5 @@
 using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Tests.ExternalMod;
 
 namespace ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -52,7 +53,7 @@ public readonly partial struct Placed;
 /// </summary>
 [Archetype]
 [Include(typeof(Position))]
-[Include(typeof(global::ReadyM.SDK.Tests.ExternalMod.Wallet))]
+[Include(typeof(Wallet))]
 public readonly partial struct Peddler
 {
     public partial int Steps { get; set; }

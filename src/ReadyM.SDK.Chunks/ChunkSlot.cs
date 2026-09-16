@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ReadyM.SDK.Server.Entity.Chunks;
+namespace ReadyM.SDK.Chunks;
 
 /// <summary>
 /// Where one component of one chunk lives, in whichever form the owning side can offer.

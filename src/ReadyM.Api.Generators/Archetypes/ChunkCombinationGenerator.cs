@@ -89,9 +89,13 @@ internal class ChunkCombinationGenerator : IIncrementalGenerator
         // scope wherever the query is written.
         using (writer.Braces($"public static class {combination.ClassName}"))
         {
-            writer.Line($"public static {combination.Composed}.Enumerator GetEnumerator(");
-            writer.Line($"    this {combination.Query} query)");
-            writer.Line($"    => query.Chunks<{combination.Views}>();");
+            foreach (var query in combination.Queries)
+            {
+                writer.Line($"public static {combination.Composed}.Enumerator GetEnumerator(");
+                writer.Line($"    this {query} query)");
+                writer.Line($"    => query.Chunks<{combination.Views}>();");
+                writer.Line();
+            }
         }
 
         return writer.ToString();
@@ -104,8 +108,11 @@ internal class ChunkCombinationGenerator : IIncrementalGenerator
 
         public string Composed { get; } = $"{chunks.ChunkQuery}<{Compose(shapes, chunks)}>";
 
-        public string Query { get; } =
-            $"{chunks.EntityQuery}<{string.Join(", ", shapes.Select(shape => shape.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))}>";
+        /// <summary>One per half in scope, with the shapes applied to each.</summary>
+        public ImmutableArray<string> Queries { get; } = chunks.EntityQueries
+            .Where(target => target.Supports(shapes.Length))
+            .Select(target => $"{target.Qualified}<{string.Join(", ", shapes.Select(shape => shape.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))}>")
+            .ToImmutableArray();
 
         public string ClassName { get; } =
             string.Join("_", shapes.Select(shape => shape.ToDisplayString().Replace(".", "_"))) + "_ChunkQuery";

@@ -23,7 +23,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         // Saying so beats turning the fast path off and letting a profiler find it months later.
         context.RegisterSourceOutput(context.CompilationProvider, static (spc, compilation) =>
         {
-            if (ChunkNames.ServerReferenced(compilation) && ChunkNames.Resolve(compilation) is null)
+            if (ChunkNames.ChunkAssemblyReferenced(compilation) && ChunkNames.Resolve(compilation) is null)
                 spc.ReportDiagnostic(Diagnostic.Create(ChunkTypesMissing, Location.None));
         });
 
@@ -37,7 +37,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ChunkTypesMissing = new(
         "READYM001",
         "Chunk fast path disabled",
-        $"{ChunkNames.ServerAssembly} is referenced but its chunk types were not found, so every query "
+        $"{ChunkNames.ChunkAssembly} is referenced but its chunk types were not found, so every query "
         + "walks identities instead of chunks. They were probably moved or renamed.",
         "ReadyM",
         DiagnosticSeverity.Warning,

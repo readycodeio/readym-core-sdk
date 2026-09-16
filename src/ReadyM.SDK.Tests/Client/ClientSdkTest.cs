@@ -100,7 +100,7 @@ public abstract class ClientSdkTest : IDisposable
     /// <summary>Components is an explicit interface implementation, so it is reached through the constraint.</summary>
     protected static ComponentSet ComponentsOf<T>() where T : struct, IArchetypeQueryable => default(T).Components;
 
-    protected int Count<T>(QueryBuilder<T> query) where T : struct, IArchetypeQueryable
+    protected int Count<T>(EntityQuery<T> query) where T : struct, IArchetypeQueryable
     {
         var count = 0;
         foreach (var _ in query) count++;

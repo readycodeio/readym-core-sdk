@@ -8,15 +8,16 @@ using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Chunks;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;
 using ReadyM.SDK.Entity;
-using ReadyM.SDK.Server.Entity.Chunks;
+using ReadyM.SDK.Chunks;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Server.Entity;
 
-internal sealed class ServerEntityApi : IEntityApi
+internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 {
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
@@ -149,7 +150,9 @@ internal sealed class ServerEntityApi : IEntityApi
     /// over, and because queries never overlap: everything that runs mod code is scheduled on the
     /// one thread.
     /// </remarks>
-    internal unsafe ChunkBuffer CollectChunks(ComponentSet components)
+    EntityHandle IChunkSource.Prototype => new(default, this);
+
+    unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components)
     {
         var ids = ResolveIds(components);
         var buffer = ChunkBuffer.Rent(ids.Length);

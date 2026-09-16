@@ -29,19 +29,19 @@ public class MixinsQueryBenchmarks : ServerWorld
         // v0's loop: bases once per chunk, then a delegate per entity.
         _v0Chunk = (entities, comps, n, count) =>
         {
-            ref var stamina = ref Chunks.Base<StaminaComponent>(comps[0]);
-            ref var armor = ref Chunks.Base<ArmorComponent>(comps[1]);
-            ref var speed = ref Chunks.Base<SpeedComponent>(comps[2]);
-            ref var purse = ref Chunks.Base<PurseComponent>(comps[3]);
-            ref var morale = ref Chunks.Base<MoraleComponent>(comps[4]);
+            ref var stamina = ref ChunkAccess.Base<StaminaComponent>(comps[0]);
+            ref var armor = ref ChunkAccess.Base<ArmorComponent>(comps[1]);
+            ref var speed = ref ChunkAccess.Base<SpeedComponent>(comps[2]);
+            ref var purse = ref ChunkAccess.Base<PurseComponent>(comps[3]);
+            ref var morale = ref ChunkAccess.Base<MoraleComponent>(comps[4]);
 
             for (var i = 0; i < count; i++)
                 _v0Body(
-                    ref Chunks.At(ref stamina, i, comps[0].Stride),
-                    ref Chunks.At(ref armor, i, comps[1].Stride),
-                    ref Chunks.At(ref speed, i, comps[2].Stride),
-                    ref Chunks.At(ref purse, i, comps[3].Stride),
-                    ref Chunks.At(ref morale, i, comps[4].Stride));
+                    ref ChunkAccess.At(ref stamina, i, comps[0].Stride),
+                    ref ChunkAccess.At(ref armor, i, comps[1].Stride),
+                    ref ChunkAccess.At(ref speed, i, comps[2].Stride),
+                    ref ChunkAccess.At(ref purse, i, comps[3].Stride),
+                    ref ChunkAccess.At(ref morale, i, comps[4].Stride));
         };
 
     }
@@ -56,20 +56,20 @@ public class MixinsQueryBenchmarks : ServerWorld
 
     private unsafe void Accumulate(IntPtr entities, ChunkComponent* comps, int n, int count)
     {
-        ref var stamina = ref Chunks.Base<StaminaComponent>(comps[0]);
-        ref var armor = ref Chunks.Base<ArmorComponent>(comps[1]);
-        ref var speed = ref Chunks.Base<SpeedComponent>(comps[2]);
-        ref var purse = ref Chunks.Base<PurseComponent>(comps[3]);
-        ref var morale = ref Chunks.Base<MoraleComponent>(comps[4]);
+        ref var stamina = ref ChunkAccess.Base<StaminaComponent>(comps[0]);
+        ref var armor = ref ChunkAccess.Base<ArmorComponent>(comps[1]);
+        ref var speed = ref ChunkAccess.Base<SpeedComponent>(comps[2]);
+        ref var purse = ref ChunkAccess.Base<PurseComponent>(comps[3]);
+        ref var morale = ref ChunkAccess.Base<MoraleComponent>(comps[4]);
 
         var total = 0f;
 
         for (var i = 0; i < count; i++)
-            total += Chunks.At(ref stamina, i, comps[0].Stride).endurance
-                     + Chunks.At(ref armor, i, comps[1].Stride).rating
-                     + Chunks.At(ref speed, i, comps[2].Stride).pace
-                     + Chunks.At(ref purse, i, comps[3].Stride).gold
-                     + Chunks.At(ref morale, i, comps[4].Stride).spirit;
+            total += ChunkAccess.At(ref stamina, i, comps[0].Stride).endurance
+                     + ChunkAccess.At(ref armor, i, comps[1].Stride).rating
+                     + ChunkAccess.At(ref speed, i, comps[2].Stride).pace
+                     + ChunkAccess.At(ref purse, i, comps[3].Stride).gold
+                     + ChunkAccess.At(ref morale, i, comps[4].Stride).spirit;
 
         _sink += total;
     }

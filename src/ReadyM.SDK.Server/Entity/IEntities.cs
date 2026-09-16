@@ -1,3 +1,4 @@
+using ReadyM.SDK.Entity;
 using ReadyM.SDK.Archetypes;
 
 namespace ReadyM.SDK.Server.Entity;

@@ -1,6 +1,6 @@
 # ReadyM.SDK.Benchmarks
 
-Four comparisons, three arms each: what the same work costs through raw ECS access, through the v0
+Five comparisons, three arms each: what the same work costs through raw ECS access, through the v0
 shape, and through v1.
 
 ```bash
@@ -15,6 +15,7 @@ dotnet run -c Release --project ReadyM.SDK.Benchmarks -- --filter '*'
 | `MixinQueryBenchmarks` | a query over one mixin, reading its one field |
 | `ArchetypeQueryBenchmarks` | a query over one archetype, reading five fields from its five mixins |
 | `MixinsQueryBenchmarks` | a query over five mixins named at the call site, one field from each |
+| `ClientQueryBenchmarks` | the archetype query again, on the client, where there is no boundary |
 
 ## Which half each runs on
 

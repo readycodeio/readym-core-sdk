@@ -120,7 +120,7 @@ public class ArchetypeCastTests : ClientSdkTest
         foreach (var creature in Entities.Query<Creature>())
         {
             creatures++;
-            if (creature.TryAs(out Monster monster))
+            if (creature.Handle.TryAs(out Monster monster))
             {
                 monsters++;
                 Assert.Equal(1, monster.Level);

@@ -1,9 +1,11 @@
+using ReadyM.SDK.Server.Entity;
 using System.Reflection;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entity;
-using ReadyM.SDK.Server.Entity.Chunks;
 using ReadyM.SDK.Tests.Server.Fixtures;
+using Position = ReadyM.SDK.Tests.Server.Fixtures.Position;
 
 namespace ReadyM.SDK.Tests.Server;
 
@@ -69,7 +71,7 @@ public class InterfaceExtensibilityTests : ServerSdkTest
         var bare = new BareArchetype { Handle = EntityHandle.Of(npc) };
 
         Assert.True(ValidOf(bare));
-        Assert.True(bare.Handle.Is<Fixtures.Position>());
+        Assert.True(bare.Handle.Is<Position>());
         Assert.False(bare.Handle.Is<QuestGiver>());
     }
 
@@ -80,7 +82,7 @@ public class InterfaceExtensibilityTests : ServerSdkTest
         var npc = Spawn<Npc>();
 
         Assert.True(npc.IsValid);
-        Assert.True(npc.Is<Fixtures.Position>());
+        Assert.True(npc.Is<Position>());
         Assert.False(npc.TryAs<Placed>(out _));
         Assert.True(npc.TryAs<Npc>(out _));
     }
@@ -103,6 +105,8 @@ public class InterfaceExtensibilityTests : ServerSdkTest
             _index = index;
         }
 
+        public BareView At(int index) => new(_position, index);
+
         public static ComponentSet Components => PositionAccessors.Components;
 
         public static BareView Bind(
@@ -110,8 +114,6 @@ public class InterfaceExtensibilityTests : ServerSdkTest
             ReadOnlySpan<RawEntity> entities,
             EntityHandle prototype)
             => new(new ComponentChunk(slots[0]), 0);
-
-        public BareView At(int index) => new(_position, index);
 
         public float X => PositionAccessors.GetX(_position, _index);
     }
@@ -134,7 +136,7 @@ public class InterfaceExtensibilityTests : ServerSdkTest
         Spawn<Boulder>().X = 4f;
 
         var total = 0f;
-        var enumerator = Entities.Query<Fixtures.Position>().Chunks<BareView>();
+        var enumerator = Entities.Query<Position>().Chunks<BareView>();
 
         while (enumerator.MoveNext())
             total += enumerator.Current.X;

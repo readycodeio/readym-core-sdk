@@ -6,8 +6,8 @@ namespace ReadyM.SDK.Client.Entity;
 
 /// A query over every entity that includes the two mixins.
 public readonly ref struct QueryBuilder<T1, T2>
-    where T1 : struct, IArchetypeMixin
-    where T2 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
+    where T2 : struct, IArchetypeQueryable
 {
     private readonly ArchetypeQuery _query;
     private readonly IEntityApi _api;

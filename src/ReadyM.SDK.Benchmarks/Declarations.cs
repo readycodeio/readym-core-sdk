@@ -73,3 +73,13 @@ public readonly partial struct Morale
 [Include(typeof(Purse))]
 [Include(typeof(Morale))]
 public readonly partial struct Hero;
+
+/// The v0 shape over five components, as the control for the client query comparison.
+public readonly struct V0Hero(FrifloEntity entity)
+{
+    public float Endurance => entity.GetComponent<StaminaComponent>().endurance;
+    public int Rating => entity.GetComponent<ArmorComponent>().rating;
+    public float Pace => entity.GetComponent<SpeedComponent>().pace;
+    public int Gold => entity.GetComponent<PurseComponent>().gold;
+    public float Spirit => entity.GetComponent<MoraleComponent>().spirit;
+}

@@ -4,7 +4,7 @@ using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
-namespace ReadyM.SDK.Server.Entity.Chunks;
+namespace ReadyM.SDK.Chunks;
 
 /// <summary>2 shapes over one chunk, so a query can ask for all of them without an archetype naming them.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]

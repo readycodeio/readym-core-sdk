@@ -21,6 +21,7 @@
         <ProjectReference Include="..\ReadyM.SDK.Client\ReadyM.SDK.Client.csproj"/>
         <ProjectReference Include="..\ReadyM.SDK.TestHarness\ReadyM.SDK.TestHarness.csproj" />
         <ProjectReference Include="..\ReadyM.SDK.Server\ReadyM.SDK.Server.csproj" />
+        <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
     </ItemGroup>
 

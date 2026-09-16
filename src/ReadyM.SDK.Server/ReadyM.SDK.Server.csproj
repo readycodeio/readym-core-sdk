@@ -11,6 +11,7 @@
     <ItemGroup>
         <ProjectReference Include="..\ReadyM.Relay.Server.Sdk\ReadyM.Relay.Server.Sdk.csproj"/>
         <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj"/>
+        <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj"/>
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
         <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj"/>
         <ProjectReference Include="..\YooniCSharp\Native\Container\Yooni.Native.Container.csproj"/>

@@ -55,7 +55,7 @@ public class LifecycleTests : ClientSdkTest
 
         foreach (var monster in Entities.Query<Monster>())
             if (monster.Hp % 2 == 0)
-                Entities.Delete(monster);
+                Entities.Delete(monster.Handle);
 
         var survivors = new List<float>();
 

@@ -28,7 +28,9 @@ internal static class ChunkViewEmitter
             foreach (var field in fields)
                 writer.Line($"private readonly {chunks.ComponentChunk} {field};");
 
-            writer.Line($"private readonly global::System.ReadOnlySpan<{ArchetypeNames.RawEntity}> _entities;");
+            // A reference rather than a span: this is copied per entity, and the length is not
+            // needed because the loop never walks past the chunk it bound.
+            writer.Line($"private readonly ref readonly {ArchetypeNames.RawEntity} _entities;");
             writer.Line($"private readonly {ArchetypeNames.EntityHandle} _prototype;");
             writer.Line("private readonly int _index;");
             writer.Line();
@@ -53,9 +55,15 @@ internal static class ChunkViewEmitter
 
         using (writer.Braces($"public static class {ArchetypeNames.ChunkQueryOf(model.Symbol)}"))
         {
-            writer.Line($"public static {chunks.ChunkQuery}<{qualified}>.Enumerator GetEnumerator(");
-            writer.Line($"    this {chunks.EntityQuery}<{model.QualifiedName}> query)");
-            writer.Line($"    => query.Chunks<{qualified}>();");
+            // One per half in scope. A mod sees one; a project testing both sees two, and the
+            // parameter types differ so they never collide.
+            foreach (var query in chunks.EntityQueries.Where(target => target.Supports(1)))
+            {
+                writer.Line($"public static {chunks.ChunkQuery}<{qualified}>.Enumerator GetEnumerator(");
+                writer.Line($"    this {query.Qualified}<{model.QualifiedName}> query)");
+                writer.Line($"    => query.Chunks<{qualified}>();");
+                writer.Line();
+            }
         }
     }
 
@@ -63,7 +71,7 @@ internal static class ChunkViewEmitter
     {
         var parameters = fields.Select(field => $"{chunks.ComponentChunk} {Parameter(field)}").ToList();
 
-        parameters.Add($"global::System.ReadOnlySpan<{ArchetypeNames.RawEntity}> entities");
+        parameters.Add($"ref readonly {ArchetypeNames.RawEntity} entities");
         parameters.Add($"{ArchetypeNames.EntityHandle} prototype");
         parameters.Add("int index");
 
@@ -72,7 +80,7 @@ internal static class ChunkViewEmitter
             foreach (var field in fields)
                 writer.Line($"{field} = {Parameter(field)};");
 
-            writer.Line("_entities = entities;");
+            writer.Line("_entities = ref entities;");
             writer.Line("_prototype = prototype;");
             writer.Line("_index = index;");
         }
@@ -82,7 +90,7 @@ internal static class ChunkViewEmitter
     {
         var arguments = Held(slots)
             .Select(slot => $"new {chunks.ComponentChunk}(slots[{slot.Index}])")
-            .Concat(["entities", "prototype", "0"]);
+            .Concat(["in global::System.Runtime.InteropServices.MemoryMarshal.GetReference(entities)", "prototype", "0"]);
 
         writer.Line();
         writer.Line($"public static int SlotCount => {slots.Count};");
@@ -96,13 +104,14 @@ internal static class ChunkViewEmitter
         writer.Line($"    => new({string.Join(", ", arguments)});");
         writer.Line();
 
-        var moved = Held(slots).Select(slot => slot.Field).Concat(["_entities", "_prototype", "index"]);
+        var moved = Held(slots).Select(slot => slot.Field).Concat(["in _entities", "_prototype", "index"]);
 
         writer.Line("[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
         writer.Line($"public {qualified} At(int index) => new({string.Join(", ", moved)});");
         writer.Line();
         writer.Line("/// The way out to anything a chunk view cannot do, such as a structural change after the loop.");
-        writer.Line($"public {ArchetypeNames.EntityHandle} Handle => _prototype.For(_entities[_index]);");
+        writer.Line($"public {ArchetypeNames.EntityHandle} Handle");
+        writer.Line($"    => _prototype.For(global::System.Runtime.CompilerServices.Unsafe.Add(ref global::System.Runtime.CompilerServices.Unsafe.AsRef(in _entities), _index));");
     }
 
     private static void EmitAccessors(SourceWriter writer, DeclarationModel model, IReadOnlyList<Slot> slots)

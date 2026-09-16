@@ -3,7 +3,7 @@ using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
-namespace ReadyM.SDK.Server.Entity.Chunks;
+namespace ReadyM.SDK.Chunks;
 
 /// <summary>
 /// The chunk-backed twin of an archetype or mixin: the same properties, reached straight off the
@@ -39,7 +39,14 @@ public interface IArchetypeChunkView<out TSelf> where TSelf : IArchetypeChunkVie
         ReadOnlySpan<RawEntity> entities,
         EntityHandle prototype);
 
-    /// <summary>The same binding, moved to another entity of the same chunk.</summary>
+    /// <summary>
+    /// The same binding, moved to another entity of the same chunk.
+    /// </summary>
+    /// <remarks>
+    /// Only the index moves. The view keeps a reference to the chunk's identities rather than one
+    /// identity, so a loop that never asks for a handle never pays to produce one, which measured as
+    /// the whole of v1's deficit against v0 on this path.
+    /// </remarks>
     [EditorBrowsable(EditorBrowsableState.Never)]
     TSelf At(int index);
 }
