@@ -15,6 +15,9 @@ public sealed class ComponentSet
 
     internal Type[] Types { get; }
 
+    /// <summary>How many components the set holds, which is how many chunk slots it occupies.</summary>
+    public int Count => Types.Length;
+
     public static ComponentSet Of<T1>()
         where T1 : struct
         => Cache<T1>.Set;

@@ -13,12 +13,20 @@ namespace ReadyM.SDK.Server.Entity.Chunks;
 /// A query builds one of these per chunk and then only moves its index, so the work of finding each
 /// component happens once per chunk instead of once per read. It is a ref struct, so it cannot
 /// outlive the loop that produced it.
+///
+/// Generated code in a mod assembly implements this, and that mod keeps running against later SDKs,
+/// so a member added here without a body would stop every already-compiled mod from loading.
+/// Anything added later must have one, static members included.
 /// </remarks>
 public interface IArchetypeChunkView<out TSelf> where TSelf : IArchetypeChunkView<TSelf>, allows ref struct
 {
     /// <summary>How many slots this view consumes, so several can share one chunk's worth.</summary>
+    /// <remarks>
+    /// One slot per component, which the set already knows, so a view that does not say is not
+    /// wrong. The generator states it anyway, as a constant rather than a field read.
+    /// </remarks>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    static abstract int SlotCount { get; }
+    static virtual int SlotCount => TSelf.Components.Count;
 
     /// The components a query has to ask for, in the order the slots arrive in.
     [EditorBrowsable(EditorBrowsableState.Never)]
