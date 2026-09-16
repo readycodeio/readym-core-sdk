@@ -1,4 +1,4 @@
-namespace ReadyM.Api.Multiplayer.Serialization;
+namespace ReadyM.Api.Saves;
 
 public interface ISaveWriter
 {

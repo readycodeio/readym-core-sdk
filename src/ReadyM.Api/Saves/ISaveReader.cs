@@ -1,4 +1,4 @@
-namespace ReadyM.Api.Multiplayer.Serialization;
+namespace ReadyM.Api.Saves;
 
 public interface ISaveReader
 {
@@ -11,7 +11,7 @@ public interface ISaveReader
     bool HasMoreElements();
     void EndArray();
 
-    /// <summary>Advances to the named field in the current object.</summary>
+    /// <summary>Selects the named field in the current object by name.</summary>
     void Name(string name);
 
     bool ReadBool();
