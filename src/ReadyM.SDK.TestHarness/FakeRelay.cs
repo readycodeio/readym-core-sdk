@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Multiplayer.Interop;
@@ -38,6 +39,20 @@ internal sealed class FakeRelay
     private readonly CreateLocalEntityDelegate _createLocalEntity;
     private readonly DeleteNetworkedEntityDelegate _deleteEntity;
 
+    // The v0 api binds every pointer in the bundle at construction, so none may be zero. These
+    // stand in for the parts of the relay this harness does not model; calling one says so.
+    private readonly CreateNetworkedEntityDelegate _createNetworked = static (_, _, _) => throw NotModelled();
+    private readonly CreateNetworkedPlayerEntityDelegate _createNetworkedPlayer = static (_, _, _, _) => throw NotModelled();
+    private readonly CreateNetworkedAreaEntityDelegate _createNetworkedArea = static (_, _, _, _) => throw NotModelled();
+    private readonly CreateNetworkedCellEntityDelegate _createNetworkedCell = static (_, _, _, _) => throw NotModelled();
+    private readonly DeleteEntityTreeDelegate _deleteTree = static (_, _) => throw NotModelled();
+    private readonly SetParentDelegate _setParent = static (_, _) => throw NotModelled();
+    private readonly GetParentDelegate _getParent = static _ => throw NotModelled();
+    private readonly GetChildrenDelegate _getChildren = static (_, _, _) => throw NotModelled();
+
+    private static NotSupportedException NotModelled([CallerMemberName] string member = "")
+        => new($"The fake relay does not model {member}.");
+
     // Keyed by the id itself, because ArchetypeId keeps its byte to itself.
     private readonly Dictionary<ArchetypeId, int[]> _archetypeShapes = [];
 
@@ -72,14 +87,14 @@ internal sealed class FakeRelay
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
         CreateLocalEntity = Marshal.GetFunctionPointerForDelegate(_createLocalEntity),
         DeleteNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_deleteEntity),
-        CreateNetworkedEntity = IntPtr.Zero,
-        CreateNetworkedPlayerEntity = IntPtr.Zero,
-        CreateNetworkedAreaEntity = IntPtr.Zero,
-        CreateNetworkedCellEntity = IntPtr.Zero,
-        DeleteEntityTree = IntPtr.Zero,
-        SetParent = IntPtr.Zero,
-        GetParent = IntPtr.Zero,
-        GetChildren = IntPtr.Zero
+        CreateNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_createNetworked),
+        CreateNetworkedPlayerEntity = Marshal.GetFunctionPointerForDelegate(_createNetworkedPlayer),
+        CreateNetworkedAreaEntity = Marshal.GetFunctionPointerForDelegate(_createNetworkedArea),
+        CreateNetworkedCellEntity = Marshal.GetFunctionPointerForDelegate(_createNetworkedCell),
+        DeleteEntityTree = Marshal.GetFunctionPointerForDelegate(_deleteTree),
+        SetParent = Marshal.GetFunctionPointerForDelegate(_setParent),
+        GetParent = Marshal.GetFunctionPointerForDelegate(_getParent),
+        GetChildren = Marshal.GetFunctionPointerForDelegate(_getChildren)
     };
 
     internal ArchetypePointers Archetypes => new()
@@ -168,6 +183,10 @@ internal sealed class FakeRelay
     /// Which of the two heap kinds a component landed in, so a test can pin that it covers both.
     internal bool IsManaged<T>(RawEntity entity) where T : struct
         => _entities[entity.Id].Archetype.HeapOf(IdOf(typeof(T))) is ManagedHeap<T>;
+
+    /// <summary>The v0 server api bound to this relay, for comparing the two generations.</summary>
+    internal EcsApi CreateEcsApi()
+        => new(Pointers, new ComponentRegistry(Aot, new ModComponentManager(), NullLogger.Instance));
 
     /// The v1 server api bound to this relay, wired the way the mod host wires it.
     internal ServerEntityApi CreateEntityApi()
