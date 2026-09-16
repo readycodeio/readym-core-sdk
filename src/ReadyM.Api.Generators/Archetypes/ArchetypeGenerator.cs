@@ -95,10 +95,6 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         writer.Line();
         writer.Line("public bool IsValid => _handle.IsAlive();");
         writer.Line();
-        writer.Line($"public bool Has<T>() where T : struct, {ArchetypeNames.Tag} => _handle.HasTag<T>();");
-        writer.Line();
-        writer.Line($"public void Set<T>(bool set) where T : struct, {ArchetypeNames.Tag} => _handle.SetTag<T>(set);");
-        writer.Line();
         writer.Line($"public bool Is<T>() where T : struct, {ArchetypeNames.Queryable} => _handle.Is<T>();");
         writer.Line();
         writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Queryable}");

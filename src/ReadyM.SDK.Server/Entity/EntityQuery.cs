@@ -33,11 +33,5 @@ public readonly ref struct EntityQuery<T> where T : struct, IArchetypeQueryable
     [MustDisposeResource]
     public QueryBuilder<T>.Enumerator Identities() => new QueryBuilder<T>(_api).GetEnumerator();
 
-    // TODO
-    public EntityQuery<T> With<TTag>() where TTag : struct, ITag
-        => throw new NotSupportedException($"Cannot filter by {typeof(TTag).Name}: the server has no tags.");
 
-    // TODO
-    public EntityQuery<T> Without<TTag>() where TTag : struct, ITag
-        => throw new NotSupportedException($"Cannot filter by {typeof(TTag).Name}: the server has no tags.");
 }

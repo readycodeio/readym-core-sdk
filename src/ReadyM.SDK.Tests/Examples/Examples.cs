@@ -33,13 +33,11 @@ public static class Examples
         //     main.Hp = 10;
         // }        
 
-        // tags
-
-        var npc = new Npc();
-
-        if (npc.Has<Hostile>())
+        // there are no tags: a shape that sometimes differs is a narrower archetype, and a per-entity
+        // flag is a mixin with a bool
+        if (character.TryAs<EquippedCharacter>(out _))
         {
-            npc.Set<Hostile>(false);
+            // do something with the equipped ones
         }
     }
 }
@@ -58,25 +56,17 @@ public partial class Regeneration(IEntities entities)
             }
         }
 
-        foreach (var npc in entities.Query<Npc>().With<Hostile>().Without<Sleeping>())
-        {
-            // do something
-        }
-
         entities.Query<MainCharacter>().ForEach(npc => npc.Hp = npc.MaxHp);
 
-        foreach (var npc in entities.Query<Npc>().With<Hostile>())
+        foreach (var npc in entities.Query<Npc>())
         {
             if (npc.Hp <= 0f)
             {
-                npc.Set<Hostile>(false); // CommandBuffer, applied on foreach block end
+                npc.Hp = 0f;
             }
         }
 
-        entities.Query<Npc>().ForEach(npc =>
-        {
-            npc.Set<Hostile>(false); // CommandBuffer, applied on ForEach method end
-        });
+        entities.Query<Npc>().ForEach(npc => npc.Hp = npc.MaxHp);
 
         foreach (var (vitals, eq) in entities.Query<Vitals, Equipment>())
         {

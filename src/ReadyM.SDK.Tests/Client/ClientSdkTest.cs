@@ -97,18 +97,6 @@ public abstract class ClientSdkTest : IDisposable
         return prop;
     }
 
-    /// <summary>
-    /// Tags an entity straight in the store, for arranging a test before it runs a query.
-    /// </summary>
-    /// <remarks>
-    /// This bypasses the command buffer, so it is an immediate structural change. Calling it inside
-    /// a query loop is what <c>Set&lt;T&gt;</c> exists to avoid, and Friflo rejects it.
-    /// </remarks>
-    protected void AddTag<TTag, TArchetype>(in TArchetype entity)
-        where TTag : struct, ITag
-        where TArchetype : struct, IArchetypeQueryable
-        => Store.GetEntityByRawEntity(EntityHandle.Of(entity).RawEntity).AddTag<TTag>();
-
     /// <summary>Components is an explicit interface implementation, so it is reached through the constraint.</summary>
     protected static ComponentSet ComponentsOf<T>() where T : struct, IArchetypeQueryable => default(T).Components;
 

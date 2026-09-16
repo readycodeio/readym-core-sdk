@@ -14,6 +14,4 @@ internal interface IEntityApi
 
     /// <summary>Whether the entity carries every component of the set. An empty set matches anything.</summary>
     bool HasComponents(RawEntity rawEntity, ComponentSet components);
-    bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag;
-    void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag;
 }

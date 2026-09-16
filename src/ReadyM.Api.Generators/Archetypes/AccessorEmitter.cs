@@ -115,12 +115,7 @@ internal static class AccessorEmitter
             sets.Add($"{ArchetypeNames.ComponentSet}.Of<{model.QualifiedMarker}>()");
 
         foreach (var include in model.Includes)
-        {
-            if (include.Kind == IncludeKind.Tag)
-                continue;
-
             sets.Add($"{include.Accessors}.Components");
-        }
 
         return sets;
     }

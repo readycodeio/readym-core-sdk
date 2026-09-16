@@ -114,13 +114,7 @@ internal sealed class ServerEntityApi : IEntityApi
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
         => throw new NotSupportedException($"Cannot add {typeof(T).Name} to entity {rawEntity.Id}: the server fixes an entity's components at creation.");
 
-    // TODO
-    public bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag
-        => throw new NotSupportedException($"Tag {typeof(T).Name} has no server representation.");
 
-    // TODO
-    public void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag
-        => throw new NotSupportedException($"Tag {typeof(T).Name} has no server representation.");
 
     internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {

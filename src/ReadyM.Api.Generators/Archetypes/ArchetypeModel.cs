@@ -7,7 +7,6 @@ namespace ReadyM.Api.Generators.Archetypes;
 internal enum IncludeKind
 {
     Mixin,
-    Tag,
     Archetype
 }
 
@@ -127,9 +126,6 @@ internal sealed class DeclarationModel
 
         foreach (var include in model.Includes)
         {
-            if (include.Kind == IncludeKind.Tag)
-                continue;
-
             if (include.Kind == IncludeKind.Archetype)
             {
                 Collect(For(include.Type), include, owners, seen);
@@ -220,9 +216,6 @@ internal sealed class DeclarationModel
     {
         foreach (var include in model.Includes)
         {
-            if (include.Kind == IncludeKind.Tag)
-                continue;
-
             if (include.Kind == IncludeKind.Archetype)
             {
                 var included = For(include.Type);
@@ -310,11 +303,8 @@ internal sealed class DeclarationModel
     {
         foreach (var attribute in symbol.GetAttributes())
         {
-            switch (attribute.AttributeClass?.ToDisplayString())
-            {
-                case ArchetypeNames.TagAttribute: return IncludeKind.Tag;
-                case ArchetypeNames.ArchetypeAttribute: return IncludeKind.Archetype;
-            }
+            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ArchetypeAttribute)
+                return IncludeKind.Archetype;
         }
 
         return IncludeKind.Mixin;

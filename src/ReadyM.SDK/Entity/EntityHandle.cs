@@ -59,7 +59,5 @@ public readonly struct EntityHandle
 
     public void AddComponent<T>() where T : struct, IComponent => _api.AddComponent<T>(_rawEntity);
 
-    public bool HasTag<T>() where T : struct, ITag => _api.HasTag<T>(_rawEntity);
 
-    public void SetTag<T>(bool set) where T : struct, ITag => _api.SetTag<T>(_rawEntity, set);
 }

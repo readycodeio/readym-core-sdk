@@ -16,7 +16,6 @@ internal static class ArchetypeNames
 
     public const string ArchetypeAttribute = Namespace + ".ArchetypeAttribute";
     public const string MixinAttribute = Namespace + ".ArchetypeMixinAttribute";
-    public const string TagAttribute = Namespace + ".TagAttribute";
     public const string IncludeAttribute = Namespace + ".IncludeAttribute";
     public const string IncludeArchetypeAttribute = Namespace + ".IncludeArchetypeAttribute";
 
@@ -26,7 +25,6 @@ internal static class ArchetypeNames
     public const string Archetype = "global::ReadyM.SDK.Archetypes.IArchetype";
     public const string Mixin = "global::ReadyM.SDK.Archetypes.IArchetypeMixin";
     public const string Component = "global::Friflo.Engine.ECS.IComponent";
-    public const string Tag = "global::Friflo.Engine.ECS.ITag";
 
     public const string RawEntity = "global::Friflo.Engine.ECS.RawEntity";
     /// <summary>The class holding the GetEnumerator that puts a shape on the chunk path.</summary>

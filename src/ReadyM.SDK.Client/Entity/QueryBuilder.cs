@@ -30,17 +30,7 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
         }
     }
 
-    public QueryBuilder<T> With<TTag>() where TTag : struct, ITag
-    {
-        var newQuery = _query.AllTags(Tags.Get<TTag>());
-        return new QueryBuilder<T>(newQuery, _api);
-    }
 
-    public QueryBuilder<T> Without<TTag>() where TTag : struct, ITag
-    {
-        var newQuery = _query.WithoutAnyTags(Tags.Get<TTag>());
-        return new QueryBuilder<T>(newQuery, _api);
-    }
 
     public Enumerator GetEnumerator() => new(_query, _api);
 

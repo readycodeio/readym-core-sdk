@@ -34,42 +34,6 @@ public class ArchetypeTests : ClientSdkTest
     }
 
     [Fact]
-    public void Has_reports_whether_the_tag_is_on_the_entity()
-    {
-        var monster = SpawnMonster();
-        Assert.False(monster.Has<Enraged>());
-
-        AddTag<Enraged, Monster>(monster);
-        Assert.True(monster.Has<Enraged>());
-        Assert.False(monster.Has<Dormant>());
-    }
-
-    [Fact]
-    public void Set_adds_and_removes_a_tag_outside_a_query()
-    {
-        var monster = SpawnMonster();
-
-        monster.Set<Enraged>(true);
-        Assert.True(monster.Has<Enraged>());
-
-        monster.Set<Enraged>(false);
-        Assert.False(monster.Has<Enraged>());
-    }
-
-    [Fact]
-    public void Set_outside_a_query_is_visible_to_the_next_statement()
-    {
-        // Deferring only happens while a query iterates, so a tag toggled anywhere else lands at once
-        // rather than waiting for some unrelated loop to end.
-        var monster = SpawnMonster();
-
-        monster.Set<Enraged>(true);
-
-        Assert.True(monster.Has<Enraged>());
-        Assert.Equal(1, Count(Entities.Query<Monster>().With<Enraged>()));
-    }
-
-    [Fact]
     public void An_accessor_declared_on_the_archetype_reads_and_writes_its_own_component()
     {
         var monster = SpawnMonster(level: 3);

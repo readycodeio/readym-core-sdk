@@ -99,52 +99,6 @@ public class QueryTests : ClientSdkTest
     }
 
     [Fact]
-    public void With_keeps_only_tagged_entities()
-    {
-        var enraged = SpawnMonster(level: 1);
-        SpawnMonster(level: 2);
-        AddTag<Enraged, Monster>(enraged);
-
-        var levels = new List<int>();
-        foreach (var monster in Entities.Query<Monster>().With<Enraged>())
-            levels.Add(monster.Level);
-
-        Assert.Equal([1], levels);
-    }
-
-    [Fact]
-    public void Without_drops_tagged_entities()
-    {
-        var dormant = SpawnMonster(level: 1);
-        SpawnMonster(level: 2);
-        AddTag<Dormant, Monster>(dormant);
-
-        var levels = new List<int>();
-        foreach (var monster in Entities.Query<Monster>().Without<Dormant>())
-            levels.Add(monster.Level);
-
-        Assert.Equal([2], levels);
-    }
-
-    [Fact]
-    public void With_and_Without_chain()
-    {
-        var wanted = SpawnMonster(level: 1);
-        var alsoDormant = SpawnMonster(level: 2);
-        SpawnMonster(level: 3);
-
-        AddTag<Enraged, Monster>(wanted);
-        AddTag<Enraged, Monster>(alsoDormant);
-        AddTag<Dormant, Monster>(alsoDormant);
-
-        var levels = new List<int>();
-        foreach (var monster in Entities.Query<Monster>().With<Enraged>().Without<Dormant>())
-            levels.Add(monster.Level);
-
-        Assert.Equal([1], levels);
-    }
-
-    [Fact]
     public void ForEach_visits_the_same_set_as_the_loop()
     {
         SpawnMonster(level: 1);

@@ -60,28 +60,4 @@ internal sealed class ClientEntityApi : IEntityApi
         return !_store.GetEntityByRawEntity(rawEntity).IsNull;
     }
 
-    public bool HasTag<T>(RawEntity rawEntity) where T : struct, ITag
-    {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
-            throw new InvalidEntityException();
-
-        return entity.Tags.Has<T>();
-    }
-
-    public void SetTag<T>(RawEntity rawEntity, bool set) where T : struct, ITag
-    {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
-            throw new InvalidEntityException();
-
-        if (set)
-        {
-            entity.AddTag<T>();
-        }
-        else
-        {
-            entity.RemoveTag<T>();
-        }
-    }
 }
