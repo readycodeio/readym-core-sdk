@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace ReadyM.Api.Multiplayer.ECS.Values;
+namespace ReadyM.Api.ECS.Values;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal readonly struct PersistentId(Guid value) : IEquatable<PersistentId>

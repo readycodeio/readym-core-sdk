@@ -1,7 +1,7 @@
 using Friflo.Engine.ECS;
-using ReadyM.Api.Multiplayer.ECS.Values;
+using ReadyM.Api.ECS.Values;
 
-namespace ReadyM.Api.Multiplayer.ECS.Components;
+namespace ReadyM.Api.ECS.Components;
 
 /// <summary>
 /// Carries an entity's <see cref="PersistentId"/>. An archetype is persisted exactly when it declares this component.
