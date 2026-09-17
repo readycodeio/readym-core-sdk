@@ -12,20 +12,20 @@ public static class EntityQueryExtensions
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T>.Enumerator GetEnumerator<T>(this EntityQuery<T> query)
+    public static Query<T>.Enumerator GetEnumerator<T>(this EntityQuery<T> query)
         where T : struct, IArchetypeQueryable
         => query.Identities();
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2>.Enumerator GetEnumerator<T1, T2>(this EntityQuery<T1, T2> query)
+    public static Query<T1, T2>.Enumerator GetEnumerator<T1, T2>(this EntityQuery<T1, T2> query)
         where T1 : struct, IArchetypeMixin
         where T2 : struct, IArchetypeMixin
         => query.Identities();
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2, T3>.Enumerator GetEnumerator<T1, T2, T3>(this EntityQuery<T1, T2, T3> query)
+    public static Query<T1, T2, T3>.Enumerator GetEnumerator<T1, T2, T3>(this EntityQuery<T1, T2, T3> query)
         where T1 : struct, IArchetypeMixin
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
@@ -33,7 +33,7 @@ public static class EntityQueryExtensions
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2, T3, T4>.Enumerator GetEnumerator<T1, T2, T3, T4>(this EntityQuery<T1, T2, T3, T4> query)
+    public static Query<T1, T2, T3, T4>.Enumerator GetEnumerator<T1, T2, T3, T4>(this EntityQuery<T1, T2, T3, T4> query)
         where T1 : struct, IArchetypeMixin
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
@@ -42,7 +42,7 @@ public static class EntityQueryExtensions
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2, T3, T4, T5>.Enumerator GetEnumerator<T1, T2, T3, T4, T5>(this EntityQuery<T1, T2, T3, T4, T5> query)
+    public static Query<T1, T2, T3, T4, T5>.Enumerator GetEnumerator<T1, T2, T3, T4, T5>(this EntityQuery<T1, T2, T3, T4, T5> query)
         where T1 : struct, IArchetypeMixin
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
@@ -52,7 +52,7 @@ public static class EntityQueryExtensions
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2, T3, T4, T5, T6>.Enumerator GetEnumerator<T1, T2, T3, T4, T5, T6>(this EntityQuery<T1, T2, T3, T4, T5, T6> query)
+    public static Query<T1, T2, T3, T4, T5, T6>.Enumerator GetEnumerator<T1, T2, T3, T4, T5, T6>(this EntityQuery<T1, T2, T3, T4, T5, T6> query)
         where T1 : struct, IArchetypeMixin
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin

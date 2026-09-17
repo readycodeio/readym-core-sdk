@@ -4,6 +4,7 @@ using System.Runtime.Loader;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 using Xunit;
@@ -48,13 +49,28 @@ internal static class SourceGeneratorTestHelper
         IEnumerable<(string Path, string Source)> sources,
         ITestOutputHelper output)
         where TGenerator : IIncrementalGenerator, new()
+        => RunGenerators(sources, [new TGenerator()], output);
+
+    /// <summary>
+    /// Several generators over one compilation, the way a build runs them.
+    /// </summary>
+    /// <remarks>
+    /// Needed whenever one generator's input is another's subject: an archetype naming a mixin
+    /// compiles only if the mixin's own output is in the same compilation. Generators still cannot
+    /// see each other, so this only puts their results side by side.
+    /// </remarks>
+    public static GeneratorRunResult RunGenerators(
+        IEnumerable<(string Path, string Source)> sources,
+        IEnumerable<IIncrementalGenerator> generators,
+        ITestOutputHelper output,
+        IEnumerable<Assembly>? alsoReference = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
 
-        var inputCompilation = CreateCompilation(sources, output);
+        var inputCompilation = CreateCompilation(sources, output, alsoReference);
 
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(new TGenerator());
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators.Select(GeneratorExtensions.AsSourceGenerator));
         driver = driver.RunGeneratorsAndUpdateCompilation(
             inputCompilation,
             out var outputCompilation,
@@ -67,6 +83,14 @@ internal static class SourceGeneratorTestHelper
 
         return result;
     }
+
+    /// <summary>Everything an analyzer reports over a compilation, generated code included.</summary>
+    public static ImmutableArray<Diagnostic> Analyze(Compilation compilation, DiagnosticAnalyzer analyzer)
+        => compilation
+            .WithAnalyzers([analyzer])
+            .GetAnalyzerDiagnosticsAsync()
+            .GetAwaiter()
+            .GetResult();
 
     public static Assembly EmitToAssembly(Compilation compilation, ITestOutputHelper output)
     {
@@ -105,7 +129,8 @@ internal static class SourceGeneratorTestHelper
 
     public static Compilation CreateCompilation(
         IEnumerable<(string Path, string Source)> sources,
-        ITestOutputHelper output)
+        ITestOutputHelper output,
+        IEnumerable<Assembly>? alsoReference = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
@@ -131,7 +156,7 @@ internal static class SourceGeneratorTestHelper
         return CSharpCompilation.Create(
             assemblyName: "ReadyM.Api.Generators.Tests.Dynamic_" + Guid.NewGuid().ToString("N"),
             syntaxTrees: syntaxTrees,
-            references: GetMetadataReferences(output),
+            references: GetMetadataReferences(output, alsoReference),
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable,
@@ -246,7 +271,9 @@ internal static class SourceGeneratorTestHelper
         return "<unknown>";
     }
 
-    private static IEnumerable<MetadataReference> GetMetadataReferences(ITestOutputHelper output)
+    private static IEnumerable<MetadataReference> GetMetadataReferences(
+        ITestOutputHelper output,
+        IEnumerable<Assembly>? alsoReference)
     {
         var assemblies = new[]
         {
@@ -270,7 +297,7 @@ internal static class SourceGeneratorTestHelper
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var assembly in assemblies)
+        foreach (var assembly in assemblies.Concat(alsoReference ?? []))
         {
             AddAssemblyAndReferencesRecursive(assembly, seen, output);
         }

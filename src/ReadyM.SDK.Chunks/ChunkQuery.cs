@@ -1,18 +1,8 @@
-using Friflo.Engine.ECS;
-using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+﻿using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Chunks;
 
-/// <summary>
-/// A query that walks chunks rather than identities: one crossing for the whole query instead of one
-/// per value a body reads.
-/// </summary>
-/// <remarks>
-/// The trade against <see cref="QueryBuilder{T}"/> is that the view is bound to the world as it was
-/// when the loop started, so nothing inside may change an entity's shape. Reading and writing
-/// component values is free; anything structural goes through <c>Handle</c> and happens after.
-/// </remarks>
+/// A query that walks chunks rather than entity IDs.
 public readonly ref struct ChunkQuery<TView>
     where TView : IArchetypeChunkView<TView>, allows ref struct
 {
@@ -32,8 +22,13 @@ public readonly ref struct ChunkQuery<TView>
         private int _index;
         private int _count;
 
+        private readonly IChunkSource _source;
+
         internal Enumerator(IChunkSource source)
         {
+            source.EnterQuery();
+
+            _source = source;
             _buffer = source.Collect(TView.Components);
             _prototype = source.Prototype;
             _chunk = default!;
@@ -60,22 +55,10 @@ public readonly ref struct ChunkQuery<TView>
             return true;
         }
 
-        public readonly void Dispose() => _buffer.Return();
+        public readonly void Dispose()
+        {
+            _buffer.Return();
+            _source.LeaveQuery();
+        }
     }
-}
-
-/// <summary>
-/// Whichever half is behind a query: it knows how to find the chunks a shape matches.
-/// </summary>
-/// <remarks>
-/// The two halves find them very differently, one by asking the relay across the interop boundary
-/// and one by walking the store it already has, but a loop over the result is the same either way,
-/// which is what lets one generated view serve both.
-/// </remarks>
-public interface IChunkSource
-{
-    internal ChunkBuffer Collect(ComponentSet components);
-
-    /// <summary>A handle carrying this half's api, which a view rebases onto each entity.</summary>
-    internal EntityHandle Prototype { get; }
 }

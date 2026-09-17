@@ -27,7 +27,7 @@ public readonly struct EntityQuery<T> where T : struct, IArchetypeQueryable
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T>.Enumerator Identities() => new QueryBuilder<T>(_context.Store, _context.Api).GetEnumerator();
+    public Query<T>.Enumerator Identities() => new Query<T>(_context.Store, _context.Api).GetEnumerator();
 
     /// <summary>Runs a body over every entity, walking identities so it may change the world.</summary>
     public void ForEach(Action<T> body)
@@ -61,8 +61,8 @@ public readonly struct EntityQuery<T1, T2>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2>.Enumerator Identities()
-        => new QueryBuilder<T1, T2>(_context.Store, _context.Api).GetEnumerator();
+    public Query<T1, T2>.Enumerator Identities()
+        => new Query<T1, T2>(_context.Store, _context.Api).GetEnumerator();
 
     /// <summary>Runs a body over every entity, walking identities so it may change the world.</summary>
     public void ForEach(Action<T1, T2> body)
@@ -95,13 +95,13 @@ public static class EntityQueryExtensions
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T>.Enumerator GetEnumerator<T>(this EntityQuery<T> query)
+    public static Query<T>.Enumerator GetEnumerator<T>(this EntityQuery<T> query)
         where T : struct, IArchetypeQueryable
         => query.Identities();
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public static QueryBuilder<T1, T2>.Enumerator GetEnumerator<T1, T2>(this EntityQuery<T1, T2> query)
+    public static Query<T1, T2>.Enumerator GetEnumerator<T1, T2>(this EntityQuery<T1, T2> query)
         where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeQueryable
         => query.Identities();

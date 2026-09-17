@@ -1,4 +1,4 @@
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 
 namespace ReadyM.SDK.Chunks;
 
@@ -18,7 +18,6 @@ internal sealed class ChunkBuffer
 
     private ChunkBuffer? _next;
     private ChunkSlot[] _slots = new ChunkSlot[64];
-    private IntPtr[] _entities = new IntPtr[8];
     private int[]?[] _ids = new int[8][];
     private int[] _counts = new int[8];
     private int[] _starts = new int[8];
@@ -69,13 +68,12 @@ internal sealed class ChunkBuffer
     /// <summary>Entities as ids, which is what a store hands over.</summary>
     internal Span<ChunkSlot> Append(int[] ids, int count) => Append(IntPtr.Zero, ids, count);
 
-    private Span<ChunkSlot> Append(IntPtr entities, int[]? ids, int count)
+    private unsafe Span<ChunkSlot> Append(IntPtr entities, int[]? ids, int count)
     {
         if (ChunkCount == _counts.Length)
         {
             Array.Resize(ref _counts, _counts.Length * 2);
             Array.Resize(ref _starts, _starts.Length * 2);
-            Array.Resize(ref _entities, _entities.Length * 2);
             Array.Resize(ref _ids, _ids.Length * 2);
         }
 
@@ -84,24 +82,26 @@ internal sealed class ChunkBuffer
         if (start + Width > _slots.Length)
             Array.Resize(ref _slots, Math.Max(_slots.Length * 2, start + Width));
 
-        _entities[ChunkCount] = entities;
         _ids[ChunkCount] = ids;
         _counts[ChunkCount] = count;
         _starts[ChunkCount] = _resolvedCount;
 
-        if (ids is not null)
+        var required = _resolvedCount + count;
+
+        if (required > _resolved.Length)
         {
-            var required = _resolvedCount + count;
-
-            if (required > _resolved.Length)
-            {
-                var capacity = _resolved.Length;
-                while (capacity < required) capacity *= 2;
-                Array.Resize(ref _resolved, capacity);
-            }
-
-            _resolvedCount = required;
+            var capacity = _resolved.Length;
+            while (capacity < required) capacity *= 2;
+            Array.Resize(ref _resolved, capacity);
         }
+
+        // Copied here rather than kept as an address, because here is the only place the address is
+        // known to be good: the relay refills one scratch buffer per archetype and pins it only for
+        // the callback. Keeping the pointer read the next chunk's entities.
+        if (ids is null)
+            new ReadOnlySpan<RawEntity>((void*)entities, count).CopyTo(_resolved.AsSpan(_resolvedCount, count));
+
+        _resolvedCount = required;
 
         ChunkCount++;
 
@@ -112,27 +112,20 @@ internal sealed class ChunkBuffer
 
     internal ReadOnlySpan<ChunkSlot> SlotsOf(int chunk) => new(_slots, chunk * Width, Width);
 
-    /// <summary>
     /// The entity at a position, however this half holds them.
-    /// </summary>
-    /// <remarks>
-    /// The relay hands over identities that already carry their revision, so that side costs
-    /// nothing. A store hands over ids, and the revision is looked up here: ids cannot go stale
-    /// within a loop, because nothing structural may happen while one runs, but a handle taken out
-    /// of the loop has to carry a revision or it would address whatever holds the id later.
-    /// </remarks>
-    internal unsafe ReadOnlySpan<RawEntity> EntitiesOf(int chunk)
+    internal ReadOnlySpan<RawEntity> EntitiesOf(int chunk)
     {
         var ids = _ids[chunk];
-
-        if (ids is null)
-            return new ReadOnlySpan<RawEntity>((void*)_entities[chunk], _counts[chunk]);
-
         var count = _counts[chunk];
         var start = _starts[chunk];
 
-        for (var i = 0; i < count; i++)
-            _resolved[start + i] = _store!.GetEntityById(ids[i]).RawEntity;
+        if (ids is not null)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                _resolved[start + i] = _store!.GetEntityById(ids[i]).RawEntity;
+            }
+        }
 
         return new ReadOnlySpan<RawEntity>(_resolved, start, count);
     }

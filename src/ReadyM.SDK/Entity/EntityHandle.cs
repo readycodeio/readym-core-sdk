@@ -28,7 +28,7 @@ public readonly struct EntityHandle
     internal RawEntity RawEntity => _rawEntity;
 
     /// <summary>Names the entity in a message without putting its raw id on the public surface.</summary>
-    public override string ToString() 
+    public override string ToString()
         => $"entity {_rawEntity.Id}";
 
     public bool IsAlive()
@@ -76,18 +76,19 @@ public readonly struct EntityHandle
         return true;
     }
 
-    public void AddComponent<T>() where T : struct, IComponent 
+    public void AddComponent<T>() where T : struct, IComponent
         => _api.AddComponent<T>(_rawEntity);
 
     /// <summary>The handle behind an archetype or mixin struct.</summary>
-    public static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable
+    public static EntityHandle Of<T>(in T archetype)
+        where T : struct, IArchetypeQueryable
         => archetype.Handle;
 
     /// <summary>The same reach into the world, pointed at another entity.</summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public EntityHandle For(RawEntity entity)
         => new(entity, _api);
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ComponentRef Locate<T>() where T : struct, IComponent
         => _api.Locate(_rawEntity, ComponentIds<T>.For(_api));

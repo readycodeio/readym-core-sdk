@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -8,10 +8,10 @@ using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Exceptions;
+using Yooni.Native.Container;
+using Yooni.Native.LowLevel;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Server.Entity;
@@ -27,6 +27,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
     private readonly ComponentRegistry _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
+    private QueryScope _scope = new();
 
     internal ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ComponentRegistry registry)
     {
@@ -39,17 +40,36 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _registerArchetype = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(archetypes.RegisterArchetype);
     }
 
-    /// <summary>
-    /// A server-only entity of the shape. Never replicated, which is all the v1 surface offers yet:
-    /// the networked variants take a scope and an owner, and that shape is still open in the spec.
-    /// </summary>
-    internal RawEntity Create(ComponentSet components)
-        => _createLocalEntity(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this));
+    public RawEntity Create(ComponentSet components)
+    {
+        _scope.RefuseIfInQuery("Creating an entity");
+        return _createLocalEntity(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this));
+    }
 
-    /// <summary>Whether the entity was there to delete.</summary>
-    internal bool Delete(RawEntity entity) => _deleteEntity(entity, MatchRevision) != 0;
+    public bool Delete(RawEntity rawEntity)
+    {
+        if (!IsAlive(rawEntity))
+            return false;
 
-    /// The relay assigns one id per component set, so it is worth doing once.
+        if (_scope.InQuery)
+            return _scope.Mark(rawEntity);
+
+        return _deleteEntity(rawEntity, MatchRevision) != 0;
+    }
+
+    public void EnterQuery() => _scope.Enter();
+
+    public void LeaveQuery()
+    {
+        if (!_scope.Leave())
+            return;
+
+        foreach (var rawEntity in _scope.Pending)
+            _deleteEntity(rawEntity, MatchRevision);
+
+        _scope.Clear();
+    }
+
     private ArchetypeId Register(ComponentSet components)
     {
         var ids = ResolveIds(components);
@@ -61,7 +81,8 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return _registerArchetype(native);
     }
 
-    public bool IsAlive(RawEntity rawEntity) => _isEntityAlive(rawEntity, MatchRevision) != 0;
+    public bool IsAlive(RawEntity rawEntity)
+        => !_scope.IsPending(rawEntity) && _isEntityAlive(rawEntity, MatchRevision) != 0;
 
     public unsafe bool HasComponents(RawEntity rawEntity, ComponentSet components)
     {
@@ -87,6 +108,9 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     public unsafe ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
+        if (_scope.IsPending(rawEntity))
+            throw new InvalidEntityException($"Entity {rawEntity.Id} was deleted by the running query.");
+
         ComponentSlot slot;
         _getComponentSlot(rawEntity, MatchRevision, componentId, &slot);
 
@@ -122,16 +146,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return buffer;
     }
 
-    /// <summary>
-    /// Every matching chunk, described rather than copied: one crossing for the whole query.
-    /// </summary>
-    /// <remarks>
-    /// The relay pushes chunks at a callback and a foreach has to pull, so the descriptors are
-    /// captured here and walked after the call returns. That is sound because the relay hands out
-    /// chunks for the world as it stands and nothing on this side can change it until the call is
-    /// over, and because queries never overlap: everything that runs mod code is scheduled on the
-    /// one thread.
-    /// </remarks>
     EntityHandle IChunkSource.Prototype => new(default, this);
 
     unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components)

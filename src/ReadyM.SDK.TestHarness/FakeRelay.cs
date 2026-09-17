@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Multiplayer.Interop;
@@ -290,9 +290,27 @@ internal sealed class FakeRelay
             if (archetype.Count == 0 || !archetype.Fill(wanted, comps))
                 continue;
 
-            fixed (RawEntity* entities = archetype.Entities)
+            // As the relay does it: one scratch buffer refilled per archetype, pinned only for the
+            // call. Anything the callee keeps reading afterwards is reading the next chunk's
+            // entities, or unpinned memory. See RawEntityScratch on the relay side.
+            var identities = Scratch(archetype.Count);
+
+            archetype.Entities.AsSpan(0, archetype.Count).CopyTo(identities);
+
+            fixed (RawEntity* entities = identities)
                 callback((IntPtr)entities, comps, n, archetype.Count);
         }
+    }
+
+    [ThreadStatic]
+    private static RawEntity[]? _scratch;
+
+    private static RawEntity[] Scratch(int count)
+    {
+        if (_scratch is null || _scratch.Length < count)
+            _scratch = new RawEntity[Math.Max(count, 512)];
+
+        return _scratch;
     }
 
     private int GetComponentIdByNameImpl(NativeString256 typeName)

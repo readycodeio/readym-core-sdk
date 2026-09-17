@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
@@ -22,6 +22,10 @@ internal sealed class ClientChunkSource(EntityStore store, IEntityApi api) : ICh
     private readonly ConcurrentDictionary<ComponentSet, Shape> _shapes = new();
 
     EntityHandle IChunkSource.Prototype => new(default, api);
+
+    void IChunkSource.EnterQuery() => api.EnterQuery();
+
+    void IChunkSource.LeaveQuery() => api.LeaveQuery();
 
     ChunkBuffer IChunkSource.Collect(ComponentSet components)
     {

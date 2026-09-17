@@ -1,3 +1,5 @@
+﻿using ReadyM.SDK.Exceptions;
+using ReadyM.SDK.Entity;
 using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -125,5 +127,86 @@ public class ServerQueryTests : ServerSdkTest
 
         Assert.Equal(1, Relay.QueryCalls);
         Assert.Equal(30, Relay.SlotCalls);
+    }
+
+    /// <summary>
+    /// Creating is refused rather than held. Growing an archetype replaces the array a chunk names,
+    /// so the loop would carry on writing to storage nothing reads any more.
+    /// </summary>
+    [Fact]
+    public void Creating_an_entity_inside_a_query_is_refused()
+    {
+        Spawn<Npc>();
+
+        // Written the way READYM002 forbids, deliberately: the analyzer stops this at the call
+        // site, and this checks the run time refuses it too, which is what covers a call the
+        // analyzer cannot see through.
+#pragma warning disable READYM002
+        Assert.Throws<StructuralChangeInQueryException>(() =>
+        {
+            foreach (var _ in Entities.Query<Npc>())
+                Entities.Create<Npc>();
+        });
+#pragma warning restore READYM002
+    }
+
+    /// <summary>The way to do it: the loop collects, and the creating happens once it is over.</summary>
+    [Fact]
+    public void Creating_after_the_loop_is_how_a_query_spawns_entities()
+    {
+        for (var i = 0; i < 5; i++)
+            Spawn<Npc>().Hp = i;
+
+        var npcTotal = 0;
+        var wanted = new List<int>();
+
+        foreach (var npc in Entities.Query<Npc>())
+        {
+            wanted.Add(npc.Hp + 10);
+            npcTotal += npc.Hp;
+        }
+
+        Assert.Equal(10, npcTotal);
+
+        foreach (var hp in wanted)
+            Entities.Create<Npc>().Hp = hp;
+
+        var newTotal = 0;
+
+        foreach (var npc in Entities.Query<Npc>())
+            newTotal += npc.Hp;
+
+        Assert.Equal(10 + 10 + 50, newTotal);
+    }
+
+    [Fact]
+    public void Deleting_entities_during_query_applies_afterwards()
+    {
+        Relay.ResetCounters();
+        
+        for (var i = 0; i < 5; i++)
+        {
+            var npc = Spawn<Npc>();
+            npc.Hp = i;
+        }
+        
+        foreach (var npc in Entities.Query<Npc>())
+        {
+            // delete ones with even HP
+            if (npc.Hp % 2 == 0)
+            {
+                Entities.Delete(npc);
+            }
+        }
+
+        Assert.Equal(3, Relay.DeleteCalls);
+
+        var total = 0;
+        foreach (var npc in Entities.Query<Npc>())
+        {
+            total += npc.Hp;
+        }
+
+        Assert.Equal(4, total); // 1 + 3
     }
 }

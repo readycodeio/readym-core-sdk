@@ -1,4 +1,4 @@
-using ReadyM.SDK.Entity;
+﻿using ReadyM.SDK.Entity;
 using ReadyM.SDK.Archetypes;
 
 namespace ReadyM.SDK.Client.Entity;
@@ -14,8 +14,19 @@ public interface IEntities
     /// <summary>Create a new entity of a given Archetype.</summary>
     T Create<T>() where T : struct, IArchetype;
 
-    /// <summary>Delete an entity. False when it was already gone.</summary>
-    bool Delete<T>(in T shape) where T : struct, IArchetype;
+    /// <summary>
+    /// Removes the entity a shape names: an archetype, a mixin, or, where the runtime has them, the
+    /// chunk view of either. False when it was already gone.
+    /// </summary>
+    /// <remarks>
+    /// Inside a query the removal is held until the loop ends. The anti-constraint is the only part
+    /// that differs by target, and a netstandard2.0 build has no chunk views to pass anyway.
+    /// </remarks>
+#if NET
+    bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct;
+#else
+    bool Delete<T>(in T shape) where T : IEntityShape;
+#endif
 
     /// <summary>
     /// The same, by handle. What a loop walking chunks uses, since a view cannot be a type argument.

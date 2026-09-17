@@ -22,7 +22,7 @@ public readonly ref struct EntityQuery<T1, T2>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2>.Enumerator Identities() => new QueryBuilder<T1, T2>(_api).GetEnumerator();
+    public Query<T1, T2>.Enumerator Identities() => new Query<T1, T2>(_api).GetEnumerator();
 }
 
 /// <summary>3 shapes at once, without an archetype that names them.</summary>
@@ -43,7 +43,7 @@ public readonly ref struct EntityQuery<T1, T2, T3>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2, T3>.Enumerator Identities() => new QueryBuilder<T1, T2, T3>(_api).GetEnumerator();
+    public Query<T1, T2, T3>.Enumerator Identities() => new Query<T1, T2, T3>(_api).GetEnumerator();
 }
 
 /// <summary>4 shapes at once, without an archetype that names them.</summary>
@@ -65,7 +65,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2, T3, T4>.Enumerator Identities() => new QueryBuilder<T1, T2, T3, T4>(_api).GetEnumerator();
+    public Query<T1, T2, T3, T4>.Enumerator Identities() => new Query<T1, T2, T3, T4>(_api).GetEnumerator();
 }
 
 /// <summary>5 shapes at once, without an archetype that names them.</summary>
@@ -88,7 +88,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2, T3, T4, T5>.Enumerator Identities() => new QueryBuilder<T1, T2, T3, T4, T5>(_api).GetEnumerator();
+    public Query<T1, T2, T3, T4, T5>.Enumerator Identities() => new Query<T1, T2, T3, T4, T5>(_api).GetEnumerator();
 }
 
 /// <summary>6 shapes at once, without an archetype that names them.</summary>
@@ -112,5 +112,5 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public QueryBuilder<T1, T2, T3, T4, T5, T6>.Enumerator Identities() => new QueryBuilder<T1, T2, T3, T4, T5, T6>(_api).GetEnumerator();
+    public Query<T1, T2, T3, T4, T5, T6>.Enumerator Identities() => new Query<T1, T2, T3, T4, T5, T6>(_api).GetEnumerator();
 }

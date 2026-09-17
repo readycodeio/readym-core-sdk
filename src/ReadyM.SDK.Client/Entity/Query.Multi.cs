@@ -4,33 +4,36 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Client.Entity;
 
-/// A query over every entity of one archetype or mixin.
-public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
+public readonly ref struct Query<T1, T2>
+    where T1 : struct, IArchetypeQueryable
+    where T2 : struct, IArchetypeQueryable
 {
     private readonly ArchetypeQuery _query;
     private readonly IEntityApi _api;
 
-    internal QueryBuilder(EntityStore store, IEntityApi api)
+    internal Query(EntityStore store, IEntityApi api)
     {
-        _query = store.Query(new QueryFilter().AllComponents(ClientComponents.Resolve(default(T).Components)));
+        _query = store.Query(new QueryFilter().AllComponents(new ComponentTypes
+        {
+            ClientComponents.Resolve(default(T1).Components),
+            ClientComponents.Resolve(default(T2).Components)
+        }));
         _api = api;
     }
 
-    private QueryBuilder(ArchetypeQuery query, IEntityApi api)
+    private Query(ArchetypeQuery query, IEntityApi api)
     {
         _query = query;
         _api = api;
     }
 
-    public void ForEach(Action<T> action)
+    public void ForEach(Action<T1, T2> action)
     {
-        foreach (var component in this)
+        foreach (var (c1, c2) in this)
         {
-            action(component);
+            action(c1, c2);
         }
     }
-
-
 
     public Enumerator GetEnumerator() => new(_query, _api);
 
@@ -47,10 +50,10 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
             _index = -1;
         }
 
-        public T Current => new()
-        {
-            Handle = new EntityHandle(_buffer[_index], _api)
-        };
+        public (T1, T2) Current => (
+            new T1 { Handle = new EntityHandle(_buffer[_index], _api) },
+            new T2 { Handle = new EntityHandle(_buffer[_index], _api) }
+        );
 
         public bool MoveNext() => ++_index < _buffer.Count;
 

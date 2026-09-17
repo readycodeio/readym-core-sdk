@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
@@ -10,15 +10,12 @@ namespace ReadyM.SDK.Chunks;
 /// chunk rather than by asking where the entity lives on every access.
 /// </summary>
 /// <remarks>
-/// A query builds one of these per chunk and then only moves its index, so the work of finding each
-/// component happens once per chunk instead of once per read. It is a ref struct, so it cannot
-/// outlive the loop that produced it.
-///
 /// Generated code in a mod assembly implements this, and that mod keeps running against later SDKs,
 /// so a member added here without a body would stop every already-compiled mod from loading.
 /// Anything added later must have one, static members included.
 /// </remarks>
-public interface IArchetypeChunkView<out TSelf> where TSelf : IArchetypeChunkView<TSelf>, allows ref struct
+public interface IArchetypeChunkView<out TSelf> : IEntityShape
+    where TSelf : IArchetypeChunkView<TSelf>, allows ref struct
 {
     /// <summary>How many slots this view consumes, so several can share one chunk's worth.</summary>
     /// <remarks>
@@ -42,11 +39,6 @@ public interface IArchetypeChunkView<out TSelf> where TSelf : IArchetypeChunkVie
     /// <summary>
     /// The same binding, moved to another entity of the same chunk.
     /// </summary>
-    /// <remarks>
-    /// Only the index moves. The view keeps a reference to the chunk's identities rather than one
-    /// identity, so a loop that never asks for a handle never pays to produce one, which measured as
-    /// the whole of v1's deficit against v0 on this path.
-    /// </remarks>
     [EditorBrowsable(EditorBrowsableState.Never)]
     TSelf At(int index);
 }

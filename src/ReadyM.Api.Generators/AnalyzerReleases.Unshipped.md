@@ -6,3 +6,4 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|------
 READYM001 | ReadyM | Warning | The server SDK is referenced but its chunk types were not found, so queries fall back to walking identities.
+READYM002 | ReadyM | Error | Growing the world inside a query loop, which the SDK refuses at run time.

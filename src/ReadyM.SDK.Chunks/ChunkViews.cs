@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
@@ -23,13 +23,8 @@ public readonly ref struct ChunkViews<T1, T2> : IArchetypeChunkView<ChunkViews<T
 
     public static int SlotCount => T1.SlotCount + T2.SlotCount;
 
-    // Combined once per instantiation rather than per query: a single shape reads its set off a
-    // cached static, and a composed one has to match that or it allocates on every loop.
-    private static readonly ComponentSet Combined = ComponentSet.Combine(T1.Components, T2.Components);
+    public static ComponentSet Components { get; } = ComponentSet.Combine(T1.Components, T2.Components);
 
-    public static ComponentSet Components => Combined;
-
-    /// Each view takes the slots after the ones before it, by the count each reports.
     public static ChunkViews<T1, T2> Bind(
         ReadOnlySpan<ChunkSlot> slots,
         ReadOnlySpan<RawEntity> entities,
@@ -37,7 +32,7 @@ public readonly ref struct ChunkViews<T1, T2> : IArchetypeChunkView<ChunkViews<T
     {
         var end1 = T1.SlotCount;
 
-        return new(
+        return new ChunkViews<T1, T2>(
             T1.Bind(slots[..end1], entities, prototype),
             T2.Bind(slots[end1..], entities, prototype));
     }
@@ -45,7 +40,8 @@ public readonly ref struct ChunkViews<T1, T2> : IArchetypeChunkView<ChunkViews<T
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChunkViews<T1, T2> At(int index) => new(_v1.At(index), _v2.At(index));
 
-    /// <summary>What lets a loop read <c>foreach (var (first, second) in ...)</c>.</summary>
+    public EntityHandle Handle => _v1.Handle;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out T1 first, out T2 second)
     {
@@ -53,6 +49,7 @@ public readonly ref struct ChunkViews<T1, T2> : IArchetypeChunkView<ChunkViews<T
         second = _v2;
     }
 }
+
 /// <summary>3 shapes over one chunk, so a query can ask for all of them without an archetype naming them.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly ref struct ChunkViews<T1, T2, T3> : IArchetypeChunkView<ChunkViews<T1, T2, T3>>
@@ -73,13 +70,8 @@ public readonly ref struct ChunkViews<T1, T2, T3> : IArchetypeChunkView<ChunkVie
 
     public static int SlotCount => T1.SlotCount + T2.SlotCount + T3.SlotCount;
 
-    // Combined once per instantiation rather than per query: a single shape reads its set off a
-    // cached static, and a composed one has to match that or it allocates on every loop.
-    private static readonly ComponentSet Combined = ComponentSet.Combine(T1.Components, T2.Components, T3.Components);
+    public static ComponentSet Components { get; } = ComponentSet.Combine(T1.Components, T2.Components, T3.Components);
 
-    public static ComponentSet Components => Combined;
-
-    /// Each view takes the slots after the ones before it, by the count each reports.
     public static ChunkViews<T1, T2, T3> Bind(
         ReadOnlySpan<ChunkSlot> slots,
         ReadOnlySpan<RawEntity> entities,
@@ -88,7 +80,7 @@ public readonly ref struct ChunkViews<T1, T2, T3> : IArchetypeChunkView<ChunkVie
         var end1 = T1.SlotCount;
         var end2 = end1 + T2.SlotCount;
 
-        return new(
+        return new ChunkViews<T1, T2, T3>(
             T1.Bind(slots[..end1], entities, prototype),
             T2.Bind(slots[end1..end2], entities, prototype),
             T3.Bind(slots[end2..], entities, prototype));
@@ -97,7 +89,8 @@ public readonly ref struct ChunkViews<T1, T2, T3> : IArchetypeChunkView<ChunkVie
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChunkViews<T1, T2, T3> At(int index) => new(_v1.At(index), _v2.At(index), _v3.At(index));
 
-    /// <summary>What lets a loop read <c>foreach (var (first, second, third) in ...)</c>.</summary>
+    public EntityHandle Handle => _v1.Handle;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out T1 first, out T2 second, out T3 third)
     {
@@ -106,6 +99,7 @@ public readonly ref struct ChunkViews<T1, T2, T3> : IArchetypeChunkView<ChunkVie
         third = _v3;
     }
 }
+
 /// <summary>4 shapes over one chunk, so a query can ask for all of them without an archetype naming them.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly ref struct ChunkViews<T1, T2, T3, T4> : IArchetypeChunkView<ChunkViews<T1, T2, T3, T4>>
@@ -129,13 +123,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4> : IArchetypeChunkView<Chun
 
     public static int SlotCount => T1.SlotCount + T2.SlotCount + T3.SlotCount + T4.SlotCount;
 
-    // Combined once per instantiation rather than per query: a single shape reads its set off a
-    // cached static, and a composed one has to match that or it allocates on every loop.
-    private static readonly ComponentSet Combined = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components);
+    public static ComponentSet Components { get; } = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components);
 
-    public static ComponentSet Components => Combined;
-
-    /// Each view takes the slots after the ones before it, by the count each reports.
     public static ChunkViews<T1, T2, T3, T4> Bind(
         ReadOnlySpan<ChunkSlot> slots,
         ReadOnlySpan<RawEntity> entities,
@@ -145,7 +134,7 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4> : IArchetypeChunkView<Chun
         var end2 = end1 + T2.SlotCount;
         var end3 = end2 + T3.SlotCount;
 
-        return new(
+        return new ChunkViews<T1, T2, T3, T4>(
             T1.Bind(slots[..end1], entities, prototype),
             T2.Bind(slots[end1..end2], entities, prototype),
             T3.Bind(slots[end2..end3], entities, prototype),
@@ -155,7 +144,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4> : IArchetypeChunkView<Chun
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChunkViews<T1, T2, T3, T4> At(int index) => new(_v1.At(index), _v2.At(index), _v3.At(index), _v4.At(index));
 
-    /// <summary>What lets a loop read <c>foreach (var (first, second, third, fourth) in ...)</c>.</summary>
+    public EntityHandle Handle => _v1.Handle;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out T1 first, out T2 second, out T3 third, out T4 fourth)
     {
@@ -165,6 +155,7 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4> : IArchetypeChunkView<Chun
         fourth = _v4;
     }
 }
+
 /// <summary>5 shapes over one chunk, so a query can ask for all of them without an archetype naming them.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly ref struct ChunkViews<T1, T2, T3, T4, T5> : IArchetypeChunkView<ChunkViews<T1, T2, T3, T4, T5>>
@@ -191,13 +182,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5> : IArchetypeChunkView<
 
     public static int SlotCount => T1.SlotCount + T2.SlotCount + T3.SlotCount + T4.SlotCount + T5.SlotCount;
 
-    // Combined once per instantiation rather than per query: a single shape reads its set off a
-    // cached static, and a composed one has to match that or it allocates on every loop.
-    private static readonly ComponentSet Combined = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components, T5.Components);
+    public static ComponentSet Components { get; } = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components, T5.Components);
 
-    public static ComponentSet Components => Combined;
-
-    /// Each view takes the slots after the ones before it, by the count each reports.
     public static ChunkViews<T1, T2, T3, T4, T5> Bind(
         ReadOnlySpan<ChunkSlot> slots,
         ReadOnlySpan<RawEntity> entities,
@@ -208,7 +194,7 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5> : IArchetypeChunkView<
         var end3 = end2 + T3.SlotCount;
         var end4 = end3 + T4.SlotCount;
 
-        return new(
+        return new ChunkViews<T1, T2, T3, T4, T5>(
             T1.Bind(slots[..end1], entities, prototype),
             T2.Bind(slots[end1..end2], entities, prototype),
             T3.Bind(slots[end2..end3], entities, prototype),
@@ -219,7 +205,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5> : IArchetypeChunkView<
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChunkViews<T1, T2, T3, T4, T5> At(int index) => new(_v1.At(index), _v2.At(index), _v3.At(index), _v4.At(index), _v5.At(index));
 
-    /// <summary>What lets a loop read <c>foreach (var (first, second, third, fourth, fifth) in ...)</c>.</summary>
+    public EntityHandle Handle => _v1.Handle;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out T1 first, out T2 second, out T3 third, out T4 fourth, out T5 fifth)
     {
@@ -230,6 +217,7 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5> : IArchetypeChunkView<
         fifth = _v5;
     }
 }
+
 /// <summary>6 shapes over one chunk, so a query can ask for all of them without an archetype naming them.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly ref struct ChunkViews<T1, T2, T3, T4, T5, T6> : IArchetypeChunkView<ChunkViews<T1, T2, T3, T4, T5, T6>>
@@ -259,13 +247,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5, T6> : IArchetypeChunkV
 
     public static int SlotCount => T1.SlotCount + T2.SlotCount + T3.SlotCount + T4.SlotCount + T5.SlotCount + T6.SlotCount;
 
-    // Combined once per instantiation rather than per query: a single shape reads its set off a
-    // cached static, and a composed one has to match that or it allocates on every loop.
-    private static readonly ComponentSet Combined = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components, T5.Components, T6.Components);
+    public static ComponentSet Components { get; } = ComponentSet.Combine(T1.Components, T2.Components, T3.Components, T4.Components, T5.Components, T6.Components);
 
-    public static ComponentSet Components => Combined;
-
-    /// Each view takes the slots after the ones before it, by the count each reports.
     public static ChunkViews<T1, T2, T3, T4, T5, T6> Bind(
         ReadOnlySpan<ChunkSlot> slots,
         ReadOnlySpan<RawEntity> entities,
@@ -277,7 +260,7 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5, T6> : IArchetypeChunkV
         var end4 = end3 + T4.SlotCount;
         var end5 = end4 + T5.SlotCount;
 
-        return new(
+        return new ChunkViews<T1, T2, T3, T4, T5, T6>(
             T1.Bind(slots[..end1], entities, prototype),
             T2.Bind(slots[end1..end2], entities, prototype),
             T3.Bind(slots[end2..end3], entities, prototype),
@@ -289,7 +272,8 @@ public readonly ref struct ChunkViews<T1, T2, T3, T4, T5, T6> : IArchetypeChunkV
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChunkViews<T1, T2, T3, T4, T5, T6> At(int index) => new(_v1.At(index), _v2.At(index), _v3.At(index), _v4.At(index), _v5.At(index), _v6.At(index));
 
-    /// <summary>What lets a loop read <c>foreach (var (first, second, third, fourth, fifth, sixth) in ...)</c>.</summary>
+    public EntityHandle Handle => _v1.Handle;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Deconstruct(out T1 first, out T2 second, out T3 third, out T4 fourth, out T5 fifth, out T6 sixth)
     {

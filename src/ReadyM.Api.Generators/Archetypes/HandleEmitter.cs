@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -34,6 +34,8 @@ internal static class HandleEmitter
             writer.Line("init => _handle = value;");
         }
 
+        writer.Line();
+        writer.Line($"{ArchetypeNames.EntityHandle} {ArchetypeNames.Shape}.Handle => _handle;");
         writer.Line();
         writer.Line($"{ArchetypeNames.ComponentSet} {ArchetypeNames.Queryable}.Components => {model.QualifiedAccessors}.Components;");
     }

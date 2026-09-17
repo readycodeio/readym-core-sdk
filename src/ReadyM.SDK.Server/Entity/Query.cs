@@ -1,15 +1,14 @@
-using Friflo.Engine.ECS;
-using ReadyM.SDK.Archetypes;
+﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Server.Entity;
 
-public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
+public readonly ref struct Query<T> where T : struct, IArchetypeQueryable
 {
     private readonly ServerEntityApi _api;
     private readonly ComponentSet _components;
 
-    internal QueryBuilder(ServerEntityApi api)
+    internal Query(ServerEntityApi api)
     {
         _api = api;
         _components = default(T).Components;
@@ -33,6 +32,8 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
 
         internal Enumerator(ServerEntityApi api, EntityBuffer buffer)
         {
+            api.EnterQuery();
+
             _api = api;
             _buffer = buffer;
             _index = -1;
@@ -45,6 +46,10 @@ public readonly ref struct QueryBuilder<T> where T : struct, IArchetypeQueryable
 
         public bool MoveNext() => ++_index < _buffer.Count;
 
-        public void Dispose() => _buffer.Return();
+        public void Dispose()
+        {
+            _buffer.Return();
+            _api.LeaveQuery();
+        }
     }
 }

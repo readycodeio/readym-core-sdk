@@ -1,4 +1,4 @@
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 
@@ -13,23 +13,15 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         => new(_context);
 
     public T Create<T>() where T : struct, IArchetype
-    {
-        var archetype = store.GetArchetype(ClientComponents.Resolve(default(T).Components));
-        return new T { Handle = new EntityHandle(archetype.CreateEntity().RawEntity, api) };
-    }
+        => new() { Handle = new EntityHandle(api.Create(default(T).Components), api) };
 
-    public bool Delete<T>(in T shape) where T : struct, IArchetype => Delete(EntityHandle.Of(shape));
+#if NET
+    public bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct => Delete(shape.Handle);
+#else
+    public bool Delete<T>(in T shape) where T : IEntityShape => Delete(shape.Handle);
+#endif
 
-    public bool Delete(EntityHandle handle)
-    {
-        var entity = store.GetEntityByRawEntity(handle.RawEntity);
-
-        if (entity.IsNull)
-            return false;
-
-        entity.DeleteEntity();
-        return true;
-    }
+    public bool Delete(EntityHandle handle) => api.Delete(handle.RawEntity);
 
     public EntityQuery<T1, T2> Query<T1, T2>()
         where T1 : struct, IArchetypeQueryable

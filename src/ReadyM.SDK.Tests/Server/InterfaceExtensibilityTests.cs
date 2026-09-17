@@ -1,4 +1,4 @@
-using ReadyM.SDK.Server.Entity;
+﻿using ReadyM.SDK.Server.Entity;
 using System.Reflection;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
@@ -23,6 +23,15 @@ namespace ReadyM.SDK.Tests.Server;
 public class InterfaceExtensibilityTests : ServerSdkTest
 {
     // -- the shared interfaces: pinned, because netstandard2.0 allows no default bodies -----------
+
+    /// <summary>
+    /// The one thing an archetype, a mixin and a chunk view all are. It is what Delete takes, so it
+    /// has to stay this small: a member added here cannot be given a body on netstandard2.0, and
+    /// every already-compiled shape would stop satisfying it.
+    /// </summary>
+    [Fact]
+    public void IEntityShape_has_not_gained_members()
+        => AssertMembers(typeof(IEntityShape), "Handle", "get_Handle");
 
     [Fact]
     public void IArchetypeQueryable_has_not_gained_members()
@@ -106,6 +115,11 @@ public class InterfaceExtensibilityTests : ServerSdkTest
         }
 
         public BareView At(int index) => new(_position, index);
+
+        // Not declared as implementing IEntityShape, because a view generated before that interface
+        // existed did not know about it. Every generated view has always had this property, so the
+        // runtime matches it to the new member implicitly and such a view still loads.
+        public EntityHandle Handle => default;
 
         public static ComponentSet Components => PositionAccessors.Components;
 

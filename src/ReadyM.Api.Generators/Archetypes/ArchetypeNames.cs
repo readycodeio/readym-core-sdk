@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -22,6 +22,7 @@ internal static class ArchetypeNames
     public const string EntityHandle = "global::ReadyM.SDK.Entity.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";
     public const string Queryable = "global::ReadyM.SDK.Archetypes.IArchetypeQueryable";
+    public const string Shape = "global::ReadyM.SDK.Archetypes.IEntityShape";
     public const string Archetype = "global::ReadyM.SDK.Archetypes.IArchetype";
     public const string Mixin = "global::ReadyM.SDK.Archetypes.IArchetypeMixin";
     public const string Component = "global::Friflo.Engine.ECS.IComponent";

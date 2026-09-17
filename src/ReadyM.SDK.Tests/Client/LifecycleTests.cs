@@ -1,3 +1,4 @@
+﻿using ReadyM.SDK.Exceptions;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;
@@ -55,7 +56,7 @@ public class LifecycleTests : ClientSdkTest
 
         foreach (var monster in Entities.Query<Monster>())
             if (monster.Hp % 2 == 0)
-                Entities.Delete(monster.Handle);
+                Entities.Delete(monster);
 
         var survivors = new List<float>();
 
@@ -66,20 +67,38 @@ public class LifecycleTests : ClientSdkTest
         Assert.Equal([1f, 3f, 5f], survivors);
     }
 
+    /// <summary>
+    /// The client refuses it for the same reason the server does: a loop holds the ids the store had
+    /// when it started, and creating moves entities between archetypes under it.
+    /// </summary>
     [Fact]
-    public void An_entity_created_inside_a_loop_is_not_visited_by_it()
+    public void Creating_an_entity_inside_a_loop_is_refused()
+    {
+        Entities.Create<Monster>();
+
+        // Written the way READYM002 forbids, deliberately: the analyzer stops this at the call
+        // site, and this checks the run time refuses it too, which is what covers a call the
+        // analyzer cannot see through.
+#pragma warning disable READYM002
+        Assert.Throws<StructuralChangeInQueryException>(() =>
+        {
+            foreach (var _ in Entities.Query<Monster>())
+                Entities.Create<Monster>();
+        });
+#pragma warning restore READYM002
+    }
+
+    [Fact]
+    public void Creating_after_the_loop_works()
     {
         Entities.Create<Monster>();
 
         var visited = 0;
 
         foreach (var _ in Entities.Query<Monster>())
-        {
             visited++;
 
-            if (visited < 5)
-                Entities.Create<Monster>();
-        }
+        Entities.Create<Monster>();
 
         Assert.Equal(1, visited);
         Assert.Equal(2, Count(Entities.Query<Monster>()));

@@ -1,13 +1,14 @@
+﻿using ReadyM.SDK.Exceptions;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
-using ReadyM.SDK.Exceptions;
 
 namespace ReadyM.SDK.Client.Entity;
 
 internal sealed class ClientEntityApi : IEntityApi
 {
     private readonly EntityStore _store;
+    private QueryScope _scope = new();
 
     public ClientEntityApi(EntityStore store) => _store = store;
 
@@ -26,7 +27,9 @@ internal sealed class ClientEntityApi : IEntityApi
 
         ref var node = ref nodes[rawEntity.Id];
 
-        if (!node.IsAlive(rawEntity.Revision))
+        // Kept apart from the bounds check above, which has to stand alone for the JIT to drop the
+        // array's own check on the line between them.
+        if (!node.IsAlive(rawEntity.Revision) || _scope.IsPending(rawEntity))
             throw new InvalidEntityException();
 
         var heap = node.archetype.heapMap[componentId];
@@ -35,15 +38,63 @@ internal sealed class ClientEntityApi : IEntityApi
     }
 
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-        => Resolve(rawEntity).AddComponent<T>();
+    {
+        _scope.RefuseIfInQuery($"Adding {typeof(T).Name}");
+
+        Resolve(rawEntity).AddComponent<T>();
+    }
+
+    public RawEntity Create(ComponentSet components)
+    {
+        _scope.RefuseIfInQuery("Creating an entity");
+
+        return _store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
+    }
 
     public bool HasComponents(RawEntity rawEntity, ComponentSet components)
         => Resolve(rawEntity).Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
 
-    public bool IsAlive(RawEntity rawEntity) => !_store.GetEntityByRawEntity(rawEntity).IsNull;
+    public bool IsAlive(RawEntity rawEntity)
+        => !_scope.IsPending(rawEntity) && !_store.GetEntityByRawEntity(rawEntity).IsNull;
+
+    public bool Delete(RawEntity rawEntity)
+    {
+        if (!IsAlive(rawEntity))
+            return false;
+
+        if (_scope.InQuery)
+            return _scope.Mark(rawEntity);
+
+        DeleteNow(rawEntity);
+        return true;
+    }
+
+    public void EnterQuery() => _scope.Enter();
+
+    public void LeaveQuery()
+    {
+        if (!_scope.Leave())
+            return;
+
+        foreach (var rawEntity in _scope.Pending)
+            DeleteNow(rawEntity);
+
+        _scope.Clear();
+    }
+
+    private void DeleteNow(RawEntity rawEntity)
+    {
+        var entity = _store.GetEntityByRawEntity(rawEntity);
+
+        if (!entity.IsNull)
+            entity.DeleteEntity();
+    }
 
     private Friflo.Engine.ECS.Entity Resolve(RawEntity rawEntity)
     {
+        if (_scope.IsPending(rawEntity))
+            throw new InvalidEntityException();
+
         var entity = _store.GetEntityByRawEntity(rawEntity);
 
         if (entity.IsNull)
