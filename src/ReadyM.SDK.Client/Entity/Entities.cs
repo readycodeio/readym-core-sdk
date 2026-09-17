@@ -24,25 +24,25 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
     public bool Delete(EntityHandle handle) => api.Delete(handle.RawEntity);
 
     public EntityQuery<T1, T2> Query<T1, T2>()
-        where T1 : struct, IArchetypeMixin
+        where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin
         => new(_context);
 
     public EntityQuery<T1, T2, T3> Query<T1, T2, T3>()
-        where T1 : struct, IArchetypeMixin
+        where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
         => new(_context);
 
     public EntityQuery<T1, T2, T3, T4> Query<T1, T2, T3, T4>()
-        where T1 : struct, IArchetypeMixin
+        where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
         where T4 : struct, IArchetypeMixin
         => new(_context);
 
     public EntityQuery<T1, T2, T3, T4, T5> Query<T1, T2, T3, T4, T5>()
-        where T1 : struct, IArchetypeMixin
+        where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
         where T4 : struct, IArchetypeMixin
@@ -50,7 +50,7 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         => new(_context);
 
     public EntityQuery<T1, T2, T3, T4, T5, T6> Query<T1, T2, T3, T4, T5, T6>()
-        where T1 : struct, IArchetypeMixin
+        where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin
         where T3 : struct, IArchetypeMixin
         where T4 : struct, IArchetypeMixin

@@ -8,7 +8,7 @@ namespace ReadyM.SDK.Server.Entity;
 
 /// Every entity carrying all 2 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2>
-    where T1 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
 {
     private readonly ServerEntityApi _api;
@@ -84,7 +84,7 @@ public readonly ref struct EntityQuery<T1, T2>
 
 /// Every entity carrying all 3 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2, T3>
-    where T1 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
 {
@@ -162,7 +162,7 @@ public readonly ref struct EntityQuery<T1, T2, T3>
 
 /// Every entity carrying all 4 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2, T3, T4>
-    where T1 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
@@ -242,7 +242,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
 
 /// Every entity carrying all 5 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
-    where T1 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
@@ -324,7 +324,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
 
 /// Every entity carrying all 6 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
-    where T1 : struct, IArchetypeMixin
+    where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
