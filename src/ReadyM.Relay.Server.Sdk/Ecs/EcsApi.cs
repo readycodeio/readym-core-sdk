@@ -13,6 +13,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// All component types - whether defined in the server binary or in this mod - are
 /// identified by <c>int</c> component IDs assigned at registration time.
 /// </summary>
+[Obsolete("Use IEntities instead from SDK 1.0")]
 public partial class EcsApi
 {
     private readonly QueryDelegate _query;

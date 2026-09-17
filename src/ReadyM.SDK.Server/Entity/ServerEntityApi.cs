@@ -29,7 +29,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
     private QueryScope _scope = new();
 
-    internal ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ComponentRegistry registry)
+    public ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ComponentRegistry registry)
     {
         _registry = registry;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);

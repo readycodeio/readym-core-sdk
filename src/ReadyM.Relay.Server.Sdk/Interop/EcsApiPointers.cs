@@ -4,7 +4,7 @@ namespace ReadyM.Relay.Server.Sdk.Interop;
 
 /// <exclude/>
 [StructLayout(LayoutKind.Sequential)]
-public  struct EcsApiPointers
+public struct EcsApiPointers
 {
     /// <summary>Arity-agnostic query. Supersedes Query1..Query6.</summary>
     public required IntPtr Query;
