@@ -1,34 +1,33 @@
 ﻿using System.ComponentModel;
+using Friflo.Engine.ECS;
 using JetBrains.Annotations;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entity;
+#if NET
+using ReadyM.SDK.Chunks;
+#endif
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Client.Entity;
 
 /// Every entity carrying all 2 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2>
+public readonly struct EntityQuery<T1, T2>
     where T1 : struct, IArchetypeMixin
     where T2 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi _api;
+    private readonly ClientEntityContext _context;
 
-    // Combined once per instantiation: Combine allocates, and a query must not.
-    private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components);
+    private static readonly ComponentTypes Components = new()
+    {
+        ClientComponents.Resolve(default(T1).Components),
+        ClientComponents.Resolve(default(T2).Components)
+    };
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
+    internal EntityQuery(ClientEntityContext context) => _context = context;
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
+    public IdentityEnumerator Identities() => new(_context, Components);
 
-    /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T1, T2> body)
     {
         var entities = Identities();
@@ -42,21 +41,28 @@ public readonly ref struct EntityQuery<T1, T2>
         entities.Dispose();
     }
 
+#if NET
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MustDisposeResource]
+    public ChunkQuery<TView>.Enumerator Chunks<TView>()
+        where TView : IArchetypeChunkView<TView>, allows ref struct
+        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+#endif
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
+        private readonly IEntityApi _api;
         private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
         {
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
-            api.EnterQuery();
+            context.Api.EnterQuery();
 
-            _api = api;
+            _api = context.Api;
             _index = -1;
         }
 
@@ -83,29 +89,26 @@ public readonly ref struct EntityQuery<T1, T2>
 }
 
 /// Every entity carrying all 3 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3>
+public readonly struct EntityQuery<T1, T2, T3>
     where T1 : struct, IArchetypeMixin
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi _api;
+    private readonly ClientEntityContext _context;
 
-    // Combined once per instantiation: Combine allocates, and a query must not.
-    private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components);
+    private static readonly ComponentTypes Components = new()
+    {
+        ClientComponents.Resolve(default(T1).Components),
+        ClientComponents.Resolve(default(T2).Components),
+        ClientComponents.Resolve(default(T3).Components)
+    };
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
+    internal EntityQuery(ClientEntityContext context) => _context = context;
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
+    public IdentityEnumerator Identities() => new(_context, Components);
 
-    /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T1, T2, T3> body)
     {
         var entities = Identities();
@@ -119,21 +122,28 @@ public readonly ref struct EntityQuery<T1, T2, T3>
         entities.Dispose();
     }
 
+#if NET
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MustDisposeResource]
+    public ChunkQuery<TView>.Enumerator Chunks<TView>()
+        where TView : IArchetypeChunkView<TView>, allows ref struct
+        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+#endif
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
+        private readonly IEntityApi _api;
         private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
         {
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
-            api.EnterQuery();
+            context.Api.EnterQuery();
 
-            _api = api;
+            _api = context.Api;
             _index = -1;
         }
 
@@ -161,30 +171,28 @@ public readonly ref struct EntityQuery<T1, T2, T3>
 }
 
 /// Every entity carrying all 4 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4>
+public readonly struct EntityQuery<T1, T2, T3, T4>
     where T1 : struct, IArchetypeMixin
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi _api;
+    private readonly ClientEntityContext _context;
 
-    // Combined once per instantiation: Combine allocates, and a query must not.
-    private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components);
+    private static readonly ComponentTypes Components = new()
+    {
+        ClientComponents.Resolve(default(T1).Components),
+        ClientComponents.Resolve(default(T2).Components),
+        ClientComponents.Resolve(default(T3).Components),
+        ClientComponents.Resolve(default(T4).Components)
+    };
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
+    internal EntityQuery(ClientEntityContext context) => _context = context;
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
+    public IdentityEnumerator Identities() => new(_context, Components);
 
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T1, T2, T3, T4> body)
     {
         var entities = Identities();
@@ -198,21 +206,28 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
         entities.Dispose();
     }
 
+#if NET
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MustDisposeResource]
+    public ChunkQuery<TView>.Enumerator Chunks<TView>()
+        where TView : IArchetypeChunkView<TView>, allows ref struct
+        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+#endif
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
+        private readonly IEntityApi _api;
         private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
         {
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
-            api.EnterQuery();
+            context.Api.EnterQuery();
 
-            _api = api;
+            _api = context.Api;
             _index = -1;
         }
 
@@ -241,31 +256,30 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
 }
 
 /// Every entity carrying all 5 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
+public readonly struct EntityQuery<T1, T2, T3, T4, T5>
     where T1 : struct, IArchetypeMixin
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
     where T5 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi _api;
+    private readonly ClientEntityContext _context;
 
-    // Combined once per instantiation: Combine allocates, and a query must not.
-    private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components);
+    private static readonly ComponentTypes Components = new()
+    {
+        ClientComponents.Resolve(default(T1).Components),
+        ClientComponents.Resolve(default(T2).Components),
+        ClientComponents.Resolve(default(T3).Components),
+        ClientComponents.Resolve(default(T4).Components),
+        ClientComponents.Resolve(default(T5).Components)
+    };
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
+    internal EntityQuery(ClientEntityContext context) => _context = context;
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
+    public IdentityEnumerator Identities() => new(_context, Components);
 
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T1, T2, T3, T4, T5> body)
     {
         var entities = Identities();
@@ -279,21 +293,28 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
         entities.Dispose();
     }
 
+#if NET
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MustDisposeResource]
+    public ChunkQuery<TView>.Enumerator Chunks<TView>()
+        where TView : IArchetypeChunkView<TView>, allows ref struct
+        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+#endif
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
+        private readonly IEntityApi _api;
         private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
         {
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
-            api.EnterQuery();
+            context.Api.EnterQuery();
 
-            _api = api;
+            _api = context.Api;
             _index = -1;
         }
 
@@ -323,7 +344,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
 }
 
 /// Every entity carrying all 6 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
+public readonly struct EntityQuery<T1, T2, T3, T4, T5, T6>
     where T1 : struct, IArchetypeMixin
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
@@ -331,24 +352,24 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
     where T5 : struct, IArchetypeMixin
     where T6 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi _api;
+    private readonly ClientEntityContext _context;
 
-    // Combined once per instantiation: Combine allocates, and a query must not.
-    private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components, default(T6).Components);
+    private static readonly ComponentTypes Components = new()
+    {
+        ClientComponents.Resolve(default(T1).Components),
+        ClientComponents.Resolve(default(T2).Components),
+        ClientComponents.Resolve(default(T3).Components),
+        ClientComponents.Resolve(default(T4).Components),
+        ClientComponents.Resolve(default(T5).Components),
+        ClientComponents.Resolve(default(T6).Components)
+    };
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
+    internal EntityQuery(ClientEntityContext context) => _context = context;
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
+    public IdentityEnumerator Identities() => new(_context, Components);
 
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T1, T2, T3, T4, T5, T6> body)
     {
         var entities = Identities();
@@ -362,21 +383,28 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
         entities.Dispose();
     }
 
+#if NET
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MustDisposeResource]
+    public ChunkQuery<TView>.Enumerator Chunks<TView>()
+        where TView : IArchetypeChunkView<TView>, allows ref struct
+        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+#endif
+
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
+        private readonly IEntityApi _api;
         private readonly EntityBuffer _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
         {
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
-            api.EnterQuery();
+            context.Api.EnterQuery();
 
-            _api = api;
+            _api = context.Api;
             _index = -1;
         }
 

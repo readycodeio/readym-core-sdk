@@ -44,9 +44,37 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
             public partial int Hp { get; set; }
         }
 
+        [ArchetypeMixin]
+        public readonly partial struct Named
+        {
+            public partial string Label { get; set; }
+        }
+
+        [ArchetypeMixin]
+        public readonly partial struct Speed
+        {
+            public partial float Pace { get; set; }
+        }
+
+        [ArchetypeMixin]
+        public readonly partial struct Wealth
+        {
+            public partial int Gold { get; set; }
+        }
+
+        [ArchetypeMixin]
+        public readonly partial struct Mood
+        {
+            public partial float Spirit { get; set; }
+        }
+
         [Archetype]
         [Include(typeof(Position))]
         [Include(typeof(Vitals))]
+        [Include(typeof(Named))]
+        [Include(typeof(Speed))]
+        [Include(typeof(Wealth))]
+        [Include(typeof(Mood))]
         public readonly partial struct Npc
         {
             public partial int Faction { get; set; }
@@ -124,9 +152,17 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
     /// fails if the binding was not emitted for the half the query came from.
     /// </summary>
     [Theory]
-    [InlineData("entities.Query<Npc>()", "npc", "_ = npc.X;")]
-    [InlineData("entities.Query<Position, Vitals>()", "(position, vitals)", "_ = position.X + vitals.Hp;")]
-    public void A_query_a_mod_would_write_compiles(string query, string binding, string body)
+    [InlineData("Server", "entities.Query<Npc>()", "npc", "_ = npc.X;")]
+    [InlineData("Server", "entities.Query<Position, Vitals>()", "(position, vitals)", "_ = position.X + vitals.Hp;")]
+    [InlineData("Server", "entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>()",
+        "(position, vitals, named, speed, wealth, mood)",
+        "_ = position.X + vitals.Hp + named.Label.Length + speed.Pace + wealth.Gold + mood.Spirit;")]
+    [InlineData("Client", "entities.Query<Npc>()", "npc", "_ = npc.X;")]
+    [InlineData("Client", "entities.Query<Position, Vitals>()", "(position, vitals)", "_ = position.X + vitals.Hp;")]
+    [InlineData("Client", "entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>()",
+        "(position, vitals, named, speed, wealth, mood)",
+        "_ = position.X + vitals.Hp + named.Label.Length + speed.Pace + wealth.Gold + mood.Spirit;")]
+    public void A_query_a_mod_would_write_compiles(string half, string query, string binding, string body)
     {
         var loop =
             $$"""
@@ -134,7 +170,7 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
 
               public static class Use
               {
-                  public static void Run(ReadyM.SDK.Server.Entity.IEntities entities)
+                  public static void Run(ReadyM.SDK.{{half}}.Entity.IEntities entities)
                   {
                       foreach (var {{binding}} in {{query}})
                           {{body}}
@@ -159,5 +195,39 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray();
 
         Assert.True(errors.Length == 0, $"{what}:\n{string.Join("\n", errors.Select(e => e.ToString()))}");
+    }
+
+    /// <param name="half">Both, because a mod compiled against either walks by chunk.</param>
+    [Theory]
+    [InlineData("Server")]
+    [InlineData("Client")]
+    public void Both_halves_get_a_chunk_binding_for_a_six_shape_query(string half)
+    {
+        var loop =
+            $$"""
+              namespace Mod;
+
+              public static class Use
+              {
+                  public static void Run(ReadyM.SDK.{{half}}.Entity.IEntities entities)
+                  {
+                      foreach (var (position, vitals, named, speed, wealth, mood)
+                               in entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>())
+                          _ = position.X;
+                  }
+              }
+              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerators(
+            [("Declarations.cs", Declarations), ("Use.cs", loop)],
+            [new ArchetypeGenerator(), new ArchetypeMixinGenerator(), new ChunkCombinationGenerator()],
+            output,
+            Sdk);
+
+        AssertNoErrors(result.OutputDiagnostics, "the six-shape query does not compile");
+
+        Assert.Contains(
+            $"this global::ReadyM.SDK.{half}.Entity.EntityQuery<",
+            Generated(result));
     }
 }

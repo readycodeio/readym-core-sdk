@@ -208,4 +208,69 @@ public class ServerDeferredDeleteTests : ServerSdkTest
 
         Assert.Equal(0, CountIdentities(Entities.Query<Npc>()));
     }
+
+    // -- the identity path, at every width --------------------------------------------------------
+
+    /// A multi-shape loop opens a scope the same way a single-shape one does.
+    [Fact]
+    public void A_delete_inside_a_multi_shape_identity_loop_is_held()
+    {
+        Spawn(2);
+        Relay.ResetCounters();
+
+        var entities = Entities.Query<Position, Vitals>().Identities();
+
+        while (entities.MoveNext())
+        {
+            var (position, _) = entities.Current;
+
+            Entities.Delete(position);
+
+            Assert.Equal(0, Relay.DeleteCalls);
+        }
+
+        entities.Dispose();
+
+        Assert.Equal(2, Relay.DeleteCalls);
+    }
+
+    [Fact]
+    public void Creating_inside_a_multi_shape_identity_loop_is_refused()
+    {
+        Spawn(1);
+
+        Assert.Throws<StructuralChangeInQueryException>(() =>
+        {
+            var entities = Entities.Query<Position, Vitals>().Identities();
+
+            while (entities.MoveNext())
+                Entities.Create<Npc>();
+
+            entities.Dispose();
+        });
+    }
+
+    /// The widest loop, so no arity is left without a scope.
+    [Fact]
+    public void A_delete_inside_a_six_shape_identity_loop_is_held()
+    {
+        var adventurer = Spawn<Adventurer>();
+        Relay.ResetCounters();
+
+        var entities = Entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>().Identities();
+
+        while (entities.MoveNext())
+        {
+            var (position, _, _, _, _, _) = entities.Current;
+
+            Entities.Delete(position);
+
+            Assert.Equal(0, Relay.DeleteCalls);
+        }
+
+        entities.Dispose();
+
+        Assert.Equal(1, Relay.DeleteCalls);
+        Assert.False(adventurer.IsValid);
+    }
 }
