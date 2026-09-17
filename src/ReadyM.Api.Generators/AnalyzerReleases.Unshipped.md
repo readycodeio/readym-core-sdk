@@ -11,3 +11,4 @@ READYM004 | ReadyM | Error | A type named by [ExplicitComponent] cannot back a s
 READYM005 | ReadyM | Error | An explicit component has no member matching a declared accessor.
 READYM006 | ReadyM | Error | A setter was declared over a member that cannot be assigned.
 READYM007 | ReadyM | Error | An explicit component is not visible from the declaring assembly.
+READYM008 | ReadyM | Error | An [ExplicitCollection] name matches no member of the component.

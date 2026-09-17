@@ -63,6 +63,54 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
     }
 }
 
+/// <summary>One member of an explicit component, forwarded onto the shape unchanged.</summary>
+internal sealed class ForwardModel
+{
+    public ForwardModel(IMethodSymbol method)
+    {
+        Name = method.Name;
+        ReturnType = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        Parameters = method.Parameters
+            .Select(parameter => (
+                Modifier: parameter.RefKind == RefKind.In ? "in " : string.Empty,
+                Type: parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                parameter.Name))
+            .ToList();
+    }
+
+    public ForwardModel(IPropertySymbol property)
+    {
+        Name = property.Name;
+        ReturnType = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        Parameters = [];
+        IsProperty = true;
+    }
+
+    public string Name { get; }
+
+    public string ReturnType { get; }
+
+    public IReadOnlyList<(string Modifier, string Type, string Name)> Parameters { get; }
+
+    public bool IsProperty { get; }
+
+    public bool Returns => ReturnType != "void";
+
+    /// <summary>The declaration, without the leading accessibility or the body.</summary>
+    public string Signature => IsProperty
+        ? $"{ReturnType} {Name}"
+        : $"{ReturnType} {Name}({string.Join(", ", Parameters.Select(p => $"{p.Modifier}{p.Type} {p.Name}"))})";
+
+    public string Arguments => string.Join(", ", Parameters.Select(p => $"{p.Modifier}{p.Name}"));
+
+    /// <summary>The same parameters, after whatever the caller has to pass first.</summary>
+    public string ParametersAfter(string leading)
+    {
+        var rest = Parameters.Select(p => $"{p.Modifier}{p.Type} {p.Name}");
+        return string.Join(", ", new[] { leading }.Concat(rest));
+    }
+}
+
 /// <summary>One entry of an <c>[Include]</c> or <c>[IncludeArchetype]</c> on an archetype.</summary>
 internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
 {
@@ -96,8 +144,11 @@ internal sealed class DeclarationModel
     {
         Symbol = symbol;
         ExplicitComponent = ExplicitComponentOf(symbol);
+        Collections = CollectionsOf(symbol);
+        Forwards = ReadForwards(symbol, ExplicitComponent, Collections);
         Accessors = ReadAccessors(symbol);
         Includes = ReadIncludes(symbol);
+        Extends = ReadExtends(symbol);
     }
 
     public INamedTypeSymbol Symbol { get; }
@@ -105,6 +156,15 @@ internal sealed class DeclarationModel
     public IReadOnlyList<AccessorModel> Accessors { get; }
 
     public IReadOnlyList<IncludeModel> Includes { get; }
+
+    /// <summary>Members of the explicit component named by [ExplicitCollection].</summary>
+    public IReadOnlyList<string> Collections { get; }
+
+    /// <summary>Everything those members offer, mirrored onto this shape.</summary>
+    public IReadOnlyList<ForwardModel> Forwards { get; }
+
+    /// <summary>Archetypes this shape is added to when they are created.</summary>
+    public IReadOnlyList<INamedTypeSymbol> Extends { get; }
 
     public string Namespace => ArchetypeNames.NamespaceOf(Symbol);
 
@@ -250,6 +310,33 @@ internal sealed class DeclarationModel
 
     public static DeclarationModel For(INamedTypeSymbol symbol) => new(symbol);
 
+    /// <summary>The forwards a mixin contributes, flattened onto whatever includes it.</summary>
+    public IReadOnlyList<(IncludeModel Include, ForwardModel Forward)> FlattenedForwards()
+    {
+        var flattened = new List<(IncludeModel, ForwardModel)>();
+        var taken = new HashSet<string>(Forwards.Select(forward => forward.Signature));
+
+        FlattenForwards(this, flattened, taken);
+        return flattened;
+    }
+
+    private static void FlattenForwards(
+        DeclarationModel model,
+        List<(IncludeModel, ForwardModel)> into,
+        HashSet<string> taken)
+    {
+        foreach (var include in model.Includes)
+        {
+            var included = For(include.Type);
+
+            foreach (var forward in included.Forwards.Where(forward => taken.Add(forward.Signature)))
+                into.Add((include, forward));
+
+            if (include.Kind == IncludeKind.Archetype)
+                FlattenForwards(included, into, taken);
+        }
+    }
+
     /// <summary>
     /// The accessors a mixin contributes, flattened onto whatever includes it, transitively through
     /// included archetypes. A name already taken by the archetype itself wins.
@@ -308,6 +395,79 @@ internal sealed class DeclarationModel
             .ToList();
     }
 
+    private static IReadOnlyList<string> CollectionsOf(INamedTypeSymbol symbol)
+        => symbol.GetAttributes()
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExplicitCollectionAttribute)
+            .Select(attribute => attribute.ConstructorArguments.Length == 1 ? attribute.ConstructorArguments[0].Value as string : null)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
+
+    private static IReadOnlyList<INamedTypeSymbol> ReadExtends(INamedTypeSymbol symbol)
+        => symbol.GetAttributes()
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExtendsAttribute)
+            .Select(attribute => attribute.ConstructorArguments.Length == 1
+                ? attribute.ConstructorArguments[0].Value as INamedTypeSymbol
+                : null)
+            .Where(archetype => archetype is not null)
+            .Select(archetype => archetype!)
+            .ToList();
+
+    /// <summary>
+    /// What a named collection offers, taken from the component itself so the shape gains exactly
+    /// the same members. The plumbing a networked component carries alongside them is left out: it
+    /// belongs to replication, not to anyone holding the shape.
+    /// </summary>
+    private static IReadOnlyList<ForwardModel> ReadForwards(
+        INamedTypeSymbol symbol,
+        INamedTypeSymbol? component,
+        IReadOnlyList<string> collections)
+    {
+        if (component is null || collections.Count == 0)
+            return [];
+
+        var forwards = new List<ForwardModel>();
+
+        foreach (var member in component.GetMembers())
+        {
+            if (!collections.Any(collection => Forwardable(member, collection)))
+                continue;
+
+            if (member is IMethodSymbol method)
+                forwards.Add(new ForwardModel(method));
+            else if (member is IPropertySymbol property)
+                forwards.Add(new ForwardModel(property));
+        }
+
+        return forwards;
+    }
+
+    /// <summary>Whether a member of the component is part of the named collection's surface.</summary>
+    internal static bool Forwardable(ISymbol member, string collection)
+        => !member.IsStatic
+           && member.DeclaredAccessibility == Accessibility.Public
+           && member.Name.IndexOf(collection, System.StringComparison.Ordinal) >= 0
+           && !IsPlumbing(member.Name)
+           && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } or IPropertySymbol { IsIndexer: false };
+
+    /// <summary>Where [ExplicitCollection] names this collection, so a report lands on it.</summary>
+    internal static Location LocationOfCollection(INamedTypeSymbol symbol, string collection, Location fallback)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExplicitCollectionAttribute
+                && attribute.ConstructorArguments.Length == 1
+                && attribute.ConstructorArguments[0].Value as string == collection)
+                return attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation() ?? fallback;
+
+        return fallback;
+    }
+
+    /// <summary>Names a networked component uses to talk to the replication layer.</summary>
+    internal static bool IsPlumbing(string name)
+        => name.IndexOf('_') >= 0
+           || name.EndsWith("NotifyChanged", System.StringComparison.Ordinal)
+           || name.EndsWith("LastChanged", System.StringComparison.Ordinal);
+
     internal static INamedTypeSymbol? ExplicitComponentOf(INamedTypeSymbol symbol)
     {
         foreach (var attribute in symbol.GetAttributes())
@@ -328,7 +488,14 @@ internal sealed class DeclarationModel
         if (accessorClass is null)
             return [];
 
-        var methods = accessorClass.GetMembers().OfType<IMethodSymbol>().Where(method => method.IsStatic).ToList();
+        // A forwarded collection member can read as Get<Name>/Set<Name>, which is the shape an
+        // accessor has too. The attribute naming it survives into metadata, so it tells them apart.
+        var collections = CollectionsOf(symbol);
+
+        var methods = accessorClass.GetMembers().OfType<IMethodSymbol>()
+            .Where(method => method.IsStatic)
+            .Where(method => !collections.Any(c => method.Name.IndexOf(c, System.StringComparison.Ordinal) >= 0))
+            .ToList();
         var setters = new HashSet<string>(methods
             .Where(method => method.Name.StartsWith("Set", System.StringComparison.Ordinal))
             .Select(method => method.Name.Substring(3)));

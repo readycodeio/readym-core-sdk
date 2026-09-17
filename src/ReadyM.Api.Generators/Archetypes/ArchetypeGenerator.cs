@@ -86,6 +86,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitIdentity(writer);
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
             EmitIncluded(writer, model);
+            EmitForwards(writer, model);
             EmitConversions(writer, model);
         }
 
@@ -96,6 +97,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             writer.Line();
             ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
+
+        ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems);
     }
@@ -109,6 +112,16 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         writer.Line();
         writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Queryable}");
         writer.Line("    => _handle.TryAs(out archetype);");
+    }
+
+    /// <summary>Collections of everything included, flattened onto the archetype.</summary>
+    private static void EmitForwards(SourceWriter writer, DeclarationModel model)
+    {
+        foreach (var forward in model.Forwards)
+            AccessorEmitter.Forwarded(writer, forward, model.QualifiedAccessors);
+
+        foreach (var (include, forward) in model.FlattenedForwards())
+            AccessorEmitter.Forwarded(writer, forward, include.Accessors);
     }
 
     /// <summary>Accessors of everything included, flattened onto the archetype.</summary>

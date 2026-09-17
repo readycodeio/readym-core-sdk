@@ -40,18 +40,28 @@ internal static class ExplicitComponentRules
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor NothingToForward = new(
+        "READYM008",
+        "Explicit collection matches nothing",
+        "Nothing matches the collection '{0}': {1}",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private const string Component = "global::Friflo.Engine.ECS.IComponent";
     private const string Link = "global::Friflo.Engine.ECS.ILinkComponent";
 
     public static ImmutableArray<Diagnostic> Check(DeclarationModel model, Compilation compilation)
     {
-        var component = model.ExplicitComponent;
-
-        if (component is null)
-            return [];
-
         var found = new List<Diagnostic>();
         var at = model.Symbol.Locations.FirstOrDefault() ?? Location.None;
+        var component = model.ExplicitComponent;
+
+        CheckCollections(model, component, found, at);
+
+        if (component is null)
+            return [.. found];
+
         var name = component.ToDisplayString();
 
         if (!compilation.IsSymbolAccessibleWithin(component, compilation.Assembly))
@@ -82,6 +92,35 @@ internal static class ExplicitComponentRules
         }
 
         return [.. found];
+    }
+
+    /// <summary>
+    /// A name that forwards nothing is worth reporting: the shape still compiles, and the members the
+    /// author expected are simply absent, which only shows up where they are called.
+    /// </summary>
+    private static void CheckCollections(
+        DeclarationModel model,
+        INamedTypeSymbol? component,
+        List<Diagnostic> found,
+        Location at)
+    {
+        foreach (var collection in model.Collections)
+        {
+            var where = DeclarationModel.LocationOfCollection(model.Symbol, collection, at);
+
+            if (component is null)
+            {
+                found.Add(Diagnostic.Create(NothingToForward, where, collection,
+                    "the shape has no [ExplicitComponent] to forward from."));
+                continue;
+            }
+
+            if (component.GetMembers().Any(member => DeclarationModel.Forwardable(member, collection)))
+                continue;
+
+            found.Add(Diagnostic.Create(NothingToForward, where, collection,
+                $"'{component.ToDisplayString()}' has no public member naming it."));
+        }
     }
 
     private static bool Implements(INamedTypeSymbol type, string qualified)

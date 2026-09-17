@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace ReadyM.Api.Generators.Archetypes;
@@ -129,6 +129,19 @@ internal static class ChunkViewEmitter
 
             if (slot is not null)
                 Property(writer, accessor, include.Accessors, slot.Field);
+        }
+
+        if (own is not null)
+            foreach (var forward in model.Forwards)
+                AccessorEmitter.ForwardedFromChunk(writer, forward, model.QualifiedAccessors, own.Field);
+
+        foreach (var (include, forward) in model.FlattenedForwards())
+        {
+            var slot = slots.FirstOrDefault(candidate =>
+                !candidate.IsMarker && candidate.Include?.TypeName == include.TypeName);
+
+            if (slot is not null)
+                AccessorEmitter.ForwardedFromChunk(writer, forward, include.Accessors, slot.Field);
         }
     }
 

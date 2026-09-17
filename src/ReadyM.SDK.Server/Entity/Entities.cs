@@ -11,7 +11,7 @@ internal class Entities(ServerEntityApi api) : IEntities
 
     public T Create<T>()
         where T : struct, IArchetype
-        => new() { Handle = new EntityHandle(api.Create(default(T).Components), api) };
+        => new() { Handle = new EntityHandle(api.Create(ArchetypeRegistry.SetFor(typeof(T), default(T).Components)), api) };
 
     public bool Delete<T>(in T shape)
         where T : IEntityShape, allows ref struct

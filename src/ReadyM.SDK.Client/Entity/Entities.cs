@@ -13,7 +13,7 @@ internal class Entities(EntityStore store, IEntityApi api) : IEntities
         => new(_context);
 
     public T Create<T>() where T : struct, IArchetype
-        => new() { Handle = new EntityHandle(api.Create(default(T).Components), api) };
+        => new() { Handle = new EntityHandle(api.Create(ArchetypeRegistry.SetFor(typeof(T), default(T).Components)), api) };
 
 #if NET
     public bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct => Delete(shape.Handle);

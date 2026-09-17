@@ -36,11 +36,17 @@ internal static class AccessorEmitter
             foreach (var accessor in model.Accessors)
                 Members(writer, accessor, component);
 
+            foreach (var forward in model.Forwards)
+                Forward(writer, forward, component);
+
             if (chunks is null)
                 return;
 
             foreach (var accessor in model.Accessors)
                 ChunkMembers(writer, accessor, component, chunks);
+
+            foreach (var forward in model.Forwards)
+                ChunkForward(writer, forward, component, chunks);
         }
     }
 
@@ -62,6 +68,40 @@ internal static class AccessorEmitter
         writer.Line();
         writer.Line($"public static void Set{accessor.Name}(in {chunks.ComponentChunk} chunk, int index, {accessor.Type} value)");
         writer.Line($"    => {read} = value;");
+    }
+
+    /// <summary>A member of the component itself, reached through a handle.</summary>
+    private static void Forward(SourceWriter writer, ForwardModel forward, string component)
+    {
+        var target = "handle.GetComponent<" + component + ">()." + forward.Name;
+
+        writer.Line();
+
+        if (forward.IsProperty)
+        {
+            writer.Line($"public static {forward.ReturnType} {forward.Name}(scoped in {ArchetypeNames.EntityHandle} handle) => {target};");
+            return;
+        }
+
+        writer.Line($"public static {forward.ReturnType} {forward.Name}({forward.ParametersAfter($"scoped in {ArchetypeNames.EntityHandle} handle")})");
+        writer.Line($"    => {target}({forward.Arguments});");
+    }
+
+    /// <summary>The same member, reached off a chunk.</summary>
+    private static void ChunkForward(SourceWriter writer, ForwardModel forward, string component, ChunkNames chunks)
+    {
+        var target = "chunk.As<" + component + ">(row)." + forward.Name;
+
+        writer.Line();
+
+        if (forward.IsProperty)
+        {
+            writer.Line($"public static {forward.ReturnType} {forward.Name}({chunks.ComponentChunk} chunk, int row) => {target};");
+            return;
+        }
+
+        writer.Line($"public static {forward.ReturnType} {forward.Name}({forward.ParametersAfter($"{chunks.ComponentChunk} chunk, int row")})");
+        writer.Line($"    => {target}({forward.Arguments});");
     }
 
     private static void Members(SourceWriter writer, AccessorModel accessor, string component)
@@ -102,6 +142,38 @@ internal static class AccessorEmitter
 
     public static string Set(IncludeModel include, AccessorModel accessor, string value)
         => $"{include.Accessors}.Set{accessor.Name}(_handle, {value})";
+
+    /// <summary>A forwarded member on the shape, passing the handle it holds.</summary>
+    public static void Forwarded(SourceWriter writer, ForwardModel forward, string accessors)
+    {
+        writer.Line();
+
+        if (forward.IsProperty)
+        {
+            writer.Line($"public {forward.ReturnType} {forward.Name} => {accessors}.{forward.Name}(_handle);");
+            return;
+        }
+
+        writer.Line($"public {forward.Signature}");
+        writer.Line($"    => {accessors}.{forward.Name}(_handle{Separator(forward)}{forward.Arguments});");
+    }
+
+    /// <summary>The same, on a chunk view, which passes the chunk and the row it sits on.</summary>
+    public static void ForwardedFromChunk(SourceWriter writer, ForwardModel forward, string accessors, string field)
+    {
+        writer.Line();
+
+        if (forward.IsProperty)
+        {
+            writer.Line($"public {forward.ReturnType} {forward.Name} => {accessors}.{forward.Name}({field}, _index);");
+            return;
+        }
+
+        writer.Line($"public {forward.Signature}");
+        writer.Line($"    => {accessors}.{forward.Name}({field}, _index{Separator(forward)}{forward.Arguments});");
+    }
+
+    private static string Separator(ForwardModel forward) => forward.Parameters.Count == 0 ? "" : ", ";
 
     public static IReadOnlyList<string> Sets(DeclarationModel model)
     {

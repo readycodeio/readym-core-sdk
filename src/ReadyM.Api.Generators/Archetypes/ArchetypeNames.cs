@@ -20,6 +20,8 @@ internal static class ArchetypeNames
     public const string IncludeArchetypeAttribute = Namespace + ".IncludeArchetypeAttribute";
     public const string ExplicitComponentAttribute = Namespace + ".ExplicitComponentAttribute";
     public const string ExplicitMemberAttribute = Namespace + ".ExplicitMemberAttribute";
+    public const string ExplicitCollectionAttribute = Namespace + ".ExplicitCollectionAttribute";
+    public const string ExtendsAttribute = Namespace + ".ExtendsAttribute";
 
     public const string EntityHandle = "global::ReadyM.SDK.Entity.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";
@@ -28,6 +30,7 @@ internal static class ArchetypeNames
     public const string Archetype = "global::ReadyM.SDK.Archetypes.IArchetype";
     public const string Mixin = "global::ReadyM.SDK.Archetypes.IArchetypeMixin";
     public const string Component = "global::Friflo.Engine.ECS.IComponent";
+    public const string Registry = "global::ReadyM.SDK.Archetypes.ArchetypeRegistry";
 
     public const string RawEntity = "global::Friflo.Engine.ECS.RawEntity";
     /// <summary>The class holding the GetEnumerator that puts a shape on the chunk path.</summary>

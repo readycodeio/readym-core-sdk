@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using Microsoft.CodeAnalysis;
 using ReadyM.Api.Generators.Archetypes;
 using Xunit;
@@ -39,6 +39,17 @@ public class ExplicitComponentTests(ITestOutputHelper output)
             public Entity Target;
 
             public Entity GetIndexedValue() => Target;
+        }
+
+        public struct SequencesComponent : IComponent
+        {
+            private System.Collections.Generic.List<int> _started;
+
+            public int StartedCount => _started is null ? 0 : _started.Count;
+
+            public void AddStarted(in int value) => (_started ??= new()).Add(value);
+
+            public void Started_SetFromApi(System.Collections.Generic.List<int> value, int id) => _started = value;
         }
 
         public struct NotAComponent
@@ -157,4 +168,58 @@ public class ExplicitComponentTests(ITestOutputHelper output)
                 public partial int Holder { get; set; }
             }
             """));
+
+    // -- READYM008: a collection name that forwards nothing ----------------------------------------
+
+    [Fact]
+    public void A_collection_name_matching_no_member_is_refused()
+        => AssertReports("READYM008", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.SequencesComponent))]
+            [ExplicitCollection("Finished")]
+            public readonly partial struct Sequences;
+            """);
+
+    /// A name that only matches replication plumbing forwards nothing, so it counts as unmatched.
+    [Fact]
+    public void A_collection_name_matching_only_plumbing_is_refused()
+        => AssertReports("READYM008", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.SequencesComponent))]
+            [ExplicitCollection("Started_SetFromApi")]
+            public readonly partial struct Sequences;
+            """);
+
+    [Fact]
+    public void A_collection_without_an_explicit_component_is_refused()
+        => AssertReports("READYM008", """
+            [ArchetypeMixin]
+            [ExplicitCollection("Started")]
+            public readonly partial struct Sequences;
+            """);
+
+    [Fact]
+    public void A_collection_name_that_matches_is_accepted()
+        => Assert.Empty(Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.SequencesComponent))]
+            [ExplicitCollection("Started")]
+            public readonly partial struct Sequences;
+            """));
+
+    /// The report belongs on the attribute that named it, not on the struct.
+    [Fact]
+    public void The_report_lands_on_the_attribute()
+    {
+        var reported = Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.SequencesComponent))]
+            [ExplicitCollection("Finished")]
+            public readonly partial struct Sequences;
+            """);
+
+        var at = Assert.Single(reported).Location;
+
+        Assert.Contains("ExplicitCollection", at.SourceTree!.GetText().ToString(at.SourceSpan));
+    }
 }
