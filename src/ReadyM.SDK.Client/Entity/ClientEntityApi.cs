@@ -1,6 +1,7 @@
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
+using ReadyM.SDK.Exceptions;
 
 namespace ReadyM.SDK.Client.Entity;
 
@@ -10,54 +11,44 @@ internal sealed class ClientEntityApi : IEntityApi
 
     public ClientEntityApi(EntityStore store) => _store = store;
 
-    public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
+    public int ComponentIdOf(Type type) => SchemaTypeUtils.GetStructIndex(type);
+
+    /// <summary>
+    /// One node load rather than the three that going through <see cref="Friflo.Engine.ECS.Entity"/>
+    /// cost: resolving the entity, checking it, and reaching the component each loaded it again.
+    /// </summary>
+    public ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
+        var nodes = _store.nodes;
+
+        if ((uint)rawEntity.Id >= (uint)nodes.Length)
             throw new InvalidEntityException();
 
-        return entity.HasComponent<T>();
-    }
+        ref var node = ref nodes[rawEntity.Id];
 
-    public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-    {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
+        if (!node.IsAlive(rawEntity.Revision))
             throw new InvalidEntityException();
 
-        return ref entity.GetComponent<T>();
-    }
+        var heap = node.archetype.heapMap[componentId];
 
-    public bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent
-    {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
-            throw new InvalidEntityException();
-
-        return entity.TryGetComponent(out component);
+        return heap is null ? default : new ComponentRef(heap.ComponentArray!, node.compIndex);
     }
 
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-    {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
-        if (entity.IsNull)
-            throw new InvalidEntityException();
-
-        entity.AddComponent<T>();
-    }
+        => Resolve(rawEntity).AddComponent<T>();
 
     public bool HasComponents(RawEntity rawEntity, ComponentSet components)
+        => Resolve(rawEntity).Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
+
+    public bool IsAlive(RawEntity rawEntity) => !_store.GetEntityByRawEntity(rawEntity).IsNull;
+
+    private Friflo.Engine.ECS.Entity Resolve(RawEntity rawEntity)
     {
         var entity = _store.GetEntityByRawEntity(rawEntity);
+
         if (entity.IsNull)
             throw new InvalidEntityException();
 
-        return entity.Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
+        return entity;
     }
-
-    public bool IsAlive(RawEntity rawEntity)
-    {
-        return !_store.GetEntityByRawEntity(rawEntity).IsNull;
-    }
-
 }

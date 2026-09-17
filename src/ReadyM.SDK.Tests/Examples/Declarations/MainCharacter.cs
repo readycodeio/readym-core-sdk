@@ -1,5 +1,5 @@
 using ReadyM.Api.Idents;
-using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Attributes;
 
 namespace ReadyM.SDK.Tests.Examples.Declarations;
 

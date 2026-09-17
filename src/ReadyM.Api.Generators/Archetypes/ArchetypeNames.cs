@@ -12,7 +12,7 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// </remarks>
 internal static class ArchetypeNames
 {
-    public const string Namespace = "ReadyM.SDK.Archetypes.Attributes";
+    public const string Namespace = "ReadyM.SDK.Attributes";
 
     public const string ArchetypeAttribute = Namespace + ".ArchetypeAttribute";
     public const string MixinAttribute = Namespace + ".ArchetypeMixinAttribute";

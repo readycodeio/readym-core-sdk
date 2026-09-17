@@ -3,9 +3,7 @@ using ReadyM.SDK.Entity;
 
 namespace ReadyM.SDK.Archetypes;
 
-/// <summary>
-/// What an archetype or a mixin has in common: which entity it is, and what it is made of.
-/// </summary>
+/// Common interface for archetypes and mixins.
 public interface IArchetypeQueryable
 {
     [EditorBrowsable(EditorBrowsableState.Never)]

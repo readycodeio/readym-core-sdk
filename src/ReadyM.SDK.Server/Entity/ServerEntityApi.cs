@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -12,7 +11,7 @@ using ReadyM.SDK.Chunks;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;
 using ReadyM.SDK.Entity;
-using ReadyM.SDK.Chunks;
+using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Server.Entity;
@@ -84,44 +83,27 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return true;
     }
 
-    public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-        => Locate<T>(rawEntity).Found();
+    public int ComponentIdOf(Type type) => _registry.ResolveComponentId(type);
 
-    public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent
+    public unsafe ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
-        var slot = Locate<T>(rawEntity);
+        ComponentSlot slot;
+        _getComponentSlot(rawEntity, MatchRevision, componentId, &slot);
 
-        if (!slot.Found())
-            throw Missing<T>(rawEntity);
+        if (slot.HeapSelf != IntPtr.Zero)
+            return new ComponentRef(((IComponentArray)GCHandle.FromIntPtr(slot.HeapSelf).Target!).Components, slot.Index);
 
-        return ref SlotRef<T>(slot);
-    }
-
-    public bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent
-    {
-        var slot = Locate<T>(rawEntity);
-
-        if (!slot.Found())
-        {
-            component = default;
-            return false;
-        }
-
-        component = SlotRef<T>(slot);
-        return true;
+        return slot.Data != IntPtr.Zero ? new ComponentRef(slot.Data) : default;
     }
 
     // TODO
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
         => throw new NotSupportedException($"Cannot add {typeof(T).Name} to entity {rawEntity.Id}: the server fixes an entity's components at creation.");
 
-
-
     internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {
         var ids = ResolveIds(components);
         var buffer = EntityBuffer.Rent();
-
         var previous = _collecting;
         _collecting = buffer;
 
@@ -156,7 +138,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     {
         var ids = ResolveIds(components);
         var buffer = ChunkBuffer.Rent(ids.Length);
-
         var previous = _collectingChunks;
         _collectingChunks = buffer;
 
@@ -181,16 +162,15 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private static readonly unsafe ChunkCallback CollectChunk = static (entities, comps, n, count) =>
     {
         var slots = _collectingChunks!.Append(entities, count);
-
         for (var i = 0; i < n; i++)
         {
             ref readonly var comp = ref comps[i];
-
             slots[i] = comp.HeapSelf != IntPtr.Zero
                 ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride)
                 : new ChunkSlot(comp.Data, comp.Stride);
         }
     };
+
 
     private int[] ResolveIds(ComponentSet components) => _componentIds.GetOrAdd(components, static (set, self) =>
     {
@@ -199,6 +179,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
                 "An archetype with no components cannot be queried on the server: its identity there is its component set.");
 
         var ids = new int[set.Types.Length];
+
         for (var i = 0; i < ids.Length; i++)
             ids[i] = self._registry.ResolveComponentId(set.Types[i]);
 
@@ -214,25 +195,4 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     private static readonly unsafe ChunkCallback Collect =
         static (entities, _, _, count) => new ReadOnlySpan<RawEntity>((void*)entities, count).CopyTo(_collecting!.Reserve(count));
-
-    private unsafe ComponentSlot Locate<T>(RawEntity rawEntity) where T : struct
-    {
-        ComponentSlot slot;
-        _getComponentSlot(rawEntity, MatchRevision, _registry.ResolveComponentId<T>(), &slot);
-        return slot;
-    }
-
-    private static unsafe ref T SlotRef<T>(scoped in ComponentSlot slot) where T : struct
-    {
-        if (slot.HeapSelf != IntPtr.Zero)
-        {
-            var heap = (TypedComponentHeap<T>)GCHandle.FromIntPtr(slot.HeapSelf).Target!;
-            return ref heap.GetRef(slot.Index);
-        }
-
-        return ref Unsafe.AsRef<T>((void*)slot.Data);
-    }
-
-    private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
-        => new($"Entity {rawEntity.Id} is gone or does not carry {typeof(T).Name}.");
 }

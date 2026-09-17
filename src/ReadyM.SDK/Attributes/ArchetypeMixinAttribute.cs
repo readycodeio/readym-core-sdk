@@ -1,4 +1,4 @@
-namespace ReadyM.SDK.Archetypes.Attributes;
+namespace ReadyM.SDK.Attributes;
 
 public enum MappingPolicy
 {

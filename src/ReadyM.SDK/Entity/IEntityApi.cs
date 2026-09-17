@@ -1,14 +1,18 @@
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Entity;
 
 internal interface IEntityApi
 {
-    public bool HasComponent<T>(RawEntity rawEntity) where T : struct, IComponent;
-    public ref T GetComponent<T>(RawEntity rawEntity) where T : struct, IComponent;
-    bool TryGetComponent<T>(RawEntity rawEntity, out T component) where T : struct, IComponent;
+    int ComponentIdOf(Type type);
+
+    /// <summary>Where the component lives, or a default that is not <c>Found</c> if it is absent.</summary>
+    /// <exception cref="InvalidEntityException">The entity is gone.</exception>
+    ComponentRef Locate(RawEntity rawEntity, int componentId);
+
     void AddComponent<T>(RawEntity entity) where T : struct, IComponent;
     bool IsAlive(RawEntity rawEntity);
 

@@ -1,4 +1,4 @@
-using ReadyM.SDK.Archetypes.Attributes;
+using ReadyM.SDK.Attributes;
 using ReadyM.SDK.Tests.ExternalMod;
 
 namespace ReadyM.SDK.Tests.Server.Fixtures;

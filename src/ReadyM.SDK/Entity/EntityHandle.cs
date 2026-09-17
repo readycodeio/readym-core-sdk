@@ -1,12 +1,15 @@
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
 namespace ReadyM.SDK.Entity;
 
 /// <summary>
 /// What an archetype or mixin struct holds: which entity it is, and how to reach its components.
+/// Operations are delegated to <see cref="IEntityApi"/> so that the server and the client can implement them differently.
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public readonly struct EntityHandle
@@ -20,23 +23,19 @@ public readonly struct EntityHandle
         _api = api;
     }
 
-    /// <summary>The handle behind an archetype or mixin struct, without boxing it.</summary>
-    public static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable => archetype.Handle;
-
-    /// <summary>The same reach into the world, pointed at another entity.</summary>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public EntityHandle For(RawEntity entity) => new(entity, _api);
-
     internal int Id => _rawEntity.Id;
 
     internal RawEntity RawEntity => _rawEntity;
 
     /// <summary>Names the entity in a message without putting its raw id on the public surface.</summary>
-    public override string ToString() => $"entity {_rawEntity.Id}";
+    public override string ToString() 
+        => $"entity {_rawEntity.Id}";
 
-    public bool IsAlive() => _api.IsAlive(_rawEntity);
+    public bool IsAlive()
+        => _api.IsAlive(_rawEntity);
 
-    public bool Is<T>() where T : struct, IArchetypeQueryable => _api.HasComponents(_rawEntity, default(T).Components);
+    public bool Is<T>() where T : struct, IArchetypeQueryable
+        => _api.HasComponents(_rawEntity, default(T).Components);
 
     public bool TryAs<T>(out T archetype) where T : struct, IArchetypeQueryable
     {
@@ -50,14 +49,49 @@ public readonly struct EntityHandle
         return false;
     }
 
-    public bool HasComponent<T>() where T : struct, IComponent => _api.HasComponent<T>(_rawEntity);
+    public bool HasComponent<T>() where T : struct, IComponent
+        => Locate<T>().Found;
 
-    public ref T GetComponent<T>() where T : struct, IComponent => ref _api.GetComponent<T>(_rawEntity);
+    public ref T GetComponent<T>() where T : struct, IComponent
+    {
+        var located = Locate<T>();
+
+        if (!located.Found)
+            throw Missing<T>();
+
+        return ref located.As<T>();
+    }
 
     public bool TryGetComponent<T>(out T component) where T : struct, IComponent
-        => _api.TryGetComponent(_rawEntity, out component);
+    {
+        var located = Locate<T>();
 
-    public void AddComponent<T>() where T : struct, IComponent => _api.AddComponent<T>(_rawEntity);
+        if (!located.Found)
+        {
+            component = default;
+            return false;
+        }
 
+        component = located.As<T>();
+        return true;
+    }
 
+    public void AddComponent<T>() where T : struct, IComponent 
+        => _api.AddComponent<T>(_rawEntity);
+
+    /// <summary>The handle behind an archetype or mixin struct.</summary>
+    public static EntityHandle Of<T>(in T archetype) where T : struct, IArchetypeQueryable
+        => archetype.Handle;
+
+    /// <summary>The same reach into the world, pointed at another entity.</summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public EntityHandle For(RawEntity entity)
+        => new(entity, _api);
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ComponentRef Locate<T>() where T : struct, IComponent
+        => _api.Locate(_rawEntity, ComponentIds<T>.For(_api));
+
+    private ComponentNotFoundException Missing<T>()
+        => new($"Entity {_rawEntity.Id} is gone or does not carry {typeof(T).Name}.");
 }

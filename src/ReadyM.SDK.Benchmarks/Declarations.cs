@@ -1,5 +1,5 @@
+using ReadyM.SDK.Attributes;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
-using ReadyM.SDK.Archetypes.Attributes;
 
 namespace ReadyM.SDK.Benchmarks;
 

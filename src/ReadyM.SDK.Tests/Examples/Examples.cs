@@ -1,5 +1,5 @@
+using ReadyM.SDK.Attributes;
 using ReadyM.SDK.Client.Entity;
-using ReadyM.SDK.Services;
 using ReadyM.SDK.Tests.Examples.Declarations;
 
 namespace ReadyM.SDK.Tests.Examples;
