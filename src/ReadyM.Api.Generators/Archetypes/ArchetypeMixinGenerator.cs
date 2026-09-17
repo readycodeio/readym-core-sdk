@@ -1,3 +1,4 @@
+﻿using System.Collections.Immutable;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -20,17 +21,23 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(mixins, static (spc, generated) =>
         {
-            if (generated is not null)
-                spc.AddSource(generated.Value.HintName, generated.Value.Source);
+            if (generated is null)
+                return;
+
+            foreach (var diagnostic in generated.Value.Diagnostics)
+                spc.ReportDiagnostic(diagnostic);
+
+            spc.AddSource(generated.Value.HintName, generated.Value.Source);
         });
     }
 
-    private static (string HintName, string Source)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
         if (context.TargetSymbol is not INamedTypeSymbol symbol || symbol.ContainingType is not null)
             return null;
 
         var model = DeclarationModel.For(symbol);
+        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation);
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
         var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
@@ -39,8 +46,12 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         var writer = new SourceWriter();
 
         HandleEmitter.File(writer, model);
-        ComponentEmitter.Emit(writer, model.Component, model.Accessors);
-        writer.Line();
+
+        if (model.EmitsComponent)
+        {
+            ComponentEmitter.Emit(writer, model.Component, model.Accessors);
+            writer.Line();
+        }
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 
@@ -58,6 +69,6 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
-        return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString());
+        return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString(), problems);
     }
 }

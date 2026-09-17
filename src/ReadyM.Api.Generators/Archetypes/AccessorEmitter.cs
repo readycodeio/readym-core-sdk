@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -111,7 +111,7 @@ internal static class AccessorEmitter
             sets.Add($"{ArchetypeNames.ComponentSet}.Of<{model.QualifiedComponent}>()");
 
         // Right after the own component, matching the order ComponentOwners walks.
-        if (model.IsArchetype)
+        if (model.NeedsMarker)
             sets.Add($"{ArchetypeNames.ComponentSet}.Of<{model.QualifiedMarker}>()");
 
         foreach (var include in model.Includes)

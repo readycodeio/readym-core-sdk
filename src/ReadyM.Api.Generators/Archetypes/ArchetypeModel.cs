@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -11,11 +11,17 @@ internal enum IncludeKind
 }
 
 /// <summary>One partial property an author declared on a mixin or archetype.</summary>
-internal sealed class AccessorModel(string name, string type, bool hasSetter)
+internal sealed class AccessorModel(string name, string type, bool hasSetter, string? field = null)
 {
-    public AccessorModel(IPropertySymbol property)
-        : this(property.Name, property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), property.SetMethod is not null)
+    public AccessorModel(IPropertySymbol property, INamedTypeSymbol? component)
+        : this(
+            property.Name,
+            property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            property.SetMethod is not null && (component is null || Assignable(Target(component, property))),
+            component is null ? null : Target(component, property)?.Name)
     {
+        Declared = property;
+        Component = component;
     }
 
     public string Name { get; } = name;
@@ -24,7 +30,37 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter)
 
     public bool HasSetter { get; } = hasSetter;
 
-    public string Field { get; } = ArchetypeNames.FieldOf(name);
+    /// <summary>The member holding the value: a generated field, or one of an explicit component.</summary>
+    public string Field { get; } = field ?? ArchetypeNames.FieldOf(name);
+
+    /// <summary>Set only while the declaration is in this compilation, which is when it can be checked.</summary>
+    public IPropertySymbol? Declared { get; }
+
+    public INamedTypeSymbol? Component { get; }
+
+    /// <summary>The field or property an explicit component holds this value in, matched by name.</summary>
+    public static ISymbol? Target(INamedTypeSymbol component, IPropertySymbol property)
+        => component.GetMembers()
+            .FirstOrDefault(member => member is IFieldSymbol { IsStatic: false, IsConst: false } or IPropertySymbol { IsStatic: false }
+                && string.Equals(member.Name, MemberNameOf(property), System.StringComparison.OrdinalIgnoreCase));
+
+    public static bool Assignable(ISymbol? target) => target switch
+    {
+        IFieldSymbol field => !field.IsReadOnly,
+        IPropertySymbol property => property.SetMethod is not null,
+        _ => false
+    };
+
+    private static string MemberNameOf(IPropertySymbol property)
+    {
+        foreach (var attribute in property.GetAttributes())
+            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExplicitMemberAttribute
+                && attribute.ConstructorArguments.Length == 1
+                && attribute.ConstructorArguments[0].Value is string member)
+                return member;
+
+        return property.Name;
+    }
 }
 
 /// <summary>One entry of an <c>[Include]</c> or <c>[IncludeArchetype]</c> on an archetype.</summary>
@@ -59,6 +95,7 @@ internal sealed class DeclarationModel
     private DeclarationModel(INamedTypeSymbol symbol)
     {
         Symbol = symbol;
+        ExplicitComponent = ExplicitComponentOf(symbol);
         Accessors = ReadAccessors(symbol);
         Includes = ReadIncludes(symbol);
     }
@@ -76,8 +113,14 @@ internal sealed class DeclarationModel
     /// <summary>The struct header a generated part has to agree with.</summary>
     public string Header => Symbol.IsReadOnly ? $"readonly partial struct {Name}" : $"partial struct {Name}";
 
+    /// <summary>The component named by [ExplicitComponent], or null when one is generated.</summary>
+    public INamedTypeSymbol? ExplicitComponent { get; }
+
     /// <summary>Only a declaration with accessors of its own needs a component to keep them in.</summary>
-    public bool HasOwnComponent => Accessors.Count > 0;
+    public bool HasOwnComponent => Accessors.Count > 0 || ExplicitComponent is not null;
+
+    /// <summary>False when the storage already exists, in which case nothing is emitted for it.</summary>
+    public bool EmitsComponent => HasOwnComponent && ExplicitComponent is null;
 
     public string Component => ArchetypeNames.ComponentOf(Symbol);
 
@@ -89,7 +132,18 @@ internal sealed class DeclarationModel
     public bool IsArchetype => Symbol.GetAttributes().Any(attribute
         => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ArchetypeAttribute);
 
-    public string QualifiedComponent => ArchetypeNames.QualifiedComponentOf(Symbol);
+    public string QualifiedComponent => ExplicitComponent is null
+        ? ArchetypeNames.QualifiedComponentOf(Symbol)
+        : ExplicitComponent.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+    /// <summary>
+    /// An archetype carrying storage it does not own gets no marker: the entities it describes are
+    /// created by whoever owns that storage, and would never carry one.
+    /// </summary>
+    public bool NeedsMarker => IsArchetype && !CarriesExplicit();
+
+    private bool CarriesExplicit()
+        => ExplicitComponent is not null || Includes.Any(include => For(include.Type).CarriesExplicit());
 
     public string QualifiedAccessors => ArchetypeNames.QualifiedAccessorsOf(Symbol);
 
@@ -121,7 +175,7 @@ internal sealed class DeclarationModel
         if (model.HasOwnComponent && seen.Add(model.QualifiedName))
             owners.Add(new ComponentOwner(owner, marker: false));
 
-        if (model.IsArchetype && seen.Add(model.QualifiedName + " marker"))
+        if (model.NeedsMarker && seen.Add(model.QualifiedName + " marker"))
             owners.Add(new ComponentOwner(owner, marker: true));
 
         foreach (var include in model.Includes)
@@ -241,13 +295,29 @@ internal sealed class DeclarationModel
     /// class is what tells them apart: it carries a Get method per accessor the type owns.
     /// </remarks>
     private static IReadOnlyList<AccessorModel> ReadAccessors(INamedTypeSymbol symbol)
-        => symbol.DeclaringSyntaxReferences.IsEmpty
-            ? FromAccessorClass(symbol)
-            : symbol.GetMembers()
-                .OfType<IPropertySymbol>()
-                .Where(property => property.IsPartialDefinition)
-                .Select(property => new AccessorModel(property))
-                .ToList();
+    {
+        if (symbol.DeclaringSyntaxReferences.IsEmpty)
+            return FromAccessorClass(symbol);
+
+        var component = ExplicitComponentOf(symbol);
+
+        return symbol.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(property => property.IsPartialDefinition)
+            .Select(property => new AccessorModel(property, component))
+            .ToList();
+    }
+
+    internal static INamedTypeSymbol? ExplicitComponentOf(INamedTypeSymbol symbol)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExplicitComponentAttribute
+                && attribute.ConstructorArguments.Length == 1
+                && attribute.ConstructorArguments[0].Value is INamedTypeSymbol component)
+                return component;
+
+        return null;
+    }
 
     private static IReadOnlyList<AccessorModel> FromAccessorClass(INamedTypeSymbol symbol)
     {

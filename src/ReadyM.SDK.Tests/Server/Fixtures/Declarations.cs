@@ -1,3 +1,4 @@
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Attributes;
 using ReadyM.SDK.Tests.ExternalMod;
 
@@ -113,3 +114,30 @@ public readonly partial struct Landmark;
 [IncludeArchetype(typeof(Landmark))]
 [Include(typeof(Position))]
 public readonly partial struct PlacedLandmark;
+
+/// Stands in for a component the relay already owns: PascalCase members, one of them readonly.
+internal struct RelayMetadataComponent : IComponent
+{
+    public readonly int NetId;
+    public int Owner;
+
+    public RelayMetadataComponent(int netId, int owner)
+    {
+        NetId = netId;
+        Owner = owner;
+    }
+}
+
+[ArchetypeMixin]
+[ExplicitComponent(typeof(RelayMetadataComponent))]
+public readonly partial struct Metadata
+{
+    public partial int NetId { get; }
+    public partial int Owner { get; set; }
+}
+
+/// An archetype over storage the relay owns, so it carries no marker.
+[Archetype]
+[Include(typeof(Position))]
+[Include(typeof(Metadata))]
+public readonly partial struct Networked;

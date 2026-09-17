@@ -1,4 +1,4 @@
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Server.Entity;
@@ -27,6 +27,7 @@ public abstract class ServerSdkTest
         // Split across both heap kinds on purpose, so an ordinary test covers both branches of
         // slot resolution without saying so.
         Relay.RegisterBlittable<PositionComponent>();
+        Relay.RegisterBlittable<RelayMetadataComponent>();
         Relay.RegisterManaged<VitalsComponent>();
         Relay.RegisterManaged<NamedComponent>();
         Relay.RegisterBlittable<NpcComponent>();

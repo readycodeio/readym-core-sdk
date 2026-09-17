@@ -18,6 +18,8 @@ internal static class ArchetypeNames
     public const string MixinAttribute = Namespace + ".ArchetypeMixinAttribute";
     public const string IncludeAttribute = Namespace + ".IncludeAttribute";
     public const string IncludeArchetypeAttribute = Namespace + ".IncludeArchetypeAttribute";
+    public const string ExplicitComponentAttribute = Namespace + ".ExplicitComponentAttribute";
+    public const string ExplicitMemberAttribute = Namespace + ".ExplicitMemberAttribute";
 
     public const string EntityHandle = "global::ReadyM.SDK.Entity.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";

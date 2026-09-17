@@ -1,3 +1,4 @@
+﻿using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -29,8 +30,13 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(archetypes, static (spc, generated) =>
         {
-            if (generated is not null)
-                spc.AddSource(generated.Value.HintName, generated.Value.Source);
+            if (generated is null)
+                return;
+
+            foreach (var diagnostic in generated.Value.Diagnostics)
+                spc.ReportDiagnostic(diagnostic);
+
+            spc.AddSource(generated.Value.HintName, generated.Value.Source);
         });
     }
 
@@ -43,12 +49,13 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    private static (string HintName, string Source)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
         if (context.TargetSymbol is not INamedTypeSymbol { ContainingType: null } symbol)
             return null;
 
         var model = DeclarationModel.For(symbol);
+        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation);
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
         var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
@@ -58,14 +65,17 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         HandleEmitter.File(writer, model);
 
-        if (model.HasOwnComponent)
+        if (model.EmitsComponent)
         {
             ComponentEmitter.Emit(writer, model.Component, model.Accessors);
             writer.Line();
         }
 
-        ComponentEmitter.EmitMarker(writer, model.Marker);
-        writer.Line();
+        if (model.NeedsMarker)
+        {
+            ComponentEmitter.EmitMarker(writer, model.Marker);
+            writer.Line();
+        }
 
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
@@ -87,7 +97,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
-        return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString());
+        return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems);
     }
 
     private static void EmitIdentity(SourceWriter writer)
