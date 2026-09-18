@@ -13,10 +13,6 @@ namespace ReadyM.Api.Generators.Tests;
 
 internal static class SourceGeneratorTestHelper
 {
-    /// Where a half keeps its entity types. The two halves do not agree yet: the client's namespace
-    /// is Entities, the server's is still Entity.
-    internal static string EntityNamespace(string half) => half == "Client" ? "Entities" : "Entity";
-
     internal sealed class GeneratorRunResult(
         ImmutableArray<Diagnostic> compilationDiagnostics,
         Compilation inputCompilation,

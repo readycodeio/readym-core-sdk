@@ -20,7 +20,7 @@ public class StructuralChangeInQueryAnalyzerTests(ITestOutputHelper output)
     [
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly,
         typeof(SDK.Chunks.ChunkSlot).Assembly,
-        typeof(SDK.Server.Entity.IEntities).Assembly,
+        typeof(SDK.Server.Entities.IEntities).Assembly,
         typeof(SDK.Client.Entities.IEntities).Assembly
     ];
 
@@ -54,15 +54,13 @@ public class StructuralChangeInQueryAnalyzerTests(ITestOutputHelper output)
     /// <param name="body">Statements in a method holding a half's IEntities, named 'entities'.</param>
     private Diagnostic[] Report(string body, string half = "Server")
     {
-        var entities = SourceGeneratorTestHelper.EntityNamespace(half);
-
         var use =
             $$"""
               namespace Mod;
 
               public static class Use
               {
-                  public static void Run(ReadyM.SDK.{{half}}.{{entities}}.IEntities entities)
+                  public static void Run(ReadyM.SDK.{{half}}.Entities.IEntities entities)
                   {
               {{body}}
                   }

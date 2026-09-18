@@ -102,9 +102,16 @@ internal sealed class ForwardModel
     public bool Returns => ReturnType != "void";
 
     /// <summary>The declaration, without the leading accessibility or the body.</summary>
-    public string Signature => IsProperty
-        ? $"{ReturnType} {Name}"
-        : $"{ReturnType} {Name}({string.Join(", ", Parameters.Select(p => $"{p.Modifier}{p.Type} {p.Name}"))})";
+    public string Signature => Declaration(Name);
+
+    /// The same declaration under another name, which is what an extension needs when a prefix
+    /// keeps two mods' members apart.
+    public string Declaration(string name) => IsProperty
+        ? $"{ReturnType} {name}"
+        : $"{ReturnType} {name}({string.Join(", ", Parameters.Select(p => $"{p.Modifier}{p.Type} {p.Name}"))})";
+
+    /// Whether anything has to go between the receiver and the forwarded arguments.
+    public string Separator => Parameters.Count == 0 ? "" : ", ";
 
     public string Arguments => string.Join(", ", Parameters.Select(p => $"{p.Modifier}{p.Name}"));
 

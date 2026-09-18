@@ -175,4 +175,51 @@ public class ExtendsTests : ClientSdkTest
 
         Assert.Equal(0, area.Rainfall);
     }
+
+    // -- collections carried onto the extended archetype -------------------------------------------
+
+    /// A mixin whose explicit component holds a native collection puts that collection's methods on
+    /// the archetype it extends, the same as it puts its fields there.
+    [Fact]
+    public void A_collection_on_an_extension_reads_and_writes_through_the_archetype()
+    {
+        var area = Entities.Create<CoreArea>();
+
+        area.AddStarted(7);
+        area.AddStarted(9);
+
+        Assert.Equal(2, area.StartedCount);
+        Assert.Equal(7, area.GetStarted(0));
+        Assert.True(area.ContainsStarted(9));
+        Assert.False(area.ContainsStarted(8));
+        Assert.Equal([7, 9], area.GetStartedSpan().ToArray());
+
+        area.ClearStarted();
+
+        Assert.Equal(0, area.StartedCount);
+    }
+
+    /// The shape a mod actually writes. These are methods, not property setters, so unlike an
+    /// assignment they are usable on the loop variable.
+    [Fact]
+    public void A_collection_on_an_extension_can_be_used_inside_a_query()
+    {
+        Entities.Create<CoreArea>().Owner = 1;
+        Entities.Create<CoreArea>().Owner = 2;
+
+        foreach (var area in Entities.Query<CoreArea>())
+            area.AddStarted(area.Owner);
+
+        var seen = 0;
+
+        foreach (var area in Entities.Query<CoreArea>())
+        {
+            Assert.Equal(1, area.StartedCount);
+            Assert.True(area.ContainsStarted(area.Owner));
+
+            seen++;
+        }
+
+        Assert.Equal(2, seen);
+    }
 }

@@ -41,6 +41,7 @@ internal struct SequencesComponent : IComponent
 }
 
 [ArchetypeMixin]
+[Extends(typeof(CoreArea))]
 [ExplicitComponent(typeof(SequencesComponent))]
 [ExplicitCollection("Started")]
 public readonly partial struct Sequences;

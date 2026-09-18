@@ -187,7 +187,7 @@ internal static class AccessorEmitter
         writer.Line($"    => {accessors}.{forward.Name}({field}, _index{Separator(forward)}{forward.Arguments});");
     }
 
-    private static string Separator(ForwardModel forward) => forward.Parameters.Count == 0 ? "" : ", ";
+    private static string Separator(ForwardModel forward) => forward.Separator;
 
     public static IReadOnlyList<string> Sets(DeclarationModel model)
     {

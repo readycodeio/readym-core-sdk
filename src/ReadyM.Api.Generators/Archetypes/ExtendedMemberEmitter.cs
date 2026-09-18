@@ -8,7 +8,7 @@ internal static class ExtendedMemberEmitter
 {
     public static void Emit(SourceWriter writer, DeclarationModel model, ChunkNames? chunks)
     {
-        if (model.Extends.Count == 0 || model.Accessors.Count == 0)
+        if (model.Extends.Count == 0 || (model.Accessors.Count == 0 && model.Forwards.Count == 0))
             return;
 
         foreach (var (archetype, prefix) in model.Extends)
@@ -32,8 +32,15 @@ internal static class ExtendedMemberEmitter
     private static void Shape(SourceWriter writer, DeclarationModel model, string target, string prefix)
     {
         using (writer.Braces($"extension(in {target} shape)"))
+        {
+            var handle = $"{ArchetypeNames.EntityHandle}.Of(shape)";
+
             foreach (var accessor in model.Accessors)
-                Members(writer, model, accessor, prefix, $"{ArchetypeNames.EntityHandle}.Of(shape)");
+                Members(writer, model, accessor, prefix, handle);
+
+            foreach (var forward in model.Forwards)
+                Forwarded(writer, model, forward, prefix, handle);
+        }
     }
 
     /// The same on the archetype's chunk view. The value is not in that chunk, so it is reached
@@ -52,8 +59,13 @@ internal static class ExtendedMemberEmitter
         };
 
         using (writer.Braces($"extension(in {view} view)"))
+        {
             foreach (var accessor in model.Accessors)
                 Members(writer, model, accessor, prefix, "view.Handle", remarks);
+
+            foreach (var forward in model.Forwards)
+                Forwarded(writer, model, forward, prefix, "view.Handle", remarks);
+        }
     }
 
     /// A getter as a property, and a setter as a method, which C# forces rather than us choosing it.
@@ -107,6 +119,34 @@ internal static class ExtendedMemberEmitter
         ]);
         writer.Line($"public void Set{name}({accessor.Type} value)");
         writer.Line($"    => {set};");
+    }
+
+    /// A member the mixin forwards from its explicit component, most often a native collection's
+    /// methods. Emitted as-is, so a collection reads and writes on the extended shape exactly as it
+    /// does on the mixin. These are methods rather than properties, so unlike a setter they work
+    /// inside a query body too.
+    private static void Forwarded(
+        SourceWriter writer,
+        DeclarationModel model,
+        ForwardModel forward,
+        string prefix,
+        string handle,
+        string[]? remarks = null)
+    {
+        var call = $"{model.QualifiedAccessors}.{forward.Name}";
+
+        writer.Line();
+
+        Remarks(writer, remarks);
+
+        if (forward.IsProperty)
+        {
+            writer.Line($"public {forward.ReturnType} {prefix}{forward.Name} => {call}({handle});");
+            return;
+        }
+
+        writer.Line($"public {forward.Declaration($"{prefix}{forward.Name}")}");
+        writer.Line($"    => {call}({handle}{forward.Separator}{forward.Arguments});");
     }
 
     /// One remarks block per member, however many notes went into it.

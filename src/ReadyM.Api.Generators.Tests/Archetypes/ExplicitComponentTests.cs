@@ -12,7 +12,7 @@ public class ExplicitComponentTests(ITestOutputHelper output)
     [
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly,
         typeof(SDK.Chunks.ChunkSlot).Assembly,
-        typeof(SDK.Server.Entity.IEntities).Assembly,
+        typeof(SDK.Server.Entities.IEntities).Assembly,
         typeof(SDK.Client.Entities.IEntities).Assembly
     ];
 
