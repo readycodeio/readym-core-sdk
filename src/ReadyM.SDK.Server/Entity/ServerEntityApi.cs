@@ -26,6 +26,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly QueryInScopeDelegate _queryInScope;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly CreateLocalEntityDelegate _createLocalEntity;
+    private readonly CreateLocalEntityInScopeDelegate _createLocalEntityInScope;
     private readonly DeleteNetworkedEntityDelegate _deleteEntity;
     private readonly RegisterArchetypeDelegate _registerArchetype;
     private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
@@ -44,8 +45,21 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _queryInScope = Marshal.GetDelegateForFunctionPointer<QueryInScopeDelegate>(pointers.QueryInScope);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
         _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
+        _createLocalEntityInScope = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityInScopeDelegate>(pointers.CreateLocalEntityInScope);
         _deleteEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
         _registerArchetype = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(archetypes.RegisterArchetype);
+    }
+
+    public RawEntity Create(ComponentSet components, RawEntity scope)
+    {
+        _scope.RefuseIfInQuery("Creating an entity");
+
+        var created = _createLocalEntityInScope(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this), scope);
+
+        if (created.Id == 0)
+            throw new InvalidEntityException($"Scope {scope.Id} is gone.");
+
+        return created;
     }
 
     public RawEntity Create(ComponentSet components)

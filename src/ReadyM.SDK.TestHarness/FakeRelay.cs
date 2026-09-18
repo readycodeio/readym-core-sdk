@@ -34,6 +34,7 @@ internal sealed class FakeRelay
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
     private readonly QueryInScopeDelegate _queryInScope;
+    private readonly CreateLocalEntityInScopeDelegate _createLocalEntityInScope;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
@@ -65,6 +66,7 @@ internal sealed class FakeRelay
         _setComponent = SetComponentImpl;
         _findByIndex = FindByIndexImpl;
         _queryInScope = QueryInScopeImpl;
+        _createLocalEntityInScope = CreateLocalEntityInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
         _isEntityAlive = IsEntityAliveImpl;
         _getComponentIdByName = GetComponentIdByNameImpl;
@@ -93,6 +95,7 @@ internal sealed class FakeRelay
         SetComponent = Marshal.GetFunctionPointerForDelegate(_setComponent),
         FindByIndex = Marshal.GetFunctionPointerForDelegate(_findByIndex),
         QueryInScope = Marshal.GetFunctionPointerForDelegate(_queryInScope),
+        CreateLocalEntityInScope = Marshal.GetFunctionPointerForDelegate(_createLocalEntityInScope),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
         CreateLocalEntity = Marshal.GetFunctionPointerForDelegate(_createLocalEntity),
         DeleteNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_deleteEntity),
@@ -142,6 +145,22 @@ internal sealed class FakeRelay
     internal int FindByIndexCalls { get; private set; }
 
     internal int QueryInScopeCalls { get; private set; }
+
+    internal int CreateInScopeCalls { get; private set; }
+
+    /// <summary>Creates the entity and links it to the scope, which is what the relay does.</summary>
+    private RawEntity CreateLocalEntityInScopeImpl(ArchetypeId archetype, RawEntity scope)
+    {
+        CreateInScopeCalls++;
+
+        if (!Resolve(scope, 1, out _))
+            return default;
+
+        var entity = CreateLocalEntityImpl(archetype);
+
+        PutInScope(entity, scope);
+        return entity;
+    }
 
     /// Which scope each entity sits in, which is the link the relay reads from InScopeComponent.
     private readonly Dictionary<int, RawEntity> _scopes = new();

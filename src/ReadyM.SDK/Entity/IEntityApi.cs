@@ -44,6 +44,9 @@ internal interface IEntityApi
     /// <exception cref="StructuralChangeInQueryException">A query is running.</exception>
     RawEntity Create(ComponentSet components);
 
+    /// <summary>The same, held by a scope, so the entity goes when the scope does.</summary>
+    RawEntity Create(ComponentSet components, RawEntity scope);
+
     /// <summary>
     /// Removes the entity, or, inside a query, records that it is to be removed once the loop ends.
     /// False when it was already gone or already asked for.

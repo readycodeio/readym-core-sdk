@@ -63,4 +63,7 @@ internal class Entities(ServerEntityApi api) : IEntities
         shape = default;
         return false;
     }
+
+    public T Create<T>(Scope scope) where T : struct, IArchetype
+        => new() { Handle = new EntityHandle(api.Create(ArchetypeRegistry.SetFor(typeof(T), default(T).Components), scope.Handle.RawEntity), api) };
 }

@@ -45,6 +45,16 @@ internal sealed class ClientEntityApi : IEntityApi
         Resolve(rawEntity).AddComponent<T>();
     }
 
+    public RawEntity Create(ComponentSet components, RawEntity scope)
+    {
+        var holder = Resolve(scope);
+        var entity = _store.GetEntityByRawEntity(Create(components));
+
+        entity.AddComponent(new InScopeComponent(holder));
+
+        return entity.RawEntity;
+    }
+
     public RawEntity Create(ComponentSet components)
     {
         _scope.RefuseIfInQuery("Creating an entity");

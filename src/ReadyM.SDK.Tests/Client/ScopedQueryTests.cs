@@ -12,15 +12,7 @@ public class ScopedQueryTests : ClientSdkTest
     private FrifloEntity Raw<T>(T shape) where T : struct, IArchetypeQueryable
         => Store.GetEntityByRawEntity(EntityHandle.Of(shape).RawEntity);
 
-    /// Stands in for creating an entity inside a scope, which is still to come.
-    private T Spawn<T>(TestArea area) where T : struct, IArchetype
-    {
-        var shape = Entities.Create<T>();
-
-        Raw(shape).AddComponent(new InScopeComponent(Raw(area)));
-
-        return shape;
-    }
+    private T Spawn<T>(TestArea area) where T : struct, IArchetype => Entities.Create<T>(area);
 
     private TestArea Area(int id)
     {
@@ -179,6 +171,66 @@ public class ScopedQueryTests : ClientSdkTest
         var count = 0;
 
         foreach (var _ in Entities.Query<TestArea>())
+            count++;
+
+        return count;
+    }
+
+    // -- creating inside a scope -------------------------------------------------------------------
+
+    [Fact]
+    public void An_entity_created_in_a_scope_is_held_by_it()
+    {
+        var north = Area(1);
+
+        Entities.Create<Guard>(north);
+
+        Assert.Equal(1, CountIn(north));
+    }
+
+    /// Creating without a scope leaves the entity global, so no scope holds it.
+    [Fact]
+    public void An_entity_created_without_a_scope_is_held_by_none()
+    {
+        var north = Area(1);
+
+        Entities.Create<Guard>();
+
+        Assert.Equal(0, CountIn(north));
+    }
+
+    [Fact]
+    public void Two_scopes_hold_their_own_entities()
+    {
+        var north = Area(1);
+        var south = Area(2);
+
+        Entities.Create<Guard>(north);
+        Entities.Create<Guard>(south);
+        Entities.Create<Guard>(south);
+
+        Assert.Equal(1, CountIn(north));
+        Assert.Equal(2, CountIn(south));
+    }
+
+    /// The shape arrives whole, the same as an unscoped create.
+    [Fact]
+    public void An_entity_created_in_a_scope_still_carries_its_whole_shape()
+    {
+        var guard = Entities.Create<Guard>(Area(1));
+
+        guard.Route = 4;
+        guard.Hp = 9f;
+
+        Assert.Equal(4, guard.Route);
+        Assert.Equal(9f, guard.Hp);
+    }
+
+    private int CountIn(TestArea area)
+    {
+        var count = 0;
+
+        foreach (var _ in Entities.Query<Guard>().InScope(area))
             count++;
 
         return count;
