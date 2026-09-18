@@ -73,6 +73,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         }
 
         ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        ExtendedMemberEmitter.Emit(writer, model, chunks);
         IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString(), problems);

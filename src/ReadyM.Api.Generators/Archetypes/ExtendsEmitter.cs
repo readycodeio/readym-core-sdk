@@ -23,7 +23,7 @@ internal static class ExtendsEmitter
 
             using (writer.Braces("public static void Register()"))
             {
-                foreach (var archetype in model.Extends)
+                foreach (var (archetype, _) in model.Extends)
                 {
                     var qualified = archetype.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -34,6 +34,18 @@ internal static class ExtendsEmitter
     }
 
     /// A target without one leaves Register for the host to call when it loads the mod.
+    /// <summary>
+    /// Present is not enough: a netstandard2.0 target has no such attribute of its own, and a
+    /// polyfill one of its references declares is internal to that assembly, so naming it here
+    /// would not compile.
+    /// </summary>
+    private static bool Accessible(Compilation compilation, string metadataName)
+    {
+        var type = compilation.GetTypeByMetadataName(metadataName);
+
+        return type is not null && compilation.IsSymbolAccessibleWithin(type, compilation.Assembly);
+    }
+
     internal static bool HasModuleInitializer(Compilation compilation)
-        => compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.ModuleInitializerAttribute") is not null;
+        => Accessible(compilation, "System.Runtime.CompilerServices.ModuleInitializerAttribute");
 }

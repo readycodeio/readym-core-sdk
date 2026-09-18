@@ -169,7 +169,8 @@ internal sealed class DeclarationModel
     public IReadOnlyList<ForwardModel> Forwards { get; }
 
     /// Archetypes this shape is added to when they are created.
-    public IReadOnlyList<INamedTypeSymbol> Extends { get; }
+    /// <summary>Archetypes this shape is added to on create, and the prefix its members take.</summary>
+    public IReadOnlyList<(INamedTypeSymbol Archetype, string Prefix)> Extends { get; }
 
     public string Namespace => ArchetypeNames.NamespaceOf(Symbol);
 
@@ -432,15 +433,26 @@ internal sealed class DeclarationModel
             .Select(name => name!)
             .ToList();
 
-    private static IReadOnlyList<INamedTypeSymbol> ReadExtends(INamedTypeSymbol symbol)
-        => symbol.GetAttributes()
-            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExtendsAttribute)
-            .Select(attribute => attribute.ConstructorArguments.Length == 1
-                ? attribute.ConstructorArguments[0].Value as INamedTypeSymbol
-                : null)
-            .Where(archetype => archetype is not null)
-            .Select(archetype => archetype!)
-            .ToList();
+    private static IReadOnlyList<(INamedTypeSymbol, string)> ReadExtends(INamedTypeSymbol symbol)
+    {
+        var extends = new List<(INamedTypeSymbol, string)>();
+
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass?.ToDisplayString() != ArchetypeNames.ExtendsAttribute
+                || attribute.ConstructorArguments.Length == 0
+                || attribute.ConstructorArguments[0].Value is not INamedTypeSymbol archetype)
+                continue;
+
+            var prefix = attribute.ConstructorArguments.Length > 1
+                ? attribute.ConstructorArguments[1].Value as string
+                : null;
+
+            extends.Add((archetype, prefix ?? string.Empty));
+        }
+
+        return extends;
+    }
 
     /// <summary>
     /// What a named collection offers, taken from the component itself so the shape gains exactly

@@ -76,3 +76,21 @@ public readonly partial struct Cutscene
 {
     public partial int Chapter { get; set; }
 }
+
+/// A mod adding values that read as if CoreArea had always carried them.
+[ArchetypeMixin]
+[Extends(typeof(CoreArea))]
+public readonly partial struct Climate
+{
+    public partial int Temperature { get; set; }
+
+    public partial int Rainfall { get; }
+}
+
+/// The same, under a prefix, so two mods can both add a Temperature.
+[ArchetypeMixin]
+[Extends(typeof(CoreArea), "Ambient")]
+public readonly partial struct Soundscape
+{
+    public partial int Temperature { get; set; }
+}
