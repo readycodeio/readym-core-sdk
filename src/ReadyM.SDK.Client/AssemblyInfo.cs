@@ -4,4 +4,4 @@ using System.Runtime.CompilerServices;
 // client services by hand and so need the implementations behind IEntityApi and IEntities.
 [assembly: InternalsVisibleTo("ReadyM.SDK.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Benchmarks")]
-[assembly: InternalsVisibleTo("WukongMp.SDK")]
+[assembly: InternalsVisibleTo("WukongMp.Sdk")]

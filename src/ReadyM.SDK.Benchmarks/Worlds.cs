@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using ReadyM.Api.Multiplayer.Interop;
+using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.TestHarness;
-using ServerEntities = ReadyM.SDK.Server.Entity.Entities;
 
 namespace ReadyM.SDK.Benchmarks;
 

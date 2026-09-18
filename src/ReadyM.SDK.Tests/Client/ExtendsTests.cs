@@ -107,4 +107,72 @@ public class ExtendsTests : ClientSdkTest
         var area = new CoreArea();
         return ArchetypeRegistry.SetFor(typeof(CoreArea), ((IArchetypeQueryable)area).Components).Count;
     }
+
+    // -- writing an extended member ----------------------------------------------------------------
+
+    /// Outside a query the shape is an ordinary local, so the property setter is usable.
+    [Fact]
+    public void An_extended_member_can_be_assigned_through_its_property()
+    {
+        var area = Entities.Create<CoreArea>();
+
+        area.Temperature = 21;
+
+        Assert.Equal(21, area.Temperature);
+    }
+
+    /// Inside a query the shape comes from the loop, which C# will not assign through, so the same
+    /// write goes through the method. Both reach the same value.
+    [Fact]
+    public void An_extended_member_can_be_assigned_through_its_method()
+    {
+        var area = Entities.Create<CoreArea>();
+
+        area.SetTemperature(7);
+
+        Assert.Equal(7, area.Temperature);
+
+        foreach (var found in Entities.Query<CoreArea>())
+            found.SetTemperature(found.Temperature + 1);
+
+        Assert.Equal(8, area.Temperature);
+    }
+
+    /// The prefix an extension was declared with names both of them.
+    [Fact]
+    public void A_prefixed_extension_carries_both_ways_of_writing_it()
+    {
+        var area = Entities.Create<CoreArea>();
+
+        area.AmbientTemperature = 4;
+
+        Assert.Equal(4, area.AmbientTemperature);
+
+        area.SetAmbientTemperature(5);
+
+        Assert.Equal(5, area.AmbientTemperature);
+
+        // The unprefixed one belongs to a different mixin and is untouched by either write.
+        Assert.Equal(0, area.Temperature);
+    }
+
+    /// A member declared without a setter gains neither, so nothing can write it by accident.
+    [Fact]
+    public void A_get_only_extension_has_no_way_to_write_it()
+    {
+        var area = Entities.Create<CoreArea>();
+
+        // Named rather than fetched: each member is declared twice, once for the shape and once for
+        // its chunk view, so asking for one by name is ambiguous.
+        var members = typeof(ClimateOnCoreArea).GetMethods().Select(method => method.Name).ToHashSet();
+
+        Assert.Contains("get_Rainfall", members);
+        Assert.DoesNotContain("set_Rainfall", members);
+        Assert.DoesNotContain("SetRainfall", members);
+
+        Assert.Contains("set_Temperature", members);
+        Assert.Contains("SetTemperature", members);
+
+        Assert.Equal(0, area.Rainfall);
+    }
 }

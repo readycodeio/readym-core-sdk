@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -29,7 +28,7 @@ internal static class ExtendedMemberEmitter
         }
     }
 
-    /// <summary>On the shape itself, which reaches the value the same way its own members do.</summary>
+    /// On the shape itself, which reaches the value the same way its own members do.
     private static void Shape(SourceWriter writer, DeclarationModel model, string target, string prefix)
     {
         using (writer.Braces($"extension(in {target} shape)"))
@@ -37,10 +36,8 @@ internal static class ExtendedMemberEmitter
                 Members(writer, model, accessor, prefix, $"{ArchetypeNames.EntityHandle}.Of(shape)");
     }
 
-    /// <summary>
     /// The same on the archetype's chunk view. The value is not in that chunk, so it is reached
     /// through the entity, which is why the remarks say what to write instead in a hot loop.
-    /// </summary>
     private static void View(SourceWriter writer, DeclarationModel model, INamedTypeSymbol archetype, string prefix)
     {
         var view = ArchetypeNames.QualifiedViewOf(archetype);
@@ -49,11 +46,9 @@ internal static class ExtendedMemberEmitter
 
         var remarks = new[]
         {
-            "/// <remarks>",
             $"/// Reached through the entity rather than the chunk, because {model.Name} is not part of",
             $"/// {archetype.Name}'s own chunk. Naming it in the query walks both by chunk instead:",
-            $"/// <c>Query&lt;{archetype.Name}, {model.Name}&gt;()</c>.",
-            "/// </remarks>"
+            $"/// <c>Query&lt;{archetype.Name}, {model.Name}&gt;()</c>."
         };
 
         using (writer.Braces($"extension(in {view} view)"))
@@ -61,11 +56,17 @@ internal static class ExtendedMemberEmitter
                 Members(writer, model, accessor, prefix, "view.Handle", remarks);
     }
 
-    /// <summary>
-    /// A getter as a property, and a setter as a method. C# takes the receiver of an extension
-    /// property by value, so assigning through one needs a writable variable: a foreach variable is
-    /// not, and neither is anything returned by a call. A method has no such restriction.
-    /// </summary>
+    /// A getter as a property, and a setter as a method, which C# forces rather than us choosing it.
+    /// A shape's own setters can be properties: the shape is a readonly struct, so the compiler knows
+    /// an instance setter takes this by readonly ref and cannot modify the receiver, and it allows the
+    /// assignment even where the receiver is readonly. It does not carry that over to extension
+    /// property setters. An in receiver is not enough: assigning through one on a foreach variable is
+    /// CS1654, and on anything returned by a call CS1612, which is most of where these get used. ref
+    /// fails harder still, and the only receiver that takes an assignment is a reference type, which
+    /// means boxing the shape on every access. So the setter is a method until the compiler treats an
+    /// in extension receiver the way it already treats a readonly struct's own this, which is tracked
+    /// as https://github.com/dotnet/roslyn/issues/82249. When that lands, the setter can become a
+    /// property here, added alongside SetX so nothing written against the current surface breaks.
     private static void Members(
         SourceWriter writer,
         DeclarationModel model,
@@ -74,23 +75,57 @@ internal static class ExtendedMemberEmitter
         string handle,
         string[]? remarks = null)
     {
+        var name = $"{prefix}{accessor.Name}";
+        var get = $"{model.QualifiedAccessors}.Get{accessor.Name}({handle})";
+        var set = $"{model.QualifiedAccessors}.Set{accessor.Name}({handle}, value)";
+
         writer.Line();
-
-        foreach (var line in remarks ?? [])
-            writer.Line(line);
-
-        writer.Line($"public {accessor.Type} {prefix}{accessor.Name}");
-        writer.Line($"    => {model.QualifiedAccessors}.Get{accessor.Name}({handle});");
 
         if (!accessor.HasSetter)
+        {
+            Remarks(writer, remarks);
+            writer.Line($"public {accessor.Type} {name}");
+            writer.Line($"    => {get};");
             return;
+        }
+
+        Remarks(writer, remarks,
+        [
+            $"/// Inside a query call <c>Set{name}</c> instead."
+        ]);
+
+        using (writer.Braces($"public {accessor.Type} {name}"))
+        {
+            writer.Line($"get => {get};");
+            writer.Line($"set => {set};");
+        }
 
         writer.Line();
 
-        foreach (var line in remarks ?? [])
+        Remarks(writer, remarks, [
+            "/// Use inside queries instead of the property setter."
+        ]);
+        writer.Line($"public void Set{name}({accessor.Type} value)");
+        writer.Line($"    => {set};");
+    }
+
+    /// One remarks block per member, however many notes went into it.
+    private static void Remarks(SourceWriter writer, params string[]?[] parts)
+    {
+        var any = false;
+
+        foreach (var part in parts)
+            any |= part is { Length: > 0 };
+
+        if (!any)
+            return;
+
+        writer.Line("/// <remarks>");
+
+        foreach (var part in parts)
+        foreach (var line in part ?? [])
             writer.Line(line);
 
-        writer.Line($"public void Set{prefix}{accessor.Name}({accessor.Type} value)");
-        writer.Line($"    => {model.QualifiedAccessors}.Set{accessor.Name}({handle}, value);");
+        writer.Line("/// </remarks>");
     }
 }

@@ -4,7 +4,6 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
-using ClientEntities = ReadyM.SDK.Client.Entities.Entities;
 
 namespace ReadyM.SDK.Tests.Client;
 

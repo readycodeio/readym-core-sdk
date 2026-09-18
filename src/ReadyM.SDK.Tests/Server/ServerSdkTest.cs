@@ -5,7 +5,6 @@ using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.TestHarness;
 using ReadyM.SDK.Tests.Server.Fixtures;
 using IComponent = Friflo.Engine.ECS.IComponent;
-using ServerEntities = ReadyM.SDK.Server.Entity.Entities;
 
 namespace ReadyM.SDK.Tests.Server;
 

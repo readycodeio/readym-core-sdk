@@ -2,7 +2,6 @@ using BenchmarkDotNet.Attributes;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
-using ClientEntities = ReadyM.SDK.Client.Entities.Entities;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
 
 namespace ReadyM.SDK.Benchmarks;
