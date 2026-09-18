@@ -5,7 +5,7 @@ namespace ReadyM.SDK.Archetypes;
 /// </summary>
 public static class ArchetypeExtensions
 {
-    /// <summary>Whether the entity behind the shape is still in the world.</summary>
+    /// Whether the entity behind the shape is still in the world.
     public static bool IsValid<T>(this T shape) where T : struct, IArchetypeQueryable
         => shape.Handle.IsAlive();
 }

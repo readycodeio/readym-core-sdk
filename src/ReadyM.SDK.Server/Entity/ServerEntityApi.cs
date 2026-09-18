@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -20,6 +21,8 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 {
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
+    private readonly SetComponentDelegate _setComponent;
+    private readonly FindByIndexDelegate _findByIndex;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly CreateLocalEntityDelegate _createLocalEntity;
     private readonly DeleteNetworkedEntityDelegate _deleteEntity;
@@ -27,6 +30,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
     private readonly ComponentRegistry _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
+    private readonly ComponentIndexes _indexes = new();
     private QueryScope _scope = new();
 
     public ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ComponentRegistry registry)
@@ -34,6 +38,8 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _registry = registry;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
+        _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
+        _findByIndex = Marshal.GetDelegateForFunctionPointer<FindByIndexDelegate>(pointers.FindByIndex);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
         _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
         _deleteEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
@@ -119,6 +125,63 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         return slot.Data != IntPtr.Zero ? new ComponentRef(slot.Data) : default;
     }
+
+    /// Writes the whole component and moves it in the index kept beside it.
+    public unsafe void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
+        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
+    {
+        var id = _registry.ResolveComponentId<TComponent>();
+
+        ComponentSlot slot;
+        _getComponentSlot(rawEntity, MatchRevision, id, &slot);
+
+        if (!slot.Found())
+            throw Missing<TComponent>(rawEntity);
+        
+        if (slot.HeapSelf == IntPtr.Zero)
+        {
+            var copy = component;
+
+            if (_setComponent(rawEntity, MatchRevision, id, &copy, Unsafe.SizeOf<TComponent>()) == 0)
+                throw Missing<TComponent>(rawEntity);
+
+            return;
+        }
+
+        ref var stored = ref SlotRef<TComponent>(slot);
+
+        _indexes.Forget<TComponent, TKey>(stored.GetIndexedValue(), rawEntity);
+
+        stored = component;
+
+        _indexes.Remember<TComponent, TKey>(component.GetIndexedValue(), rawEntity);
+    }
+
+    /// The index kept here answers first; anything it does not hold is the relay's to answer.
+    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
+    {
+        if (_indexes.TryFind<TComponent, TKey>(key, out entity))
+            return true;
+
+        RawEntity found;
+        var copy = key;
+
+        var hit = _findByIndex(_registry.ResolveComponentId<TComponent>(), &copy, Unsafe.SizeOf<TKey>(), &found);
+
+        entity = found;
+        return hit != 0;
+    }
+
+    private static ref TComponent SlotRef<TComponent>(scoped in ComponentSlot slot) where TComponent : struct
+    {
+        var heap = (TypedComponentHeap<TComponent>)GCHandle.FromIntPtr(slot.HeapSelf).Target!;
+
+        return ref heap.GetRef(slot.Index);
+    }
+
+    private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
+        => new($"Entity {rawEntity.Id} does not carry {typeof(T).Name}.");
 
     // TODO
     public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent

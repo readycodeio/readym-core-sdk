@@ -45,7 +45,7 @@ public sealed class StructuralChangeInQueryAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(Inspect, SyntaxKind.InvocationExpression);
     }
 
-    /// <summary>The calls that grow the world. Deleting is absent because a query may ask for it.</summary>
+    /// The calls that grow the world. Deleting is absent because a query may ask for it.
     private static bool Grows(IMethodSymbol method) => method.Name is "Create" or "AddComponent";
 
     private static void Inspect(SyntaxNodeAnalysisContext context)

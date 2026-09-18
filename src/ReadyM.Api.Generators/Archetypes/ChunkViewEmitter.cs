@@ -120,7 +120,7 @@ internal static class ChunkViewEmitter
 
         if (own is not null)
             foreach (var accessor in model.Accessors)
-                Property(writer, accessor, model.QualifiedAccessors, own.Field);
+                Property(writer, accessor, model.QualifiedAccessors, own.Field, model.IndexedBy is not null);
 
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
@@ -128,7 +128,8 @@ internal static class ChunkViewEmitter
                 !candidate.IsMarker && candidate.Include?.TypeName == include.TypeName);
 
             if (slot is not null)
-                Property(writer, accessor, include.Accessors, slot.Field);
+                Property(writer, accessor, include.Accessors, slot.Field,
+                    DeclarationModel.For(include.Type).IndexedBy is not null);
         }
 
         if (own is not null)
@@ -145,11 +146,11 @@ internal static class ChunkViewEmitter
         }
     }
 
-    private static void Property(SourceWriter writer, AccessorModel accessor, string accessors, string field)
+    private static void Property(SourceWriter writer, AccessorModel accessor, string accessors, string field, bool indexed)
     {
         writer.Line();
 
-        if (!accessor.HasSetter)
+        if (!accessor.HasSetter || indexed)
         {
             writer.Line($"public {accessor.Type} {accessor.Name} => {accessors}.Get{accessor.Name}({field}, _index);");
             return;

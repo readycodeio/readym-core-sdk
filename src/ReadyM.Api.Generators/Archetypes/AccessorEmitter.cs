@@ -34,7 +34,7 @@ internal static class AccessorEmitter
             writer.Line($"public static void Add(in {ArchetypeNames.EntityHandle} handle) => handle.AddComponent<{component}>();");
 
             foreach (var accessor in model.Accessors)
-                Members(writer, accessor, component);
+                Members(writer, accessor, component, model.IndexedBy);
 
             foreach (var forward in model.Forwards)
                 Forward(writer, forward, component);
@@ -43,7 +43,7 @@ internal static class AccessorEmitter
                 return;
 
             foreach (var accessor in model.Accessors)
-                ChunkMembers(writer, accessor, component, chunks);
+                ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null);
 
             foreach (var forward in model.Forwards)
                 ChunkForward(writer, forward, component, chunks);
@@ -54,7 +54,7 @@ internal static class AccessorEmitter
     /// The same values reached off a chunk instead of an entity. Only the declaring assembly can
     /// name the component, which is why the reinterpret happens here rather than in the view.
     /// </summary>
-    private static void ChunkMembers(SourceWriter writer, AccessorModel accessor, string component, ChunkNames chunks)
+    private static void ChunkMembers(SourceWriter writer, AccessorModel accessor, string component, ChunkNames chunks, bool indexed)
     {
         var read = $"chunk.As<{component}>(index).{accessor.Field}";
 
@@ -62,7 +62,8 @@ internal static class AccessorEmitter
         writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {chunks.ComponentChunk} chunk, int index)");
         writer.Line($"    => {read};");
 
-        if (!accessor.HasSetter)
+        // A chunk write moves no index, so an indexed value is read-only here and written by handle.
+        if (!accessor.HasSetter || indexed)
             return;
 
         writer.Line();
@@ -104,7 +105,7 @@ internal static class AccessorEmitter
         writer.Line($"    => {target}({forward.Arguments});");
     }
 
-    private static void Members(SourceWriter writer, AccessorModel accessor, string component)
+    private static void Members(SourceWriter writer, AccessorModel accessor, string component, string? indexedBy)
     {
         var read = $"handle.GetComponent<{component}>().{accessor.Field}";
 
@@ -115,7 +116,22 @@ internal static class AccessorEmitter
         {
             writer.Line();
             writer.Line($"public static void Set{accessor.Name}(in {ArchetypeNames.EntityHandle} handle, {accessor.Type} value)");
-            writer.Line($"    => {read} = value;");
+
+            if (indexedBy is null)
+            {
+                writer.Line($"    => {read} = value;");
+            }
+            else
+            {
+                using (writer.Braces(string.Empty))
+                {
+                    writer.Line($"var updated = handle.GetComponent<{component}>();");
+                    writer.Line();
+                    writer.Line($"updated.{accessor.Field} = value;");
+                    writer.Line();
+                    writer.Line($"handle.ReplaceIndexed<{component}, {indexedBy}>(updated);");
+                }
+            }
         }
 
         writer.Line();
@@ -136,7 +152,7 @@ internal static class AccessorEmitter
         }
     }
 
-    /// <summary>Calls that a consumer in any assembly can make.</summary>
+    /// Calls that a consumer in any assembly can make.
     public static string Get(IncludeModel include, AccessorModel accessor)
         => $"{include.Accessors}.Get{accessor.Name}(_handle)";
 

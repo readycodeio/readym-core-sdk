@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace ReadyM.SDK.Archetypes;
 
@@ -8,7 +8,12 @@ public static class ArchetypeRegistry
 {
     private static readonly Dictionary<Type, List<ComponentSet>> Added = [];
     private static readonly Dictionary<Type, ComponentSet> Resolved = [];
+
+#if NET
+    private static readonly Lock Gate = new();
+#else
     private static readonly object Gate = new();
+#endif
 
     /// Called by generated code for each [Extends]. Safe to call more than once for the same pair.
     public static void Extend(Type archetype, ComponentSet components)

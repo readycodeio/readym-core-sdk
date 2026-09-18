@@ -51,6 +51,25 @@ internal sealed class ClientEntityApi : IEntityApi
         return _store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
     }
 
+    /// Assigning the whole component is what makes Friflo move it in the index.
+    public void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
+        where TComponent : struct, IIndexedComponent<TKey>
+        => Resolve(rawEntity).AddComponent(component);
+
+    /// Friflo keeps the index, so this is its own lookup.
+    public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+        where TComponent : struct, IIndexedComponent<TKey>
+    {
+        foreach (var found in _store.ComponentIndex<TComponent, TKey>()[key])
+        {
+            entity = found.RawEntity;
+            return true;
+        }
+
+        entity = default;
+        return false;
+    }
+
     public bool HasComponents(RawEntity rawEntity, ComponentSet components)
         => Resolve(rawEntity).Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
 

@@ -28,6 +28,8 @@ public abstract class ServerSdkTest
         // slot resolution without saying so.
         Relay.RegisterBlittable<PositionComponent>();
         Relay.RegisterBlittable<RelayMetadataComponent>();
+        Relay.RegisterManaged<TicketedComponent>();
+        Relay.RegisterIndexed<RelayNetIdComponent, int>();
         Relay.RegisterManaged<VitalsComponent>();
         Relay.RegisterManaged<NamedComponent>();
         Relay.RegisterBlittable<NpcComponent>();

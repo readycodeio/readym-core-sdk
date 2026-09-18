@@ -1,8 +1,4 @@
-// -------------------------------------------------------------------------
-// Delegates and pointers - simplified now that IDs are plain ints
-// -------------------------------------------------------------------------
-
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -28,41 +24,35 @@ internal delegate RawEntity CreateNetworkedAreaEntityDelegate(ArchetypeId archet
 
 internal delegate RawEntity CreateNetworkedCellEntityDelegate(ArchetypeId archetype, FullCellId cellId, byte hasOwnerOverride, PlayerId ownerOverride);
 
-/// <summary>Creates a server-only entity: no metadata, never replicated to clients.</summary>
+/// Creates a server-only entity: no metadata, never replicated to clients.
 internal delegate RawEntity CreateLocalEntityDelegate(ArchetypeId archetype);
 
-/// <summary>1 if the entity existed and was deleted, else 0.</summary>
+/// 1 if the entity existed and was deleted, else 0.
 internal delegate int DeleteNetworkedEntityDelegate(RawEntity entity, byte matchRevision);
 
-/// <summary>Deletes an entity together with every entity below it in the tree.</summary>
+/// Deletes an entity together with every entity below it in the tree.
 internal delegate int DeleteEntityTreeDelegate(RawEntity entity, byte matchRevision);
 
 // The tree calls below still take bare ids. They are v0 only, and relationships on the v1 surface
 // are still open in the spec, so they get revisions when that lands.
 
-/// <summary>
 /// Makes the child belong to the parent. Returns the index it took among the parent's children,
 /// or -1 if it already was one of them.
-/// </summary>
 internal delegate int SetParentDelegate(int childId, int parentId);
 
-/// <summary>0 when the entity has no parent.</summary>
+/// 0 when the entity has no parent.
 internal delegate int GetParentDelegate(int childId);
 
-/// <summary>
 /// Writes the parent's child ids into the buffer and returns how many children it has, which can
 /// exceed the capacity. Nothing is written when the buffer is too small.
-/// </summary>
 internal delegate int GetChildrenDelegate(int parentId, IntPtr buffer, int capacity);
 
-/// <summary>1 when the entity is in the world, else 0. The mod host has no store of its own, so
-/// validity of a handle it kept across ticks can only be answered here.</summary>
+/// 1 when the entity is in the world, else 0. The mod host has no store of its own, so
+/// validity of a handle it kept across ticks can only be answered here.
 internal delegate byte IsEntityAliveDelegate(RawEntity entity, byte matchRevision);
 
-/// <summary>
 /// Locates one component of one entity, the same way a chunk slot is located: by address when the
 /// AOT side owns it, by heap handle and index when a mod does.
-/// </summary>
 internal unsafe delegate void GetComponentSlotDelegate(RawEntity entity, byte matchRevision, int componentType, ComponentSlot* slot);
 
 // The five serialization callbacks below address a mod component by its heap and index rather than
@@ -78,60 +68,58 @@ internal unsafe delegate int ReadSnapshotDelegate(IntPtr heapSelf, int index, by
 
 internal unsafe delegate int ReadDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int size, byte clearDirty);
 
-/// <summary>1 if the component was changed from the API (a server override), else 0.</summary>
+/// 1 if the component was changed from the API (a server override), else 0.
 internal delegate byte ChangedFromApiDelegate(IntPtr heapSelf, int index);
 
-/// <summary>
 /// Single component slot of an archetype chunk.
-/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct ChunkComponent
 {
-    /// <summary>
     /// Address of element 0, set when the AOT side owns the array. Those live in the pinned object
     /// heap, so the address stays valid for as long as the mod side holds it.
-    /// </summary>
     public IntPtr Data;
 
-    /// <summary>
+
     /// GCHandle of the mod's own <c>TypedComponentHeap</c>, set when the mod owns the array. Zero
     /// otherwise. A mod component may hold managed references and therefore cannot be pinned, so no
     /// address for it is allowed to leave its runtime. The mod side resolves this handle and walks
     /// the array through a tracked ref, which the GC updates if it relocates the array.
-    /// </summary>
     public IntPtr HeapSelf;
 
-    /// <summary>Bytes per element as the owning side sees it.</summary>
+    /// Bytes per element as the owning side sees it.
     public int Stride;
 }
 
-/// <summary>
 /// One component of one entity, located the same way a <see cref="ChunkComponent"/> is. Both fields
 /// zero means the entity is gone or does not carry the component.
-/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct ComponentSlot
 {
-    /// <summary>Address of the component, set when the AOT side owns it.</summary>
+    /// Address of the component, set when the AOT side owns it.
     public IntPtr Data;
 
-    /// <summary>GCHandle of the mod's own <c>TypedComponentHeap</c>, set when a mod owns it.</summary>
+    /// GCHandle of the mod's own <c>TypedComponentHeap</c>, set when a mod owns it.
     public IntPtr HeapSelf;
 
-    /// <summary>Index within that heap. Meaningful only alongside <see cref="HeapSelf"/>.</summary>
+    /// Index within that heap. Meaningful only alongside <see cref="HeapSelf"/>.
     public int Index;
 
     public readonly bool Found() => Data != IntPtr.Zero || HeapSelf != IntPtr.Zero;
 }
 
-/// <summary>
 /// Chunk callback for a query of any arity. <paramref name="comps"/> holds <paramref name="n"/>
 /// slots in the order the components were requested, and <paramref name="entities"/> points at
 /// <paramref name="count"/> <see cref="RawEntity"/> values.
-/// </summary>
 internal unsafe delegate void ChunkCallback(IntPtr entities, ChunkComponent* comps, int n, int count);
 
-/// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
+/// Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.
 internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
+
+/// Writes a whole component, which is required for updating indices.
+internal unsafe delegate byte SetComponentDelegate(RawEntity entity, byte matchRevision, int componentType, void* data, int size);
+
+/// The entity whose indexed component holds this value. Returns 0 when none does.
+/// <remarks>The value arrives as its own bytes, so only an unmanaged key can be asked for.</remarks>
+internal unsafe delegate byte FindByIndexDelegate(int componentType, void* value, int size, RawEntity* found);
 
 internal delegate int RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);

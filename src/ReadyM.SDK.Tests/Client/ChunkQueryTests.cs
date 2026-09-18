@@ -101,7 +101,7 @@ public class ChunkQueryTests : ClientSdkTest
         Assert.Equal(7f, total);
     }
 
-    /// <summary>The handle is how work that cannot happen inside the loop gets out of it.</summary>
+    /// The handle is how work that cannot happen inside the loop gets out of it.
     [Fact]
     public void A_view_hands_back_a_handle_for_the_entity_it_is_on()
     {

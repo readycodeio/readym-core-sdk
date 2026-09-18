@@ -80,7 +80,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 
-        using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}"))
+        using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}{IndexEmitter.Contract(model)}"))
         {
             HandleEmitter.Handle(writer, model);
             EmitIdentity(writer);
@@ -99,6 +99,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         }
 
         ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems);
     }

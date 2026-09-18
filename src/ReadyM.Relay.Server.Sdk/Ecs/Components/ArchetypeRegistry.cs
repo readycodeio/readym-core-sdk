@@ -154,7 +154,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         }
     }
 
-    /// <summary>Every component id currently on the builder.</summary>
+    /// Every component id currently on the builder.
     private List<int> GetComponentIds(ArchetypeBuilder builder)
     {
         var componentIds = new List<int>();

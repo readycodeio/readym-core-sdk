@@ -141,3 +141,40 @@ public readonly partial struct Metadata
 [Include(typeof(Position))]
 [Include(typeof(Metadata))]
 public readonly partial struct Networked;
+
+/// Indexed by a property the SDK declares, so the component behind it is generated and mod-owned.
+[ArchetypeMixin]
+public readonly partial struct Ticketed
+{
+    [Index]
+    public partial int Ticket { get; set; }
+
+    public partial int Fare { get; set; }
+}
+
+[Archetype]
+[Include(typeof(Position))]
+[Include(typeof(Ticketed))]
+public readonly partial struct Passenger;
+
+/// Stands in for a component the relay owns and indexes itself, the way MetadataComponent is.
+internal struct RelayNetIdComponent : IIndexedComponent<int>
+{
+    public int NetId;
+    public int Owner;
+
+    public int GetIndexedValue() => NetId;
+}
+
+[ArchetypeMixin]
+[ExplicitComponent(typeof(RelayNetIdComponent))]
+public readonly partial struct Networked2
+{
+    public partial int NetId { get; set; }
+    public partial int Owner { get; set; }
+}
+
+[Archetype]
+[Include(typeof(Position))]
+[Include(typeof(Networked2))]
+public readonly partial struct Replicated;

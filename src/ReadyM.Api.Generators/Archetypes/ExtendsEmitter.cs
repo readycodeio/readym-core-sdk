@@ -34,6 +34,6 @@ internal static class ExtendsEmitter
     }
 
     /// A target without one leaves Register for the host to call when it loads the mod.
-    private static bool HasModuleInitializer(Compilation compilation)
+    internal static bool HasModuleInitializer(Compilation compilation)
         => compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.ModuleInitializerAttribute") is not null;
 }

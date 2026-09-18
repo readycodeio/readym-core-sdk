@@ -66,7 +66,7 @@ internal class ChunkCombinationGenerator : IIncrementalGenerator
         return new Combination(shapes.ToImmutable(), chunks);
     }
 
-    /// <summary>Whether the generator emitted a view for this shape in whichever assembly declared it.</summary>
+    /// Whether the generator emitted a view for this shape in whichever assembly declared it.
     private static bool HasChunkView(INamedTypeSymbol shape)
     {
         var declared = shape.GetAttributes().Any(attribute

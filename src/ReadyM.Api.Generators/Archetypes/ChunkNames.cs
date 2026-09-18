@@ -60,7 +60,7 @@ internal sealed class ChunkNames
         public bool Supports(int arity) => arities.Contains(arity);
     }
 
-    /// <summary>Whether a compilation could use the fast path at all.</summary>
+    /// Whether a compilation could use the fast path at all.
     public static bool ChunkAssemblyReferenced(Compilation compilation)
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)

@@ -26,10 +26,10 @@ internal struct QueryScope()
 
     internal void Enter() => _depth++;
 
-    /// <summary>True when the outermost query just ended with deletes to apply.</summary>
+    /// True when the outermost query just ended with deletes to apply.
     internal bool Leave() => --_depth == 0 && _count > 0;
 
-    /// <summary>False when the entity was already asked for.</summary>
+    /// False when the entity was already asked for.
     internal bool Mark(RawEntity rawEntity)
     {
         if (!Pending.Add(rawEntity))

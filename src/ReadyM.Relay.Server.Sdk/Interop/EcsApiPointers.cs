@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace ReadyM.Relay.Server.Sdk.Interop;
 
@@ -20,5 +20,11 @@ public struct EcsApiPointers
     public required IntPtr GetParent;
     public required IntPtr GetChildren;
     public required IntPtr GetComponentSlot;
+
+    /// <summary>Writes a whole component, keeping the index the owning side holds for it current.</summary>
+    public required IntPtr SetComponent;
+
+    /// Finds the entity whose indexed component holds a value.
+    public required IntPtr FindByIndex;
     public required IntPtr IsEntityAlive;
 }

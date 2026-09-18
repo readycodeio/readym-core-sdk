@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
@@ -27,7 +27,7 @@ public readonly struct EntityHandle
 
     internal RawEntity RawEntity => _rawEntity;
 
-    /// <summary>Names the entity in a message without putting its raw id on the public surface.</summary>
+    /// Names the entity in a message without putting its raw id on the public surface.
     public override string ToString()
         => $"entity {_rawEntity.Id}";
 
@@ -36,6 +36,11 @@ public readonly struct EntityHandle
 
     public bool Is<T>() where T : struct, IArchetypeQueryable
         => _api.HasComponents(_rawEntity, default(T).Components);
+
+    public T As<T>() where T : struct, IArchetypeQueryable
+    {
+        return Is<T>() ? new T { Handle = this } : throw new InvalidEntityException($"Cannot cast entity to type {typeof(T).Name}");
+    }
 
     public bool TryAs<T>(out T archetype) where T : struct, IArchetypeQueryable
     {
@@ -79,7 +84,12 @@ public readonly struct EntityHandle
     public void AddComponent<T>() where T : struct, IComponent
         => _api.AddComponent<T>(_rawEntity);
 
-    /// <summary>The handle behind an archetype or mixin struct.</summary>
+    /// Writes the whole component, which is what moves it in the index kept on it.
+    public void ReplaceIndexed<TComponent, TKey>(in TComponent component)
+        where TComponent : struct, IIndexedComponent<TKey>
+        => _api.ReplaceIndexed<TComponent, TKey>(_rawEntity, component);
+
+    /// The handle behind an archetype or mixin struct.
     public static EntityHandle Of<T>(in T archetype)
         where T : struct, IArchetypeQueryable
         => archetype.Handle;

@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -24,10 +25,21 @@ internal static class ComponentEmitter
 
     public static void Emit(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
     {
-        using (writer.Braces($"internal struct {name} : {ArchetypeNames.Component}"))
+        var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
+        var contracts = index is null
+            ? ArchetypeNames.Component
+            : $"{ArchetypeNames.IndexedComponent}<{index.Type}>";
+
+        using (writer.Braces($"internal struct {name} : {contracts}"))
         {
             foreach (var accessor in accessors)
                 writer.Line($"public {accessor.Type} {accessor.Field};");
+
+            if (index is null)
+                return;
+
+            writer.Line();
+            writer.Line($"public {index.Type} GetIndexedValue() => {index.Field};");
         }
     }
 }

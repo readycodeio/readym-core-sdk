@@ -31,6 +31,8 @@ internal sealed class FakeRelay
 
     // Rooted, so the GC cannot collect a delegate whose function pointer is already handed out.
     private readonly QueryDelegate _query;
+    private readonly SetComponentDelegate _setComponent;
+    private readonly FindByIndexDelegate _findByIndex;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
@@ -59,6 +61,8 @@ internal sealed class FakeRelay
     internal unsafe FakeRelay()
     {
         _query = QueryImpl;
+        _setComponent = SetComponentImpl;
+        _findByIndex = FindByIndexImpl;
         _getComponentSlot = GetComponentSlotImpl;
         _isEntityAlive = IsEntityAliveImpl;
         _getComponentIdByName = GetComponentIdByNameImpl;
@@ -84,6 +88,8 @@ internal sealed class FakeRelay
     {
         Query = Marshal.GetFunctionPointerForDelegate(_query),
         GetComponentSlot = Marshal.GetFunctionPointerForDelegate(_getComponentSlot),
+        SetComponent = Marshal.GetFunctionPointerForDelegate(_setComponent),
+        FindByIndex = Marshal.GetFunctionPointerForDelegate(_findByIndex),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
         CreateLocalEntity = Marshal.GetFunctionPointerForDelegate(_createLocalEntity),
         DeleteNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_deleteEntity),
@@ -113,6 +119,63 @@ internal sealed class FakeRelay
 
     /// A component the AOT side owns: blittable, pinned, reachable by address.
     internal void RegisterBlittable<T>() where T : struct => Register<T>(static () => new PinnedHeap<T>());
+
+    /// <summary>
+    /// A component the relay owns and indexes, which is the case a mod cannot maintain itself.
+    /// </summary>
+    internal void RegisterIndexed<T, TValue>()
+        where T : struct, IIndexedComponent<TValue>
+        where TValue : unmanaged
+    {
+        Register<T>(static () => new PinnedHeap<T>());
+        _indexes[_heapFactories.Count - 1] = new FakeIndex<T, TValue>();
+    }
+
+    private readonly Dictionary<int, FakeIndex> _indexes = new();
+
+    /// <summary>Counts what a mod could not do for itself, so a test can tell the paths apart.</summary>
+    internal int SetComponentCalls { get; private set; }
+
+    internal int FindByIndexCalls { get; private set; }
+
+    /// <summary>
+    /// Writes the whole component and moves it in the index, which is what the relay does by
+    /// assigning through Friflo rather than through the address a slot carries.
+    /// </summary>
+    private unsafe byte SetComponentImpl(RawEntity entity, byte matchRevision, int componentType, void* data, int size)
+    {
+        SetComponentCalls++;
+
+        if (!_indexes.TryGetValue(componentType, out var index))
+            return 0;
+
+        if (!Resolve(entity, matchRevision, out var slot))
+            return 0;
+
+        var heap = slot.Archetype.HeapOrNull(componentType);
+
+        if (heap is null || size != heap.Stride)
+            return 0;
+
+        index.Forget(heap.GetValue(slot.Row), entity);
+        heap.SetValue(slot.Row, index.Read((IntPtr)data));
+        index.Remember(heap.GetValue(slot.Row), entity);
+
+        return 1;
+    }
+
+    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, RawEntity* found)
+    {
+        FindByIndexCalls++;
+
+        *found = default;
+
+        if (!_indexes.TryGetValue(componentType, out var index) || !index.TryFind((IntPtr)value, out var entity))
+            return 0;
+
+        *found = entity;
+        return 1;
+    }
 
     /// A component a mod owns: reachable only through its heap handle, so managed fields are allowed.
     internal void RegisterManaged<T>() where T : struct => Register<T>(static () => new ManagedHeap<T>());

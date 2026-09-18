@@ -15,9 +15,21 @@ internal interface IEntityApi
     ComponentRef Locate(RawEntity rawEntity, int componentId);
 
     void AddComponent<T>(RawEntity entity) where T : struct, IComponent;
+
+    /// <summary>
+    /// Writes the whole component and moves it in the index. A write through the reference Locate
+    /// hands back cannot do that, so an indexed value has to come this way.
+    /// </summary>
+    void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
+        where TComponent : struct, IIndexedComponent<TKey>;
+
+    /// <summary>The entity whose indexed component holds this value, if one does.</summary>
+    bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+        where TComponent : struct, IIndexedComponent<TKey>;
+
     bool IsAlive(RawEntity rawEntity);
 
-    /// <summary>Whether the entity carries every component of the set. An empty set matches anything.</summary>
+    /// Whether the entity carries every component of the set. An empty set matches anything.
     bool HasComponents(RawEntity rawEntity, ComponentSet components);
 
     /// <exception cref="StructuralChangeInQueryException">A query is running.</exception>

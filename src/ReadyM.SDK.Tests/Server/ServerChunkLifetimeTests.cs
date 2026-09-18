@@ -57,7 +57,7 @@ public class ServerChunkLifetimeTests : ServerSdkTest
         Assert.Equal(6, seen.Distinct().Count());
     }
 
-    /// <summary>A handle taken in one chunk still names its own entity after later chunks are bound.</summary>
+    /// A handle taken in one chunk still names its own entity after later chunks are bound.
     [Fact]
     public void A_handle_kept_past_its_chunk_still_names_its_own_entity()
     {

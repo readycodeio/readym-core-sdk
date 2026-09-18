@@ -55,7 +55,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
         writer.Line();
 
-        using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}"))
+        using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}{IndexEmitter.Contract(model)}"))
         {
             HandleEmitter.Handle(writer, model);
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
@@ -73,6 +73,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         }
 
         ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString(), problems);
     }

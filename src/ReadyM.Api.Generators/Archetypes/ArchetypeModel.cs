@@ -10,7 +10,7 @@ internal enum IncludeKind
     Archetype
 }
 
-/// <summary>One partial property an author declared on a mixin or archetype.</summary>
+/// One partial property an author declared on a mixin or archetype.
 internal sealed class AccessorModel(string name, string type, bool hasSetter, string? field = null)
 {
     public AccessorModel(IPropertySymbol property, INamedTypeSymbol? component)
@@ -22,6 +22,8 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
     {
         Declared = property;
         Component = component;
+        IsIndex = property.GetAttributes().Any(attribute
+            => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.IndexAttribute);
     }
 
     public string Name { get; } = name;
@@ -29,6 +31,9 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
     public string Type { get; } = type;
 
     public bool HasSetter { get; } = hasSetter;
+
+    /// <summary>Whether [Index] marks this as the value the shape is found by.</summary>
+    public bool IsIndex { get; }
 
     /// <summary>The member holding the value: a generated field, or one of an explicit component.</summary>
     public string Field { get; } = field ?? ArchetypeNames.FieldOf(name);
@@ -129,7 +134,7 @@ internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
 /// <summary>One entry in a shape's component set: a declaration's component, or its marker.</summary>
 internal sealed class ComponentOwner(IncludeModel? include, bool marker)
 {
-    /// <summary>Null when it belongs to the declaration itself rather than to something it includes.</summary>
+    /// Null when it belongs to the declaration itself rather than to something it includes.
     public IncludeModel? Include { get; } = include;
 
     public bool IsMarker { get; } = marker;
@@ -163,20 +168,41 @@ internal sealed class DeclarationModel
     /// <summary>Everything those members offer, mirrored onto this shape.</summary>
     public IReadOnlyList<ForwardModel> Forwards { get; }
 
-    /// <summary>Archetypes this shape is added to when they are created.</summary>
+    /// Archetypes this shape is added to when they are created.
     public IReadOnlyList<INamedTypeSymbol> Extends { get; }
 
     public string Namespace => ArchetypeNames.NamespaceOf(Symbol);
 
     public string Name => Symbol.Name;
 
-    /// <summary>The struct header a generated part has to agree with.</summary>
+    /// The struct header a generated part has to agree with.
     public string Header => Symbol.IsReadOnly ? $"readonly partial struct {Name}" : $"partial struct {Name}";
 
     /// <summary>The component named by [ExplicitComponent], or null when one is generated.</summary>
     public INamedTypeSymbol? ExplicitComponent { get; }
 
-    /// <summary>Only a declaration with accessors of its own needs a component to keep them in.</summary>
+    /// <summary>The accessor [Index] marks, for a shape whose component is generated.</summary>
+    public AccessorModel? IndexAccessor => Accessors.FirstOrDefault(accessor => accessor.IsIndex);
+
+    /// <summary>
+    /// What this shape is found by, taken from [Index] or from the component it already has.
+    /// </summary>
+    public string? IndexedBy => IndexAccessor?.Type ?? ExplicitValueType();
+
+    private string? ExplicitValueType()
+    {
+        if (ExplicitComponent is null)
+            return null;
+
+        foreach (var contract in ExplicitComponent.AllInterfaces)
+            if (contract.ConstructedFrom.ToDisplayString() == "Friflo.Engine.ECS.IIndexedComponent<TValue>"
+                && contract.TypeArguments.Length == 1)
+                return contract.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        return null;
+    }
+
+    /// Only a declaration with accessors of its own needs a component to keep them in.
     public bool HasOwnComponent => Accessors.Count > 0 || ExplicitComponent is not null;
 
     /// <summary>False when the storage already exists, in which case nothing is emitted for it.</summary>
@@ -462,7 +488,7 @@ internal sealed class DeclarationModel
         return fallback;
     }
 
-    /// <summary>Names a networked component uses to talk to the replication layer.</summary>
+    /// Names a networked component uses to talk to the replication layer.
     internal static bool IsPlumbing(string name)
         => name.IndexOf('_') >= 0
            || name.EndsWith("NotifyChanged", System.StringComparison.Ordinal)

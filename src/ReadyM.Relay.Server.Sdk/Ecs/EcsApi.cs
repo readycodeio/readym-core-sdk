@@ -255,7 +255,7 @@ public partial class EcsApi
         return _setParent(childId, parentId);
     }
 
-    /// <summary>0 when the entity has no parent.</summary>
+    /// 0 when the entity has no parent.
     /// <param name="childId">The ID of the child entity.</param>
     /// <returns>The ID of the parent entity, or 0 if there is no parent.</returns>
     public int GetParent(int childId)
@@ -292,7 +292,7 @@ public partial class EcsApi
     public void SetComponent<T>(int entityId, in T component) where T : struct
         => GetComponentRef<T>(entityId) = component;
 
-    /// <summary>False when the entity is gone or does not carry the component.</summary>
+    /// False when the entity is gone or does not carry the component.
     public bool TryGetComponent<T>(int entityId, out T component) where T : struct
     {
         var slot = Locate<T>(entityId);

@@ -51,4 +51,16 @@ internal class Entities(ServerEntityApi api) : IEntities
         where T5 : struct, IArchetypeMixin
         where T6 : struct, IArchetypeMixin
         => new(api);
+
+    public bool TryLookup<T, TKey>(TKey key, out T shape) where T : struct, IArchetypeQueryable, IIndexed<TKey>
+    {
+        if (IndexRegistry.TryFind<T, TKey>(api, key, out var entity))
+        {
+            shape = new T { Handle = new EntityHandle(entity, api) };
+            return true;
+        }
+
+        shape = default;
+        return false;
+    }
 }
