@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Attributes;
 using ReadyM.SDK.Tests.ExternalMod;
 
@@ -178,3 +179,29 @@ public readonly partial struct Networked2
 [Include(typeof(Position))]
 [Include(typeof(Networked2))]
 public readonly partial struct Replicated;
+
+/// Stands in for a scope component the relay owns, indexed the way AreaScopeComponent is.
+internal struct TestAreaScopeComponent : IIndexedComponent<int>
+{
+    public int AreaId;
+
+    public int GetIndexedValue() => AreaId;
+}
+
+[Archetype]
+[ExplicitComponent(typeof(TestAreaScopeComponent))]
+public readonly partial struct TestArea : IScope
+{
+    public partial int AreaId { get; set; }
+}
+
+[ArchetypeMixin]
+public readonly partial struct Patrol
+{
+    public partial int Route { get; set; }
+}
+
+[Archetype]
+[Include(typeof(Position))]
+[Include(typeof(Patrol))]
+public readonly partial struct Guard;

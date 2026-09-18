@@ -30,6 +30,8 @@ public abstract class ServerSdkTest
         Relay.RegisterBlittable<RelayMetadataComponent>();
         Relay.RegisterManaged<TicketedComponent>();
         Relay.RegisterIndexed<RelayNetIdComponent, int>();
+        Relay.RegisterIndexed<TestAreaScopeComponent, int>();
+        Relay.RegisterManaged<PatrolComponent>();
         Relay.RegisterManaged<VitalsComponent>();
         Relay.RegisterManaged<NamedComponent>();
         Relay.RegisterBlittable<NpcComponent>();

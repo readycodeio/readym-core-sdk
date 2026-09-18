@@ -122,4 +122,17 @@ internal unsafe delegate byte SetComponentDelegate(RawEntity entity, byte matchR
 /// <remarks>The value arrives as its own bytes, so only an unmanaged key can be asked for.</remarks>
 internal unsafe delegate byte FindByIndexDelegate(int componentType, void* value, int size, RawEntity* found);
 
+/// <summary>Receives the entities a scoped query matched, all at once.</summary>
+internal unsafe delegate void EntityListCallback(IntPtr entities, int count);
+
+/// <summary>
+/// The entities a scope holds that carry every requested component.
+/// </summary>
+/// <remarks>
+/// Answered from the scope's own links rather than by scanning the world, so it costs what the
+/// scope holds. The result is a list of entities rather than chunks: the matches are scattered
+/// through each archetype, so there are no contiguous runs to hand back.
+/// </remarks>
+internal unsafe delegate void QueryInScopeDelegate(int* componentIds, int n, RawEntity scope, EntityListCallback cb);
+
 internal delegate int RegisterModComponentDelegate(ModComponentRegistration registration, NativeString256 displayName);

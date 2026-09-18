@@ -7,7 +7,7 @@ namespace ReadyM.SDK.Core;
 
 [Archetype]
 [ExplicitComponent(typeof(AreaScopeComponent))]
-public readonly partial struct Area
+public readonly partial struct Area : IScope
 {
     [Index]
     public partial AreaId AreaId { get; set; }

@@ -88,6 +88,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitIncluded(writer, model);
             EmitForwards(writer, model);
             EmitConversions(writer, model);
+            EmitScope(writer, model);
         }
 
         if (view is not null)
@@ -113,6 +114,16 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         writer.Line();
         writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Queryable}");
         writer.Line("    => _handle.TryAs(out archetype);");
+    }
+
+    private static void EmitScope(SourceWriter writer, DeclarationModel model)
+    {
+        if (!model.IsScope)
+            return;
+
+        writer.Line();
+        writer.Line($"public static implicit operator {ArchetypeNames.Scope}({model.QualifiedName} value)");
+        writer.Line($"    => {ArchetypeNames.Scope}.Of(value);");
     }
 
     /// <summary>Collections of everything included, flattened onto the archetype.</summary>

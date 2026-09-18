@@ -228,6 +228,9 @@ internal sealed class DeclarationModel
     /// </summary>
     public bool NeedsMarker => IsArchetype && !CarriesExplicit();
 
+    /// <summary>Whether the author declared this shape a scope, by naming IScope on their own part.</summary>
+    public bool IsScope => Symbol.AllInterfaces.Any(contract => contract.ToDisplayString() == ArchetypeNames.ScopeMarker);
+
     private bool CarriesExplicit()
         => ExplicitComponent is not null || Includes.Any(include => For(include.Type).CarriesExplicit());
 

@@ -26,5 +26,8 @@ public struct EcsApiPointers
 
     /// Finds the entity whose indexed component holds a value.
     public required IntPtr FindByIndex;
+
+    /// The entities a scope holds that carry a component set.
+    public required IntPtr QueryInScope;
     public required IntPtr IsEntityAlive;
 }

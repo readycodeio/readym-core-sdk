@@ -24,7 +24,7 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
     {
         WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
             .Add<MetadataComponent>()
-            .AddTag<ScopeEntityTag>()
+            .AddTag<ScopeEntityTag>() // FIXME (Kuba): The world entity is not a scope, this tag here is to prevent being included in ownership transfer queries
             .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));
     }
 }

@@ -1,5 +1,5 @@
-﻿using ReadyM.SDK.Exceptions;
-using ReadyM.SDK.Server.Entity;
+﻿using ReadyM.SDK.Entity;
+using ReadyM.SDK.Exceptions;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;
@@ -66,7 +66,7 @@ public class ServerChunkLifetimeTests : ServerSdkTest
         for (var i = 0; i < 3; i++)
             Spawn<Boulder>();
 
-        var kept = default(ReadyM.SDK.Entity.EntityHandle);
+        var kept = default(EntityHandle);
         var taken = false;
 
         foreach (var position in Entities.Query<Position>())
@@ -95,7 +95,7 @@ public class ServerChunkLifetimeTests : ServerSdkTest
         var entities = Entities.Query<Position>().Identities();
 
         while (entities.MoveNext())
-            buffered.Add(ReadyM.SDK.Entity.EntityHandle.Of(entities.Current).Id);
+            buffered.Add(EntityHandle.Of(entities.Current).Id);
 
         entities.Dispose();
 

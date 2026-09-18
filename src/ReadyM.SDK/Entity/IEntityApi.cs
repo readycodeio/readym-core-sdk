@@ -23,6 +23,15 @@ internal interface IEntityApi
     void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
         where TComponent : struct, IIndexedComponent<TKey>;
 
+    /// <summary>
+    /// Every entity held by the scope that carries the whole component set.
+    /// </summary>
+    /// <remarks>
+    /// Asked of the scope rather than of the world: the entities in one are found through the link
+    /// they already carry, so this costs what the scope holds rather than what the world does.
+    /// </remarks>
+    EntityBuffer CollectInScope(RawEntity scope, ComponentSet components);
+
     /// <summary>The entity whose indexed component holds this value, if one does.</summary>
     bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey>;

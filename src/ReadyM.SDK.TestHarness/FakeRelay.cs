@@ -33,6 +33,7 @@ internal sealed class FakeRelay
     private readonly QueryDelegate _query;
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
+    private readonly QueryInScopeDelegate _queryInScope;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
@@ -63,6 +64,7 @@ internal sealed class FakeRelay
         _query = QueryImpl;
         _setComponent = SetComponentImpl;
         _findByIndex = FindByIndexImpl;
+        _queryInScope = QueryInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
         _isEntityAlive = IsEntityAliveImpl;
         _getComponentIdByName = GetComponentIdByNameImpl;
@@ -90,6 +92,7 @@ internal sealed class FakeRelay
         GetComponentSlot = Marshal.GetFunctionPointerForDelegate(_getComponentSlot),
         SetComponent = Marshal.GetFunctionPointerForDelegate(_setComponent),
         FindByIndex = Marshal.GetFunctionPointerForDelegate(_findByIndex),
+        QueryInScope = Marshal.GetFunctionPointerForDelegate(_queryInScope),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
         CreateLocalEntity = Marshal.GetFunctionPointerForDelegate(_createLocalEntity),
         DeleteNetworkedEntity = Marshal.GetFunctionPointerForDelegate(_deleteEntity),
@@ -137,6 +140,44 @@ internal sealed class FakeRelay
     internal int SetComponentCalls { get; private set; }
 
     internal int FindByIndexCalls { get; private set; }
+
+    internal int QueryInScopeCalls { get; private set; }
+
+    /// Which scope each entity sits in, which is the link the relay reads from InScopeComponent.
+    private readonly Dictionary<int, RawEntity> _scopes = new();
+
+    /// <summary>Puts an entity in a scope, as creating one inside a scope would.</summary>
+    internal void PutInScope(RawEntity entity, RawEntity scope) => _scopes[entity.Id] = scope;
+
+    /// <summary>
+    /// The entities a scope holds that carry every requested component, found from the links
+    /// pointing at the scope rather than by scanning, which is what the relay does.
+    /// </summary>
+    private unsafe void QueryInScopeImpl(int* componentIds, int n, RawEntity scope, EntityListCallback callback)
+    {
+        QueryInScopeCalls++;
+
+        var wanted = new int[n];
+
+        for (var i = 0; i < n; i++)
+            wanted[i] = componentIds[i];
+
+        var matched = new List<RawEntity>();
+
+        foreach (var (id, holder) in _scopes)
+        {
+            if (holder != scope || !Resolve(RawEntities.From(id, _entities[id].Revision), 1, out var slot))
+                continue;
+
+            if (wanted.All(component => slot.Archetype.HeapOrNull(component) is not null))
+                matched.Add(RawEntities.From(id, _entities[id].Revision));
+        }
+
+        var entities = matched.ToArray();
+
+        fixed (RawEntity* buffer = entities)
+            callback(entities.Length == 0 ? IntPtr.Zero : (IntPtr)buffer, entities.Length);
+    }
 
     /// <summary>
     /// Writes the whole component and moves it in the index, which is what the relay does by

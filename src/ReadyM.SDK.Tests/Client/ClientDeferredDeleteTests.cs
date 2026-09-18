@@ -1,6 +1,4 @@
-﻿using ReadyM.SDK.Client.Entity;
-using ReadyM.SDK.Entity;
-using ReadyM.SDK.Exceptions;
+﻿using ReadyM.SDK.Exceptions;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;

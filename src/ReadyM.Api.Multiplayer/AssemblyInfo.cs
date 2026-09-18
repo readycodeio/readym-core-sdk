@@ -1,9 +1,10 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Web")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Sdk")]
+[assembly: InternalsVisibleTo("ReadyM.SDK.Client")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Server")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.TestHarness")]

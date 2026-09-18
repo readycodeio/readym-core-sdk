@@ -1,0 +1,171 @@
+﻿using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entity;
+using ReadyM.SDK.Tests.Server.Fixtures;
+
+namespace ReadyM.SDK.Tests.Server;
+
+/// <summary>
+/// Queries narrowed to a scope, answered by the relay from the links pointing at it.
+/// </summary>
+/// <remarks>
+/// The cost follows what the scope holds rather than what the world does, which is why the relay
+/// walks links instead of scanning archetypes. The result is a list of entities, so the loop walks
+/// identities: a scope's entities are scattered through their archetypes and form no chunks.
+/// </remarks>
+public class ServerScopedQueryTests : ServerSdkTest
+{
+    private TestArea Area(int id)
+    {
+        var area = Spawn<TestArea>();
+
+        area.AreaId = id;
+
+        return area;
+    }
+
+    private T Spawn<T>(TestArea area) where T : struct, IArchetype
+    {
+        var shape = Spawn<T>();
+
+        Relay.PutInScope(EntityHandle.Of(shape).RawEntity, EntityHandle.Of(area).RawEntity);
+
+        return shape;
+    }
+
+    [Fact]
+    public void A_scoped_query_visits_only_what_the_scope_holds()
+    {
+        var north = Area(1);
+        var south = Area(2);
+
+        Spawn<Guard>(north).Route = 10;
+        Spawn<Guard>(north).Route = 20;
+        Spawn<Guard>(south).Route = 30;
+
+        var routes = 0;
+
+        foreach (var guard in Entities.Query<Guard>().InScope(north))
+            routes += guard.Route;
+
+        Assert.Equal(30, routes);
+    }
+
+    [Fact]
+    public void An_entity_in_no_scope_is_not_visited()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north).Route = 5;
+        Spawn<Guard>().Route = 99;
+
+        var routes = 0;
+
+        foreach (var guard in Entities.Query<Guard>().InScope(north))
+            routes += guard.Route;
+
+        Assert.Equal(5, routes);
+    }
+
+    [Fact]
+    public void A_shape_the_query_did_not_ask_for_is_not_visited()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north);
+        Spawn<Npc>(north);
+
+        var count = 0;
+
+        foreach (var _ in Entities.Query<Guard>().InScope(north))
+            count++;
+
+        Assert.Equal(1, count);
+    }
+
+    /// <summary>One crossing for the whole loop, the same as an unscoped query.</summary>
+    [Fact]
+    public void A_scoped_query_crosses_the_boundary_once()
+    {
+        var north = Area(1);
+
+        for (var i = 0; i < 4; i++)
+            Spawn<Guard>(north);
+
+        Relay.ResetCounters();
+
+        var count = 0;
+
+        foreach (var _ in Entities.Query<Guard>().InScope(north))
+            count++;
+
+        Assert.Equal(4, count);
+        Assert.Equal(1, Relay.QueryInScopeCalls);
+        Assert.Equal(0, Relay.QueryCalls);
+    }
+
+    [Fact]
+    public void An_empty_scope_visits_nothing()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(Area(2));
+
+        var count = 0;
+
+        foreach (var _ in Entities.Query<Guard>().InScope(north))
+            count++;
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void A_write_through_a_scoped_query_reaches_the_relay()
+    {
+        var north = Area(1);
+        var guard = Spawn<Guard>(north);
+
+        foreach (var found in Entities.Query<Guard>().InScope(north))
+            found.Route = 7;
+
+        Assert.Equal(7, Relay.Get<PatrolComponent>(IdentityOf(guard)).route);
+    }
+
+    /// The flow a mod writes: find the scope by its index, then narrow to it.
+    [Fact]
+    public void A_scope_found_by_its_index_can_be_queried()
+    {
+        var north = Area(42);
+
+        Spawn<Guard>(north).Route = 8;
+        Spawn<Guard>(Area(43)).Route = 9;
+
+        Assert.True(Entities.TryLookup<TestArea, int>(42, out var found));
+
+        var routes = 0;
+
+        foreach (var guard in Entities.Query<Guard>().InScope(found))
+            routes += guard.Route;
+
+        Assert.Equal(8, routes);
+    }
+
+    /// Deleting inside a scoped loop is held, the same as in any other query.
+    [Fact]
+    public void A_delete_inside_a_scoped_query_is_held()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north);
+        Spawn<Guard>(north);
+        Relay.ResetCounters();
+
+        foreach (var guard in Entities.Query<Guard>().InScope(north))
+        {
+            Entities.Delete(guard);
+
+            Assert.Equal(0, Relay.DeleteCalls);
+        }
+
+        Assert.Equal(2, Relay.DeleteCalls);
+    }
+}

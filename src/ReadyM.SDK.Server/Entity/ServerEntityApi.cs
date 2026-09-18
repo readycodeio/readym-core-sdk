@@ -23,6 +23,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
+    private readonly QueryInScopeDelegate _queryInScope;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly CreateLocalEntityDelegate _createLocalEntity;
     private readonly DeleteNetworkedEntityDelegate _deleteEntity;
@@ -40,6 +41,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
         _findByIndex = Marshal.GetDelegateForFunctionPointer<FindByIndexDelegate>(pointers.FindByIndex);
+        _queryInScope = Marshal.GetDelegateForFunctionPointer<QueryInScopeDelegate>(pointers.QueryInScope);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
         _createLocalEntity = Marshal.GetDelegateForFunctionPointer<CreateLocalEntityDelegate>(pointers.CreateLocalEntity);
         _deleteEntity = Marshal.GetDelegateForFunctionPointer<DeleteNetworkedEntityDelegate>(pointers.DeleteNetworkedEntity);
@@ -86,6 +88,35 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         return _registerArchetype(native);
     }
+
+    public unsafe EntityBuffer CollectInScope(RawEntity scope, ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var buffer = EntityBuffer.Rent();
+
+        var previous = _collecting;
+        _collecting = buffer;
+
+        try
+        {
+            fixed (int* componentIds = ids)
+            {
+                _queryInScope(componentIds, ids.Length, scope, CollectEntities);
+            }
+        }
+        finally
+        {
+            _collecting = previous;
+        }
+
+        return buffer;
+    }
+
+    private static readonly unsafe EntityListCallback CollectEntities = static (entities, count) =>
+    {
+        if (count > 0)
+            new ReadOnlySpan<RawEntity>((void*)entities, count).CopyTo(_collecting!.Reserve(count));
+    };
 
     public bool IsAlive(RawEntity rawEntity)
         => !_scope.IsPending(rawEntity) && _isEntityAlive(rawEntity, MatchRevision) != 0;

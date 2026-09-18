@@ -29,6 +29,9 @@ public readonly ref struct EntityQuery<T>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_api, Components);
 
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T> InScope(Scope scope) => new(_api, scope);
+
     /// Runs a body over every entity, walking identities so it may change the world.
     public void ForEach(Action<T> body)
     {

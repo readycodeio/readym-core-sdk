@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Attributes;
 
 namespace ReadyM.SDK.Tests.Client.Fixtures;

@@ -1,5 +1,4 @@
-﻿using ReadyM.SDK.Server.Entity;
-using System.Reflection;
+﻿using System.Reflection;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;

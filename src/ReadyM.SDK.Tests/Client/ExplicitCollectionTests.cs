@@ -1,4 +1,4 @@
-﻿using ReadyM.SDK.Client.Entity;
+﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Tests.Client.Fixtures;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
@@ -8,7 +8,7 @@ namespace ReadyM.SDK.Tests.Client;
 /// Collections of an explicit component, reached through the methods the component already offers.
 public class ExplicitCollectionTests : ClientSdkTest
 {
-    private FrifloEntity Raw<T>(T shape) where T : struct, ReadyM.SDK.Archetypes.IArchetypeQueryable
+    private FrifloEntity Raw<T>(T shape) where T : struct, IArchetypeQueryable
         => Store.GetEntityByRawEntity(EntityHandle.Of(shape).RawEntity);
 
     [Fact]

@@ -1,4 +1,3 @@
-using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.Entity;
 using ReadyM.SDK.Tests.Server.Fixtures;
 

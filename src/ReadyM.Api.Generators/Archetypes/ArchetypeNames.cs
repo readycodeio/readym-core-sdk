@@ -33,6 +33,8 @@ internal static class ArchetypeNames
     public const string Component = "global::Friflo.Engine.ECS.IComponent";
     public const string Registry = "global::ReadyM.SDK.Archetypes.ArchetypeRegistry";
     public const string Indexed = "global::ReadyM.SDK.Archetypes.IIndexed";
+    public const string ScopeMarker = "ReadyM.SDK.Archetypes.IScope";
+    public const string Scope = "global::ReadyM.SDK.Archetypes.Scope";
     public const string IndexRegistry = "global::ReadyM.SDK.Archetypes.IndexRegistry";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
 

@@ -1,4 +1,5 @@
-﻿using ReadyM.SDK.Exceptions;
+﻿using ReadyM.Api.Multiplayer.ECS.Components;
+using ReadyM.SDK.Exceptions;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entity;
@@ -68,6 +69,24 @@ internal sealed class ClientEntityApi : IEntityApi
 
         entity = default;
         return false;
+    }
+
+    public EntityBuffer CollectInScope(RawEntity scope, ComponentSet components)
+    {
+        var target = Resolve(scope);
+        var wanted = ClientComponents.Resolve(components);
+        var links = target.GetIncomingLinks<InScopeComponent>();
+        var buffer = EntityBuffer.Rent();
+
+        for (var i = 0; i < links.Count; i++)
+        {
+            var entity = links.Entities[i];
+
+            if (entity.Archetype.ComponentTypes.HasAll(wanted))
+                buffer.Append(entity.RawEntity);
+        }
+
+        return buffer;
     }
 
     public bool HasComponents(RawEntity rawEntity, ComponentSet components)
