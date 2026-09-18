@@ -60,10 +60,10 @@ internal sealed class SaveSerializationCodec : ICSharpSerializationCodec
     }
 
     public void WriteSelf(CSharpEmitSerializeContext context)
-        => context.AppendLine($"{context.State.CurrentVar}.WriteSave(writer);");
+        => context.AppendLine($"{context.State.CurrentVar}.WriteSave(writer, context);");
 
     public void ReadSelf(CSharpEmitDeserializeContext context)
-        => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader);");
+        => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader, context);");
 
     public void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement)
     {

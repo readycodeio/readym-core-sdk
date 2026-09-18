@@ -105,16 +105,6 @@ namespace {{info.Namespace}};
 
 """);
 
-        foreach (var member in model.Members)
-        {
-            if (IsRawEntity(member.Source.Type) && !IsIgnored(member))
-            {
-                sb.AppendLine($"""
-    #error Savable member '{member.Source.Name}' is a raw Entity. Persist a cross-entity reference as a PersistentId (resolved via the guid index).
-""");
-            }
-        }
-
         if (isComponent)
         {
             sb.AppendLine($$"""
@@ -156,7 +146,7 @@ namespace {{info.Namespace}};
     private void EmitWriteSave(StringBuilder sb, DeriveTargetModel model, CSharpClassState classState)
     {
         sb.AppendLine("""
-    public void WriteSave(ISaveWriter writer)
+    public void WriteSave(ISaveWriter writer, ISaveWriteContext context)
     {
         writer.BeginObject();
 """);
@@ -173,6 +163,14 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"writer.Name(\"{SaveKey(member.Source.Name)}\");");
+
+            // A cross-entity reference.
+            if (IsRawEntity(member.Source.Type))
+            {
+                context.AppendLine($"context.WriteEntityRef(writer, {member.Source.Name});");
+                continue;
+            }
+
             context.EmitSerializeVar(member.Source.Name, member.Source.Type);
         }
 
@@ -186,7 +184,7 @@ namespace {{info.Namespace}};
     private void EmitReadSave(StringBuilder sb, DeriveTargetModel model, CSharpClassState classState)
     {
         sb.AppendLine("""
-    public void ReadSave(ISaveReader reader)
+    public void ReadSave(ISaveReader reader, ISaveReadContext context)
     {
         reader.BeginObject();
 """);
@@ -203,6 +201,14 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"reader.Name(\"{SaveKey(member.Source.Name)}\");");
+
+            // Resolve the PersistentId back to the loaded entity (default when empty or unresolved).
+            if (IsRawEntity(member.Source.Type))
+            {
+                context.AppendLine($"{member.Source.Name} = context.ReadEntityRef(reader);");
+                continue;
+            }
+
             context.EmitDeserializeVar(member.Source.Name, member.Source.Type);
         }
 
@@ -213,12 +219,10 @@ namespace {{info.Namespace}};
     }
 
     private static bool ShouldSerialize(DeriveMemberModel member)
-        => !IsIgnored(member) && !IsRawEntity(member.Source.Type);
+        => !IsIgnored(member);
 
-    // Friflo's [Ignore] marks a runtime link handled structurally, so save skips it too.
     private static bool IsIgnored(DeriveMemberModel member)
-        => AttributeUtils.HasAttribute(member.Source.Symbol, "SaveIgnoreAttribute")
-           || AttributeUtils.HasAttribute(member.Source.Symbol, "IgnoreAttribute");
+        => AttributeUtils.HasAttribute(member.Source.Symbol, "SaveIgnoreAttribute");
 
     private static bool IsRawEntity(ITypeSymbol type)
         => type.Name == "Entity" && type.ContainingNamespace?.ToDisplayString() == "Friflo.Engine.ECS";

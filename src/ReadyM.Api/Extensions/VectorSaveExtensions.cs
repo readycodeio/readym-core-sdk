@@ -5,7 +5,7 @@ namespace ReadyM.Api.Extensions;
 
 public static class VectorSaveExtensions
 {
-    public static void WriteSave(this in Vector2 vector, ISaveWriter writer)
+    public static void WriteSave(this in Vector2 vector, ISaveWriter writer, ISaveWriteContext context)
     {
         writer.BeginObject();
         writer.Name("x");
@@ -15,7 +15,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector2 vector, ISaveReader reader)
+    public static void ReadSave(this ref Vector2 vector, ISaveReader reader, ISaveReadContext context)
     {
         reader.BeginObject();
         reader.Name("x");
@@ -25,7 +25,7 @@ public static class VectorSaveExtensions
         reader.EndObject();
     }
 
-    public static void WriteSave(this in Vector3 vector, ISaveWriter writer)
+    public static void WriteSave(this in Vector3 vector, ISaveWriter writer, ISaveWriteContext context)
     {
         writer.BeginObject();
         writer.Name("x");
@@ -37,7 +37,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector3 vector, ISaveReader reader)
+    public static void ReadSave(this ref Vector3 vector, ISaveReader reader, ISaveReadContext context)
     {
         reader.BeginObject();
         reader.Name("x");
@@ -49,7 +49,7 @@ public static class VectorSaveExtensions
         reader.EndObject();
     }
 
-    public static void WriteSave(this in Vector4 vector, ISaveWriter writer)
+    public static void WriteSave(this in Vector4 vector, ISaveWriter writer, ISaveWriteContext context)
     {
         writer.BeginObject();
         writer.Name("x");
@@ -63,7 +63,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector4 vector, ISaveReader reader)
+    public static void ReadSave(this ref Vector4 vector, ISaveReader reader, ISaveReadContext context)
     {
         reader.BeginObject();
         reader.Name("x");
