@@ -1,3 +1,4 @@
+﻿using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -20,22 +21,15 @@ internal sealed class ComponentRegistry(
     private readonly GetComponentIdByNameDelegate _getComponentIdByName =
         Marshal.GetDelegateForFunctionPointer<GetComponentIdByNameDelegate>(aotPointers.GetComponentIdByName);
 
-    // Maps mod struct type → component ID assigned by the server registry.
-    private readonly Dictionary<Type, (int ComponentId, int Stride)> _registered = new();
+    // Maps mod struct type → component ID assigned by the server registry. Registration happens once
+    // at startup; resolution happens per component access, so the lookup is kept thread safe. Asking
+    // the server for the same name twice returns the same id, so a racing miss costs one extra call.
+    private readonly ConcurrentDictionary<Type, (int ComponentId, int Stride)> _registered = new();
 
-    internal int ResolveComponentId<T>() where T : struct
-    {
-        if (_registered.TryGetValue(typeof(T), out var entry))
-        {
-            // found locally
-            return entry.ComponentId;
-        }
+    internal int ResolveComponentId<T>() where T : struct => ResolveComponentId(typeof(T));
 
-        var id = _getComponentIdByName(new NativeString256(typeof(T).FullName, false));
-        _registered.Add(typeof(T), (id, -1));
-
-        return id;
-    }
+    internal int ResolveComponentId(Type type) => _registered.GetOrAdd(type, static (key, self)
+        => (self._getComponentIdByName(new NativeString256(key.FullName, false)), -1), this).ComponentId;
 
     /// <summary>
     /// Registers a mod-defined component type with the server ECS.

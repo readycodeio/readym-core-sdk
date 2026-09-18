@@ -38,7 +38,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
 
     AreaId? RequestedAreaId { get; }
 
-    /// <summary>List of cells that are requested to be set as active or a null if there is no request in progress.</summary>
+    /// List of cells that are requested to be set as active or a null if there is no request in progress.
     /// <remarks>An empty list means that a request to deactivate all cells is in progress.</remarks>
     ReadOnlyList<CellId>? RequestedActiveCells { get; }
 

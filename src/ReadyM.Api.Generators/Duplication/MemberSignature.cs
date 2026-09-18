@@ -74,7 +74,7 @@ internal static class MemberSignature
     private static string Remap(string displayString, string sourceTypeName, string targetTypeName)
         => sourceTypeName.Length == 0 ? displayString : displayString.Replace(sourceTypeName, targetTypeName);
 
-    /// <summary>Collects the signature keys and member names the target declares by hand.</summary>
+    /// Collects the signature keys and member names the target declares by hand.
     public static (HashSet<string> Signatures, HashSet<string> Names) CollectDeclared(INamedTypeSymbol target)
     {
         var signatures = new HashSet<string>();

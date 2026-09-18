@@ -1,16 +1,22 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs;
 
+/// <summary>A component heap's array, reachable without naming the element type.</summary>
+internal interface IComponentArray
+{
+    Array Components { get; }
+}
+
 /// <summary>
 /// CoreCLR-side owner of a typed component array. Exposes all mutations through delegates so
 /// write barriers always fire correctly - even for non-blittable T. The AOT relay holds the
 /// resulting AOTHeapPointers and dispatches through them; it never writes directly into the array.
 /// </summary>
-internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
+internal sealed class TypedComponentHeap<T> : IDisposable, IComponentArray where T : struct
 {
     private T[] _components;
 
@@ -37,6 +43,9 @@ internal sealed class TypedComponentHeap<T> : IDisposable where T : struct
     /// reference taken before one addresses the old array.
     /// </remarks>
     public ref T GetRef(int index) => ref _components[index];
+
+    /// Read fresh every time: a resize swaps in a new array.
+    public Array Components => _components;
 
     public TypedComponentHeap(int initialCapacity)
     {

@@ -1,0 +1,44 @@
+﻿using System.ComponentModel;
+using Friflo.Engine.ECS;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entities;
+
+namespace ReadyM.SDK.Chunks;
+
+/// <summary>
+/// The chunk-backed twin of an archetype or mixin: the same properties, reached straight off the
+/// chunk rather than by asking where the entity lives on every access.
+/// </summary>
+/// <remarks>
+/// Generated code in a mod assembly implements this, and that mod keeps running against later SDKs,
+/// so a member added here without a body would stop every already-compiled mod from loading.
+/// Anything added later must have one, static members included.
+/// </remarks>
+public interface IArchetypeChunkView<out TSelf> : IEntityShape
+    where TSelf : IArchetypeChunkView<TSelf>, allows ref struct
+{
+    /// <summary>How many slots this view consumes, so several can share one chunk's worth.</summary>
+    /// <remarks>
+    /// One slot per component, which the set already knows, so a view that does not say is not
+    /// wrong. The generator states it anyway, as a constant rather than a field read.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    static virtual int SlotCount => TSelf.Components.Count;
+
+    /// The components a query has to ask for, in the order the slots arrive in.
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    static abstract ComponentSet Components { get; }
+
+    /// <summary>Binds the view to one chunk, positioned at its first entity.</summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    static abstract TSelf Bind(
+        ReadOnlySpan<ChunkSlot> slots,
+        ReadOnlySpan<RawEntity> entities,
+        EntityHandle prototype);
+
+    /// <summary>
+    /// The same binding, moved to another entity of the same chunk.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    TSelf At(int index);
+}

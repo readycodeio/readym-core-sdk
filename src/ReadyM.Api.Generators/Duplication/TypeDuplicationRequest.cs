@@ -21,7 +21,7 @@ internal sealed class TypeDuplicationRequest(
     /// <summary>The struct whose members are copied. Must be declared in <see cref="Compilation"/>.</summary>
     public INamedTypeSymbol Source { get; } = source;
 
-    /// <summary>The name of the struct to produce.</summary>
+    /// The name of the struct to produce.
     public string TargetName { get; } = targetName;
 
     /// <summary>Namespace to produce the target in. Null means the source's namespace.</summary>
@@ -44,10 +44,10 @@ internal sealed class TypeDuplicationRequest(
     /// </summary>
     public bool Partial { get; set; } = true;
 
-    /// <summary>Member names never copied.</summary>
+    /// Member names never copied.
     public IReadOnlyCollection<string> ExcludedMemberNames { get; set; } = [];
 
-    /// <summary>Copy attributes sitting on the copied members. Off strips every attribute list.</summary>
+    /// Copy attributes sitting on the copied members. Off strips every attribute list.
     public bool CopyAttributes { get; set; } = true;
 
     /// <summary>
@@ -57,7 +57,7 @@ internal sealed class TypeDuplicationRequest(
     /// </summary>
     public bool CopyTypeAttributes { get; set; }
 
-    /// <summary>Copy XML documentation comments attached to the copied members.</summary>
+    /// Copy XML documentation comments attached to the copied members.
     public bool CopyDocumentation { get; set; } = true;
 
     /// <summary>
