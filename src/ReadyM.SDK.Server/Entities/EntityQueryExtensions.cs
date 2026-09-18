@@ -2,7 +2,7 @@
 using JetBrains.Annotations;
 using ReadyM.SDK.Archetypes;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 /// The general way to walk a query, which every shape has. A generated overload takes precedence for
 /// a shape that can be walked by chunk, because a non-generic candidate beats a generic one.

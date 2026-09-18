@@ -4,7 +4,7 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 /// Every entity of a shape. How it is walked is decided for you: a shape whose components are all
 /// known at compile time is walked by chunk, and anything else by identity. The choice is made by

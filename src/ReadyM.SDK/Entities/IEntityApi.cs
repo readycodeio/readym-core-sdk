@@ -14,8 +14,6 @@ internal interface IEntityApi
     /// <exception cref="InvalidEntityException">The entity is gone, or a running query asked for it to be.</exception>
     ComponentRef Locate(RawEntity rawEntity, int componentId);
 
-    void AddComponent<T>(RawEntity entity) where T : struct, IComponent;
-
     /// <summary>
     /// Writes the whole component and moves it in the index. A write through the reference Locate
     /// hands back cannot do that, so an indexed value has to come this way.

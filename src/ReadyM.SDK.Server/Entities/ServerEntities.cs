@@ -1,7 +1,7 @@
 ﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 internal class ServerEntities(ServerEntityApi api) : IEntities
 {

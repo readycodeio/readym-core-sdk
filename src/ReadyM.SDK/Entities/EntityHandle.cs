@@ -81,9 +81,6 @@ public readonly struct EntityHandle
         return true;
     }
 
-    public void AddComponent<T>() where T : struct, IComponent
-        => _api.AddComponent<T>(_rawEntity);
-
     /// Writes the whole component, which is what moves it in the index kept on it.
     public void ReplaceIndexed<TComponent, TKey>(in TComponent component)
         where TComponent : struct, IIndexedComponent<TKey>

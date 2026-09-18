@@ -1,5 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
@@ -13,9 +13,8 @@ using ReadyM.SDK.Entities;
 using ReadyM.SDK.Exceptions;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;
-using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 {
@@ -227,10 +226,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
         => new($"Entity {rawEntity.Id} does not carry {typeof(T).Name}.");
-
-    // TODO
-    public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-        => throw new NotSupportedException($"Cannot add {typeof(T).Name} to entity {rawEntity.Id}: the server fixes an entity's components at creation.");
 
     internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {

@@ -23,7 +23,7 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly,
         typeof(SDK.Chunks.ChunkSlot).Assembly,
         typeof(SDK.Server.Entity.IEntities).Assembly,
-        typeof(SDK.Client.Entity.IEntities).Assembly
+        typeof(SDK.Client.Entities.IEntities).Assembly
     ];
 
     private const string Declarations =
@@ -164,13 +164,15 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
         "_ = position.X + vitals.Hp + named.Label.Length + speed.Pace + wealth.Gold + mood.Spirit;")]
     public void A_query_a_mod_would_write_compiles(string half, string query, string binding, string body)
     {
+        var entities = SourceGeneratorTestHelper.EntityNamespace(half);
+
         var loop =
             $$"""
               namespace Mod;
 
               public static class Use
               {
-                  public static void Run(ReadyM.SDK.{{half}}.Entity.IEntities entities)
+                  public static void Run(ReadyM.SDK.{{half}}.{{entities}}.IEntities entities)
                   {
                       foreach (var {{binding}} in {{query}})
                           {{body}}
@@ -203,13 +205,15 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
     [InlineData("Client")]
     public void Both_halves_get_a_chunk_binding_for_a_six_shape_query(string half)
     {
+        var entities = SourceGeneratorTestHelper.EntityNamespace(half);
+
         var loop =
             $$"""
               namespace Mod;
 
               public static class Use
               {
-                  public static void Run(ReadyM.SDK.{{half}}.Entity.IEntities entities)
+                  public static void Run(ReadyM.SDK.{{half}}.{{entities}}.IEntities entities)
                   {
                       foreach (var (position, vitals, named, speed, wealth, mood)
                                in entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>())
@@ -227,7 +231,7 @@ public class GeneratorAgainstTheSdkTests(ITestOutputHelper output)
         AssertNoErrors(result.OutputDiagnostics, "the six-shape query does not compile");
 
         Assert.Contains(
-            $"this global::ReadyM.SDK.{half}.Entity.EntityQuery<",
+            $"this global::ReadyM.SDK.{half}.{SourceGeneratorTestHelper.EntityNamespace(half)}.EntityQuery<",
             Generated(result));
     }
 }

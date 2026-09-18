@@ -30,8 +30,6 @@ internal static class AccessorEmitter
 
             writer.Line();
             writer.Line($"public static bool Has(in {ArchetypeNames.EntityHandle} handle) => handle.HasComponent<{component}>();");
-            writer.Line();
-            writer.Line($"public static void Add(in {ArchetypeNames.EntityHandle} handle) => handle.AddComponent<{component}>();");
 
             foreach (var accessor in model.Accessors)
                 Members(writer, accessor, component, model.IndexedBy);

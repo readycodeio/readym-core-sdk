@@ -122,22 +122,4 @@ public class ClientDeferredDeleteTests : ClientSdkTest
 
         Assert.Equal(4, levels);
     }
-
-    /// <summary>Adding a component moves the entity between archetypes, so it is refused as well.</summary>
-    [Fact]
-    public void Adding_a_component_inside_a_query_is_refused()
-    {
-        SpawnMonsters(1);
-
-        // Written the way READYM002 forbids, deliberately: the analyzer stops this at the call
-        // site, and this checks the run time refuses it too, which is what covers a call the
-        // analyzer cannot see through.
-#pragma warning disable READYM002
-        Assert.Throws<StructuralChangeInQueryException>(() =>
-        {
-            foreach (var monster in Entities.Query<Monster>())
-                monster.Handle.AddComponent<LootComponent>();
-        });
-#pragma warning restore READYM002
-    }
 }

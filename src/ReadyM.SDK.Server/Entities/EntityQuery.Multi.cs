@@ -4,7 +4,7 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 /// Every entity carrying all 2 shapes, without an archetype that names them.
 public readonly ref struct EntityQuery<T1, T2>

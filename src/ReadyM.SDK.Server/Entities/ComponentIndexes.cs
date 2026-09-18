@@ -1,6 +1,6 @@
 ﻿using Friflo.Engine.ECS;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 /// The indexes this runtime keeps for components the relay stores but cannot index itself.
 internal sealed class ComponentIndexes

@@ -38,13 +38,6 @@ internal sealed class ClientEntityApi : IEntityApi
         return heap is null ? default : new ComponentRef(heap.ComponentArray!, node.compIndex);
     }
 
-    public void AddComponent<T>(RawEntity rawEntity) where T : struct, IComponent
-    {
-        _scope.RefuseIfInQuery($"Adding {typeof(T).Name}");
-
-        Resolve(rawEntity).AddComponent<T>();
-    }
-
     public RawEntity Create(ComponentSet components, RawEntity scope)
     {
         var holder = Resolve(scope);

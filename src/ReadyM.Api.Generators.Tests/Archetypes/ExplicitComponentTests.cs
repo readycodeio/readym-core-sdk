@@ -13,7 +13,7 @@ public class ExplicitComponentTests(ITestOutputHelper output)
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly,
         typeof(SDK.Chunks.ChunkSlot).Assembly,
         typeof(SDK.Server.Entity.IEntities).Assembly,
-        typeof(SDK.Client.Entity.IEntities).Assembly
+        typeof(SDK.Client.Entities.IEntities).Assembly
     ];
 
     private const string Core =

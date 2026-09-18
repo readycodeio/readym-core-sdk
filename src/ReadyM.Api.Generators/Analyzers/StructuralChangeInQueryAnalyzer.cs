@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -45,8 +45,9 @@ public sealed class StructuralChangeInQueryAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(Inspect, SyntaxKind.InvocationExpression);
     }
 
-    /// The calls that grow the world. Deleting is absent because a query may ask for it.
-    private static bool Grows(IMethodSymbol method) => method.Name is "Create" or "AddComponent";
+    /// The calls that grow the world. Deleting is absent because a query may ask for it, and an
+    /// entity's components are fixed at creation, so creating is the only way left to grow one.
+    private static bool Grows(IMethodSymbol method) => method.Name is "Create";
 
     private static void Inspect(SyntaxNodeAnalysisContext context)
     {

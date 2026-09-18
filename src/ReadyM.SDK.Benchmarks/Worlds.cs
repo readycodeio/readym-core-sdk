@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using ReadyM.Api.Multiplayer.Interop;
-using ReadyM.SDK.Server.Entity;
+using ReadyM.SDK.Server.Entities;
 using ReadyM.SDK.TestHarness;
 
 namespace ReadyM.SDK.Benchmarks;
@@ -23,7 +23,7 @@ public abstract class ServerWorld
     public int Entities { get; set; }
 
     internal FakeRelay Relay = null!;
-    internal Server.Entity.IEntities Sdk = null!;
+    internal IEntities Sdk = null!;
 
 
     private QueryDelegate _query = null!;

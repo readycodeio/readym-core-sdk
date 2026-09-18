@@ -1,8 +1,7 @@
-﻿using System;
-using ReadyM.SDK.Archetypes;
+﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Server.Entities;
 
 /// Every entity a scope holds that carries all 2 shapes. Walked by identity: a scope's entities
 /// are scattered through the archetypes they belong to, so there are no chunks to hand back.

@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using Microsoft.CodeAnalysis;
 using ReadyM.Api.Generators.Analyzers;
 using ReadyM.Api.Generators.Archetypes;
@@ -21,7 +21,7 @@ public class StructuralChangeInQueryAnalyzerTests(ITestOutputHelper output)
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly,
         typeof(SDK.Chunks.ChunkSlot).Assembly,
         typeof(SDK.Server.Entity.IEntities).Assembly,
-        typeof(SDK.Client.Entity.IEntities).Assembly
+        typeof(SDK.Client.Entities.IEntities).Assembly
     ];
 
     private const string Declarations =
@@ -54,13 +54,15 @@ public class StructuralChangeInQueryAnalyzerTests(ITestOutputHelper output)
     /// <param name="body">Statements in a method holding a half's IEntities, named 'entities'.</param>
     private Diagnostic[] Report(string body, string half = "Server")
     {
+        var entities = SourceGeneratorTestHelper.EntityNamespace(half);
+
         var use =
             $$"""
               namespace Mod;
 
               public static class Use
               {
-                  public static void Run(ReadyM.SDK.{{half}}.Entity.IEntities entities)
+                  public static void Run(ReadyM.SDK.{{half}}.{{entities}}.IEntities entities)
                   {
               {{body}}
                   }
@@ -102,13 +104,6 @@ public class StructuralChangeInQueryAnalyzerTests(ITestOutputHelper output)
         => AssertReported("""
                                   foreach (var (position, vitals) in entities.Query<Position, Vitals>())
                                       entities.Create<Npc>();
-                          """);
-
-    [Fact]
-    public void Adding_a_component_inside_a_query_loop_is_an_error()
-        => AssertReported("""
-                                  foreach (var npc in entities.Query<Npc>())
-                                      npc.Handle.AddComponent<PositionComponent>();
                           """);
 
     [Fact]

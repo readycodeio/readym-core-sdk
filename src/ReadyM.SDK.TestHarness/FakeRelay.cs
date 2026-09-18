@@ -7,7 +7,7 @@ using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Api.Idents;
 using ReadyM.Relay.Server.Sdk.Interop;
-using ReadyM.SDK.Server.Entity;
+using ReadyM.SDK.Server.Entities;
 using Yooni.Native.Container;
 
 namespace ReadyM.SDK.TestHarness;
