@@ -1,4 +1,4 @@
-﻿using ReadyM.SDK.Entity;
+﻿using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Chunks;
 
@@ -6,15 +6,15 @@ namespace ReadyM.SDK.Chunks;
 public readonly ref struct ChunkQuery<TView>
     where TView : IArchetypeChunkView<TView>, allows ref struct
 {
-    private readonly IChunkSource _source;
+    private readonly IChunkSource? _source;
 
-    internal ChunkQuery(IChunkSource source) => _source = source;
+    internal ChunkQuery(IChunkSource? source) => _source = source;
 
     public Enumerator GetEnumerator() => new(_source);
 
     public ref struct Enumerator
     {
-        private readonly ChunkBuffer _buffer;
+        private readonly ChunkBuffer? _buffer;
         private readonly EntityHandle _prototype;
 
         private TView _chunk;
@@ -22,10 +22,23 @@ public readonly ref struct ChunkQuery<TView>
         private int _index;
         private int _count;
 
-        private readonly IChunkSource _source;
+        private readonly IChunkSource? _source;
 
-        internal Enumerator(IChunkSource source)
+        internal Enumerator(IChunkSource? source)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out when
+            // there is nothing to look in.
+            if (source is null)
+            {
+                _source = null;
+                _buffer = null;
+                _chunk = default!;
+                _chunkIndex = 0;
+                _index = 0;
+                _count = 0;
+                return;
+            }
+
             source.EnterQuery();
 
             _source = source;
@@ -42,6 +55,9 @@ public readonly ref struct ChunkQuery<TView>
         /// Walks entities within a chunk, and binds the next chunk when one runs out.
         public bool MoveNext()
         {
+            if (_buffer is null)
+                return false;
+
             while (++_index >= _count)
             {
                 if (++_chunkIndex >= _buffer.ChunkCount)
@@ -57,8 +73,11 @@ public readonly ref struct ChunkQuery<TView>
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _source.LeaveQuery();
+            _source!.LeaveQuery();
         }
     }
 }

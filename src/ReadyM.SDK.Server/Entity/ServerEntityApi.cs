@@ -9,7 +9,7 @@ using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Exceptions;
 using Yooni.Native.Container;
 using Yooni.Native.LowLevel;

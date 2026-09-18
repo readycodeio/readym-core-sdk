@@ -2,9 +2,10 @@
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Client.Entities;
+using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Chunks;
 
 /// <summary>
 /// Finds the chunks a shape matches by walking the store, which is what the client has instead of an

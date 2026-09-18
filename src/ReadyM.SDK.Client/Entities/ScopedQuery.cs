@@ -1,23 +1,22 @@
-﻿using System;
-using ReadyM.SDK.Archetypes;
+﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 /// Every entity a scope holds that carries the shape. Walked by identity: a scope's entities are
 /// scattered through the archetypes they belong to, so there are no chunks to hand back.
-public readonly ref struct ScopedQuery<T> where T : struct, IArchetypeQueryable
+public readonly struct ScopedQuery<T> where T : struct, IArchetypeQueryable
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
     private readonly Scope _scope;
 
-    internal ScopedQuery(ServerEntityApi? api, Scope scope)
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
         _api = api;
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
 
     public struct Enumerator : IDisposable
     {

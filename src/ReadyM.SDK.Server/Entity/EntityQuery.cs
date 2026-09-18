@@ -2,7 +2,7 @@
 using JetBrains.Annotations;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Server.Entity;
 
@@ -13,7 +13,7 @@ namespace ReadyM.SDK.Server.Entity;
 public readonly ref struct EntityQuery<T>
     where T : struct, IArchetypeQueryable
 {
-    private readonly ServerEntityApi _api;
+    private readonly ServerEntityApi? _api;
 
     private static ComponentSet Components => default(T).Components;
 
@@ -32,26 +32,25 @@ public readonly ref struct EntityQuery<T>
     /// Narrows the query to the entities one scope holds.
     public ScopedQuery<T> InScope(Scope scope) => new(_api, scope);
 
-    /// Runs a body over every entity, walking identities so it may change the world.
-    public void ForEach(Action<T> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-            body(entities.Current);
-
-        entities.Dispose();
-    }
-
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly ServerEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly ServerEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi api, ComponentSet components)
+        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (api is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             // Collected before the scope opens, so a failure here cannot leave one open.
             _buffer = api.CollectMatching(components);
 
@@ -61,14 +60,17 @@ public readonly ref struct EntityQuery<T>
             _index = -1;
         }
 
-        public readonly T Current => new() { Handle = new EntityHandle(_buffer[_index], _api) };
+        public readonly T Current => new() { Handle = new EntityHandle(_buffer![_index], _api!) };
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }

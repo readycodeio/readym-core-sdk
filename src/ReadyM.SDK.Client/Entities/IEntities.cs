@@ -1,7 +1,7 @@
-﻿using ReadyM.SDK.Entity;
-using ReadyM.SDK.Archetypes;
+﻿using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 public interface IEntities
 {
@@ -32,6 +32,7 @@ public interface IEntities
     /// The same, by handle. What a loop walking chunks uses, since a view cannot be a type argument.
     /// </summary>
     bool Delete(EntityHandle handle);
+
     /// Every entity carrying all 2 shapes, walked the same way a single one is.
     EntityQuery<T1, T2> Query<T1, T2>()
         where T1 : struct, IArchetypeQueryable

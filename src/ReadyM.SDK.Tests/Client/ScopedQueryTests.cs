@@ -1,6 +1,6 @@
 ﻿using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
 
@@ -150,7 +150,10 @@ public class ScopedQueryTests : ClientSdkTest
 
         var visited = 0;
 
-        Entities.Query<Guard>().InScope(north).ForEach(_ => visited++);
+        foreach (var _ in Entities.Query<Guard>().InScope(north))
+        {
+            visited++;
+        }
 
         Assert.Equal(2, visited);
     }
@@ -234,5 +237,79 @@ public class ScopedQueryTests : ClientSdkTest
             count++;
 
         return count;
+    }
+
+    // -- every width a query goes to ---------------------------------------------------------------
+
+    [Fact]
+    public void Two_shapes_can_be_scoped()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north).Route = 3;
+        Spawn<Guard>(Area(2)).Route = 9;
+
+        var routes = 0;
+
+        foreach (var (health, patrol) in Entities.Query<Health, Patrol>().InScope(north))
+        {
+            routes += patrol.Route;
+            _ = health.Hp;
+        }
+
+        Assert.Equal(3, routes);
+    }
+
+    [Fact]
+    public void A_scoped_multi_shape_query_still_needs_every_shape()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north);
+        Spawn<Critter>(north);
+
+        var count = 0;
+
+        foreach (var (_, _) in Entities.Query<Health, Patrol>().InScope(north))
+            count++;
+
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void A_default_multi_shape_scoped_query_visits_nothing()
+    {
+        var count = 0;
+
+        foreach (var (_, _) in Entities.Query<Health, Patrol>().InScope(default))
+            count++;
+
+        Assert.Equal(0, count);
+    }
+
+    /// Deleting inside a scoped loop over several shapes is held until it ends, the same as any
+    /// other query, which is what says the loop opened a query scope and closed it again.
+    [Fact]
+    public void A_delete_inside_a_scoped_multi_shape_query_is_held()
+    {
+        var north = Area(1);
+        var first = Spawn<Guard>(north);
+        var second = Spawn<Guard>(north);
+        var visited = 0;
+
+        foreach (var (health, _) in Entities.Query<Health, Patrol>().InScope(north))
+        {
+            Assert.True(Entities.Delete(health));
+
+            // Still in the store: the loop is walking it, so the removal waits for the end.
+            Assert.False(Store.GetEntityByRawEntity(EntityHandle.Of(first).RawEntity).IsNull);
+            Assert.False(Store.GetEntityByRawEntity(EntityHandle.Of(second).RawEntity).IsNull);
+
+            visited++;
+        }
+
+        Assert.Equal(2, visited);
+        Assert.True(Store.GetEntityByRawEntity(EntityHandle.Of(first).RawEntity).IsNull);
+        Assert.True(Store.GetEntityByRawEntity(EntityHandle.Of(second).RawEntity).IsNull);
     }
 }

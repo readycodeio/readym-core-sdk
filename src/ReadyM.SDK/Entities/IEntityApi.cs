@@ -1,9 +1,9 @@
-﻿using ReadyM.SDK.Exceptions;
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 internal interface IEntityApi
 {

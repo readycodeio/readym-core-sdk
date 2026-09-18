@@ -1,5 +1,5 @@
-﻿using ReadyM.SDK.Client.Entity;
-using ReadyM.SDK.Entity;
+﻿using ReadyM.SDK.Client.Entities;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
 

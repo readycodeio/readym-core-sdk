@@ -1,4 +1,4 @@
-using ReadyM.SDK.Client.Entity;
+using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 using ReadyM.SDK.Tests.ExternalMod;
 

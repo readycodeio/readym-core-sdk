@@ -1,5 +1,5 @@
 using ReadyM.SDK.Attributes;
-using ReadyM.SDK.Client.Entity;
+using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Tests.Examples.Declarations;
 
 namespace ReadyM.SDK.Tests.Examples;
@@ -55,9 +55,7 @@ public partial class Regeneration(IEntities entities)
                 c.Hp += 1f;
             }
         }
-
-        entities.Query<MainCharacter>().ForEach(npc => npc.Hp = npc.MaxHp);
-
+        
         foreach (var npc in entities.Query<Npc>())
         {
             if (npc.Hp <= 0f)
@@ -65,9 +63,7 @@ public partial class Regeneration(IEntities entities)
                 npc.Hp = 0f;
             }
         }
-
-        entities.Query<Npc>().ForEach(npc => npc.Hp = npc.MaxHp);
-
+        
         foreach (var (vitals, eq) in entities.Query<Vitals, Equipment>())
         {
             if (vitals.Hp <= 0f)
@@ -75,13 +71,5 @@ public partial class Regeneration(IEntities entities)
                 eq.Weapon = "spear";
             }
         }
-
-        entities.Query<Vitals, Equipment>().ForEach((vitals, eq) =>
-        {
-            if (vitals.Hp <= 0f)
-            {
-                eq.Weapon = "maul";
-            }
-        });
     }
 }

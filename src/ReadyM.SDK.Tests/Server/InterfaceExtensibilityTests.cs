@@ -2,7 +2,7 @@
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 using Position = ReadyM.SDK.Tests.Server.Fixtures.Position;
 

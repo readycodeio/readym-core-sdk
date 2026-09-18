@@ -5,7 +5,7 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 /// <summary>
 /// What an archetype or mixin struct holds: which entity it is, and how to reach its components.

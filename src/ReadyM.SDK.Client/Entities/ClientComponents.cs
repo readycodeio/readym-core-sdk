@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 /// <summary>
 /// Resolves a <see cref="ComponentSet"/> to the store's own component identity.

@@ -1,6 +1,6 @@
 ﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Server.Entity;
 using ReadyM.SDK.TestHarness;
 using ReadyM.SDK.Tests.Server.Fixtures;

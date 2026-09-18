@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Client.Entity;
+using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;

@@ -1,6 +1,5 @@
 ﻿using ReadyM.SDK.Exceptions;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;
@@ -238,5 +237,116 @@ public class ServerScopedQueryTests : ServerSdkTest
             count++;
 
         return count;
+    }
+
+    // -- every width a query goes to ---------------------------------------------------------------
+
+    [Fact]
+    public void Two_shapes_can_be_scoped()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north).Route = 3;
+        Spawn<Guard>(Area(2)).Route = 9;
+
+        var routes = 0;
+        var visited = 0;
+
+        foreach (var (position, patrol) in Entities.Query<Position, Patrol>().InScope(north))
+        {
+            routes += patrol.Route;
+            _ = position.X;
+            visited++;
+        }
+
+        Assert.Equal(1, visited);
+        Assert.Equal(3, routes);
+    }
+
+    /// The widest a query goes, narrowed to one scope.
+    [Fact]
+    public void Six_shapes_can_be_scoped()
+    {
+        var north = Area(1);
+        var adventurer = Spawn<Adventurer>(north);
+
+        adventurer.X = 1f;
+        adventurer.Hp = 2;
+        adventurer.Label = "three";
+        adventurer.Pace = 4f;
+        adventurer.Gold = 5;
+        adventurer.Spirit = 6f;
+
+        Spawn<Adventurer>(Area(2));
+
+        var visited = 0;
+
+        foreach (var (position, vitals, named, speed, wealth, mood)
+                 in Entities.Query<Position, Vitals, Named, Speed, Wealth, Mood>().InScope(north))
+        {
+            Assert.Equal(1f, position.X);
+            Assert.Equal(2, vitals.Hp);
+            Assert.Equal("three", named.Label);
+            Assert.Equal(4f, speed.Pace);
+            Assert.Equal(5, wealth.Gold);
+            Assert.Equal(6f, mood.Spirit);
+            visited++;
+        }
+
+        Assert.Equal(1, visited);
+    }
+
+    /// An entity in the scope missing one of the shapes is not visited.
+    [Fact]
+    public void A_scoped_multi_shape_query_still_needs_every_shape()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north);
+        Spawn<Npc>(north);
+
+        var count = 0;
+
+        foreach (var (_, _) in Entities.Query<Position, Patrol>().InScope(north))
+            count++;
+
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void A_default_multi_shape_scoped_query_visits_nothing()
+    {
+        var count = 0;
+
+        foreach (var (_, _) in Entities.Query<Position, Patrol>().InScope(default))
+            count++;
+
+        Assert.Equal(0, count);
+    }
+
+    /// Deleting inside a scoped loop over several shapes is held until it ends, the same as any
+    /// other query, which is what says the loop opened a query scope and closed it again.
+    [Fact]
+    public void A_delete_inside_a_scoped_multi_shape_query_is_held()
+    {
+        var north = Area(1);
+
+        Spawn<Guard>(north);
+        Spawn<Guard>(north);
+        Relay.ResetCounters();
+
+        var visited = 0;
+
+        foreach (var (position, _) in Entities.Query<Position, Patrol>().InScope(north))
+        {
+            Assert.True(Entities.Delete(position));
+
+            Assert.Equal(0, Relay.DeleteCalls);
+
+            visited++;
+        }
+
+        Assert.Equal(2, visited);
+        Assert.Equal(2, Relay.DeleteCalls);
     }
 }

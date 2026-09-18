@@ -2,19 +2,19 @@
 using Friflo.Engine.ECS;
 using JetBrains.Annotations;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 #if NET
 using ReadyM.SDK.Chunks;
 #endif
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 /// Every entity carrying all 2 shapes, without an archetype that names them.
 public readonly struct EntityQuery<T1, T2>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
 {
-    private readonly ClientEntityContext _context;
+    private readonly ClientEntityContext? _context;
 
     private static readonly ComponentTypes Components = new()
     {
@@ -28,36 +28,36 @@ public readonly struct EntityQuery<T1, T2>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_context, Components);
 
-    public void ForEach(Action<T1, T2> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-        {
-            var (c1, c2) = entities.Current;
-            body(c1, c2);
-        }
-
-        entities.Dispose();
-    }
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T1, T2> InScope(Scope scope) => new(_context, scope);
 
 #if NET
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+        => new ChunkQuery<TView>(_context?.ChunkSource).GetEnumerator();
 #endif
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly IEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly IEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
+        internal IdentityEnumerator(ClientEntityContext? context, ComponentTypes components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (context is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
             context.Api.EnterQuery();
@@ -70,7 +70,7 @@ public readonly struct EntityQuery<T1, T2>
         {
             get
             {
-                var handle = new EntityHandle(_buffer[_index], _api);
+                var handle = new EntityHandle(_buffer![_index], _api!);
 
                 return (
                     new T1 { Handle = handle },
@@ -78,12 +78,15 @@ public readonly struct EntityQuery<T1, T2>
             }
         }
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }
@@ -94,7 +97,7 @@ public readonly struct EntityQuery<T1, T2, T3>
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
 {
-    private readonly ClientEntityContext _context;
+    private readonly ClientEntityContext? _context;
 
     private static readonly ComponentTypes Components = new()
     {
@@ -109,36 +112,36 @@ public readonly struct EntityQuery<T1, T2, T3>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_context, Components);
 
-    public void ForEach(Action<T1, T2, T3> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-        {
-            var (c1, c2, c3) = entities.Current;
-            body(c1, c2, c3);
-        }
-
-        entities.Dispose();
-    }
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T1, T2, T3> InScope(Scope scope) => new(_context, scope);
 
 #if NET
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+        => new ChunkQuery<TView>(_context?.ChunkSource).GetEnumerator();
 #endif
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly IEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly IEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
+        internal IdentityEnumerator(ClientEntityContext? context, ComponentTypes components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (context is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
             context.Api.EnterQuery();
@@ -151,7 +154,7 @@ public readonly struct EntityQuery<T1, T2, T3>
         {
             get
             {
-                var handle = new EntityHandle(_buffer[_index], _api);
+                var handle = new EntityHandle(_buffer![_index], _api!);
 
                 return (
                     new T1 { Handle = handle },
@@ -160,12 +163,15 @@ public readonly struct EntityQuery<T1, T2, T3>
             }
         }
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }
@@ -177,7 +183,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4>
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
 {
-    private readonly ClientEntityContext _context;
+    private readonly ClientEntityContext? _context;
 
     private static readonly ComponentTypes Components = new()
     {
@@ -193,36 +199,36 @@ public readonly struct EntityQuery<T1, T2, T3, T4>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_context, Components);
 
-    public void ForEach(Action<T1, T2, T3, T4> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-        {
-            var (c1, c2, c3, c4) = entities.Current;
-            body(c1, c2, c3, c4);
-        }
-
-        entities.Dispose();
-    }
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T1, T2, T3, T4> InScope(Scope scope) => new(_context, scope);
 
 #if NET
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+        => new ChunkQuery<TView>(_context?.ChunkSource).GetEnumerator();
 #endif
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly IEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly IEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
+        internal IdentityEnumerator(ClientEntityContext? context, ComponentTypes components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (context is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
             context.Api.EnterQuery();
@@ -235,7 +241,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4>
         {
             get
             {
-                var handle = new EntityHandle(_buffer[_index], _api);
+                var handle = new EntityHandle(_buffer![_index], _api!);
 
                 return (
                     new T1 { Handle = handle },
@@ -245,12 +251,15 @@ public readonly struct EntityQuery<T1, T2, T3, T4>
             }
         }
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }
@@ -263,7 +272,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5>
     where T4 : struct, IArchetypeMixin
     where T5 : struct, IArchetypeMixin
 {
-    private readonly ClientEntityContext _context;
+    private readonly ClientEntityContext? _context;
 
     private static readonly ComponentTypes Components = new()
     {
@@ -280,36 +289,36 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_context, Components);
 
-    public void ForEach(Action<T1, T2, T3, T4, T5> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-        {
-            var (c1, c2, c3, c4, c5) = entities.Current;
-            body(c1, c2, c3, c4, c5);
-        }
-
-        entities.Dispose();
-    }
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T1, T2, T3, T4, T5> InScope(Scope scope) => new(_context, scope);
 
 #if NET
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+        => new ChunkQuery<TView>(_context?.ChunkSource).GetEnumerator();
 #endif
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly IEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly IEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
+        internal IdentityEnumerator(ClientEntityContext? context, ComponentTypes components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (context is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
             context.Api.EnterQuery();
@@ -322,7 +331,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5>
         {
             get
             {
-                var handle = new EntityHandle(_buffer[_index], _api);
+                var handle = new EntityHandle(_buffer![_index], _api!);
 
                 return (
                     new T1 { Handle = handle },
@@ -333,12 +342,15 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5>
             }
         }
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }
@@ -352,7 +364,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5, T6>
     where T5 : struct, IArchetypeMixin
     where T6 : struct, IArchetypeMixin
 {
-    private readonly ClientEntityContext _context;
+    private readonly ClientEntityContext? _context;
 
     private static readonly ComponentTypes Components = new()
     {
@@ -370,36 +382,36 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5, T6>
     [MustDisposeResource]
     public IdentityEnumerator Identities() => new(_context, Components);
 
-    public void ForEach(Action<T1, T2, T3, T4, T5, T6> body)
-    {
-        var entities = Identities();
-
-        while (entities.MoveNext())
-        {
-            var (c1, c2, c3, c4, c5, c6) = entities.Current;
-            body(c1, c2, c3, c4, c5, c6);
-        }
-
-        entities.Dispose();
-    }
+    /// Narrows the query to the entities one scope holds.
+    public ScopedQuery<T1, T2, T3, T4, T5, T6> InScope(Scope scope) => new(_context, scope);
 
 #if NET
     [EditorBrowsable(EditorBrowsableState.Never)]
     [MustDisposeResource]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_context.ChunkSource).GetEnumerator();
+        => new ChunkQuery<TView>(_context?.ChunkSource).GetEnumerator();
 #endif
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct IdentityEnumerator : IDisposable
     {
-        private readonly IEntityApi _api;
-        private readonly EntityBuffer _buffer;
+        private readonly IEntityApi? _api;
+        private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ClientEntityContext context, ComponentTypes components)
+        internal IdentityEnumerator(ClientEntityContext? context, ComponentTypes components)
         {
+            // A query nobody gave a world to matches nothing, so a property can hand one out
+            // when there is nothing to look in.
+            if (context is null)
+            {
+                _api = null;
+                _buffer = null;
+                _index = -1;
+                return;
+            }
+
             _buffer = EntityBuffer.Fill(context.Store.Query(new QueryFilter().AllComponents(components)));
 
             context.Api.EnterQuery();
@@ -412,7 +424,7 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5, T6>
         {
             get
             {
-                var handle = new EntityHandle(_buffer[_index], _api);
+                var handle = new EntityHandle(_buffer![_index], _api!);
 
                 return (
                     new T1 { Handle = handle },
@@ -424,12 +436,15 @@ public readonly struct EntityQuery<T1, T2, T3, T4, T5, T6>
             }
         }
 
-        public bool MoveNext() => ++_index < _buffer.Count;
+        public bool MoveNext() => _buffer is not null && ++_index < _buffer.Count;
 
         public readonly void Dispose()
         {
+            if (_buffer is null)
+                return;
+
             _buffer.Return();
-            _api.LeaveQuery();
+            _api!.LeaveQuery();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using ReadyM.SDK.Client.Entity;
+﻿using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;
@@ -92,7 +93,7 @@ public class ExtendedMemberTests : ClientSdkTest
         }
     }
 
-    private static ReadyM.SDK.Entity.EntityHandle EntityHandleOf<T>(T shape)
-        where T : struct, ReadyM.SDK.Archetypes.IArchetypeQueryable
-        => ReadyM.SDK.Entity.EntityHandle.Of(shape);
+    private static EntityHandle EntityHandleOf<T>(T shape)
+        where T : struct, IArchetypeQueryable
+        => EntityHandle.Of(shape);
 }

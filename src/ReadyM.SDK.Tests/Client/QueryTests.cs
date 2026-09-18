@@ -105,7 +105,10 @@ public class QueryTests : ClientSdkTest
         SpawnMonster(level: 2);
 
         var levels = new List<int>();
-        Entities.Query<Monster>().ForEach(monster => levels.Add(monster.Level));
+        foreach (var monster in Entities.Query<Monster>())
+        {
+            levels.Add(monster.Level);
+        }
 
         levels.Sort();
         Assert.Equal([1, 2], levels);

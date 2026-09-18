@@ -24,7 +24,7 @@ internal static class ArchetypeNames
     public const string ExtendsAttribute = Namespace + ".ExtendsAttribute";
     public const string IndexAttribute = Namespace + ".IndexAttribute";
 
-    public const string EntityHandle = "global::ReadyM.SDK.Entity.EntityHandle";
+    public const string EntityHandle = "global::ReadyM.SDK.Entities.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";
     public const string Queryable = "global::ReadyM.SDK.Archetypes.IArchetypeQueryable";
     public const string Shape = "global::ReadyM.SDK.Archetypes.IEntityShape";

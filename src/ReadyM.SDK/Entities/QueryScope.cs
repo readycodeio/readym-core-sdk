@@ -1,8 +1,8 @@
-using ReadyM.SDK.Exceptions;
 using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
+using ReadyM.SDK.Exceptions;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 /// Collects entity deletions during a query, so they can be deferred to after the query ends.
 /// <remarks>

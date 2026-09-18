@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Chunks;
 

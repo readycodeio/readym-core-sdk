@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 /// <summary>
 /// Reference to a single component instance.

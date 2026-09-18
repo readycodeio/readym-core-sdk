@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using IComponent = Friflo.Engine.ECS.IComponent;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 /// Static cache for resolving component IDs.
 internal static class ComponentIds<T> where T : struct, IComponent

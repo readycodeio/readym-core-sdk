@@ -1,6 +1,6 @@
 using Friflo.Engine.ECS;
 
-namespace ReadyM.SDK.Entity;
+namespace ReadyM.SDK.Entities;
 
 /// The entities a query matched when the loop started.
 /// <remarks>

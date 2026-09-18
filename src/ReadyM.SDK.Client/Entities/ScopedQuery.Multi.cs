@@ -1,48 +1,39 @@
-﻿using System.ComponentModel;
-using JetBrains.Annotations;
-using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Chunks;
+﻿using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
-namespace ReadyM.SDK.Server.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
-/// Every entity carrying all 2 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2>
+/// Every entity a scope holds that carries all 2 shapes. Walked by identity: a scope's entities
+/// are scattered through the archetypes they belong to, so there are no chunks to hand back.
+public readonly struct ScopedQuery<T1, T2>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
+    private readonly Scope _scope;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components);
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Narrows the query to the entities one scope holds.
-    public ScopedQuery<T1, T2> InScope(Scope scope) => new(_api, scope);
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct IdentityEnumerator : IDisposable
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
-        private readonly ServerEntityApi? _api;
+        _api = api;
+        _scope = scope;
+    }
+
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
+
+    public struct Enumerator : IDisposable
+    {
+        private readonly IEntityApi? _api;
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
+        internal Enumerator(IEntityApi? api, Scope scope)
         {
-            // A query nobody gave a world to matches nothing, so a property can hand one out
-            // when there is nothing to look in.
-            if (api is null)
+            // Nothing to look in, or no scope to look at: either way this matches nothing, so a
+            // property can hand one out when there is no current scope.
+            if (api is null || scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -50,8 +41,7 @@ public readonly ref struct EntityQuery<T1, T2>
                 return;
             }
 
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
 
             api.EnterQuery();
 
@@ -84,44 +74,38 @@ public readonly ref struct EntityQuery<T1, T2>
     }
 }
 
-/// Every entity carrying all 3 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3>
+/// Every entity a scope holds that carries all 3 shapes. Walked by identity: a scope's entities
+/// are scattered through the archetypes they belong to, so there are no chunks to hand back.
+public readonly struct ScopedQuery<T1, T2, T3>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
+    private readonly Scope _scope;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components);
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Narrows the query to the entities one scope holds.
-    public ScopedQuery<T1, T2, T3> InScope(Scope scope) => new(_api, scope);
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct IdentityEnumerator : IDisposable
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
-        private readonly ServerEntityApi? _api;
+        _api = api;
+        _scope = scope;
+    }
+
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
+
+    public struct Enumerator : IDisposable
+    {
+        private readonly IEntityApi? _api;
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
+        internal Enumerator(IEntityApi? api, Scope scope)
         {
-            // A query nobody gave a world to matches nothing, so a property can hand one out
-            // when there is nothing to look in.
-            if (api is null)
+            // Nothing to look in, or no scope to look at: either way this matches nothing, so a
+            // property can hand one out when there is no current scope.
+            if (api is null || scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -129,8 +113,7 @@ public readonly ref struct EntityQuery<T1, T2, T3>
                 return;
             }
 
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
 
             api.EnterQuery();
 
@@ -164,45 +147,39 @@ public readonly ref struct EntityQuery<T1, T2, T3>
     }
 }
 
-/// Every entity carrying all 4 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4>
+/// Every entity a scope holds that carries all 4 shapes. Walked by identity: a scope's entities
+/// are scattered through the archetypes they belong to, so there are no chunks to hand back.
+public readonly struct ScopedQuery<T1, T2, T3, T4>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
+    private readonly Scope _scope;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components);
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Narrows the query to the entities one scope holds.
-    public ScopedQuery<T1, T2, T3, T4> InScope(Scope scope) => new(_api, scope);
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct IdentityEnumerator : IDisposable
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
-        private readonly ServerEntityApi? _api;
+        _api = api;
+        _scope = scope;
+    }
+
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
+
+    public struct Enumerator : IDisposable
+    {
+        private readonly IEntityApi? _api;
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
+        internal Enumerator(IEntityApi? api, Scope scope)
         {
-            // A query nobody gave a world to matches nothing, so a property can hand one out
-            // when there is nothing to look in.
-            if (api is null)
+            // Nothing to look in, or no scope to look at: either way this matches nothing, so a
+            // property can hand one out when there is no current scope.
+            if (api is null || scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -210,8 +187,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
                 return;
             }
 
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
 
             api.EnterQuery();
 
@@ -246,46 +222,40 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
     }
 }
 
-/// Every entity carrying all 5 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
+/// Every entity a scope holds that carries all 5 shapes. Walked by identity: a scope's entities
+/// are scattered through the archetypes they belong to, so there are no chunks to hand back.
+public readonly struct ScopedQuery<T1, T2, T3, T4, T5>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
     where T4 : struct, IArchetypeMixin
     where T5 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
+    private readonly Scope _scope;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components);
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Narrows the query to the entities one scope holds.
-    public ScopedQuery<T1, T2, T3, T4, T5> InScope(Scope scope) => new(_api, scope);
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct IdentityEnumerator : IDisposable
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
-        private readonly ServerEntityApi? _api;
+        _api = api;
+        _scope = scope;
+    }
+
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
+
+    public struct Enumerator : IDisposable
+    {
+        private readonly IEntityApi? _api;
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
+        internal Enumerator(IEntityApi? api, Scope scope)
         {
-            // A query nobody gave a world to matches nothing, so a property can hand one out
-            // when there is nothing to look in.
-            if (api is null)
+            // Nothing to look in, or no scope to look at: either way this matches nothing, so a
+            // property can hand one out when there is no current scope.
+            if (api is null || scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -293,8 +263,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
                 return;
             }
 
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
 
             api.EnterQuery();
 
@@ -330,8 +299,9 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
     }
 }
 
-/// Every entity carrying all 6 shapes, without an archetype that names them.
-public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
+/// Every entity a scope holds that carries all 6 shapes. Walked by identity: a scope's entities
+/// are scattered through the archetypes they belong to, so there are no chunks to hand back.
+public readonly struct ScopedQuery<T1, T2, T3, T4, T5, T6>
     where T1 : struct, IArchetypeQueryable
     where T2 : struct, IArchetypeMixin
     where T3 : struct, IArchetypeMixin
@@ -339,38 +309,31 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
     where T5 : struct, IArchetypeMixin
     where T6 : struct, IArchetypeMixin
 {
-    private readonly ServerEntityApi? _api;
+    private readonly ClientEntityContext? _api;
+    private readonly Scope _scope;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components, default(T6).Components);
 
-    internal EntityQuery(ServerEntityApi api) => _api = api;
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public ChunkQuery<TView>.Enumerator Chunks<TView>()
-        where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api).GetEnumerator();
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [MustDisposeResource]
-    public IdentityEnumerator Identities() => new(_api, Components);
-
-    /// Narrows the query to the entities one scope holds.
-    public ScopedQuery<T1, T2, T3, T4, T5, T6> InScope(Scope scope) => new(_api, scope);
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct IdentityEnumerator : IDisposable
+    internal ScopedQuery(ClientEntityContext? api, Scope scope)
     {
-        private readonly ServerEntityApi? _api;
+        _api = api;
+        _scope = scope;
+    }
+
+    public Enumerator GetEnumerator() => new(_api?.Api, _scope);
+
+    public struct Enumerator : IDisposable
+    {
+        private readonly IEntityApi? _api;
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
+        internal Enumerator(IEntityApi? api, Scope scope)
         {
-            // A query nobody gave a world to matches nothing, so a property can hand one out
-            // when there is nothing to look in.
-            if (api is null)
+            // Nothing to look in, or no scope to look at: either way this matches nothing, so a
+            // property can hand one out when there is no current scope.
+            if (api is null || scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -378,8 +341,7 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
                 return;
             }
 
-            // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components);
+            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
 
             api.EnterQuery();
 

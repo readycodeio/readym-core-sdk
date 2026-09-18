@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;
@@ -69,7 +70,7 @@ public class GeneratedShapesTests : ClientSdkTest
 
         var area = Entities.Create<CoreArea>();
 
-        Assert.True(ReadyM.SDK.Entity.EntityHandle.Of(area).Is<Weather>());
+        Assert.True(EntityHandle.Of(area).Is<Weather>());
         Assert.True(Entities.TryLookup<Station, int>(SpawnStation(7), out _));
     }
 

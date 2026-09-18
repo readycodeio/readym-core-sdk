@@ -1,10 +1,10 @@
-﻿using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.SDK.Exceptions;
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
+using ReadyM.SDK.Exceptions;
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 internal sealed class ClientEntityApi : IEntityApi
 {
@@ -138,7 +138,7 @@ internal sealed class ClientEntityApi : IEntityApi
             entity.DeleteEntity();
     }
 
-    private Friflo.Engine.ECS.Entity Resolve(RawEntity rawEntity)
+    private Entity Resolve(RawEntity rawEntity)
     {
         if (_scope.IsPending(rawEntity))
             throw new InvalidEntityException();

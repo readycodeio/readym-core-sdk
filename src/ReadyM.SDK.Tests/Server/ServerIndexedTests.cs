@@ -1,4 +1,4 @@
-﻿using ReadyM.SDK.Entity;
+﻿using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;

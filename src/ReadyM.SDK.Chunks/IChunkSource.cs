@@ -1,5 +1,5 @@
 ﻿using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Chunks;
 

@@ -1,7 +1,11 @@
 using Friflo.Engine.ECS;
-using ReadyM.SDK.Entity;
+using ReadyM.SDK.Entities;
+#if NET
+using ReadyM.SDK.Chunks;
+using ReadyM.SDK.Client.Chunks;
+#endif
 
-namespace ReadyM.SDK.Client.Entity;
+namespace ReadyM.SDK.Client.Entities;
 
 /// <summary>
 /// What a query needs from the client half: the store, the api handles resolve through, and, where
@@ -18,6 +22,6 @@ internal sealed class ClientEntityContext(EntityStore store, IEntityApi api)
     internal IEntityApi Api { get; } = api;
 
 #if NET
-    internal Chunks.IChunkSource ChunkSource { get; } = new ClientChunkSource(store, api);
+    internal IChunkSource ChunkSource { get; } = new ClientChunkSource(store, api);
 #endif
 }
