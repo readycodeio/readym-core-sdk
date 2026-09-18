@@ -114,6 +114,7 @@ internal sealed partial class Store : IArchetypeRegistry
     private Thread? _thread;
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
+    private readonly Dictionary<int, ArchetypeId> _archetypeByEntityId = [];
     private readonly CreateEntityBatchCallback _consCallback;
     private readonly NativeInitCallback _nativeInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
@@ -258,8 +259,16 @@ internal sealed partial class Store : IArchetypeRegistry
         // snapshot or delta is applied into them.
         _modPostCreateInit?.Invoke(archetypeId, entity.Id);
 
+        _archetypeByEntityId[entity.Id] = archetypeId;
+
         return entity;
     }
+
+    /// <summary>
+    /// The archetype an entity was created under.
+    /// </summary>
+    internal bool TryGetArchetypeId(Entity entity, out ArchetypeId archetypeId)
+        => _archetypeByEntityId.TryGetValue(entity.Id, out archetypeId);
 
     /// <summary>
     /// Returns the index for indexed components to search entities with a specific component value in O(1).<br/>
