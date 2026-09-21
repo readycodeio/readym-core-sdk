@@ -37,7 +37,12 @@ internal static class ArchetypeNames
     public const string ScopeMarker = "ReadyM.SDK.Archetypes.IScope";
     public const string Scope = "global::ReadyM.SDK.Archetypes.Scope";
     public const string IndexRegistry = "global::ReadyM.SDK.Archetypes.IndexRegistry";
+    public const string ReplicationRegistry = "global::ReadyM.SDK.Archetypes.ReplicationRegistry";
+    public const string NativeInitRegistry = "global::ReadyM.SDK.Archetypes.NativeInitRegistry";
+    public const string Delivery = "global::" + Namespace + ".Delivery";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
+    public const string NativeInit = "global::ReadyM.Api.ECS.Components.INativeInit";
+    public const string AllocatorKind = "global::Yooni.Native.LowLevel.AllocatorKind";
     public const string NetworkedComponent = "global::ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent";
 
     public const string RawEntity = "global::Friflo.Engine.ECS.RawEntity";

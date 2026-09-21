@@ -29,7 +29,7 @@ internal static class ReplicatedComponentEmitter
     {
         var info = model.Source;
         var members = model.Members;
-        var access = model.Source.Symbol.DeclaredAccessibility.ToString().ToLower(); // public, internal, etc.
+        var access = model.Source.Accessibility; // public, internal, etc.
 
         if (model.MaskInfo.Bits < members.Count)
         {
@@ -554,7 +554,7 @@ using {ns};
         CSharpClassState classState)
     {
         sb.Append(@$"
-    public void Assign(in {FullyQualifiedTypeName(model.Source.Symbol)} value)
+    public void Assign(in {model.Source.QualifiedName} value)
 ");
 
         sb.AppendLine("""

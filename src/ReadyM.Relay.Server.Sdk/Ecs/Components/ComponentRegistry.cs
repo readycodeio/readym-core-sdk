@@ -62,7 +62,22 @@ internal sealed class ComponentRegistry(
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public void RegisterComponent<T>() where T : struct, INetworkedComponent
+    /// Reaches the generic overload for a type only known at run time. The constraint cannot be
+    /// checked here, so a type that does not satisfy it is refused rather than left to fail inside.
+    public void RegisterComponent(Type component, byte delivery)
+    {
+        if (!typeof(INetworkedComponent).IsAssignableFrom(component))
+            throw new ArgumentException(
+                $"{component.FullName} does not replicate, so it cannot be registered as networked.",
+                nameof(component));
+
+        var method = typeof(ComponentRegistry)
+            .GetMethod(nameof(RegisterComponent), BindingFlags.Public | BindingFlags.Instance, [typeof(byte)]);
+
+        method!.MakeGenericMethod(component).Invoke(this, [delivery]);
+    }
+
+    public void RegisterComponent<T>(byte delivery = 0) where T : struct, INetworkedComponent
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -73,7 +88,7 @@ internal sealed class ComponentRegistry(
         if (stride > 256)
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
-        var registration = heapManager.RegisterComponent<T>();
+        var registration = heapManager.RegisterComponent<T>(delivery);
         var id = _registerModComponent(registration, new NativeString256(typeof(T).FullName, false));
 
         if (id < 0)

@@ -203,4 +203,54 @@ public class ReplicationTests(ITestOutputHelper output)
 
         Assert.Equal(Delivery.Unreliable, model.Delivery);
     }
+
+    // -- collections -------------------------------------------------------------------------------
+
+    /// Handing a caller the collection itself lets them change it without the change being sent,
+    /// so a replicated shape has to keep it private and let the generated members carry it.
+    [Fact]
+    public void A_replicated_collection_that_is_reachable_as_a_whole_is_refused()
+    {
+        var reported = Report("""
+            [ArchetypeMixin]
+            [Replicated]
+            public readonly partial struct Subject
+            {
+                public partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+            }
+            """);
+
+        Assert.Contains(reported, d => d.Id == "READYM011");
+    }
+
+    [Fact]
+    public void A_private_replicated_collection_is_accepted()
+    {
+        var reported = Report("""
+            [ArchetypeMixin]
+            [Replicated]
+            public readonly partial struct Subject
+            {
+                private partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+            }
+            """);
+
+        Assert.DoesNotContain(reported, d => d.Id == "READYM011");
+    }
+
+    /// A shape that does not replicate has no generated members to reach a collection through, so
+    /// keeping it private would leave it unreachable.
+    [Fact]
+    public void A_local_collection_may_be_reachable_as_a_whole()
+    {
+        var reported = Report("""
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+            }
+            """);
+
+        Assert.DoesNotContain(reported, d => d.Id == "READYM011");
+    }
 }

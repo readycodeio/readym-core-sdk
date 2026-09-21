@@ -32,7 +32,7 @@ internal static class AccessorEmitter
             writer.Line($"public static bool Has(in {ArchetypeNames.EntityHandle} handle) => handle.HasComponent<{component}>();");
 
             foreach (var accessor in model.Accessors)
-                Members(writer, accessor, component, model.IndexedBy);
+                Members(writer, accessor, component, model.IndexedBy, model.IsReplicated);
 
             foreach (var forward in model.Forwards)
                 Forward(writer, forward, component);
@@ -41,7 +41,7 @@ internal static class AccessorEmitter
                 return;
 
             foreach (var accessor in model.Accessors)
-                ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null);
+                ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null, model.IsReplicated);
 
             foreach (var forward in model.Forwards)
                 ChunkForward(writer, forward, component, chunks);
@@ -52,9 +52,18 @@ internal static class AccessorEmitter
     /// The same values reached off a chunk instead of an entity. Only the declaring assembly can
     /// name the component, which is why the reinterpret happens here rather than in the view.
     /// </summary>
-    private static void ChunkMembers(SourceWriter writer, AccessorModel accessor, string component, ChunkNames chunks, bool indexed)
+    private static void ChunkMembers(
+        SourceWriter writer,
+        AccessorModel accessor,
+        string component,
+        ChunkNames chunks,
+        bool indexed,
+        bool replicated)
     {
         var read = $"chunk.As<{component}>(index).{accessor.Field}";
+        var write = replicated
+            ? Write($"chunk.As<{component}>(index)", accessor)
+            : $"{read} = value";
 
         writer.Line();
         writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {chunks.ComponentChunk} chunk, int index)");
@@ -66,7 +75,7 @@ internal static class AccessorEmitter
 
         writer.Line();
         writer.Line($"public static void Set{accessor.Name}(in {chunks.ComponentChunk} chunk, int index, {accessor.Type} value)");
-        writer.Line($"    => {read} = value;");
+        writer.Line($"    => {write};");
     }
 
     /// <summary>A member of the component itself, reached through a handle.</summary>
@@ -103,9 +112,20 @@ internal static class AccessorEmitter
         writer.Line($"    => {target}({forward.Arguments});");
     }
 
-    private static void Members(SourceWriter writer, AccessorModel accessor, string component, string? indexedBy)
+    private static void Members(
+        SourceWriter writer,
+        AccessorModel accessor,
+        string component,
+        string? indexedBy,
+        bool replicated)
     {
         var read = $"handle.GetComponent<{component}>().{accessor.Field}";
+
+        // A replicated component writes through what the replicated emitter put over the field,
+        // which is what sets the dirty bit. Writing the field would change the value and tell
+        // nobody. Reads stay on the field: there is nothing to mark.
+        var target = $"handle.GetComponent<{component}>()";
+        var write = replicated ? Write(target, accessor) : $"{read} = value";
 
         writer.Line();
         writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {ArchetypeNames.EntityHandle} handle) => {read};");
@@ -117,7 +137,7 @@ internal static class AccessorEmitter
 
             if (indexedBy is null)
             {
-                writer.Line($"    => {read} = value;");
+                writer.Line($"    => {write};");
             }
             else
             {
@@ -125,7 +145,7 @@ internal static class AccessorEmitter
                 {
                     writer.Line($"var updated = handle.GetComponent<{component}>();");
                     writer.Line();
-                    writer.Line($"updated.{accessor.Field} = value;");
+                    writer.Line($"{(replicated ? Write("updated", accessor) : $"updated.{accessor.Field} = value")};");
                     writer.Line();
                     writer.Line($"handle.ReplaceIndexed<{component}, {indexedBy}>(updated);");
                 }
@@ -186,6 +206,14 @@ internal static class AccessorEmitter
         writer.Line($"public {forward.Signature}");
         writer.Line($"    => {accessors}.{forward.Name}({field}, _index{Separator(forward)}{forward.Arguments});");
     }
+
+    /// Writing one value of a replicated component. A native collection has no property to assign:
+    /// the replicated emitter gives it a setter method, which copies the contents rather than taking
+    /// the collection itself.
+    private static string Write(string target, AccessorModel accessor)
+        => accessor.IsNativeContainer
+            ? $"{target}.Set{accessor.Name}(value)"
+            : $"{target}.{accessor.Name} = value";
 
     private static string Separator(ForwardModel forward) => forward.Separator;
 

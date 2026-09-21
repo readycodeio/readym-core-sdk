@@ -99,7 +99,7 @@ internal static class DeriveComponentUtils
             if (context == null)
                 throw new InvalidOperationException("GeneratorSyntaxContext is required to derive dirty mask information.");
 
-            mask = GetMaskInfo(targetInfo, context.Value);
+            mask = GetMaskInfo(targetInfo, context.Value.SemanticModel.Compilation);
         }
         
         return new DeriveTargetModel(targetInfo, members, mask);
@@ -146,7 +146,7 @@ internal static class DeriveComponentUtils
         }
     }
 
-    private static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, GeneratorSyntaxContext context)
+    internal static DeriveMaskInfo GetMaskInfo(DeriveTargetInfo targetInfo, Compilation compilation)
     {
         var memberCount = targetInfo.Members.Count;
         var requestedMaskType = targetInfo.RequestedDirtyMaskType;
@@ -159,7 +159,7 @@ internal static class DeriveComponentUtils
         {
             if (requestedMaskType == null)
             {
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
+                maskType = compilation.GetSpecialType(SpecialType.System_UInt64);
             }
             else
             {
@@ -169,16 +169,16 @@ internal static class DeriveComponentUtils
         else
         {
             if (memberCount <= sizeof(byte) * 8)
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_Byte);
+                maskType = compilation.GetSpecialType(SpecialType.System_Byte);
             else if (memberCount <= sizeof(ushort) * 8)
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt16);
+                maskType = compilation.GetSpecialType(SpecialType.System_UInt16);
             else if (memberCount <= sizeof(uint) * 8)
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt32);
+                maskType = compilation.GetSpecialType(SpecialType.System_UInt32);
             else if (memberCount <= sizeof(ulong) * 8)
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
+                maskType = compilation.GetSpecialType(SpecialType.System_UInt64);
             else
             {
-                maskType = context.SemanticModel.Compilation.GetSpecialType(SpecialType.System_UInt64);
+                maskType = compilation.GetSpecialType(SpecialType.System_UInt64);
                 errors.Add($"The number of members ({memberCount}) exceeds the maximum supported by the largest dirty mask type (64 bits).");
             }
         }
@@ -213,7 +213,7 @@ internal static class DeriveComponentUtils
         return new DeriveMaskInfo(maskType, bits, errors);
     }
     
-    private static DeriveMemberModel[] GetMemberModelList(
+    internal static DeriveMemberModel[] GetMemberModelList(
         DeriveTargetInfo targetInfo,
         IReadOnlyList<AttributeData>? fieldAttributes)
     {

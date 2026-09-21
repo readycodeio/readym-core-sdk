@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using ReadyM.Api.Generators.Derive.CSharp;
+using ReadyM.Api.Generators.Derive.CSharp.FieldSupport;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -22,6 +24,11 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
     {
         Declared = property;
         Component = component;
+
+        Accessibility = property.DeclaredAccessibility;
+        IsNativeContainer = CSharpFieldSupportRegistry.FieldTypeSupportVisitor
+            .TryGetImpl(property.Type, false, out var support)
+            && support is NativeContainerFieldTypeSupportImplBase;
         IsIndex = property.GetAttributes().Any(attribute
             => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.IndexAttribute);
     }
@@ -34,6 +41,18 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 
     /// <summary>Whether [Index] marks this as the value the shape is found by.</summary>
     public bool IsIndex { get; }
+
+    /// Whether the value is a native collection. A replicated component gives one of those a family
+    /// of methods rather than a property, because handing back the collection itself would let a
+    /// caller change it without the component noticing.
+    public bool IsNativeContainer { get; }
+
+    /// How the shape declared the value. A native collection stays private, so a mod reaches it
+    /// only through its own members and cannot take the collection itself and change it unnoticed.
+    public Accessibility Accessibility { get; } = Accessibility.Public;
+
+    /// Whether the value is reachable from outside the shape under its own name.
+    public bool IsExposed => Accessibility is not Accessibility.Private;
 
     /// <summary>The member holding the value: a generated field, or one of an explicit component.</summary>
     public string Field { get; } = field ?? ArchetypeNames.FieldOf(name);
@@ -89,6 +108,19 @@ internal sealed class ForwardModel
         ReturnType = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         Parameters = [];
         IsProperty = true;
+    }
+
+    /// For a member of a component that is being generated, and so has no symbol to read.
+    public ForwardModel(
+        string name,
+        string returnType,
+        IReadOnlyList<(string Modifier, string Type, string Name)> parameters,
+        bool isProperty = false)
+    {
+        Name = name;
+        ReturnType = returnType;
+        Parameters = parameters;
+        IsProperty = isProperty;
     }
 
     public string Name { get; }
@@ -166,11 +198,27 @@ internal sealed class DeclarationModel
         Symbol = symbol;
         ExplicitComponent = ExplicitComponentOf(symbol);
         Collections = CollectionsOf(symbol);
-        Forwards = ReadForwards(symbol, ExplicitComponent, Collections);
         Accessors = ReadAccessors(symbol);
         Includes = ReadIncludes(symbol);
         Extends = ReadExtends(symbol);
         (HasReplicatedAttribute, Delivery) = ReadReplication(symbol);
+        Forwards = ReadForwards(symbol, ExplicitComponent, Collections).Concat(CollectionMembers()).ToList();
+    }
+
+    /// The collection members of a component this shape is having generated. A component that
+    /// already exists contributes through [ExplicitCollection] instead, and one that does not
+    /// replicate holds a plain field with no members to carry.
+    private IReadOnlyList<ForwardModel> CollectionMembers()
+    {
+        if (!EmitsComponent || !IsReplicated)
+            return [];
+
+        var found = new List<ForwardModel>();
+
+        foreach (var accessor in Accessors)
+            found.AddRange(NativeCollectionForwards.For(accessor));
+
+        return found;
     }
 
     public INamedTypeSymbol Symbol { get; }

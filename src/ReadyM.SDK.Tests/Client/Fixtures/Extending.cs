@@ -95,3 +95,47 @@ public readonly partial struct Soundscape
 {
     public partial int Temperature { get; set; }
 }
+
+/// A mixin whose values go over the wire, which is the whole of what [Replicated] asks for.
+[ArchetypeMixin]
+[Replicated]
+public readonly partial struct Telemetry
+{
+    public partial int Ticks { get; set; }
+
+    public partial float Load { get; set; }
+}
+
+/// An archetype carrying the replicated mixin, so an entity can exist to write through.
+[Archetype]
+[Include(typeof(Telemetry))]
+[Include(typeof(Roster))]
+public readonly partial struct Rig
+{
+    public partial int Serial { get; set; }
+}
+
+/// Replaced often enough that a lost change is corrected by the next one.
+[ArchetypeMixin]
+[Replicated(Delivery.Unreliable)]
+public readonly partial struct Motion
+{
+    public partial float Speed { get; set; }
+}
+
+/// A shape over storage that already replicates. It says nothing about replicating; the component
+/// does, and the shape inherits it.
+[ArchetypeMixin]
+[ExplicitComponent(typeof(global::ReadyM.Api.Multiplayer.ECS.Components.EmptyScopeDeletionComponent))]
+public readonly partial struct Perishable;
+
+/// A replicated shape holding a native collection. Its component gets setter methods rather than a
+/// property for that value, so the accessors have to write it the other way round.
+[ArchetypeMixin]
+[Replicated]
+public readonly partial struct Roster
+{
+    public partial int Size { get; set; }
+
+    private partial global::Yooni.Native.Container.NativeList<int> Members { get; set; }
+}

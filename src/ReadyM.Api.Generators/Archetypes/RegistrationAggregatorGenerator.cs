@@ -66,6 +66,12 @@ internal class RegistrationAggregatorGenerator : IIncrementalGenerator
         if (model.IndexedBy is not null)
             found.Add($"{prefix}{symbol.Name}Index");
 
+        if (model.IsReplicated)
+            found.Add($"{prefix}{symbol.Name}Replication");
+
+        if (NativeInitEmitter.Applies(model))
+            found.Add($"{prefix}{symbol.Name}NativeInit");
+
         return found.ToImmutable();
     }
 

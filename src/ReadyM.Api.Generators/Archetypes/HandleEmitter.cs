@@ -53,11 +53,25 @@ internal static class HandleEmitter
         };
     }
 
+    /// The modifier the declaration used, which the implementing part has to repeat.
+    private static string Keyword(AccessorModel accessor) => accessor.Accessibility switch
+    {
+        Microsoft.CodeAnalysis.Accessibility.Private => "private",
+        Microsoft.CodeAnalysis.Accessibility.Internal => "internal",
+        Microsoft.CodeAnalysis.Accessibility.Protected => "protected",
+        Microsoft.CodeAnalysis.Accessibility.ProtectedOrInternal => "protected internal",
+        Microsoft.CodeAnalysis.Accessibility.ProtectedAndInternal => "private protected",
+        _ => "public"
+    };
+
     public static void Accessor(SourceWriter writer, AccessorModel accessor, string accessors, bool partial)
     {
+        if (!partial && !accessor.IsExposed)
+            return;
+
         var declaration = partial
-            ? $"public partial {accessor.Type} {accessor.Name}"
-            : $"public {accessor.Type} {accessor.Name}";
+            ? $"{Keyword(accessor)} partial {accessor.Type} {accessor.Name}"
+            : $"{Keyword(accessor)} {accessor.Type} {accessor.Name}";
 
         if (!accessor.HasSetter)
         {

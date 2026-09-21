@@ -87,6 +87,9 @@ internal static class ExtendedMemberEmitter
         string handle,
         string[]? remarks = null)
     {
+        if (!accessor.IsExposed)
+            return;
+
         var name = $"{prefix}{accessor.Name}";
         var get = $"{model.QualifiedAccessors}.Get{accessor.Name}({handle})";
         var set = $"{model.QualifiedAccessors}.Set{accessor.Name}({handle}, value)";

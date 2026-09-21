@@ -26,6 +26,16 @@ internal static class ReplicationRules
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor CollectionIsExposed = new(
+        "READYM011",
+        "Replicated collection is reachable as a whole",
+        "'{0}.{1}' is a collection on a replicated shape, so it has to be declared private. Handing "
+        + "the collection itself to a caller lets them change it without the change being sent. Its "
+        + "own members, Add{1} and the rest, are generated public.",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public static ImmutableArray<Diagnostic> Check(DeclarationModel model)
     {
         if (!model.HasReplicatedAttribute)
@@ -45,6 +55,14 @@ internal static class ReplicationRules
 
         if (model.Accessors.Count == 0)
             found.Add(Diagnostic.Create(NothingToReplicate, at, model.Name));
+
+        foreach (var accessor in model.Accessors)
+            if (accessor.IsNativeContainer && accessor.IsExposed)
+                found.Add(Diagnostic.Create(
+                    CollectionIsExposed,
+                    accessor.Declared?.Locations.FirstOrDefault() ?? at,
+                    model.Name,
+                    accessor.Name));
 
         return [.. found];
     }

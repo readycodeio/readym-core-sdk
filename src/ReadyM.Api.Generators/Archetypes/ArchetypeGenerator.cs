@@ -37,6 +37,11 @@ internal class ArchetypeGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(diagnostic);
 
             spc.AddSource(generated.Value.HintName, generated.Value.Source);
+
+            // A replicated component is a file of its own: the emitter writes the usings and the
+            // namespace itself, and two file-scoped namespaces cannot share a file.
+            if (generated.Value.Component is { } component)
+                spc.AddSource(component.HintName, component.Source);
         });
     }
 
@@ -49,7 +54,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics,
+        (string HintName, string Source)? Component)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
     {
         if (context.TargetSymbol is not INamedTypeSymbol { ContainingType: null } symbol)
             return null;
@@ -66,7 +72,21 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         HandleEmitter.File(writer, model);
 
-        if (model.EmitsComponent)
+        (string HintName, string Source)? replicated = null;
+
+        if (model.EmitsComponent && model.IsReplicated)
+        {
+            var described = ReplicatedComponentModel.For(model, context.SemanticModel.Compilation);
+
+            if (described is not null)
+                replicated = (
+                    ArchetypeNames.HintOf(symbol, "Component"),
+                    ReplicatedComponentEmitter.Emit(described));
+
+            ComponentEmitter.EmitFields(writer, model.Component, model.Accessors);
+            writer.Line();
+        }
+        else if (model.EmitsComponent)
         {
             ComponentEmitter.Emit(writer, model.Component, model.Accessors);
             writer.Line();
@@ -102,8 +122,10 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
         IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        ReplicationEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        NativeInitEmitter.Emit(writer, model, context.SemanticModel.Compilation);
 
-        return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems);
+        return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems, replicated);
     }
 
     private static void EmitIdentity(SourceWriter writer)

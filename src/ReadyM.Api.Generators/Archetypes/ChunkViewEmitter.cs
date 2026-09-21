@@ -148,6 +148,10 @@ internal static class ChunkViewEmitter
 
     private static void Property(SourceWriter writer, AccessorModel accessor, string accessors, string field, bool indexed)
     {
+        // A value the shape keeps to itself is not put on its chunk view either.
+        if (!accessor.IsExposed)
+            return;
+
         writer.Line();
 
         if (!accessor.HasSetter || indexed)

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Entities;
 
@@ -8,32 +9,18 @@ namespace ReadyM.SDK.Archetypes;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class IndexRegistry
 {
-    private static readonly Dictionary<Type, object> Finders = [];
-
-#if NET
-    private static readonly Lock Gate = new();
-#else
-    private static readonly object Gate = new();
-#endif
+    private static readonly ConcurrentDictionary<Type, object> Finders = new();
 
     /// Called by generated code for an indexed shape.
     public static void Register<TShape, TKey, TComponent>()
         where TShape : struct, IArchetypeQueryable, IIndexed<TKey>
         where TComponent : struct, IIndexedComponent<TKey>
         where TKey : notnull
-    {
-        lock (Gate)
-            Finders[typeof(TShape)] = new Finder<TKey, TComponent>();
-    }
+        => Finders[typeof(TShape)] = new Finder<TKey, TComponent>();
 
     internal static bool TryFind<TShape, TKey>(IEntityApi api, TKey key, out RawEntity entity)
     {
-        object? finder;
-
-        lock (Gate)
-            Finders.TryGetValue(typeof(TShape), out finder);
-
-        if (finder is Finder<TKey> typed)
+        if (Finders.TryGetValue(typeof(TShape), out var finder) && finder is Finder<TKey> typed)
             return typed.TryFind(api, key, out entity);
 
         entity = default;

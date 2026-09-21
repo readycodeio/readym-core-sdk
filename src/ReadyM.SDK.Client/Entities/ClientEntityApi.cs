@@ -52,8 +52,19 @@ internal sealed class ClientEntityApi : IEntityApi
     {
         _scope.RefuseIfInQuery("Creating an entity");
 
-        return _store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
+        return Created(_store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity, components);
     }
+
+    // A component holding a native collection has no memory until this runs, so it happens as the
+    // entity is created rather than being left to whoever writes the shape first.
+    private RawEntity Created(RawEntity rawEntity, ComponentSet components)
+    {
+        if (NativeInitRegistry.Any)
+            NativeInitRegistry.InitAll(new EntityHandle(rawEntity, this), components);
+
+        return rawEntity;
+    }
+
 
     /// Assigning the whole component is what makes Friflo move it in the index.
     public void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)

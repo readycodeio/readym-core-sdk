@@ -23,6 +23,44 @@ internal static class ComponentEmitter
     public static void EmitMarker(SourceWriter writer, string name)
         => writer.Line($"internal struct {name} : {ArchetypeNames.Component};");
 
+    /// The values alone, for a component whose other half is emitted by the replicated emitter.
+    /// <remarks>
+    /// A hand-written networked component declares its own fields and the emitter adds everything
+    /// around them. A generated one has nobody to declare them, so they come from here, in a partial
+    /// the other half completes. The contracts sit on that other half.
+    /// </remarks>
+    public static void EmitFields(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
+    {
+        using (writer.Braces($"internal partial struct {name}{Allocates(accessors)}"))
+        {
+            foreach (var accessor in accessors)
+                writer.Line($"public {accessor.Type} {accessor.Field};");
+
+            EmitInit(writer, accessors);
+        }
+    }
+
+    /// <summary>The extra contract a component holding a native collection carries.</summary>
+    private static string Allocates(IReadOnlyList<AccessorModel> accessors)
+        => accessors.Any(accessor => accessor.IsNativeContainer) ? $" : {ArchetypeNames.NativeInit}" : string.Empty;
+
+    /// Creates the collections the component holds. A native collection is a handle to memory
+    /// nobody has taken yet, so reading or adding before this has run faults. The store calls it
+    /// once, as the entity is created.
+    private static void EmitInit(SourceWriter writer, IReadOnlyList<AccessorModel> accessors)
+    {
+        var collections = accessors.Where(accessor => accessor.IsNativeContainer).ToList();
+
+        if (collections.Count == 0)
+            return;
+
+        writer.Line();
+
+        using (writer.Braces($"public void Init({ArchetypeNames.AllocatorKind} allocatorKind)"))
+            foreach (var accessor in collections)
+                writer.Line($"{accessor.Field}.TryCreate(allocatorKind);");
+    }
+
     public static void Emit(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
     {
         var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
@@ -30,10 +68,12 @@ internal static class ComponentEmitter
             ? ArchetypeNames.Component
             : $"{ArchetypeNames.IndexedComponent}<{index.Type}>";
 
-        using (writer.Braces($"internal struct {name} : {contracts}"))
+        using (writer.Braces($"internal struct {name} : {contracts}{Allocates(accessors).Replace(" : ", ", ")}"))
         {
             foreach (var accessor in accessors)
                 writer.Line($"public {accessor.Type} {accessor.Field};");
+
+            EmitInit(writer, accessors);
 
             if (index is null)
                 return;

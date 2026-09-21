@@ -64,8 +64,21 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     public RawEntity Create(ComponentSet components)
     {
         _scope.RefuseIfInQuery("Creating an entity");
-        return _createLocalEntity(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this));
+        return Created(
+            _createLocalEntity(_archetypeIds.GetOrAdd(components, static (set, self) => self.Register(set), this)),
+            components);
     }
+
+    // A component holding a native collection has no memory until this runs, so it happens as the
+    // entity is created rather than being left to whoever writes the shape first.
+    private RawEntity Created(RawEntity rawEntity, ComponentSet components)
+    {
+        if (NativeInitRegistry.Any)
+            NativeInitRegistry.InitAll(new EntityHandle(rawEntity, this), components);
+
+        return rawEntity;
+    }
+
 
     public bool Delete(RawEntity rawEntity)
     {
