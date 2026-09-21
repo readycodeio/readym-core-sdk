@@ -192,8 +192,12 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.EmitDeserializeVisitor,
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
-            context.AppendLine($"reader.Name(\"{SaveKey(member.Source.Name)}\");");
-            context.EmitDeserializeVar(member.Source.Name, member.Source.Type);
+
+            context.AppendLine($"if (reader.TryName(\"{SaveKey(member.Source.Name)}\"))");
+            using (context.WithCodeBlock())
+            {
+                context.EmitDeserializeVar(member.Source.Name, member.Source.Type);
+            }
         }
 
         sb.AppendLine("""

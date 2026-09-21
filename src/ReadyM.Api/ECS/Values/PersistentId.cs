@@ -15,7 +15,8 @@ internal struct PersistentId(Guid value) : IEquatable<PersistentId>, ISaveSerial
 
     public readonly void WriteSave(ISaveWriter writer, ISaveWriteContext context) => writer.Write(Value.ToString("N"));
 
-    public void ReadSave(ISaveReader reader, ISaveReadContext context) => Value = Guid.ParseExact(reader.ReadString(), "N");
+    public void ReadSave(ISaveReader reader, ISaveLoadContext context)
+        => Value = Guid.TryParseExact(reader.ReadString(), "N", out var value) ? value : default;
 
     public bool Equals(PersistentId other) => Value == other.Value;
 
