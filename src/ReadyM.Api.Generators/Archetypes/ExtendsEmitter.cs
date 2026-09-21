@@ -27,7 +27,9 @@ internal static class ExtendsEmitter
                 {
                     var qualified = archetype.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-                    writer.Line($"{ArchetypeNames.Registry}.Extend(typeof({qualified}), {model.QualifiedAccessors}.Components);");
+                    writer.Line(
+                        $"{ArchetypeNames.Registry}.Extend(typeof({qualified}), typeof({model.QualifiedName}), "
+                        + $"{model.QualifiedAccessors}.Components);");
                 }
             }
         }

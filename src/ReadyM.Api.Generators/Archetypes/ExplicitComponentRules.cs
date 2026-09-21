@@ -2,6 +2,7 @@
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -48,8 +49,32 @@ internal static class ExplicitComponentRules
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor WrongType = new(
+        "READYM012",
+        "Explicit member has an unrelated type",
+        "'{0}.{1}' holds '{2}', which cannot be read as '{3}'. Declare the value as '{2}', or as a type derived from it.",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnregisteredInstance = new(
+        "READYM013",
+        "Generic component instantiation is not registered",
+        "'{0}' is not registered with the ECS, so an entity carrying it cannot be built. Add "
+        + "[assembly: GlobalGenericInstanceType(typeof({1}), \"<key>\", {2})], or name an instantiation "
+        + "that is registered.",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private const string Component = "global::Friflo.Engine.ECS.IComponent";
     private const string Link = "global::Friflo.Engine.ECS.ILinkComponent";
+    private const string GenericInstance = "global::Friflo.Engine.ECS.GenericInstanceTypeAttribute";
+    private const string GlobalGenericInstance = "global::Friflo.Engine.ECS.GlobalGenericInstanceTypeAttribute";
+
+    /// The generic type as an author writes it in typeof, with its parameters left off.
+    private static readonly SymbolDisplayFormat Unbound = SymbolDisplayFormat.FullyQualifiedFormat
+        .WithGenericsOptions(SymbolDisplayGenericsOptions.None);
 
     public static ImmutableArray<Diagnostic> Check(DeclarationModel model, Compilation compilation)
     {
@@ -72,6 +97,10 @@ internal static class ExplicitComponentRules
         else if (Implements(component, Link))
             found.Add(Diagnostic.Create(NotAComponent, at, name,
                 "link components carry a relationship the SDK cannot maintain through an accessor yet."));
+        else if (!Registered(compilation, component))
+            found.Add(Diagnostic.Create(UnregisteredInstance, at, name,
+                component.ConstructedFrom.ToDisplayString(Unbound),
+                string.Join(", ", component.TypeArguments.Select(argument => $"typeof({argument.ToDisplayString()})"))));
 
         foreach (var accessor in model.Accessors)
         {
@@ -89,6 +118,10 @@ internal static class ExplicitComponentRules
 
             if (declared.SetMethod is not null && !AccessorModel.Assignable(target))
                 found.Add(Diagnostic.Create(NotAssignable, where, name, target.Name, accessor.Name));
+
+            if (AccessorModel.TypeOf(target) is { } held && !Readable(compilation, held, declared, target))
+                found.Add(Diagnostic.Create(WrongType, where, name, target.Name,
+                    held.ToDisplayString(), declared.Type.ToDisplayString()));
         }
 
         return [.. found];
@@ -122,6 +155,62 @@ internal static class ExplicitComponentRules
                 $"'{component.ToDisplayString()}' has no public member naming it."));
         }
     }
+
+    /// Whether the ECS knows this instantiation of a generic component. Each closed generic is a
+    /// component of its own, and the schema only holds the ones an attribute names.
+    private static bool Registered(Compilation compilation, INamedTypeSymbol component)
+    {
+        if (!component.IsGenericType || component.IsUnboundGenericType)
+            return true;
+
+        var definition = component.OriginalDefinition;
+        var arguments = component.TypeArguments;
+
+        // Named on the generic type itself, which only its own assembly can do.
+        foreach (var attribute in definition.GetAttributes())
+            if (Named(attribute, GenericInstance) && Arguments(attribute, 1, arguments))
+                return true;
+
+        // Or named by any assembly in sight. The schema reads every assembly that is loaded, which
+        // here is every one this compilation references.
+        foreach (var assembly in Assemblies(compilation))
+            foreach (var attribute in assembly.GetAttributes())
+                if (Named(attribute, GlobalGenericInstance)
+                    && attribute.ConstructorArguments.Length > 2
+                    && Same(attribute.ConstructorArguments[0].Value as INamedTypeSymbol, definition)
+                    && Arguments(attribute, 2, arguments))
+                    return true;
+
+        return false;
+    }
+
+    private static IEnumerable<IAssemblySymbol> Assemblies(Compilation compilation)
+        => new[] { compilation.Assembly }.Concat(compilation.SourceModule.ReferencedAssemblySymbols);
+
+    private static bool Named(AttributeData attribute, string qualified)
+        => attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == qualified;
+
+    /// Whether the types an attribute names, after its leading arguments, are the ones asked for.
+    private static bool Arguments(AttributeData attribute, int skip, ImmutableArray<ITypeSymbol> wanted)
+    {
+        var named = attribute.ConstructorArguments.Skip(skip).ToList();
+
+        return named.Count == wanted.Length
+               && named.Select((argument, i) => Same(argument.Value as ITypeSymbol, wanted[i])).All(same => same);
+    }
+
+    private static bool Same(ITypeSymbol? left, ITypeSymbol? right)
+        => left is not null && right is not null
+           && SymbolEqualityComparer.Default.Equals(
+               left.OriginalDefinition.WithNullableAnnotation(NullableAnnotation.None),
+               right.OriginalDefinition.WithNullableAnnotation(NullableAnnotation.None));
+
+    /// Whether the component's own value can reach the shape: as it stands, or narrowed to the
+    /// type the shape declared.
+    private static bool Readable(Compilation compilation, ITypeSymbol held, IPropertySymbol declared, ISymbol target)
+        => compilation is not CSharpCompilation csharp
+           || csharp.ClassifyConversion(held, declared.Type).IsImplicit
+           || AccessorModel.NarrowsFrom(declared, target);
 
     private static bool Implements(INamedTypeSymbol type, string qualified)
         => type.AllInterfaces.Any(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == qualified);

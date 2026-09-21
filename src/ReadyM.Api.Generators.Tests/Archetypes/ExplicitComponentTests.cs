@@ -20,6 +20,8 @@ public class ExplicitComponentTests(ITestOutputHelper output)
         """
         using Friflo.Engine.ECS;
 
+        [assembly: GlobalGenericInstanceType(typeof(global::Core.HoldsComponent<>), "holds-actor", typeof(global::Core.Actor))]
+
         namespace Core;
 
         public struct MetaComponent : IComponent
@@ -56,6 +58,28 @@ public class ExplicitComponentTests(ITestOutputHelper output)
         {
             public int Value;
         }
+
+        public class Actor;
+
+        public class Character : Actor;
+
+        public class Prop;
+
+        public struct MappedComponent : IComponent
+        {
+            public Actor Held;
+        }
+
+        public struct HoldsComponent<T> : IComponent
+        {
+            public T Value;
+        }
+
+        [GenericInstanceType("named-prop", typeof(Prop))]
+        public struct NamesComponent<T> : IComponent
+        {
+            public T Value;
+        }
         """;
 
     private Diagnostic[] Report(string shape)
@@ -77,6 +101,28 @@ public class ExplicitComponentTests(ITestOutputHelper output)
             SourceGeneratorTestHelper.SdkInternalsAssembly);
 
         return [.. result.DriverRunResult.Diagnostics.Where(d => d.Id.StartsWith("READYM"))];
+    }
+
+    /// Everything the run emitted, as one string to read assertions off.
+    private string Generated(string shape)
+    {
+        var source =
+            $$"""
+              using ReadyM.SDK.Attributes;
+
+              namespace Mod;
+
+              {{shape}}
+              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerators(
+            [("Core.cs", Core), ("Shape.cs", source)],
+            [new ArchetypeGenerator(), new ArchetypeMixinGenerator()],
+            output,
+            Sdk,
+            SourceGeneratorTestHelper.SdkInternalsAssembly);
+
+        return string.Concat(result.GeneratedSyntaxTrees.Select(tree => tree.ToString()));
     }
 
     private void AssertReports(string id, string shape)
@@ -169,6 +215,121 @@ public class ExplicitComponentTests(ITestOutputHelper output)
                 public partial int Holder { get; set; }
             }
             """));
+
+    // -- READYM012: a member the shape cannot read -------------------------------------------------
+
+    /// One component holds what several kinds of entity map to, so a shape says which kind it is
+    /// about and reads the value as that.
+    [Fact]
+    public void A_derived_type_is_accepted()
+        => Assert.Empty(Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.MappedComponent))]
+            public readonly partial struct Mapped
+            {
+                public partial global::Core.Character? Held { get; }
+            }
+            """));
+
+    [Fact]
+    public void An_unrelated_type_is_refused()
+        => AssertReports("READYM012", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.MappedComponent))]
+            public readonly partial struct Mapped
+            {
+                public partial global::Core.Prop? Held { get; }
+            }
+            """);
+
+    /// A value of the wrong kind reads as null rather than throwing, which is what a shape over
+    /// storage shared by several kinds of entity needs.
+    [Fact]
+    public void A_derived_type_is_read_with_a_cast()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.MappedComponent))]
+            public readonly partial struct Mapped
+            {
+                public partial global::Core.Character? Held { get; }
+            }
+            """);
+
+        Assert.Contains("global::Core.MappedComponent>().Held as global::Core.Character", generated);
+    }
+
+    /// The same value declared as what the component holds is read straight through.
+    [Fact]
+    public void A_matching_type_is_read_without_a_cast()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.MappedComponent))]
+            public readonly partial struct Mapped
+            {
+                public partial global::Core.Actor? Held { get; }
+            }
+            """);
+
+        Assert.DoesNotContain(" as global::Core.Actor", generated);
+    }
+
+    // -- READYM013: a generic component the schema does not hold -----------------------------------
+
+    [Fact]
+    public void An_unregistered_instantiation_is_refused()
+        => AssertReports("READYM013", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.HoldsComponent<global::Core.Prop>))]
+            public readonly partial struct Holds
+            {
+                public partial global::Core.Prop? Value { get; }
+            }
+            """);
+
+    [Fact]
+    public void An_instantiation_an_assembly_registered_is_accepted()
+        => Assert.Empty(Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.HoldsComponent<global::Core.Actor>))]
+            public readonly partial struct Holds
+            {
+                public partial global::Core.Actor? Value { get; }
+            }
+            """));
+
+    /// The generic type can name its own instantiations, which is what a component declared
+    /// alongside the ECS does.
+    [Fact]
+    public void An_instantiation_the_component_registered_is_accepted()
+        => Assert.Empty(Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.NamesComponent<global::Core.Prop>))]
+            public readonly partial struct Names
+            {
+                public partial global::Core.Prop? Value { get; }
+            }
+            """));
+
+    /// The report says what to add, because the fix is one attribute and nothing points to it.
+    [Fact]
+    public void The_report_names_the_attribute_to_add()
+    {
+        var reported = Report("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.HoldsComponent<global::Core.Prop>))]
+            public readonly partial struct Holds
+            {
+                public partial global::Core.Prop? Value { get; }
+            }
+            """);
+
+        var message = Assert.Single(reported, d => d.Id == "READYM013").GetMessage();
+
+        Assert.Contains("GlobalGenericInstanceType(typeof(global::Core.HoldsComponent)", message);
+        Assert.Contains("typeof(Core.Prop)", message);
+    }
 
     // -- READYM008: a collection name that forwards nothing ----------------------------------------
 

@@ -1,6 +1,4 @@
-﻿
-using ReadyM.Api.ECS.Worlds;
-using ReadyM.Relay.Server.Sdk;
+﻿using ReadyM.Relay.Server.Sdk;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 
 namespace ReadyM.SDK.Server;
@@ -13,14 +11,11 @@ public abstract class ServerMod : ServerModBase
         ServerReplication.RegisterAll(registry);
 
         RegisterOwnComponents(registry);
+
+        ServerArchetypes.ApplyExtensions(registry);
     }
 
-    protected sealed override void Init()
-    {
-        ServerArchetypes.ApplyExtensions(Services.Resolve<IArchetypeRegistry>());
-
-        Start();
-    }
+    protected sealed override void Init() => Start();
 
     /// The mod's own setup: services, systems, handlers. Runs once every shape has been registered.
     protected abstract void Start();

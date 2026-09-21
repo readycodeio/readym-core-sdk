@@ -5,5 +5,4 @@ public struct ArchetypePointers
 {
     public required IntPtr RegisterArchetype;
     public required IntPtr ModifyArchetype;
-    public required IntPtr AddArchetypeExtensions;
 }

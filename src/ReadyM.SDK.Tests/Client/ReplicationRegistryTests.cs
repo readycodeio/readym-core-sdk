@@ -77,17 +77,43 @@ public class ReplicationRegistryTests
         Assert.Equal(1, matching);
     }
 
-    /// A shape over a component that already replicates inherits that without asking. The delivery
-    /// is this shape's default, not whatever the component's own owner registers it with.
+    /// A shape over storage that already exists replicates through it, but does not register it:
+    /// that component belongs to whoever declared it, and may be one the host registered itself.
+    /// Registering it again as a mod component is wrong, and for a large one the host refuses it.
     [Fact]
-    public void A_shape_over_a_networked_component_registers_it()
+    public void A_shape_over_a_component_it_does_not_own_registers_nothing()
     {
         ReplicationRegistry.Clear();
         global::ReadyM.SDK.Generated.ShapeRegistrations.RegisterAll();
 
-        var perishable = Find(typeof(global::ReadyM.Api.Multiplayer.ECS.Components.EmptyScopeDeletionComponent));
+        Assert.Null(Find(typeof(global::ReadyM.Api.Multiplayer.ECS.Components.EmptyScopeDeletionComponent)));
 
-        Assert.NotNull(perishable);
-        Assert.Equal(Delivery.Reliable, perishable.Value.Delivery);
+        // Nothing was generated to register it, unlike a shape whose component the SDK made.
+        Assert.Null(RegistrationFor<Perishable>());
+        Assert.NotNull(RegistrationFor<Telemetry>());
     }
+
+    /// The generated class that tells the host about a shape's component, when the shape owns one.
+    private static Type? RegistrationFor<T>() where T : struct
+        => typeof(T).Assembly.GetType($"{typeof(T).Namespace}.{typeof(T).Name}Replication");
+
+    /// What the SDK tells the host about for an archetype the host owns: the components it
+    /// generated, never the ones it only borrowed. World has a marker of its own; Area, Player and
+    /// Cell sit on components the host declared and registers itself.
+    [Fact]
+    public void Only_a_shapes_generated_components_are_the_sdks_to_register()
+    {
+        Assert.Equal(
+            [typeof(global::ReadyM.SDK.Core.World).Assembly.GetType("ReadyM.SDK.Core.WorldArchetypeMarker")],
+            Generated<global::ReadyM.SDK.Core.World>());
+
+        Assert.Empty(Generated<global::ReadyM.SDK.Core.Area>());
+        Assert.Empty(Generated<global::ReadyM.SDK.Core.Player>());
+        Assert.Empty(Generated<global::ReadyM.SDK.Core.Cell>());
+    }
+
+    /// Mirrors the rule ServerArchetypes applies, which cannot be reached from here: a generated
+    /// component lands in the shape's own assembly, a borrowed one does not.
+    private static Type[] Generated<T>() where T : struct, IArchetypeQueryable
+        => [.. ((IArchetypeQueryable)default(T)).Components.Types.Where(c => c.Assembly == typeof(T).Assembly)];
 }

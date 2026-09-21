@@ -60,10 +60,11 @@ internal static class AccessorEmitter
         bool indexed,
         bool replicated)
     {
-        var read = $"chunk.As<{component}>(index).{accessor.Field}";
+        var access = $"chunk.As<{component}>(index).{accessor.Field}";
+        var read = accessor.Read(access);
         var write = replicated
             ? Write($"chunk.As<{component}>(index)", accessor)
-            : $"{read} = value";
+            : $"{access} = value";
 
         writer.Line();
         writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {chunks.ComponentChunk} chunk, int index)");
@@ -119,13 +120,14 @@ internal static class AccessorEmitter
         string? indexedBy,
         bool replicated)
     {
-        var read = $"handle.GetComponent<{component}>().{accessor.Field}";
+        var access = $"handle.GetComponent<{component}>().{accessor.Field}";
+        var read = accessor.Read(access);
 
         // A replicated component writes through what the replicated emitter put over the field,
         // which is what sets the dirty bit. Writing the field would change the value and tell
         // nobody. Reads stay on the field: there is nothing to mark.
         var target = $"handle.GetComponent<{component}>()";
-        var write = replicated ? Write(target, accessor) : $"{read} = value";
+        var write = replicated ? Write(target, accessor) : $"{access} = value";
 
         writer.Line();
         writer.Line($"public static {accessor.Type} Get{accessor.Name}(in {ArchetypeNames.EntityHandle} handle) => {read};");
@@ -160,7 +162,7 @@ internal static class AccessorEmitter
         {
             using (writer.Braces($"if (handle.TryGetComponent<{component}>(out var component))"))
             {
-                writer.Line($"value = component.{accessor.Field};");
+                writer.Line($"value = {accessor.Read($"component.{accessor.Field}")};");
                 writer.Line("return true;");
             }
 

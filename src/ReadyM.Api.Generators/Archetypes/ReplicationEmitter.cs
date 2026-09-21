@@ -7,7 +7,7 @@ internal static class ReplicationEmitter
 {
     public static void Emit(SourceWriter writer, DeclarationModel model, Compilation compilation)
     {
-        if (!model.IsReplicated)
+        if (!model.RegistersReplication)
             return;
 
         writer.Line();

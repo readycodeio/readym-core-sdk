@@ -222,4 +222,19 @@ public class ExtendsTests : ClientSdkTest
 
         Assert.Equal(2, seen);
     }
+
+    /// Extending an archetype adds the component either way, so creating one carries it. Telling a
+    /// host about it is different: only a component the SDK generated is the SDK's to hand over,
+    /// and one borrowed from elsewhere already belongs to whoever declared it.
+    [Fact]
+    public void Only_generated_extensions_are_the_sdks_to_hand_to_a_host()
+    {
+        var borrowed = typeof(global::ReadyM.Api.Multiplayer.ECS.Components.EmptyScopeDeletionComponent);
+
+        Assert.Contains(borrowed, ArchetypeRegistry.AddedTo(typeof(CoreArea)).Types);
+        Assert.DoesNotContain(borrowed, ArchetypeRegistry.GeneratedAddedTo(typeof(CoreArea)));
+
+        // A mixin whose component the SDK made is handed over.
+        Assert.Contains(typeof(WeatherComponent), ArchetypeRegistry.GeneratedAddedTo(typeof(CoreArea)));
+    }
 }

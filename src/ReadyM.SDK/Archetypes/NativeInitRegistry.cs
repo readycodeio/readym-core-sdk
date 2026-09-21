@@ -27,6 +27,16 @@ public static class NativeInitRegistry
     /// skipped outright rather than once per component.
     internal static bool Any => !Initializers.IsEmpty;
 
+    internal static bool Needs(Type component) => Initializers.ContainsKey(component);
+
+    /// Runs the init for one component if the entity carries it. For an entity the host built from
+    /// an archetype rather than a shape, where what it carries is not known here.
+    internal static void InitIfPresent(int entityId, IComponentsById components, Type component)
+    {
+        if (Initializers.TryGetValue(component, out var initializer))
+            initializer.InitIfPresent(entityId, components);
+    }
+
     internal static void InitAll(in EntityHandle handle, ComponentSet components)
     {
         foreach (var component in components.Types)
@@ -39,6 +49,8 @@ public static class NativeInitRegistry
     private abstract class Initializer
     {
         internal abstract void Init(in EntityHandle handle);
+
+        internal abstract void InitIfPresent(int entityId, IComponentsById components);
     }
 
     private sealed class Initializer<T> : Initializer
@@ -46,5 +58,11 @@ public static class NativeInitRegistry
     {
         internal override void Init(in EntityHandle handle)
             => handle.GetComponent<T>().Init(AllocatorKind.Default);
+
+        internal override void InitIfPresent(int entityId, IComponentsById components)
+        {
+            if (components.Has<T>(entityId))
+                components.Ref<T>(entityId).Init(AllocatorKind.Default);
+        }
     }
 }

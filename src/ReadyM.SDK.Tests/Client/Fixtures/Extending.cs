@@ -126,6 +126,7 @@ public readonly partial struct Motion
 /// A shape over storage that already replicates. It says nothing about replicating; the component
 /// does, and the shape inherits it.
 [ArchetypeMixin]
+[Extends(typeof(CoreArea))]
 [ExplicitComponent(typeof(global::ReadyM.Api.Multiplayer.ECS.Components.EmptyScopeDeletionComponent))]
 public readonly partial struct Perishable;
 

@@ -1,39 +1,40 @@
-﻿using ReadyM.Api.ECS.Worlds;
-using ReadyM.Api.Multiplayer.ECS.Archetypes;
-using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Core;
-using HostArchetypes = ReadyM.Relay.Server.Sdk.Ecs.Components.ArchetypeRegistry;
+﻿using ReadyM.SDK.Archetypes;
+using IComponentRegistry = ReadyM.Relay.Server.Sdk.Ecs.Components.IComponentRegistry;
+using HostComponents = ReadyM.Relay.Server.Sdk.Ecs.Components.ComponentRegistry;
 
 namespace ReadyM.SDK.Server;
 
-/// Tells the server what a mod's shapes add to the archetypes it owns.
+/// Tells the server what a mod's shapes add to the archetypes the game registers.
 public static class ServerArchetypes
 {
-    private static readonly (Type Shape, WellKnownArchetype Archetype)[] Owned =
-    [
-        (typeof(World), WellKnownArchetype.World),
-        (typeof(Area), WellKnownArchetype.Area),
-        (typeof(Player), WellKnownArchetype.Player),
-        (typeof(Cell), WellKnownArchetype.Cell)
-    ];
-
     /// Returns how many components were handed over, which a mod can log to see its shapes arrived.
-    public static int ApplyExtensions(IArchetypeRegistry registry)
+    public static int ApplyExtensions(IComponentRegistry registry)
     {
-        if (registry is not HostArchetypes host)
+        if (registry is not HostComponents host)
             return 0;
 
         var applied = 0;
 
-        foreach (var (shape, archetype) in Owned)
+        foreach (var shape in ArchetypeContributions.Shapes())
         {
-            var added = ArchetypeRegistry.AddedTo(shape);
+            var contributed = new List<Type>();
 
-            if (added.Count == 0)
+            // What the shape itself brought.
+            foreach (var component in ArchetypeContributions.OwnGenerated(shape))
+            {
+                host.RegisterLocalComponent(component);
+                contributed.Add(component);
+            }
+
+            // What mods added with [Extends], again only what they generated. A mixin sitting on
+            // a component the game already declares is the old pipeline's to place, not ours.
+            contributed.AddRange(ArchetypeRegistry.GeneratedAddedTo(shape));
+
+            if (contributed.Count == 0)
                 continue;
 
-            host.AddArchetypeExtensions(archetype, added.Types);
-            applied += added.Count;
+            host.AddArchetypeExtensions(shape, contributed);
+            applied += contributed.Count;
         }
 
         return applied;

@@ -20,7 +20,6 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
     private readonly RegisterArchetypeDelegate _registerArchetypeDelegate;
     private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate;
-    private readonly AddArchetypeExtensionsDelegate _addArchetypeExtensionsDelegate;
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly CollectComponentIdsCallback _componentIdCallback;
@@ -40,8 +39,6 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
         _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
-        _addArchetypeExtensionsDelegate =
-            Marshal.GetDelegateForFunctionPointer<AddArchetypeExtensionsDelegate>(pointers.AddArchetypeExtensions);
     }
 
     public void OnScopeStart()
@@ -223,22 +220,6 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         return archetypeId;
     }
 
-    /// Adds components to an archetype the server owns.
-    public void AddArchetypeExtensions(WellKnownArchetype archetype, IReadOnlyList<Type> components)
-    {
-        var ids = new List<int>(components.Count);
-
-        foreach (var component in components)
-            ids.Add(_components.ResolveComponentId(component));
-
-        if (ids.Count == 0)
-            return;
-
-        _logger.LogDebug("Adding {Components} to the {Archetype} archetype", ids, archetype);
-
-        _addArchetypeExtensionsDelegate((int)archetype, ToNative(ids));
-    }
-
     public void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback)
     {
         if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
@@ -268,14 +249,18 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _modifyArchetypeDelegate(archetypeId, nativeNewComponentList);
     }
     
+    /// Runs for an entity of an archetype no mod registered, which is where a mod's components
+    /// sit when it extended one of the game's own archetypes.
+    internal Action<int>? ExtensionInit { get; set; }
+
     public void RunPostCreateInit(ArchetypeId archetypeId, int entityId)
     {
-        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry) || entry.PostCreateInit == null)
-            return;
-
         try
         {
-            entry.PostCreateInit.Invoke(entityId);
+            if (_archetypeEntries.TryGetValue(archetypeId, out var entry))
+                entry.PostCreateInit?.Invoke(entityId);
+            else
+                ExtensionInit?.Invoke(entityId);
         }
         catch (Exception e)
         {

@@ -15,6 +15,7 @@
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Wukong.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Api")]
+[assembly: InternalsVisibleTo("ReadyM.SDK.Client")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMp.Sdk")]

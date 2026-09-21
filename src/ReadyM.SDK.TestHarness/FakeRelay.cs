@@ -112,14 +112,14 @@ internal sealed class FakeRelay
     internal ArchetypePointers Archetypes => new()
     {
         RegisterArchetype = Marshal.GetFunctionPointerForDelegate(_registerArchetype),
-        ModifyArchetype = IntPtr.Zero,
-        AddArchetypeExtensions = IntPtr.Zero
+        ModifyArchetype = IntPtr.Zero
     };
 
     internal AotPointers Aot => new()
     {
         RegisterModComponent = Marshal.GetFunctionPointerForDelegate(_registerModComponent),
-        GetComponentIdByName = Marshal.GetFunctionPointerForDelegate(_getComponentIdByName)
+        GetComponentIdByName = Marshal.GetFunctionPointerForDelegate(_getComponentIdByName),
+        AddArchetypeExtensions = IntPtr.Zero
     };
 
     // -- world building, done by a test rather than across the boundary ------------------------

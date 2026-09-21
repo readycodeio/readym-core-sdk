@@ -25,6 +25,10 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
         Declared = property;
         Component = component;
 
+        Narrows = component is not null && NarrowsFrom(property, Target(component, property));
+        Cast = property.Type.WithNullableAnnotation(NullableAnnotation.None)
+            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
         Accessibility = property.DeclaredAccessibility;
         IsNativeContainer = CSharpFieldSupportRegistry.FieldTypeSupportVisitor
             .TryGetImpl(property.Type, false, out var support)
@@ -62,11 +66,60 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 
     public INamedTypeSymbol? Component { get; }
 
+    /// Whether the value sits in the component as a base type of the one the shape declared, which
+    /// is how a shape gives a game's own storage the type a mod actually works with.
+    public bool Narrows { get; }
+
+    /// The declared type as an `as` operand, which cannot carry a nullable annotation.
+    public string Cast { get; } = string.Empty;
+
+    /// The read expression for this value, narrowed where the shape declared a derived type. A
+    /// value that does not fit reads as null rather than throwing, which is what a shape sitting on
+    /// storage shared by several kinds of entity needs.
+    public string Read(string access) => Narrows ? $"{access} as {Cast}" : access;
+
     /// <summary>The field or property an explicit component holds this value in, matched by name.</summary>
     public static ISymbol? Target(INamedTypeSymbol component, IPropertySymbol property)
         => component.GetMembers()
             .FirstOrDefault(member => member is IFieldSymbol { IsStatic: false, IsConst: false } or IPropertySymbol { IsStatic: false }
                 && string.Equals(member.Name, MemberNameOf(property), System.StringComparison.OrdinalIgnoreCase));
+
+    /// Whether the shape declared a type the component's own member can be narrowed to.
+    public static bool NarrowsFrom(IPropertySymbol property, ISymbol? target)
+    {
+        if (TypeOf(target) is not { } held)
+            return false;
+
+        var declared = property.Type;
+
+        if (declared.IsValueType || held.IsValueType
+            || SymbolEqualityComparer.Default.Equals(declared.WithNullableAnnotation(NullableAnnotation.None),
+                held.WithNullableAnnotation(NullableAnnotation.None)))
+            return false;
+
+        return Derives(declared, held);
+    }
+
+    public static ITypeSymbol? TypeOf(ISymbol? target) => target switch
+    {
+        IFieldSymbol field => field.Type,
+        IPropertySymbol property => property.Type,
+        _ => null
+    };
+
+    private static bool Derives(ITypeSymbol declared, ITypeSymbol held)
+    {
+        var bare = held.WithNullableAnnotation(NullableAnnotation.None);
+
+        if (held.TypeKind == TypeKind.Interface)
+            return declared.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, bare));
+
+        for (var current = declared.BaseType; current is not null; current = current.BaseType)
+            if (SymbolEqualityComparer.Default.Equals(current, bare))
+                return true;
+
+        return false;
+    }
 
     public static bool Assignable(ISymbol? target) => target switch
     {
@@ -263,6 +316,14 @@ internal sealed class DeclarationModel
     public bool IsReplicated
         => (HasReplicatedAttribute || (ExplicitComponent is { } c && IsNetworkedComponent(c)))
            && (ExplicitComponent is not null || Accessors.Count > 0);
+
+    /// Whether this shape is the one that tells the host about its component.
+    /// <remarks>
+    /// Only for a component the shape had generated. A component named by [ExplicitComponent]
+    /// belongs to whoever declared it: it may already be one the host registered itself, and
+    /// registering it again as a mod component is both wrong and, for a large one, refused.
+    /// </remarks>
+    public bool RegistersReplication => IsReplicated && EmitsComponent;
 
     public static bool IsNetworkedComponent(INamedTypeSymbol component)
         => component.AllInterfaces.Any(contract =>
