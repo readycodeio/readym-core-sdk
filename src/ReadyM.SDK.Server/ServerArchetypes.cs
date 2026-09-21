@@ -13,7 +13,8 @@ public static class ServerArchetypes
     [
         (typeof(World), WellKnownArchetype.World),
         (typeof(Area), WellKnownArchetype.Area),
-        (typeof(Player), WellKnownArchetype.Player)
+        (typeof(Player), WellKnownArchetype.Player),
+        (typeof(Cell), WellKnownArchetype.Cell)
     ];
 
     /// Returns how many components were handed over, which a mod can log to see its shapes arrived.

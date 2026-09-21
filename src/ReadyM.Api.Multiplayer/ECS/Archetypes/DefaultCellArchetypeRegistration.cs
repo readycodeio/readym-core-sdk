@@ -1,3 +1,4 @@
+﻿using System;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
@@ -7,7 +8,10 @@ using ReadyM.Api.Multiplayer.ECS.Registry;
 
 namespace ReadyM.Api.Multiplayer.ECS.Archetypes;
 
-internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry cellComponentRegistry) : IArchetypeRegistration
+internal sealed class DefaultCellArchetypeRegistration(
+    ICellComponentRegistry cellComponentRegistry,
+    IModArchetypeExtensions modExtensions,
+    IModComponentStrides strides) : IArchetypeRegistration
 {
     private class RegisterCellComponentsCallback(ArchetypeBuilder builder) : ICellComponentRegistryCallback
     {
@@ -18,11 +22,19 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
         }
     }
 
-    public ArchetypeId CellArchetype { get; private set; }
+    private IArchetypeRegistry? _registry;
+    private ArchetypeId? _built;
+    
+    public ArchetypeId CellArchetype => _built ??= Build();
 
-    public void Register(IArchetypeRegistry registry)
+    public void Register(IArchetypeRegistry registry) => _registry = registry;
+
+    private ArchetypeId Build()
     {
-        CellArchetype = registry.RegisterArchetype(
+        if (_registry is null)
+            throw new InvalidOperationException("The cell archetype was asked for before it was registered with a store.");
+
+        return _registry.RegisterArchetype(
             new ArchetypeBuilder()
                 .Add<MetadataComponent>()
                 .Add<CellScopeComponent>()
@@ -30,6 +42,16 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
                 .Add<EmptyScopeDeletionComponent>()
                 .AddTag<ScopeEntityTag>()
                 .With(b => cellComponentRegistry.Accept(new RegisterCellComponentsCallback(b)))
+                .With(AddModComponents)
         );
+    }
+
+    private void AddModComponents(ArchetypeBuilder builder)
+    {
+        foreach (var component in modExtensions.For(WellKnownArchetype.Cell))
+        {
+            var (structIndex, stride) = strides.Of(component);
+            builder.Add(structIndex, stride);
+        }
     }
 }

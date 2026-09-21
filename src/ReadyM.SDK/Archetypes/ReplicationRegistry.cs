@@ -17,6 +17,9 @@ public static class ReplicationRegistry
     public static IReadOnlyList<ReplicatedComponent> Snapshot()
         => [.. Deliveries.Select(entry => new ReplicatedComponent(entry.Key, entry.Value))];
 
+    public static IReadOnlyList<ReplicatedComponent> InWireOrder()
+        => [.. Snapshot().OrderBy(replicated => replicated.Component.FullName, StringComparer.Ordinal)];
+
     /// Only for tests, which need each case to start from nothing.
     internal static void Clear() => Deliveries.Clear();
 }
