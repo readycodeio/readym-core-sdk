@@ -54,7 +54,7 @@ public class ClientDeferredDeleteTests : ClientSdkTest
         {
             var handle = monster.Handle;
 
-            Entities.Delete(handle);
+            Entities.Delete(monster);
 
             Assert.False(handle.IsAlive());
             Assert.Throws<InvalidEntityException>(() => handle.GetComponent<HealthComponent>());

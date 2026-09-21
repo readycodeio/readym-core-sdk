@@ -56,6 +56,7 @@ public abstract class ServerModBase
     /// Register new archetypes or modify existing.
     /// </summary>
     /// <param name="configure">The configuration callback.</param>
+    [Obsolete("Part of SDK v0. Use the [Archetype] attribute instead.")]
     protected void RegisterArchetypes(Action<IArchetypeRegistry> configure)
     {
         Services.RegisterSingleton<IArchetypeRegistration>(new FunctionalArchetypeRegistration(configure));
@@ -64,6 +65,7 @@ public abstract class ServerModBase
     /// <summary>
     /// Any components defined in the mod must be registered here.
     /// </summary>
+    [Obsolete("Part of SDK v0. Use the [ArchetypeMixin] attribute instead.")]
     protected virtual void RegisterComponents(IComponentRegistry registry) { }
 
     protected abstract void Init();

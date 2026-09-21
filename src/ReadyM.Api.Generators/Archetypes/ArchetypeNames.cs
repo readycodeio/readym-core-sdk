@@ -23,6 +23,7 @@ internal static class ArchetypeNames
     public const string ExplicitCollectionAttribute = Namespace + ".ExplicitCollectionAttribute";
     public const string ExtendsAttribute = Namespace + ".ExtendsAttribute";
     public const string IndexAttribute = Namespace + ".IndexAttribute";
+    public const string ReplicatedAttribute = Namespace + ".ReplicatedAttribute";
 
     public const string EntityHandle = "global::ReadyM.SDK.Entities.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";
@@ -37,6 +38,7 @@ internal static class ArchetypeNames
     public const string Scope = "global::ReadyM.SDK.Archetypes.Scope";
     public const string IndexRegistry = "global::ReadyM.SDK.Archetypes.IndexRegistry";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
+    public const string NetworkedComponent = "global::ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent";
 
     public const string RawEntity = "global::Friflo.Engine.ECS.RawEntity";
     /// The class holding the GetEnumerator that puts a shape on the chunk path.

@@ -1,6 +1,8 @@
 ﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Core;
 using ReadyM.SDK.Entities;
+using ReadyM.SDK.Exceptions;
 
 namespace ReadyM.SDK.Client.Entities;
 
@@ -11,18 +13,29 @@ internal class ClientEntities(EntityStore store, IEntityApi api) : IEntities
     public EntityQuery<T> Query<T>()
         where T : struct, IArchetypeQueryable
         => new(_context);
+    
+    public World World
+    {
+        get
+        {
+            foreach (var world in Query<World>())
+            {
+                return world;
+            }
+
+            throw new InvalidEntityException("World entity has not yet been created.");
+        }
+    }
 
     public T Create<T>() where T : struct, IArchetype
         => new() { Handle = new EntityHandle(api.Create(ArchetypeRegistry.SetFor(typeof(T), default(T).Components)), api) };
 
 #if NET
-    public bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct => Delete(shape.Handle);
+    public bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct => api.Delete(shape.Handle.RawEntity);
 #else
-    public bool Delete<T>(in T shape) where T : IEntityShape => Delete(shape.Handle);
+    public bool Delete<T>(in T shape) where T : IEntityShape => api.Delete(shape.Handle.RawEntity);
 #endif
-
-    public bool Delete(EntityHandle handle) => api.Delete(handle.RawEntity);
-
+    
     public EntityQuery<T1, T2> Query<T1, T2>()
         where T1 : struct, IArchetypeQueryable
         where T2 : struct, IArchetypeMixin

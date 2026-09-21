@@ -147,6 +147,15 @@ internal sealed class ComponentOwner(IncludeModel? include, bool marker)
     public bool IsMarker { get; } = marker;
 }
 
+/// How a replicated shape's changes reach the other side. Mirrors
+/// <c>ReadyM.SDK.Attributes.Delivery</c>: a generator cannot reference the SDK, and the attribute
+/// argument arrives as that enum's index, so the order of these two has to stay the same.
+internal enum Delivery
+{
+    Reliable,
+    Unreliable
+}
+
 /// <summary>
 /// What the generators need to know about one declaration, read from symbols only.
 /// </summary>
@@ -161,6 +170,7 @@ internal sealed class DeclarationModel
         Accessors = ReadAccessors(symbol);
         Includes = ReadIncludes(symbol);
         Extends = ReadExtends(symbol);
+        (HasReplicatedAttribute, Delivery) = ReadReplication(symbol);
     }
 
     public INamedTypeSymbol Symbol { get; }
@@ -188,6 +198,46 @@ internal sealed class DeclarationModel
 
     /// <summary>The component named by [ExplicitComponent], or null when one is generated.</summary>
     public INamedTypeSymbol? ExplicitComponent { get; }
+
+    /// Whether [Replicated] is on the declaration. Kept apart from <see cref="IsReplicated"/> so a
+    /// rule can tell asking to replicate from replicating because the component already does.
+    public bool HasReplicatedAttribute { get; }
+
+    /// How this shape's changes travel, when it replicates at all.
+    public Delivery Delivery { get; }
+
+    /// Whether this shape's values reach the other side. A shape says so with [Replicated], or says
+    /// nothing and inherits it from a component that is already networked.
+    /// <remarks>
+    /// A shape holding no values replicates nothing whatever it asks for: there is no component to
+    /// carry, and its presence travels with the entity instead.
+    /// </remarks>
+    public bool IsReplicated
+        => (HasReplicatedAttribute || (ExplicitComponent is { } c && IsNetworkedComponent(c)))
+           && (ExplicitComponent is not null || Accessors.Count > 0);
+
+    public static bool IsNetworkedComponent(INamedTypeSymbol component)
+        => component.AllInterfaces.Any(contract =>
+            contract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            == ArchetypeNames.NetworkedComponent);
+
+    private static (bool Present, Delivery Delivery) ReadReplication(INamedTypeSymbol symbol)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass?.ToDisplayString() != ArchetypeNames.ReplicatedAttribute)
+                continue;
+
+            var delivery = attribute.ConstructorArguments.Length > 0
+                           && attribute.ConstructorArguments[0].Value is int index
+                ? (Delivery)index
+                : Delivery.Reliable;
+
+            return (true, delivery);
+        }
+
+        return (false, Delivery.Reliable);
+    }
 
     /// <summary>The accessor [Index] marks, for a shape whose component is generated.</summary>
     public AccessorModel? IndexAccessor => Accessors.FirstOrDefault(accessor => accessor.IsIndex);

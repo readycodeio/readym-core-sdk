@@ -3,16 +3,13 @@ using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Client.Entities;
 
-public interface IEntities
+public interface IEntities : IEntitiesBase
 {
     /// <summary>
     /// Every entity of a shape. Walked by chunk when the shape and the runtime allow it, by identity
     /// otherwise, which is decided when the loop is compiled rather than when it runs.
     /// </summary>
     EntityQuery<T> Query<T>() where T : struct, IArchetypeQueryable;
-
-    /// Create a new entity of a given Archetype.
-    T Create<T>() where T : struct, IArchetype;
 
     /// <summary>
     /// Removes the entity a shape names: an archetype, a mixin, or, where the runtime has them, the
@@ -27,11 +24,6 @@ public interface IEntities
 #else
     bool Delete<T>(in T shape) where T : IEntityShape;
 #endif
-
-    /// <summary>
-    /// The same, by handle. What a loop walking chunks uses, since a view cannot be a type argument.
-    /// </summary>
-    bool Delete(EntityHandle handle);
 
     /// Every entity carrying all 2 shapes, walked the same way a single one is.
     EntityQuery<T1, T2> Query<T1, T2>()
@@ -67,11 +59,4 @@ public interface IEntities
         where T4 : struct, IArchetypeMixin
         where T5 : struct, IArchetypeMixin
         where T6 : struct, IArchetypeMixin;
-
-    /// The entity whose indexed value is the key, as the shape carrying the index.
-    /// <returns><c>false</c> when nothing holds that value.</returns>
-    bool TryLookup<T, TKey>(TKey key, out T shape) where T : struct, IArchetypeQueryable, IIndexed<TKey>;
-
-    /// Creates an entity held by a scope, which removes it when the scope goes.
-    T Create<T>(Scope scope) where T : struct, IArchetype;
 }

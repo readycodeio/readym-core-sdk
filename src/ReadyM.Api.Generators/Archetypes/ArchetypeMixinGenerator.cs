@@ -37,7 +37,8 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation);
+        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation)
+            .AddRange(ReplicationRules.Check(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
         var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);

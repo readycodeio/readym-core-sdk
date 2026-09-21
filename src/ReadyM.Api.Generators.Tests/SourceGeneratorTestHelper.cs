@@ -13,6 +13,10 @@ namespace ReadyM.Api.Generators.Tests;
 
 internal static class SourceGeneratorTestHelper
 {
+    /// The name a compilation has to carry to reach the SDK's internal attributes. Only for tests
+    /// that read diagnostics: anything emitting and loading an assembly needs a unique name instead.
+    internal const string SdkInternalsAssembly = "ReadyM.Api.Generators.Tests.Dynamic";
+
     internal sealed class GeneratorRunResult(
         ImmutableArray<Diagnostic> compilationDiagnostics,
         Compilation inputCompilation,
@@ -63,12 +67,13 @@ internal static class SourceGeneratorTestHelper
         IEnumerable<(string Path, string Source)> sources,
         IEnumerable<IIncrementalGenerator> generators,
         ITestOutputHelper output,
-        IEnumerable<Assembly>? alsoReference = null)
+        IEnumerable<Assembly>? alsoReference = null,
+        string? assemblyName = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
 
-        var inputCompilation = CreateCompilation(sources, output, alsoReference);
+        var inputCompilation = CreateCompilation(sources, output, alsoReference, assemblyName);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generators.Select(GeneratorExtensions.AsSourceGenerator));
         driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -130,7 +135,8 @@ internal static class SourceGeneratorTestHelper
     public static Compilation CreateCompilation(
         IEnumerable<(string Path, string Source)> sources,
         ITestOutputHelper output,
-        IEnumerable<Assembly>? alsoReference = null)
+        IEnumerable<Assembly>? alsoReference = null,
+        string? assemblyName = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
@@ -154,7 +160,7 @@ internal static class SourceGeneratorTestHelper
             .ToArray();
 
         return CSharpCompilation.Create(
-            assemblyName: "ReadyM.Api.Generators.Tests.Dynamic_" + Guid.NewGuid().ToString("N"),
+            assemblyName: assemblyName ?? SdkInternalsAssembly + "_" + Guid.NewGuid().ToString("N"),
             syntaxTrees: syntaxTrees,
             references: GetMetadataReferences(output, alsoReference),
             options: new CSharpCompilationOptions(

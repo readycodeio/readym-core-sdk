@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("ReadyM.SDK.Client")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Server")]
@@ -7,4 +7,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk.Common")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
+[assembly: InternalsVisibleTo("ReadyM.Api.Generators.Tests.Dynamic")]
 
+    

@@ -55,7 +55,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation);
+        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation)
+            .AddRange(ReplicationRules.Check(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
         var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
@@ -111,6 +112,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         writer.Line("public bool IsValid => _handle.IsAlive();");
         writer.Line();
         writer.Line($"public bool Is<T>() where T : struct, {ArchetypeNames.Queryable} => _handle.Is<T>();");
+        writer.Line();
+        writer.Line($"public T As<T>() where T : struct, {ArchetypeNames.Queryable} => _handle.As<T>();");
         writer.Line();
         writer.Line($"public bool TryAs<T>(out T archetype) where T : struct, {ArchetypeNames.Queryable}");
         writer.Line("    => _handle.TryAs(out archetype);");

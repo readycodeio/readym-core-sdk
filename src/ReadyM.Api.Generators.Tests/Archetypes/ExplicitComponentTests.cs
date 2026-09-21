@@ -73,7 +73,8 @@ public class ExplicitComponentTests(ITestOutputHelper output)
             [("Core.cs", Core), ("Shape.cs", source)],
             [new ArchetypeGenerator(), new ArchetypeMixinGenerator()],
             output,
-            Sdk);
+            Sdk,
+            SourceGeneratorTestHelper.SdkInternalsAssembly);
 
         return [.. result.DriverRunResult.Diagnostics.Where(d => d.Id.StartsWith("READYM"))];
     }
