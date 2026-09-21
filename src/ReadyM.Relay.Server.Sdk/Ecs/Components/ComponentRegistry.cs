@@ -70,6 +70,9 @@ internal sealed class ComponentRegistry(
             throw new ArgumentException(
                 $"{component.FullName} does not replicate, so it cannot be registered as networked.",
                 nameof(component));
+        
+        if (_registered.ContainsKey(component))
+            return;
 
         var method = typeof(ComponentRegistry)
             .GetMethod(nameof(RegisterComponent), BindingFlags.Public | BindingFlags.Instance, [typeof(byte)]);

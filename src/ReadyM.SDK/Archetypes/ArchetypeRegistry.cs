@@ -30,6 +30,17 @@ public static class ArchetypeRegistry
         }
     }
 
+    /// Only what mods added, without the archetype's own.
+    internal static ComponentSet AddedTo(Type archetype)
+    {
+        lock (Gate)
+        {
+            return Added.TryGetValue(archetype, out var sets) && sets.Count > 0
+                ? ComponentSet.Combine([.. sets])
+                : ComponentSet.Empty;
+        }
+    }
+
     /// <summary>The archetype's own components plus everything added to it.</summary>
     internal static ComponentSet SetFor(Type archetype, ComponentSet own)
     {

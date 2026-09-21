@@ -12,6 +12,9 @@ internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componen
 
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 
+/// Adds components to an archetype the server owns.
+internal delegate void AddArchetypeExtensionsDelegate(int archetype, NativeList<int> componentsSerialized);
+
 // Entity identity crosses the boundary as a RawEntity, id plus revision, because the relay world
 // recycles ids: the id freed by a delete is the next one handed out. A caller that kept an identity
 // across ticks and passes matchRevision = 1 is told the entity is gone; one that passes 0 addresses

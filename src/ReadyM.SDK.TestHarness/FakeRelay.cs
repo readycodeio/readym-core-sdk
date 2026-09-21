@@ -112,7 +112,8 @@ internal sealed class FakeRelay
     internal ArchetypePointers Archetypes => new()
     {
         RegisterArchetype = Marshal.GetFunctionPointerForDelegate(_registerArchetype),
-        ModifyArchetype = IntPtr.Zero
+        ModifyArchetype = IntPtr.Zero,
+        AddArchetypeExtensions = IntPtr.Zero
     };
 
     internal AotPointers Aot => new()

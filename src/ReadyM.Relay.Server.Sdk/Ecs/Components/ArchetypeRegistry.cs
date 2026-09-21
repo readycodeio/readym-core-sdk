@@ -6,6 +6,7 @@ using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
@@ -19,6 +20,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
     private readonly RegisterArchetypeDelegate _registerArchetypeDelegate;
     private readonly ModifyArchetypeDelegate _modifyArchetypeDelegate;
+    private readonly AddArchetypeExtensionsDelegate _addArchetypeExtensionsDelegate;
 
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly CollectComponentIdsCallback _componentIdCallback;
@@ -26,6 +28,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     private readonly IEnumerable<IArchetypeRegistration> _registrations;
+    private readonly ComponentRegistry _components;
 
     public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, EcsApi ecs, ILogger logger)
     {
@@ -33,9 +36,12 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
         _componentInitCallback = new ComponentInitCallback(ecs);
         _registrations = registrations;
+        _components = registry;
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
         _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
+        _addArchetypeExtensionsDelegate =
+            Marshal.GetDelegateForFunctionPointer<AddArchetypeExtensionsDelegate>(pointers.AddArchetypeExtensions);
     }
 
     public void OnScopeStart()
@@ -215,6 +221,22 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
 
         return archetypeId;
+    }
+
+    /// Adds components to an archetype the server owns.
+    public void AddArchetypeExtensions(WellKnownArchetype archetype, IReadOnlyList<Type> components)
+    {
+        var ids = new List<int>(components.Count);
+
+        foreach (var component in components)
+            ids.Add(_components.ResolveComponentId(component));
+
+        if (ids.Count == 0)
+            return;
+
+        _logger.LogDebug("Adding {Components} to the {Archetype} archetype", ids, archetype);
+
+        _addArchetypeExtensionsDelegate((int)archetype, ToNative(ids));
     }
 
     public void ModifyArchetype(ArchetypeId archetypeId, Action<ArchetypeBuilder> callback)
