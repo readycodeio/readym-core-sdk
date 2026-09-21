@@ -15,7 +15,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector2 vector, ISaveReader reader, ISaveReadContext context)
+    public static void ReadSave(this ref Vector2 vector, ISaveReader reader, ISaveLoadContext context)
     {
         reader.BeginObject();
         reader.Name("x");
@@ -37,7 +37,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector3 vector, ISaveReader reader, ISaveReadContext context)
+    public static void ReadSave(this ref Vector3 vector, ISaveReader reader, ISaveLoadContext context)
     {
         reader.BeginObject();
         reader.Name("x");
@@ -63,7 +63,7 @@ public static class VectorSaveExtensions
         writer.EndObject();
     }
 
-    public static void ReadSave(this ref Vector4 vector, ISaveReader reader, ISaveReadContext context)
+    public static void ReadSave(this ref Vector4 vector, ISaveReader reader, ISaveLoadContext context)
     {
         reader.BeginObject();
         reader.Name("x");

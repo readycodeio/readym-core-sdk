@@ -176,7 +176,7 @@ namespace {{info.Namespace}};
     private void EmitReadSave(StringBuilder sb, DeriveTargetModel model, CSharpClassState classState)
     {
         sb.AppendLine("""
-    public void ReadSave(ISaveReader reader, ISaveReadContext context)
+    public void ReadSave(ISaveReader reader, ISaveLoadContext context)
     {
         reader.BeginObject();
 """);
