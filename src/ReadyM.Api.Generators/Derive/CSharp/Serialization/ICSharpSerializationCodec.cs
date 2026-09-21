@@ -21,6 +21,10 @@ internal interface ICSharpSerializationCodec
     void WriteSelf(CSharpEmitSerializeContext context);
     void ReadSelf(CSharpEmitDeserializeContext context);
 
+    /// <summary>A cross-entity reference.</summary>
+    void WriteEntityRef(CSharpEmitSerializeContext context);
+    void ReadEntityRef(CSharpEmitDeserializeContext context);
+
     /// <summary>Frames a list and iterates its elements; <paramref name="emitElement"/> writes one element.</summary>
     void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement);
 

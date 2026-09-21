@@ -163,14 +163,6 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"writer.Name(\"{SaveKey(member.Source.Name)}\");");
-
-            // A cross-entity reference.
-            if (IsRawEntity(member.Source.Type))
-            {
-                context.AppendLine($"context.WriteEntityRef(writer, {member.Source.Name});");
-                continue;
-            }
-
             context.EmitSerializeVar(member.Source.Name, member.Source.Type);
         }
 
@@ -201,14 +193,6 @@ namespace {{info.Namespace}};
                 CSharpFieldSupportRegistry.SaveCodec);
             context.State.ResetIndent("        ");
             context.AppendLine($"reader.Name(\"{SaveKey(member.Source.Name)}\");");
-
-            // Resolve the PersistentId back to the loaded entity (default when empty or unresolved).
-            if (IsRawEntity(member.Source.Type))
-            {
-                context.AppendLine($"{member.Source.Name} = context.ReadEntityRef(reader);");
-                continue;
-            }
-
             context.EmitDeserializeVar(member.Source.Name, member.Source.Type);
         }
 
@@ -223,9 +207,6 @@ namespace {{info.Namespace}};
 
     private static bool IsIgnored(DeriveMemberModel member)
         => AttributeUtils.HasAttribute(member.Source.Symbol, "SaveIgnoreAttribute");
-
-    private static bool IsRawEntity(ITypeSymbol type)
-        => type.Name == "Entity" && type.ContainingNamespace?.ToDisplayString() == "Friflo.Engine.ECS";
 
     // The on-disk field key: strip a leading underscore and capitalise, so "_items" reads as "Items".
     private static string SaveKey(string fieldName)

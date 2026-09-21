@@ -22,6 +22,7 @@ internal class CSharpFieldSupportRegistry
 
     private static readonly ICSharpTypeSerializationImpl[] CSharpSerializationImpls =
     [
+        new EntitySerializationImpl(),
         new PrimitiveSerializationImpl(),
         new EnumSerializationImpl(),
         new VectorLikeSerializationImpl(),

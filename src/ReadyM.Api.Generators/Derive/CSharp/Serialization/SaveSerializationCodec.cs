@@ -65,6 +65,12 @@ internal sealed class SaveSerializationCodec : ICSharpSerializationCodec
     public void ReadSelf(CSharpEmitDeserializeContext context)
         => context.AppendLine($"{context.State.CurrentVar}.ReadSave(reader, context);");
 
+    public void WriteEntityRef(CSharpEmitSerializeContext context)
+        => context.AppendLine($"context.WriteEntityRef(writer, {context.State.CurrentVar});");
+
+    public void ReadEntityRef(CSharpEmitDeserializeContext context)
+        => context.AppendLine($"{context.State.CurrentVar} = context.ReadEntityRef(reader);");
+
     public void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement)
     {
         var countVar = context.MethodState.NewVarName("count");

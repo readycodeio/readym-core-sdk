@@ -46,6 +46,12 @@ internal sealed class NetDataSerializationCodec : ICSharpSerializationCodec
     public void ReadSelf(CSharpEmitDeserializeContext context)
         => context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
 
+    public void WriteEntityRef(CSharpEmitSerializeContext context)
+        => context.AppendLine("throw new System.NotSupportedException(\"Entity references are not supported in networked serialization; reference entities by NetworkId.\");");
+
+    public void ReadEntityRef(CSharpEmitDeserializeContext context)
+        => context.AppendLine("throw new System.NotSupportedException(\"Entity references are not supported in networked serialization; reference entities by NetworkId.\");");
+
     public void SerializeCollection(CSharpEmitSerializeContext context, string sourceVar, string iterVar, Action emitElement)
     {
         var countVar = context.MethodState.NewVarName("count");
