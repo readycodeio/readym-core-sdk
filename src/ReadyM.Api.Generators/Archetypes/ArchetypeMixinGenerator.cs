@@ -79,10 +79,12 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}{IndexEmitter.Contract(model)}"))
         {
             HandleEmitter.Handle(writer, model);
-            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
+            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true, model.IsReplicated);
 
             foreach (var forward in model.Forwards)
                 AccessorEmitter.Forwarded(writer, forward, model.QualifiedAccessors);
+
+            ValuesEmitter.Emit(writer, model);
         }
 
         if (view is not null)

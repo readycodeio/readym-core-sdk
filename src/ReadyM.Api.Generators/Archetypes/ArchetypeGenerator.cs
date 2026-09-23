@@ -105,11 +105,12 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         {
             HandleEmitter.Handle(writer, model);
             EmitIdentity(writer);
-            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true);
+            HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true, model.IsReplicated);
             EmitIncluded(writer, model);
             EmitForwards(writer, model);
             EmitConversions(writer, model);
             EmitScope(writer, model);
+            ValuesEmitter.Emit(writer, model);
         }
 
         if (view is not null)
@@ -167,7 +168,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
             writer.Line();
-            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false);
+            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false, include.IsReplicated);
         }
     }
 

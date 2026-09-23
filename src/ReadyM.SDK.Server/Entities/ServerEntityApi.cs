@@ -167,6 +167,12 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return true;
     }
 
+    public bool Allows(RawEntity rawEntity, Type component, WriteKind kind) => true;
+
+    public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => false;
+
+    public bool MarksOverrides => false;
+
     public int ComponentIdOf(Type type) => _registry.ResolveComponentId(type);
 
     public unsafe ComponentRef Locate(RawEntity rawEntity, int componentId)
@@ -194,7 +200,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         if (!slot.Found())
             throw Missing<TComponent>(rawEntity);
-        
+
         if (slot.HeapSelf == IntPtr.Zero)
         {
             var copy = component;

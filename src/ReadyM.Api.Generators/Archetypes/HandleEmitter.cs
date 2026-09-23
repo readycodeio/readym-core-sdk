@@ -64,7 +64,7 @@ internal static class HandleEmitter
         _ => "public"
     };
 
-    public static void Accessor(SourceWriter writer, AccessorModel accessor, string accessors, bool partial)
+    public static void Accessor(SourceWriter writer, AccessorModel accessor, string accessors, bool partial, bool replicated = false)
     {
         if (!partial && !accessor.IsExposed)
             return;
@@ -90,12 +90,13 @@ internal static class HandleEmitter
         SourceWriter writer,
         IReadOnlyList<AccessorModel> accessors,
         string accessorClass,
-        bool partial)
+        bool partial,
+        bool replicated = false)
     {
         foreach (var accessor in accessors)
         {
             writer.Line();
-            Accessor(writer, accessor, accessorClass, partial);
+            Accessor(writer, accessor, accessorClass, partial, replicated);
         }
     }
 }

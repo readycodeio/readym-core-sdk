@@ -66,6 +66,10 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 
     public INamedTypeSymbol? Component { get; }
 
+    /// What the component's Fields class calls this value. A generated component turns the shape's
+    /// own name into the property, and one named by [ExplicitComponent] already had its own.
+    public string FieldEntry => Component is null ? Name : Field;
+
     /// Whether the value sits in the component as a base type of the one the shape declared, which
     /// is how a shape gives a game's own storage the type a mod actually works with.
     public bool Narrows { get; }
@@ -221,6 +225,9 @@ internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
 
     /// <summary>The class a consumer goes through, wherever the declaration was compiled.</summary>
     public string Accessors { get; } = ArchetypeNames.QualifiedAccessorsOf(type);
+
+    /// Whether what it brings goes over the wire, which decides what a write through it means.
+    public bool IsReplicated { get; } = DeclarationModel.For(type).IsReplicated;
 }
 
 /// <summary>One entry in a shape's component set: a declaration's component, or its marker.</summary>

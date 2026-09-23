@@ -1,4 +1,9 @@
-﻿using Friflo.Engine.ECS;
+﻿using System.Collections.Concurrent;
+using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using ReadyM.Api.Mapping;
+using ReadyM.Api.Mapping.Policies.Data;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
@@ -9,16 +14,69 @@ namespace ReadyM.SDK.Client.Entities;
 internal sealed class ClientEntityApi : IEntityApi
 {
     private readonly EntityStore _store;
+    private readonly Lazy<IMappingPolicyDirectory>? _policies;
+    private readonly ILogger _logger;
+    private readonly ConcurrentDictionary<Type, IMappingDataPolicy<Entity>?> _policyOf = new();
     private QueryScope _scope = new();
 
-    public ClientEntityApi(EntityStore store) => _store = store;
+    public ClientEntityApi(
+        EntityStore store,
+        // Lazy because this is built early and the mapping policy directory is not.
+        Lazy<IMappingPolicyDirectory>? policies = null,
+        ILoggerFactory? loggerFactory = null)
+    {
+        _store = store;
+        _policies = policies;
+        _logger = (ILogger?)loggerFactory?.CreateLogger<ClientEntityApi>() ?? NullLogger.Instance;
+    }
+
+    public bool MarksOverrides => true;
+
+    public bool Allows(RawEntity rawEntity, Type component, WriteKind kind)
+    {
+        // No policy means everything is allowed.
+        if (PolicyOf(component) is not { } policy)
+            return true;
+
+        var entity = _store.GetEntityByRawEntity(rawEntity);
+
+        if (kind == WriteKind.Override ? policy.CanSetFromApi(entity) : policy.ShouldGameCopyToEcs(entity))
+            return true;
+
+        if (kind == WriteKind.Override)
+            _logger.LogWarning("Refused an override of {Component} on {Entity}: it is not this client's to set", component.Name, rawEntity.Id);
+        else
+            _logger.LogDebug("Refused a write of {Component} on {Entity}", component.Name, rawEntity.Id);
+
+        return false;
+    }
+
+    public bool ShouldApplyToGame(RawEntity rawEntity, Type component)
+        => PolicyOf(component) is not { } policy || policy.ShouldEcsCopyToGame(_store.GetEntityByRawEntity(rawEntity));
+
+    private IMappingDataPolicy<Entity>? PolicyOf(Type component)
+    {
+        if (_policies is null)
+            return null;
+
+        if (_policyOf.TryGetValue(component, out var found))
+            return found;
+
+        try
+        {
+            found = _policies.Value.ForData(component);
+        }
+        catch (ArgumentException)
+        {
+            // What the directory does for a component no policy covers.
+            found = null;
+        }
+
+        return _policyOf[component] = found;
+    }
 
     public int ComponentIdOf(Type type) => SchemaTypeUtils.GetStructIndex(type);
 
-    /// <summary>
-    /// One node load rather than the three that going through <see cref="Friflo.Engine.ECS.Entity"/>
-    /// cost: resolving the entity, checking it, and reaching the component each loaded it again.
-    /// </summary>
     public ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
         var nodes = _store.nodes;
@@ -28,8 +86,6 @@ internal sealed class ClientEntityApi : IEntityApi
 
         ref var node = ref nodes[rawEntity.Id];
 
-        // Kept apart from the bounds check above, which has to stand alone for the JIT to drop the
-        // array's own check on the line between them.
         if (!node.IsAlive(rawEntity.Revision) || _scope.IsPending(rawEntity))
             throw new InvalidEntityException();
 
@@ -55,8 +111,7 @@ internal sealed class ClientEntityApi : IEntityApi
         return Created(_store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity, components);
     }
 
-    // A component holding a native collection has no memory until this runs, so it happens as the
-    // entity is created rather than being left to whoever writes the shape first.
+    /// A component holding a native collection has no memory until this runs.
     private RawEntity Created(RawEntity rawEntity, ComponentSet components)
     {
         if (NativeInitRegistry.Any)
@@ -64,14 +119,12 @@ internal sealed class ClientEntityApi : IEntityApi
 
         return rawEntity;
     }
-
-
-    /// Assigning the whole component is what makes Friflo move it in the index.
+    
+    /// Friflo does not update indices unless the component is replaced whole.
     public void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
         where TComponent : struct, IIndexedComponent<TKey>
         => Resolve(rawEntity).AddComponent(component);
 
-    /// Friflo keeps the index, so this is its own lookup.
     public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey>
     {

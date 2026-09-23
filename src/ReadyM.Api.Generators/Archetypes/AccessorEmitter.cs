@@ -134,12 +134,19 @@ internal static class AccessorEmitter
 
         if (accessor.HasSetter)
         {
+            // A write through a shape reports what the game did, so the game keeps authority over
+            // the value. Saying it should take a value instead goes through its token, which only
+            // a client can reach. Anything unreplicated has neither a mask nor a policy.
+            var marked = Marked(accessor, replicated);
+
             writer.Line();
             writer.Line($"public static void Set{accessor.Name}(in {ArchetypeNames.EntityHandle} handle, {accessor.Type} value)");
 
             if (indexedBy is null)
             {
-                writer.Line($"    => {write};");
+                writer.Line(marked
+                    ? $"    => handle.Write({Entry(accessor, component)}, value, {ArchetypeNames.WriteKind}.Mirror);"
+                    : $"    => {write};");
             }
             else
             {
@@ -147,7 +154,18 @@ internal static class AccessorEmitter
                 {
                     writer.Line($"var updated = handle.GetComponent<{component}>();");
                     writer.Line();
-                    writer.Line($"{(replicated ? Write("updated", accessor) : $"updated.{accessor.Field} = value")};");
+
+                    if (marked)
+                    {
+                        writer.Line($"if (!handle.Write(ref updated, {Entry(accessor, component)}, value, "
+                                    + $"{ArchetypeNames.WriteKind}.Mirror))");
+                        writer.Line("    return;");
+                    }
+                    else
+                    {
+                        writer.Line($"{(replicated ? Write("updated", accessor) : $"updated.{accessor.Field} = value")};");
+                    }
+
                     writer.Line();
                     writer.Line($"handle.ReplaceIndexed<{component}, {indexedBy}>(updated);");
                 }
@@ -212,6 +230,15 @@ internal static class AccessorEmitter
     /// Writing one value of a replicated component. A native collection has no property to assign:
     /// the replicated emitter gives it a setter method, which copies the contents rather than taking
     /// the collection itself.
+    /// Whether the write goes through the component's masks. A native collection has its own
+    /// mutators rather than one setter, so it keeps the direct path until they get the same
+    /// treatment.
+    internal static bool Marked(AccessorModel accessor, bool replicated)
+        => replicated && !accessor.IsNativeContainer;
+
+    private static string Entry(AccessorModel accessor, string component)
+        => $"{component}.Fields.{accessor.FieldEntry}";
+
     private static string Write(string target, AccessorModel accessor)
         => accessor.IsNativeContainer
             ? $"{target}.Set{accessor.Name}(value)"

@@ -34,6 +34,15 @@ internal interface IEntityApi
     bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey>;
 
+    /// Whether a write of this kind would be applied to the component.
+    bool Allows(RawEntity rawEntity, Type component, WriteKind kind);
+
+    /// <c>true</c> on the client, <c>false</c> on the server.
+    bool MarksOverrides { get; }
+
+    /// Does this component's data sync direction is from ECS to game?
+    bool ShouldApplyToGame(RawEntity rawEntity, Type component);
+
     bool IsAlive(RawEntity rawEntity);
 
     /// Whether the entity carries every component of the set. An empty set matches anything.
