@@ -127,6 +127,9 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         // When an ECS change ownership message is received, the client updates the ownership of the entity in its ECS world. No response is sent to the server.
         RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
 
+        // When an ECS change scope message is received, the client moves an entity it already has into another scope. No response is sent to the server.
+        RelayClient.AddBuiltInMessageHandler(RelayMessageCode.EcsChangeScope, OnEcsChangeScopeMessageHandler);
+
         // When an entity is deleted, we check if the event originated locally on the client. If yes, then a message is
         // sent to the server.
         NetEntity.OnEntityDelete += OnEntityDeleteHandler;
@@ -160,6 +163,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsDelta, OnEcsDeltaMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsSnapshot, OnEcsSnapshotMessageHandler);
         RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsChangeOwnership, OnEcsChangeOwnershipMessageHandler);
+        RelayClient.RemoveBuiltInMessageHandler(RelayMessageCode.EcsChangeScope, OnEcsChangeScopeMessageHandler);
 
         NetEntity.OnEntityDelete -= OnEntityDeleteHandler;
     }
@@ -261,6 +265,37 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                 _skipEcsEventMessages--;
             }
         }, this, _receiveSystem.Scheduler.MakeSafe(reader));
+    }
+
+    protected void OnEcsChangeScopeMessageHandler(ServerEventHeader header, NetDataReader reader)
+    {
+        var netId = reader.Get<NetworkId>();
+        var scopeNetId = reader.Get<NetworkId>();
+        _receiveSystem.Scheduler.Schedule(static (_, self, netId0, scopeNetId0) =>
+        {
+            try
+            {
+                _skipEcsEventMessages++;
+                if (!self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
+                {
+                    self.Logger.LogWarning("Received change scope event for locally non-existent entity: {Id}", netId0);
+                    return;
+                }
+
+                if (!self.NetEntity.TryGetEntityByNetworkId(scopeNetId0, out var scopeEntity))
+                {
+                    self.Logger.LogWarning("Received change scope event for entity {Id} into locally non-existent scope: {Scope}", netId0, scopeNetId0);
+                    return;
+                }
+
+                // Changing the field directly would not update the scope index
+                entity.Value.AddComponent(new InScopeComponent(scopeEntity.Value));
+            }
+            finally
+            {
+                _skipEcsEventMessages--;
+            }
+        }, this, netId, scopeNetId);
     }
 
     protected void OnEcsDeltaMessageHandler(ServerEventHeader header, NetDataReader reader)
