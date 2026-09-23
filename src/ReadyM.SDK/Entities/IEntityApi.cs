@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Mapping.Data;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Exceptions;
 using IComponent = Friflo.Engine.ECS.IComponent;
@@ -37,8 +38,15 @@ internal interface IEntityApi
     /// Whether a write of this kind would be applied to the component.
     bool Allows(RawEntity rawEntity, Type component, WriteKind kind);
 
-    /// <c>true</c> on the client, <c>false</c> on the server.
-    bool MarksOverrides { get; }
+    /// Writes one value, as the game reporting it or as an override of it.
+    /// <returns><c>false</c> when the write does not belong on this side.</returns>
+    bool Write<TComponent, TValue>(
+        RawEntity rawEntity,
+        ref TComponent component,
+        Field<TComponent, TValue> field,
+        TValue value,
+        WriteKind kind)
+        where TComponent : struct, IComponent;
 
     /// Does this component's data sync direction is from ECS to game?
     bool ShouldApplyToGame(RawEntity rawEntity, Type component);

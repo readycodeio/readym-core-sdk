@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Mapping.Data;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Client;
 using ReadyM.SDK.Client.Mapping;
@@ -234,7 +235,16 @@ public class ShapeMappingTests : ClientSdkTest
         // is the side whose ECS is authoritative, and only the other may report or claim it.
         public bool Allows(RawEntity rawEntity, Type component, WriteKind kind) => !ecsDrives;
 
-        public bool MarksOverrides => true;
+        /// Only the direction questions are answered here. The write rule itself is the client's,
+        /// so a test cannot quietly diverge from it.
+        public bool Write<TComponent, TValue>(
+            RawEntity rawEntity,
+            ref TComponent component,
+            Field<TComponent, TValue> field,
+            TValue value,
+            WriteKind kind)
+            where TComponent : struct, IComponent
+            => inner.Write(rawEntity, ref component, field, value, kind);
 
         public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => ecsDrives;
 

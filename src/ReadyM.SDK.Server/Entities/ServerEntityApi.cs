@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Mapping.Data;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
@@ -171,7 +172,18 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => false;
 
-    public bool MarksOverrides => false;
+    public bool Write<TComponent, TValue>(
+        RawEntity rawEntity,
+        ref TComponent component,
+        Field<TComponent, TValue> field,
+        TValue value,
+        WriteKind kind
+    ) where TComponent : struct, IComponent
+    {
+        // Every write on the server is authoritative.
+        field.Set(ref component, value);
+        return true;
+    }
 
     public int ComponentIdOf(Type type) => _registry.ResolveComponentId(type);
 

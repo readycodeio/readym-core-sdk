@@ -3,6 +3,7 @@ using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.Api.Mapping;
+using ReadyM.Api.Mapping.Data;
 using ReadyM.Api.Mapping.Policies.Data;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.SDK.Archetypes;
@@ -11,26 +12,41 @@ using ReadyM.SDK.Exceptions;
 
 namespace ReadyM.SDK.Client.Entities;
 
-internal sealed class ClientEntityApi : IEntityApi
+internal sealed class ClientEntityApi(
+    EntityStore store,
+    ILogger<ClientEntityApi> logger,
+    // Lazy because this is built early and the mapping policy directory is not.
+    Lazy<IMappingPolicyDirectory>? policies = null
+) : IEntityApi
 {
-    private readonly EntityStore _store;
-    private readonly Lazy<IMappingPolicyDirectory>? _policies;
-    private readonly ILogger _logger;
     private readonly ConcurrentDictionary<Type, IMappingDataPolicy<Entity>?> _policyOf = new();
     private QueryScope _scope = new();
 
-    public ClientEntityApi(
-        EntityStore store,
-        // Lazy because this is built early and the mapping policy directory is not.
-        Lazy<IMappingPolicyDirectory>? policies = null,
-        ILoggerFactory? loggerFactory = null)
+    public bool Write<TComponent, TValue>(
+        RawEntity rawEntity,
+        ref TComponent component,
+        Field<TComponent, TValue> field,
+        TValue value,
+        WriteKind kind)
+        where TComponent : struct, IComponent
     {
-        _store = store;
-        _policies = policies;
-        _logger = (ILogger?)loggerFactory?.CreateLogger<ClientEntityApi>() ?? NullLogger.Instance;
-    }
+        if (!Allows(rawEntity, typeof(TComponent), kind))
+            return false;
 
-    public bool MarksOverrides => true;
+        switch (kind)
+        {
+            case WriteKind.Mirror when field.WasSetFromApi(component):
+                return false;
+            case WriteKind.Override:
+                field.SetFromApi(ref component, value, rawEntity.Id);
+                break;
+            default:
+                field.Set(ref component, value);
+                break;
+        }
+
+        return true;
+    }
 
     public bool Allows(RawEntity rawEntity, Type component, WriteKind kind)
     {
@@ -38,25 +54,25 @@ internal sealed class ClientEntityApi : IEntityApi
         if (PolicyOf(component) is not { } policy)
             return true;
 
-        var entity = _store.GetEntityByRawEntity(rawEntity);
+        var entity = store.GetEntityByRawEntity(rawEntity);
 
         if (kind == WriteKind.Override ? policy.CanSetFromApi(entity) : policy.ShouldGameCopyToEcs(entity))
             return true;
 
         if (kind == WriteKind.Override)
-            _logger.LogWarning("Refused an override of {Component} on {Entity}: it is not this client's to set", component.Name, rawEntity.Id);
+            logger.LogWarning("Refused an override of {Component} on {Entity}: it is not this client's to set", component.Name, rawEntity.Id);
         else
-            _logger.LogDebug("Refused a write of {Component} on {Entity}", component.Name, rawEntity.Id);
+            logger.LogDebug("Refused a write of {Component} on {Entity}", component.Name, rawEntity.Id);
 
         return false;
     }
 
     public bool ShouldApplyToGame(RawEntity rawEntity, Type component)
-        => PolicyOf(component) is not { } policy || policy.ShouldEcsCopyToGame(_store.GetEntityByRawEntity(rawEntity));
+        => PolicyOf(component) is not { } policy || policy.ShouldEcsCopyToGame(store.GetEntityByRawEntity(rawEntity));
 
     private IMappingDataPolicy<Entity>? PolicyOf(Type component)
     {
-        if (_policies is null)
+        if (policies is null)
             return null;
 
         if (_policyOf.TryGetValue(component, out var found))
@@ -64,7 +80,7 @@ internal sealed class ClientEntityApi : IEntityApi
 
         try
         {
-            found = _policies.Value.ForData(component);
+            found = policies.Value.ForData(component);
         }
         catch (ArgumentException)
         {
@@ -79,7 +95,7 @@ internal sealed class ClientEntityApi : IEntityApi
 
     public ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
-        var nodes = _store.nodes;
+        var nodes = store.nodes;
 
         if ((uint)rawEntity.Id >= (uint)nodes.Length)
             throw new InvalidEntityException();
@@ -97,7 +113,7 @@ internal sealed class ClientEntityApi : IEntityApi
     public RawEntity Create(ComponentSet components, RawEntity scope)
     {
         var holder = Resolve(scope);
-        var entity = _store.GetEntityByRawEntity(Create(components));
+        var entity = store.GetEntityByRawEntity(Create(components));
 
         entity.AddComponent(new InScopeComponent(holder));
 
@@ -108,7 +124,7 @@ internal sealed class ClientEntityApi : IEntityApi
     {
         _scope.RefuseIfInQuery("Creating an entity");
 
-        return Created(_store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity, components);
+        return Created(store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity, components);
     }
 
     /// A component holding a native collection has no memory until this runs.
@@ -119,7 +135,7 @@ internal sealed class ClientEntityApi : IEntityApi
 
         return rawEntity;
     }
-    
+
     /// Friflo does not update indices unless the component is replaced whole.
     public void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
         where TComponent : struct, IIndexedComponent<TKey>
@@ -128,7 +144,7 @@ internal sealed class ClientEntityApi : IEntityApi
     public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey>
     {
-        foreach (var found in _store.ComponentIndex<TComponent, TKey>()[key])
+        foreach (var found in store.ComponentIndex<TComponent, TKey>()[key])
         {
             entity = found.RawEntity;
             return true;
@@ -160,7 +176,7 @@ internal sealed class ClientEntityApi : IEntityApi
         => Resolve(rawEntity).Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
 
     public bool IsAlive(RawEntity rawEntity)
-        => !_scope.IsPending(rawEntity) && !_store.GetEntityByRawEntity(rawEntity).IsNull;
+        => !_scope.IsPending(rawEntity) && !store.GetEntityByRawEntity(rawEntity).IsNull;
 
     public bool Delete(RawEntity rawEntity)
     {
@@ -189,7 +205,7 @@ internal sealed class ClientEntityApi : IEntityApi
 
     private void DeleteNow(RawEntity rawEntity)
     {
-        var entity = _store.GetEntityByRawEntity(rawEntity);
+        var entity = store.GetEntityByRawEntity(rawEntity);
 
         if (!entity.IsNull)
             entity.DeleteEntity();
@@ -200,7 +216,7 @@ internal sealed class ClientEntityApi : IEntityApi
         if (_scope.IsPending(rawEntity))
             throw new InvalidEntityException();
 
-        var entity = _store.GetEntityByRawEntity(rawEntity);
+        var entity = store.GetEntityByRawEntity(rawEntity);
 
         if (entity.IsNull)
             throw new InvalidEntityException();

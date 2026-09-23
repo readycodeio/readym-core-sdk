@@ -82,56 +82,21 @@ public readonly struct EntityHandle
         return true;
     }
 
-    /// Writes a value of a field, in either a mirror (sync from game) or overrides (set from API) mode.
-    /// <returns><c>false</c> when the component's policy refuses the write.</returns>
+    /// Writes a value of a field, as the game reporting it or as an override of it.
+    /// <returns><c>false</c> when the write does not belong on this side.</returns>
     public bool Write<TComponent, TValue>(Field<TComponent, TValue> field, TValue value, WriteKind kind)
         where TComponent : struct, IComponent
-    {
-        if (!_api.Allows(_rawEntity, typeof(TComponent), kind))
-            return false;
+        => _api.Write(_rawEntity, ref GetComponent<TComponent>(), field, value, kind);
 
-        ref var component = ref GetComponent<TComponent>();
-
-        switch (kind)
-        {
-            case WriteKind.Mirror when _api.MarksOverrides && field.WasSetFromApi(component):
-                return false; // skip mirror, field was overriden
-            case WriteKind.Override when _api.MarksOverrides:
-                field.SetFromApi(ref component, value, _rawEntity.Id); // override
-                break;
-            default:
-                field.Set(ref component, value); // mirror
-                break;
-        }
-
-        return true;
-    }
-    
     /// <inheritdoc cref="Write{TComponent, TValue}(Field{TComponent, TValue}, TValue, WriteKind)"/>
+    /// <remarks>Into a component the caller holds, for a value written back whole to move its index.</remarks>
     public bool Write<TComponent, TValue>(
         ref TComponent component,
         Field<TComponent, TValue> field,
         TValue value,
         WriteKind kind)
         where TComponent : struct, IComponent
-    {
-        if (!_api.Allows(_rawEntity, typeof(TComponent), kind))
-            return false;
-
-        switch (kind)
-        {
-            case WriteKind.Mirror when _api.MarksOverrides && field.WasSetFromApi(component):
-                return false; // skip mirror, field was overriden
-            case WriteKind.Override when _api.MarksOverrides:
-                field.SetFromApi(ref component, value, _rawEntity.Id); // override
-                break;
-            default:
-                field.Set(ref component, value); // mirror
-                break;
-        }
-
-        return true;
-    }
+        => _api.Write(_rawEntity, ref component, field, value, kind);
 
     internal bool Allows(Type component, WriteKind kind) 
         => _api.Allows(_rawEntity, component, kind);

@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.SDK.Client.Entities;
 
 namespace ReadyM.SDK.Benchmarks;
@@ -24,7 +25,7 @@ public class ClientQueryBenchmarks
     public void Setup()
     {
         _store = new EntityStore();
-        _sdk = new ClientEntities(_store, new ClientEntityApi(_store));
+        _sdk = new ClientEntities(_store, new ClientEntityApi(_store, NullLogger<ClientEntityApi>.Instance));
 
         for (var i = 0; i < Entities; i++)
         {

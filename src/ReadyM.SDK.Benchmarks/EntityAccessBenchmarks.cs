@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
 using FrifloEntity = Friflo.Engine.ECS.Entity;
@@ -30,7 +31,7 @@ public class EntityAccessBenchmarks
     public void Setup()
     {
         var store = new EntityStore();
-        var sdk = new ClientEntities(store, new ClientEntityApi(store));
+        var sdk = new ClientEntities(store, new ClientEntityApi(store, NullLogger<ClientEntityApi>.Instance));
 
         _v1 = sdk.Create<Creep>();
         _v1.Hp = 1f;

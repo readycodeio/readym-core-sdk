@@ -1,4 +1,6 @@
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.Api.DI;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Client.Entities;
@@ -24,6 +26,11 @@ public abstract class ClientSdkTest : IDisposable
     {
         _container = new TestContainer();
         _container.Init();
+
+        // Init wires ILogger<> to Logger<>, which needs a factory to come from. A game supplies a
+        // real one; nothing here reads the output, so a null one keeps the graph resolvable.
+        _container.RegisterSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        _container.RegisterSingleton<ILogger>(NullLogger.Instance);
 
         _container.RegisterSingleton(new EntityStore());
         _container.RegisterSingleton<IEntityApi, ClientEntityApi>();

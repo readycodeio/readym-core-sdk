@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Mapping;
 using ReadyM.Api.Mapping.CreateDestroy;
@@ -21,7 +22,7 @@ public class ClientWritePolicyTests
     private RawEntity AnEntity() => _store.CreateEntity(new TelemetryComponent()).RawEntity;
 
     private ClientEntityApi ApiWith(IMappingDataPolicy<Entity>? policy)
-        => new(_store, policy is null ? null : new Lazy<IMappingPolicyDirectory>(() => new Directory(policy)));
+        => new(_store, NullLogger<ClientEntityApi>.Instance, policy is null ? null : new Lazy<IMappingPolicyDirectory>(() => new Directory(policy)));
 
     /// The question a mirror asks is whether the game may copy into the ECS.
     [Fact]
@@ -63,57 +64,5 @@ public class ClientWritePolicyTests
 
         Assert.True(api.Allows(AnEntity(), typeof(TelemetryComponent), WriteKind.Mirror));
         Assert.True(api.Allows(AnEntity(), typeof(TelemetryComponent), WriteKind.Override));
-    }
-
-    /// The client marks overrides, because it has a game that would otherwise overwrite them.
-    [Fact]
-    public void A_client_marks_its_overrides() => Assert.True(ApiWith(null).MarksOverrides);
-
-    private sealed class Policy : IMappingDataPolicy<Entity>
-    {
-        public bool GameCopiesIn { get; init; }
-
-        public bool SetsFromApi { get; init; }
-
-        public bool ShouldGameCopyToEcs(in Entity context) => GameCopiesIn;
-
-        public bool CanSetFromApi(in Entity context) => SetsFromApi;
-
-        public bool ShouldEcsCopyToGame(in Entity context) => !GameCopiesIn;
-
-        public bool CanGameSetLocally(in Entity context) => GameCopiesIn;
-    }
-
-    /// Answers for one component and, like the real one, refuses anything else.
-    private sealed class Directory(IMappingDataPolicy<Entity> policy) : IMappingPolicyDirectory
-    {
-        public IMappingDataPolicy<Entity> ForData(Type componentType)
-            => componentType == typeof(TelemetryComponent)
-                ? policy
-                : throw new ArgumentException($"No data policy registered for data type {componentType}");
-
-        public IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
-            where TGameObject : class
-            => throw new NotSupportedException();
-
-        public IMappingDataPolicy<TContext> ForData<TComponent, TContext>()
-            where TComponent : struct, IMappingContext<TContext>
-            => throw new NotSupportedException();
-
-        public IMappingDataPolicy<Entity> ForData<TComponent>()
-            where TComponent : struct, IMappingContext<Entity>
-            => throw new NotSupportedException();
-
-        public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
-            where TEvent : struct, IMappingContext<TContext>
-            => throw new NotSupportedException();
-
-        public IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType) => throw new NotSupportedException();
-
-        public IMappingEventPolicy<Entity> ForEvent<TEvent>()
-            where TEvent : struct, IMappingContext<Entity>
-            => throw new NotSupportedException();
-
-        public IMappingEventPolicy<Entity> ForEvent(Type eventType) => throw new NotSupportedException();
     }
 }
