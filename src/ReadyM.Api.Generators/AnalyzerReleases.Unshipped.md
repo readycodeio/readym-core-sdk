@@ -12,3 +12,4 @@ READYM005 | ReadyM | Error | An explicit component has no member matching a decl
 READYM006 | ReadyM | Error | A setter was declared over a member that cannot be assigned.
 READYM007 | ReadyM | Error | An explicit component is not visible from the declaring assembly.
 READYM008 | ReadyM | Error | An [ExplicitCollection] name matches no member of the component.
+READYM017 | ReadyM | Error | A client writes a replicated value straight through its setter.

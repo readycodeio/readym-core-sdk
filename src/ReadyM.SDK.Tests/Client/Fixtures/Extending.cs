@@ -99,6 +99,7 @@ public readonly partial struct Soundscape
 /// A mixin whose values go over the wire, which is the whole of what [Replicated] asks for.
 [ArchetypeMixin]
 [Replicated]
+[Propagates(Propagation.OwnershipBased)]
 public readonly partial struct Telemetry
 {
     public partial int Ticks { get; set; }
@@ -118,6 +119,7 @@ public readonly partial struct Rig
 /// Replaced often enough that a lost change is corrected by the next one.
 [ArchetypeMixin]
 [Replicated(Delivery.Unreliable)]
+[Propagates(Propagation.OwnershipBased)]
 public readonly partial struct Motion
 {
     public partial float Speed { get; set; }
@@ -134,6 +136,7 @@ public readonly partial struct Perishable;
 /// property for that value, so the accessors have to write it the other way round.
 [ArchetypeMixin]
 [Replicated]
+[Propagates(Propagation.OwnershipBased)]
 public readonly partial struct Roster
 {
     public partial int Size { get; set; }

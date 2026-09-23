@@ -15,10 +15,16 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // The side is a build property, so it reaches the transform by being combined in rather
+        // than read from the syntax context, which carries no such thing.
+        var client = context.AnalyzerConfigOptionsProvider.Select(static (options, _) => SdkRuntime.IsClient(options));
+
         var archetypes = context.SyntaxProvider.ForAttributeWithMetadataName(
-            ArchetypeNames.ArchetypeAttribute,
-            static (node, _) => node is StructDeclarationSyntax,
-            Emit);
+                ArchetypeNames.ArchetypeAttribute,
+                static (node, _) => node is StructDeclarationSyntax,
+                static (syntax, _) => (Symbol: syntax.TargetSymbol as INamedTypeSymbol, syntax.SemanticModel.Compilation))
+            .Combine(client)
+            .Select(static (pair, ct) => Emit(pair.Left.Symbol, pair.Left.Compilation, pair.Right, ct));
 
         // A reference to the server SDK without its chunk types means they moved or were renamed.
         // Saying so beats turning the fast path off and letting a profiler find it months later.
@@ -55,17 +61,18 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         isEnabledByDefault: true);
 
     private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics,
-        (string HintName, string Source)? Component)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+        (string HintName, string Source)? Component)? Emit(INamedTypeSymbol? target, Compilation compilation, bool client, CancellationToken ct)
     {
-        if (context.TargetSymbol is not INamedTypeSymbol { ContainingType: null } symbol)
+        if (target is not { ContainingType: null } symbol)
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation)
-            .AddRange(ReplicationRules.Check(model));
+        var problems = ExplicitComponentRules.Check(model, compilation)
+            .AddRange(ReplicationRules.Check(model))
+            .AddRange(ReplicationRules.CheckPropagation(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
-        var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
+        var chunks = ChunkNames.Resolve(compilation);
         var view = model.SupportsChunks ? chunks : null;
 
         var writer = new SourceWriter();
@@ -76,12 +83,14 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         if (model.EmitsComponent && model.IsReplicated)
         {
-            var described = ReplicatedComponentModel.For(model, context.SemanticModel.Compilation);
+            var described = ReplicatedComponentModel.For(model, compilation);
 
             if (described is not null)
                 replicated = (
                     ArchetypeNames.HintOf(symbol, "Component"),
-                    ReplicatedComponentEmitter.Emit(described));
+                    ReplicatedComponentEmitter.Emit(
+                        described,
+                        PropagationContracts.Of(model.Propagation)));
 
             ComponentEmitter.EmitFields(writer, model.Component, model.Accessors);
             writer.Line();
@@ -98,7 +107,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             writer.Line();
         }
 
-        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks, chunkWrites: !client);
         writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}{IndexEmitter.Contract(model)}"))
@@ -106,7 +115,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             HandleEmitter.Handle(writer, model);
             EmitIdentity(writer);
             HandleEmitter.Accessors(writer, model.Accessors, model.QualifiedAccessors, partial: true, model.IsReplicated);
-            EmitIncluded(writer, model);
+            EmitIncluded(writer, model, client);
             EmitForwards(writer, model);
             EmitConversions(writer, model);
             EmitScope(writer, model);
@@ -116,15 +125,15 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         if (view is not null)
         {
             writer.Line();
-            ChunkViewEmitter.Emit(writer, model, view);
+            ChunkViewEmitter.Emit(writer, model, view, chunkWrites: !client);
             writer.Line();
             ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
-        ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        ReplicationEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        NativeInitEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        ExtendsEmitter.Emit(writer, model, compilation);
+        IndexEmitter.Emit(writer, model, compilation);
+        ReplicationEmitter.Emit(writer, model, compilation);
+        NativeInitEmitter.Emit(writer, model, compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Archetype"), writer.ToString(), problems, replicated);
     }
@@ -163,12 +172,12 @@ internal class ArchetypeGenerator : IIncrementalGenerator
     }
 
     /// <summary>Accessors of everything included, flattened onto the archetype.</summary>
-    private static void EmitIncluded(SourceWriter writer, DeclarationModel model)
+    private static void EmitIncluded(SourceWriter writer, DeclarationModel model, bool client)
     {
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
             writer.Line();
-            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false, include.IsReplicated);
+            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false, include.IsReplicated, client);
         }
     }
 

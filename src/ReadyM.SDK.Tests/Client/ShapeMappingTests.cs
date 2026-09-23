@@ -24,8 +24,8 @@ public class ShapeMappingTests : ClientSdkTest
 
         ((IShapeMappingRegistry)registry).For<Telemetry, Dial>()
             .Map(Telemetry.Field.Ticks,
-                 push: (ticks, dial) => dial.Reading = ticks,
-                 pull: (ref int ticks, Dial dial) => ticks = dial.Reading);
+                 pull: (ref int ticks, Dial dial) => ticks = dial.Reading,
+                 push: (ticks, dial) => dial.Reading = ticks);
 
         SyncExtensions.Use(registry);
         return registry;
@@ -36,6 +36,26 @@ public class ShapeMappingTests : ClientSdkTest
 
     private static bool OverriddenOf(Rig rig)
         => EntityHandle.Of(rig).GetComponent<TelemetryComponent>().ChangedFromApi;
+
+    /// Pulling the value a shape is indexed by moves it in that index, like any other write to it.
+    [Fact]
+    public void A_pulled_index_value_moves_the_entity_in_the_index()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Berth, Dial>()
+            .Map(Berth.Field.Slot, (ref int slot, Dial dial) => slot = dial.Reading);
+
+        SyncExtensions.Use(registry);
+
+        var docked = Entities.Create<Docked>();
+
+        Assert.True(docked.Pull(Berth.Field.Slot, new Dial { Reading = 9 }));
+
+        Assert.False(Entities.TryLookup<Berth, int>(0, out _));
+        Assert.True(Entities.TryLookup<Berth, int>(9, out var found));
+        Assert.Equal(9, found.Slot);
+    }
 
     [Fact]
     public void The_ecs_value_reaches_the_game_when_it_drives()
@@ -137,6 +157,41 @@ public class ShapeMappingTests : ClientSdkTest
         Assert.Equal(3, rig.Ticks);
     }
 
+    // -- a value the game owns outright -------------------------------------------------------------
+
+    /// A value the game owns: no push, which the shape's own Propagation would also say.
+    private static void MappedFromGameOnly()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Telemetry, Dial>()
+            .Map(Telemetry.Field.Ticks, (ref int ticks, Dial dial) => ticks = dial.Reading);
+
+        SyncExtensions.Use(registry);
+    }
+
+    [Fact]
+    public void A_value_the_game_owns_still_reaches_the_ecs()
+    {
+        MappedFromGameOnly();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.True(As(rig, new Deciding(Api, ecsDrives: false)).Pull(Telemetry.Field.Ticks, new Dial { Reading = 4 }));
+        Assert.Equal(4, rig.Ticks);
+    }
+
+    /// There is nothing to show the game, so the push says so rather than pretending it happened.
+    [Fact]
+    public void A_value_the_game_owns_cannot_be_pushed()
+    {
+        MappedFromGameOnly();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.False(As(rig, new Deciding(Api, ecsDrives: true)).Push(Telemetry.Field.Ticks, new Dial()));
+    }
+
     [Fact]
     public void A_context_nothing_mapped_moves_nothing()
     {
@@ -163,15 +218,15 @@ public class ShapeMappingTests : ClientSdkTest
 
         ((IShapeMappingRegistry)registry).For<Telemetry, Panel>()
             .Map(Telemetry.Field.All,
-                 push: (telemetry, panel) =>
-                 {
-                     panel.Ticks = telemetry.Ticks;
-                     panel.Load = telemetry.Load;
-                 },
                  pull: (telemetry, panel) =>
                  {
                      telemetry.Ticks = panel.Ticks;
                      telemetry.Load = panel.Load;
+                 },
+                 push: (telemetry, panel) =>
+                 {
+                     panel.Ticks = telemetry.Ticks;
+                     panel.Load = telemetry.Load;
                  });
 
         SyncExtensions.Use(registry);

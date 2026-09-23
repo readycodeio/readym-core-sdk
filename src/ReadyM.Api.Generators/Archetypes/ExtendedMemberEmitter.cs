@@ -6,7 +6,7 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// had always carried them.
 internal static class ExtendedMemberEmitter
 {
-    public static void Emit(SourceWriter writer, DeclarationModel model, ChunkNames? chunks)
+    public static void Emit(SourceWriter writer, DeclarationModel model, ChunkNames? chunks, bool client = false)
     {
         if (model.Extends.Count == 0 || (model.Accessors.Count == 0 && model.Forwards.Count == 0))
             return;
@@ -20,23 +20,23 @@ internal static class ExtendedMemberEmitter
 
             using (writer.Braces($"public static class {model.Name}On{archetype.Name}"))
             {
-                Shape(writer, model, target, prefix);
+                Shape(writer, model, target, prefix, client);
 
                 if (chunks is not null && DeclarationModel.For(archetype).SupportsChunks)
-                    View(writer, model, archetype, prefix);
+                    View(writer, model, archetype, prefix, client);
             }
         }
     }
 
     /// On the shape itself, which reaches the value the same way its own members do.
-    private static void Shape(SourceWriter writer, DeclarationModel model, string target, string prefix)
+    private static void Shape(SourceWriter writer, DeclarationModel model, string target, string prefix, bool client)
     {
         using (writer.Braces($"extension(in {target} shape)"))
         {
             var handle = $"{ArchetypeNames.EntityHandle}.Of(shape)";
 
             foreach (var accessor in model.Accessors)
-                Members(writer, model, accessor, prefix, handle);
+                Members(writer, model, accessor, prefix, handle, client);
 
             foreach (var forward in model.Forwards)
                 Forwarded(writer, model, forward, prefix, handle);
@@ -45,7 +45,7 @@ internal static class ExtendedMemberEmitter
 
     /// The same on the archetype's chunk view. The value is not in that chunk, so it is reached
     /// through the entity, which is why the remarks say what to write instead in a hot loop.
-    private static void View(SourceWriter writer, DeclarationModel model, INamedTypeSymbol archetype, string prefix)
+    private static void View(SourceWriter writer, DeclarationModel model, INamedTypeSymbol archetype, string prefix, bool client)
     {
         var view = ArchetypeNames.QualifiedViewOf(archetype);
 
@@ -61,7 +61,7 @@ internal static class ExtendedMemberEmitter
         using (writer.Braces($"extension(in {view} view)"))
         {
             foreach (var accessor in model.Accessors)
-                Members(writer, model, accessor, prefix, "view.Handle", remarks);
+                Members(writer, model, accessor, prefix, "view.Handle", client, remarks);
 
             foreach (var forward in model.Forwards)
                 Forwarded(writer, model, forward, prefix, "view.Handle", remarks);
@@ -85,6 +85,7 @@ internal static class ExtendedMemberEmitter
         AccessorModel accessor,
         string prefix,
         string handle,
+        bool client = false,
         string[]? remarks = null)
     {
         if (!accessor.IsExposed)
@@ -96,7 +97,8 @@ internal static class ExtendedMemberEmitter
 
         writer.Line();
 
-        if (!accessor.HasSetter)
+        // A client writes a replicated value through its token instead.
+        if (!accessor.HasSetter || (client && AccessorEmitter.Marked(accessor, model.IsReplicated)))
         {
             Remarks(writer, remarks);
             writer.Line($"public {accessor.Type} {name}");

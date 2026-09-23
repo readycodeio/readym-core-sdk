@@ -14,10 +14,16 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // The side is a build property, so it reaches the transform by being combined in rather
+        // than read from the syntax context, which carries no such thing.
+        var client = context.AnalyzerConfigOptionsProvider.Select(static (options, _) => SdkRuntime.IsClient(options));
+
         var mixins = context.SyntaxProvider.ForAttributeWithMetadataName(
-            ArchetypeNames.MixinAttribute,
-            static (node, _) => node is StructDeclarationSyntax,
-            Emit);
+                ArchetypeNames.MixinAttribute,
+                static (node, _) => node is StructDeclarationSyntax,
+                static (syntax, _) => (Symbol: syntax.TargetSymbol as INamedTypeSymbol, syntax.SemanticModel.Compilation))
+            .Combine(client)
+            .Select(static (pair, ct) => Emit(pair.Left.Symbol, pair.Left.Compilation, pair.Right, ct));
 
         context.RegisterSourceOutput(mixins, static (spc, generated) =>
         {
@@ -37,17 +43,18 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
     }
 
     private static (string HintName, string Source, ImmutableArray<Diagnostic> Diagnostics,
-        (string HintName, string Source)? Component)? Emit(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+        (string HintName, string Source)? Component)? Emit(INamedTypeSymbol? target, Compilation compilation, bool client, CancellationToken ct)
     {
-        if (context.TargetSymbol is not INamedTypeSymbol symbol || symbol.ContainingType is not null)
+        if (target is not { ContainingType: null } symbol)
             return null;
 
         var model = DeclarationModel.For(symbol);
-        var problems = ExplicitComponentRules.Check(model, context.SemanticModel.Compilation)
-            .AddRange(ReplicationRules.Check(model));
+        var problems = ExplicitComponentRules.Check(model, compilation)
+            .AddRange(ReplicationRules.Check(model))
+            .AddRange(ReplicationRules.CheckPropagation(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
-        var chunks = ChunkNames.Resolve(context.SemanticModel.Compilation);
+        var chunks = ChunkNames.Resolve(compilation);
         var view = model.SupportsChunks ? chunks : null;
 
         var writer = new SourceWriter();
@@ -58,12 +65,14 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
 
         if (model.EmitsComponent && model.IsReplicated)
         {
-            var described = ReplicatedComponentModel.For(model, context.SemanticModel.Compilation);
+            var described = ReplicatedComponentModel.For(model, compilation);
 
             if (described is not null)
                 replicated = (
                     ArchetypeNames.HintOf(symbol, "Component"),
-                    ReplicatedComponentEmitter.Emit(described));
+                    ReplicatedComponentEmitter.Emit(
+                        described,
+                        PropagationContracts.Of(model.Propagation)));
 
             ComponentEmitter.EmitFields(writer, model.Component, model.Accessors);
             writer.Line();
@@ -73,7 +82,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
             ComponentEmitter.Emit(writer, model.Component, model.Accessors);
             writer.Line();
         }
-        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks);
+        AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks, chunkWrites: !client);
         writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}{IndexEmitter.Contract(model)}"))
@@ -90,16 +99,16 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         if (view is not null)
         {
             writer.Line();
-            ChunkViewEmitter.Emit(writer, model, view);
+            ChunkViewEmitter.Emit(writer, model, view, chunkWrites: !client);
             writer.Line();
             ChunkViewEmitter.EmitQueryBinding(writer, model, view);
         }
 
-        ExtendsEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        ExtendedMemberEmitter.Emit(writer, model, chunks);
-        IndexEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        ReplicationEmitter.Emit(writer, model, context.SemanticModel.Compilation);
-        NativeInitEmitter.Emit(writer, model, context.SemanticModel.Compilation);
+        ExtendsEmitter.Emit(writer, model, compilation);
+        ExtendedMemberEmitter.Emit(writer, model, chunks, client);
+        IndexEmitter.Emit(writer, model, compilation);
+        ReplicationEmitter.Emit(writer, model, compilation);
+        NativeInitEmitter.Emit(writer, model, compilation);
 
         return (ArchetypeNames.HintOf(symbol, "Mixin"), writer.ToString(), problems, replicated);
     }

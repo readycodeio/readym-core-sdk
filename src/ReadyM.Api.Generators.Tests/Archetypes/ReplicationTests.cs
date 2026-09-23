@@ -41,6 +41,14 @@ public class ReplicationTests(ITestOutputHelper output)
           {{shape}}
           """;
 
+    private void AssertReports(string id, string shape)
+    {
+        var reported = Report(shape);
+
+        Assert.Contains(reported, diagnostic => diagnostic.Id == id);
+        Assert.All(reported.Where(d => d.Id == id), d => Assert.Equal(DiagnosticSeverity.Error, d.Severity));
+    }
+
     private Diagnostic[] Report(string shape)
     {
         var result = SourceGeneratorTestHelper.RunGenerators(
@@ -158,6 +166,173 @@ public class ReplicationTests(ITestOutputHelper output)
                     public partial int Size { get; set; }
                 }
                 """));
+
+    // -- what a client build leaves out ---------------------------------------------------------
+
+    private string GeneratedFor(string shape, string side)
+    {
+        var result = SourceGeneratorTestHelper.RunGenerators(
+            [("Core.cs", Core), ("Shape.cs", Source(shape))],
+            [new ArchetypeGenerator(), new ArchetypeMixinGenerator()],
+            output,
+            Sdk,
+            SourceGeneratorTestHelper.SdkInternalsAssembly,
+            new Dictionary<string, string> { ["build_property.SdkRuntime"] = side });
+
+        return string.Concat(result.GeneratedSyntaxTrees.Select(tree => tree.ToString()));
+    }
+
+    /// A chunk write goes straight into the component array, past the policy and the masks that a
+    /// client write has to obey, so a client build does not get one.
+    [Fact]
+    public void A_client_build_has_no_chunk_setter()
+    {
+        var generated = GeneratedFor(ReplicatedShape, "Client");
+
+        Assert.DoesNotContain("chunk, int index, int value", generated);
+        Assert.Contains("chunk, int index)", generated);
+    }
+
+    [Fact]
+    public void A_server_build_keeps_its_chunk_setters()
+        => Assert.Contains("chunk, int index, int value", GeneratedFor(ReplicatedShape, "Server"));
+
+    /// A build that says nothing is a server, so nothing an existing project has is taken away.
+    [Fact]
+    public void An_unstated_side_keeps_them()
+        => Assert.Contains("chunk, int index, int value", Generated(ReplicatedShape));
+
+    private const string CarryingShape =
+        """
+        [ArchetypeMixin]
+        [Replicated]
+        public readonly partial struct Vitals
+        {
+            public partial int Health { get; set; }
+        }
+
+        [Archetype]
+        [Include(typeof(Vitals))]
+        public readonly partial struct Fighter;
+        """;
+
+    /// A value reaching an archetype through [Include] is generated outright, so a client build can
+    /// leave the write off it and send a mod to the token instead.
+    private const string Writes = "set => global::Mod.VitalsAccessors.SetHealth(_handle, value);";
+
+    /// Both shapes are in one compilation, so the count says which of them kept a write: the mixin
+    /// always does, and the archetype including it does only on a server.
+    private static int WritesIn(string generated)
+        => generated.Split([Writes], StringSplitOptions.None).Length - 1;
+
+    [Fact]
+    public void A_client_build_cannot_write_an_included_value()
+    {
+        var generated = GeneratedFor(CarryingShape, "Client");
+
+        Assert.Contains("public int Health => global::Mod.VitalsAccessors.GetHealth(_handle);", generated);
+        Assert.Equal(1, WritesIn(generated));
+    }
+
+    [Fact]
+    public void A_server_build_can()
+        => Assert.Equal(2, WritesIn(GeneratedFor(CarryingShape, "Server")));
+
+    /// The mixin's own declaration says { get; set; }, and C# requires the implementing part to
+    /// implement every accessor it declares, so this one setter cannot be dropped.
+    [Fact]
+    public void The_shape_that_declared_it_keeps_its_own_setter()
+        => Assert.Contains("set => global::Mod.VitalsAccessors.SetHealth(_handle, value);",
+            GeneratedFor(ReplicatedShape, "Client"));
+
+    // -- how a shape says its values travel ---------------------------------------------------------
+
+    /// The declaration lives on the shape; the component carries the contract the runtime looks for.
+    [Fact]
+    public void A_stated_propagation_reaches_the_component()
+        => Assert.Contains(
+            "global::ReadyM.Api.Mapping.Tags.IOwnershipBased",
+            Generated(
+                """
+                [ArchetypeMixin]
+                [Replicated]
+                [Propagates(Propagation.OwnershipBased)]
+                public readonly partial struct Vitals
+                {
+                    public partial int Health { get; set; }
+                }
+                """));
+
+    /// Saying nothing leaves the component as it was, so no existing shape changes behaviour.
+    [Fact]
+    public void An_unstated_propagation_says_nothing()
+        => Assert.DoesNotContain("ReadyM.Api.Mapping.Tags.I", Generated(ReplicatedShape));
+
+    /// Nothing sends a local shape's values, so it gets plain accessors, no mask and no tokens.
+    [Fact]
+    public void A_local_shape_is_left_alone()
+    {
+        var generated = Generated(
+            """
+            [ArchetypeMixin]
+            public readonly partial struct Ambient
+            {
+                public partial int Temperature { get; set; }
+            }
+            """);
+
+        Assert.DoesNotContain("ReadyM.Api.Mapping.Tags.I", generated);
+        Assert.DoesNotContain("public static class Field", generated);
+        Assert.DoesNotContain("WriteDelta", generated);
+    }
+
+    /// A replicated shape that says nothing about who may write it is the state everything else
+    /// was silently built on, so it is the one the compiler now refuses.
+    [Fact]
+    public void A_replicated_shape_must_say_how_it_propagates()
+        => AssertReports("READYM014", ReplicatedShape);
+
+    /// Nothing sends it, so nobody is kept from writing it and there is nothing to state.
+    [Fact]
+    public void A_local_shape_must_not_say_how_it_propagates()
+        => AssertReports("READYM016", """
+            [ArchetypeMixin]
+            [Propagates(Propagation.Both)]
+            public readonly partial struct Ambient
+            {
+                public partial int Temperature { get; set; }
+            }
+            """);
+
+    /// It holds nothing of its own, so it can never replicate, so it has nothing to state either.
+    [Fact]
+    public void An_archetype_that_only_includes_must_not_say_how_it_propagates()
+        => AssertReports("READYM016", """
+            [ArchetypeMixin]
+            public readonly partial struct Ambient
+            {
+                public partial int Temperature { get; set; }
+            }
+
+            [Archetype]
+            [Include(typeof(Ambient))]
+            [Propagates(Propagation.Both)]
+            public readonly partial struct Region;
+            """);
+
+    /// The component a shape does not own decides this, so a shape restating it has to agree.
+    [Fact]
+    public void A_stated_propagation_must_match_the_component()
+        => AssertReports("READYM015", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.MetaComponent))]
+            [Propagates(Propagation.OwnershipBased)]
+            public readonly partial struct Meta
+            {
+                public partial int Owner { get; set; }
+            }
+            """);
+
 
     private DeclarationModel Model(string shape)
     {

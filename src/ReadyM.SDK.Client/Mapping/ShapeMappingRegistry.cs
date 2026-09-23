@@ -30,9 +30,10 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
     private void Add<TShape, TContext>(ShapeAccess access, Mapping<TShape, TContext> mapping)
         => _mappings[(access.Component, typeof(TContext), WholeShape)] = mapping;
 
-    internal sealed class Mapping<TValue, TContext>(Action<TValue, TContext> push, Pull<TValue, TContext> pull)
+    internal sealed class Mapping<TValue, TContext>(Action<TValue, TContext>? push, Pull<TValue, TContext> pull)
     {
-        public Action<TValue, TContext> Push { get; } = push;
+        /// Null for a value the game owns and will not be told.
+        public Action<TValue, TContext>? Push { get; } = push;
 
         public Pull<TValue, TContext> Pull { get; } = pull;
     }
@@ -42,8 +43,8 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
     {
         public IShapeMappingScope<TShape, TContext> Map<TValue>(
             Value<TShape, TValue> value,
-            Action<TValue, TContext> push,
-            Pull<TValue, TContext> pull)
+            Pull<TValue, TContext> pull,
+            Action<TValue, TContext>? push = null)
         {
             registry.Add(value.Access, new Mapping<TValue, TContext>(push, pull));
             return this;
@@ -51,10 +52,13 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
 
         public IShapeMappingScope<TShape, TContext> Map(
             Shape<TShape> shape,
-            Action<TShape, TContext> push,
-            Action<TShape, TContext> pull)
+            Action<TShape, TContext> pull,
+            Action<TShape, TContext>? push = null)
         {
-            registry.Add(shape.Access, new Mapping<TShape, TContext>(push, (ref s, ctx) => pull(s, ctx)));
+            registry.Add(
+                shape.Access,
+                new Mapping<TShape, TContext>(push, (ref TShape s, TContext ctx) => pull(s, ctx)));
+
             return this;
         }
     }

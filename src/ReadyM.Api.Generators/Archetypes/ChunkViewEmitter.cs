@@ -14,7 +14,7 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// </remarks>
 internal static class ChunkViewEmitter
 {
-    public static void Emit(SourceWriter writer, DeclarationModel model, ChunkNames chunks)
+    public static void Emit(SourceWriter writer, DeclarationModel model, ChunkNames chunks, bool chunkWrites = true)
     {
         var view = ArchetypeNames.ViewOf(model.Symbol);
         var qualified = ArchetypeNames.QualifiedViewOf(model.Symbol);
@@ -37,7 +37,7 @@ internal static class ChunkViewEmitter
 
             EmitConstructor(writer, view, fields, chunks);
             EmitBinding(writer, model, qualified, slots, chunks);
-            EmitAccessors(writer, model, slots);
+            EmitAccessors(writer, model, slots, chunkWrites);
         }
     }
 
@@ -114,13 +114,13 @@ internal static class ChunkViewEmitter
         writer.Line($"    => _prototype.For(global::System.Runtime.CompilerServices.Unsafe.Add(ref global::System.Runtime.CompilerServices.Unsafe.AsRef(in _entities), _index));");
     }
 
-    private static void EmitAccessors(SourceWriter writer, DeclarationModel model, IReadOnlyList<Slot> slots)
+    private static void EmitAccessors(SourceWriter writer, DeclarationModel model, IReadOnlyList<Slot> slots, bool writes)
     {
         var own = slots.FirstOrDefault(slot => slot is { Include: null, IsMarker: false });
 
         if (own is not null)
             foreach (var accessor in model.Accessors)
-                Property(writer, accessor, model.QualifiedAccessors, own.Field, model.IndexedBy is not null);
+                Property(writer, accessor, model.QualifiedAccessors, own.Field, model.IndexedBy is not null, writes);
 
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
@@ -129,7 +129,7 @@ internal static class ChunkViewEmitter
 
             if (slot is not null)
                 Property(writer, accessor, include.Accessors, slot.Field,
-                    DeclarationModel.For(include.Type).IndexedBy is not null);
+                    DeclarationModel.For(include.Type).IndexedBy is not null, writes);
         }
 
         if (own is not null)
@@ -146,7 +146,13 @@ internal static class ChunkViewEmitter
         }
     }
 
-    private static void Property(SourceWriter writer, AccessorModel accessor, string accessors, string field, bool indexed)
+    private static void Property(
+        SourceWriter writer,
+        AccessorModel accessor,
+        string accessors,
+        string field,
+        bool indexed,
+        bool writes)
     {
         // A value the shape keeps to itself is not put on its chunk view either.
         if (!accessor.IsExposed)
@@ -154,7 +160,7 @@ internal static class ChunkViewEmitter
 
         writer.Line();
 
-        if (!accessor.HasSetter || indexed)
+        if (!accessor.HasSetter || indexed || !writes)
         {
             writer.Line($"public {accessor.Type} {accessor.Name} => {accessors}.Get{accessor.Name}({field}, _index);");
             return;

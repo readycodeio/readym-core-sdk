@@ -25,7 +25,8 @@ namespace ReadyM.Api.Generators;
 /// </remarks>
 internal static class ReplicatedComponentEmitter
 {
-    internal static string Emit(DeriveTargetModel model)
+    /// A policy is the contract naming who may write the component, or null to leave it unsaid.
+    internal static string Emit(DeriveTargetModel model, string? policy = null)
     {
         var info = model.Source;
         var members = model.Members;
@@ -68,7 +69,7 @@ internal static class ReplicatedComponentEmitter
         sb.Append($$"""
 namespace {{info.Namespace}};
 
-{{access}} partial struct {{info.Name}} : INetworkedComponent{{(hasDispose ? ", IDisposable" : string.Empty)}}
+{{access}} partial struct {{info.Name}} : INetworkedComponent{{(policy is null ? string.Empty : ", " + policy)}}{{(hasDispose ? ", IDisposable" : string.Empty)}}
 {
 
 """);

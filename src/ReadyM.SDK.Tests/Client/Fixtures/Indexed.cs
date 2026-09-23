@@ -43,3 +43,20 @@ public readonly partial struct Station
     [Index]
     public partial int Code { get; set; }
 }
+
+/// Replicated as well as indexed, so its values are reachable through tokens. That is the pair the
+/// token has to write back whole, the way an indexed setter does.
+[ArchetypeMixin]
+[Replicated]
+[Propagates(Propagation.OwnershipBased)]
+public readonly partial struct Berth
+{
+    [Index]
+    public partial int Slot { get; set; }
+
+    public partial int Deck { get; set; }
+}
+
+[Archetype]
+[Include(typeof(Berth))]
+public readonly partial struct Docked;

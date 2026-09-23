@@ -31,8 +31,8 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 
         Accessibility = property.DeclaredAccessibility;
         IsNativeContainer = CSharpFieldSupportRegistry.FieldTypeSupportVisitor
-            .TryGetImpl(property.Type, false, out var support)
-            && support is NativeContainerFieldTypeSupportImplBase;
+                                .TryGetImpl(property.Type, false, out var support)
+                            && support is NativeContainerFieldTypeSupportImplBase;
         IsIndex = property.GetAttributes().Any(attribute
             => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.IndexAttribute);
     }
@@ -86,7 +86,7 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
     public static ISymbol? Target(INamedTypeSymbol component, IPropertySymbol property)
         => component.GetMembers()
             .FirstOrDefault(member => member is IFieldSymbol { IsStatic: false, IsConst: false } or IPropertySymbol { IsStatic: false }
-                && string.Equals(member.Name, MemberNameOf(property), System.StringComparison.OrdinalIgnoreCase));
+                                      && string.Equals(member.Name, MemberNameOf(property), System.StringComparison.OrdinalIgnoreCase));
 
     /// Whether the shape declared a type the component's own member can be narrowed to.
     public static bool NarrowsFrom(IPropertySymbol property, ISymbol? target)
@@ -97,8 +97,8 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
         var declared = property.Type;
 
         if (declared.IsValueType || held.IsValueType
-            || SymbolEqualityComparer.Default.Equals(declared.WithNullableAnnotation(NullableAnnotation.None),
-                held.WithNullableAnnotation(NullableAnnotation.None)))
+                                 || SymbolEqualityComparer.Default.Equals(declared.WithNullableAnnotation(NullableAnnotation.None),
+                                     held.WithNullableAnnotation(NullableAnnotation.None)))
             return false;
 
         return Derives(declared, held);
@@ -239,8 +239,18 @@ internal sealed class ComponentOwner(IncludeModel? include, bool marker)
     public bool IsMarker { get; } = marker;
 }
 
-/// How a replicated shape's changes reach the other side. Mirrors
-/// <c>ReadyM.SDK.Attributes.Delivery</c>: a generator cannot reference the SDK, and the attribute
+/// Mirrors <c>ReadyM.SDK.Attributes.Propagation</c>: a generator cannot reference the SDK, and the
+/// attribute argument arrives as that enum's index, so the order of these has to stay the same.
+internal enum Propagation
+{
+    ToEcsOnly,
+    ToGameOnly,
+    Both,
+    ServerAuthoritative,
+    OwnershipBased
+}
+
+/// Mirrors <c>ReadyM.SDK.Attributes.Delivery</c>: a generator cannot reference the SDK, and the attribute
 /// argument arrives as that enum's index, so the order of these two has to stay the same.
 internal enum Delivery
 {
@@ -262,6 +272,7 @@ internal sealed class DeclarationModel
         Includes = ReadIncludes(symbol);
         Extends = ReadExtends(symbol);
         (HasReplicatedAttribute, Delivery) = ReadReplication(symbol);
+        Propagation = ReadPropagation(symbol);
         Forwards = ReadForwards(symbol, ExplicitComponent, Collections).Concat(CollectionMembers()).ToList();
     }
 
@@ -311,6 +322,10 @@ internal sealed class DeclarationModel
     /// rule can tell asking to replicate from replicating because the component already does.
     public bool HasReplicatedAttribute { get; }
 
+    /// How its values travel between the game and the ECS, and who may write them. Only a
+    /// replicated shape has any say: a local one is the mod's own business either way.
+    public Propagation? Propagation { get; }
+
     /// How this shape's changes travel, when it replicates at all.
     public Delivery Delivery { get; }
 
@@ -336,6 +351,17 @@ internal sealed class DeclarationModel
         => component.AllInterfaces.Any(contract =>
             contract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
             == ArchetypeNames.NetworkedComponent);
+
+    private static Propagation? ReadPropagation(INamedTypeSymbol symbol)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.PropagatesAttribute
+                && attribute.ConstructorArguments.Length > 0
+                && attribute.ConstructorArguments[0].Value is int index)
+                return (Propagation)index;
+
+        return null;
+    }
 
     private static (bool Present, Delivery Delivery) ReadReplication(INamedTypeSymbol symbol)
     {

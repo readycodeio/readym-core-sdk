@@ -15,7 +15,12 @@ internal static class AccessorEmitter
 {
     public static string ClassNameOf(string declaration) => declaration + "Accessors";
 
-    public static void Emit(SourceWriter writer, DeclarationModel model, string componentSet, ChunkNames? chunks = null)
+    public static void Emit(
+        SourceWriter writer,
+        DeclarationModel model,
+        string componentSet,
+        ChunkNames? chunks = null,
+        bool chunkWrites = true)
     {
         writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
 
@@ -41,7 +46,7 @@ internal static class AccessorEmitter
                 return;
 
             foreach (var accessor in model.Accessors)
-                ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null, model.IsReplicated);
+                ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null, model.IsReplicated, chunkWrites);
 
             foreach (var forward in model.Forwards)
                 ChunkForward(writer, forward, component, chunks);
@@ -58,7 +63,8 @@ internal static class AccessorEmitter
         string component,
         ChunkNames chunks,
         bool indexed,
-        bool replicated)
+        bool replicated,
+        bool chunkWrites)
     {
         var access = $"chunk.As<{component}>(index).{accessor.Field}";
         var read = accessor.Read(access);
@@ -71,7 +77,7 @@ internal static class AccessorEmitter
         writer.Line($"    => {read};");
 
         // A chunk write moves no index, so an indexed value is read-only here and written by handle.
-        if (!accessor.HasSetter || indexed)
+        if (!accessor.HasSetter || indexed || !chunkWrites)
             return;
 
         writer.Line();

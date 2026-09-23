@@ -1,4 +1,5 @@
-﻿using ReadyM.Api.Mapping.Data;
+﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Mapping.Data;
 using ReadyM.Api.Mapping.Tags;
 using ReadyM.SDK.Entities;
 
@@ -18,6 +19,44 @@ internal sealed class ValueAccess<TComponent, TValue>(Field<TComponent, TValue> 
 
     internal override void Set(in EntityHandle handle, TValue value)
         => field.Set(ref handle.GetComponent<TComponent>(), value);
+
+    internal override bool WasSetFromApi(in EntityHandle handle)
+        => field.WasSetFromApi(handle.GetComponent<TComponent>());
+
+    internal override void ClearApiFlag(in EntityHandle handle)
+        => handle.GetComponent<TComponent>().ClearApiFlag(field);
+}
+
+/// The value its component is indexed by. Friflo reads the key as the component is added, so a write
+/// that changed it where it lies would leave the entity filed under the key it used to hold.
+internal sealed class IndexedValueAccess<TComponent, TKey>(Field<TComponent, TKey> field) : ValueAccess<TKey>
+    where TComponent : struct, IReadyComponent, IIndexedComponent<TKey>
+{
+    internal override Type Component { get; } = typeof(TComponent);
+
+    internal override int Field { get; } = field;
+
+    internal override bool Write(in EntityHandle handle, TKey value, WriteKind kind)
+    {
+        var updated = handle.GetComponent<TComponent>();
+
+        if (!handle.Write(ref updated, field, value, kind))
+            return false;
+
+        handle.ReplaceIndexed<TComponent, TKey>(updated);
+
+        return true;
+    }
+
+    internal override TKey Read(in EntityHandle handle) => field.Get(handle.GetComponent<TComponent>());
+
+    internal override void Set(in EntityHandle handle, TKey value)
+    {
+        var updated = handle.GetComponent<TComponent>();
+
+        field.Set(ref updated, value);
+        handle.ReplaceIndexed<TComponent, TKey>(updated);
+    }
 
     internal override bool WasSetFromApi(in EntityHandle handle)
         => field.WasSetFromApi(handle.GetComponent<TComponent>());

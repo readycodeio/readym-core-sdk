@@ -25,6 +25,8 @@ internal static class ArchetypeNames
     public const string IndexAttribute = Namespace + ".IndexAttribute";
     public const string ReplicatedAttribute = Namespace + ".ReplicatedAttribute";
 
+    public const string PropagatesAttribute = Namespace + ".PropagatesAttribute";
+
     public const string EntityHandle = "global::ReadyM.SDK.Entities.EntityHandle";
     public const string ComponentSet = "global::ReadyM.SDK.Archetypes.ComponentSet";
     public const string Queryable = "global::ReadyM.SDK.Archetypes.IArchetypeQueryable";

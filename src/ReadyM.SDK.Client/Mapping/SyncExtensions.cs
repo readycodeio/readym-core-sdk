@@ -55,12 +55,13 @@ public static class SyncExtensions
         public bool Push<TOwner, TValue, TContext>(Value<TOwner, TValue> value,
             TContext context) where TOwner : struct, IArchetypeQueryable
         {
-            if (!shape.CanPush(value) || Mapping<TOwner, TValue, TContext>(value) is not { } mapping)
+            // A mapping with no push is one the game owns: there is nothing to show it.
+            if (!shape.CanPush(value) || Mapping<TOwner, TValue, TContext>(value)?.Push is not { } push)
                 return false;
 
             var handle = EntityHandle.Of(shape);
 
-            mapping.Push(value.Access.Read(handle), context);
+            push(value.Access.Read(handle), context);
             value.Access.ClearApiFlag(handle);
 
             return true;
@@ -85,10 +86,10 @@ public static class SyncExtensions
         /// Applies the entire shape the ECS holds to the game.
         public bool Push<TContext>(Shape<TShape> whole, TContext context)
         {
-            if (!shape.CanPush(whole) || _mappings?.FindShape<TShape, TContext>(whole.Access) is not { } mapping)
+            if (!shape.CanPush(whole) || _mappings?.FindShape<TShape, TContext>(whole.Access)?.Push is not { } push)
                 return false;
 
-            mapping.Push(shape, context);
+            push(shape, context);
             whole.Access.Applied(EntityHandle.Of(shape));
 
             return true;

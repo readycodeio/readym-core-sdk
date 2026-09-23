@@ -64,7 +64,13 @@ internal static class HandleEmitter
         _ => "public"
     };
 
-    public static void Accessor(SourceWriter writer, AccessorModel accessor, string accessors, bool partial, bool replicated = false)
+    public static void Accessor(
+        SourceWriter writer,
+        AccessorModel accessor,
+        string accessors,
+        bool partial,
+        bool replicated = false,
+        bool client = false)
     {
         if (!partial && !accessor.IsExposed)
             return;
@@ -73,7 +79,13 @@ internal static class HandleEmitter
             ? $"{Keyword(accessor)} partial {accessor.Type} {accessor.Name}"
             : $"{Keyword(accessor)} {accessor.Type} {accessor.Name}";
 
-        if (!accessor.HasSetter)
+        // A client writes a replicated value through its token, which is what carries the intent
+        // and obeys the component's policy. The shape's own declaration keeps its setter because
+        // C# requires the implementing part to implement every accessor the declaration has, so
+        // only a projected member can drop one.
+        var writable = accessor.HasSetter && !(client && !partial && AccessorEmitter.Marked(accessor, replicated));
+
+        if (!writable)
         {
             writer.Line($"{declaration} => {accessors}.Get{accessor.Name}(_handle);");
             return;
@@ -91,12 +103,13 @@ internal static class HandleEmitter
         IReadOnlyList<AccessorModel> accessors,
         string accessorClass,
         bool partial,
-        bool replicated = false)
+        bool replicated = false,
+        bool client = false)
     {
         foreach (var accessor in accessors)
         {
             writer.Line();
-            Accessor(writer, accessor, accessorClass, partial, replicated);
+            Accessor(writer, accessor, accessorClass, partial, replicated, client);
         }
     }
 }

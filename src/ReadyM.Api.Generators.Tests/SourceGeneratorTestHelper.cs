@@ -63,19 +63,39 @@ internal static class SourceGeneratorTestHelper
     /// compiles only if the mixin's own output is in the same compilation. Generators still cannot
     /// see each other, so this only puts their results side by side.
     /// </remarks>
+    /// The build properties a project makes compiler-visible, which is how a generator learns
+    /// anything the source does not say.
+    private sealed class BuildProperties(IReadOnlyDictionary<string, string> properties) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(properties);
+
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+
+        private sealed class Options(IReadOnlyDictionary<string, string> properties) : AnalyzerConfigOptions
+        {
+            public override bool TryGetValue(string key, out string value)
+                => properties.TryGetValue(key, out value!);
+        }
+    }
+
     public static GeneratorRunResult RunGenerators(
         IEnumerable<(string Path, string Source)> sources,
         IEnumerable<IIncrementalGenerator> generators,
         ITestOutputHelper output,
         IEnumerable<Assembly>? alsoReference = null,
-        string? assemblyName = null)
+        string? assemblyName = null,
+        IReadOnlyDictionary<string, string>? buildProperties = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
 
         var inputCompilation = CreateCompilation(sources, output, alsoReference, assemblyName);
 
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators.Select(GeneratorExtensions.AsSourceGenerator));
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators.Select(GeneratorExtensions.AsSourceGenerator),
+            optionsProvider: buildProperties is null ? null : new BuildProperties(buildProperties));
         driver = driver.RunGeneratorsAndUpdateCompilation(
             inputCompilation,
             out var outputCompilation,
@@ -90,9 +110,16 @@ internal static class SourceGeneratorTestHelper
     }
 
     /// <summary>Everything an analyzer reports over a compilation, generated code included.</summary>
-    public static ImmutableArray<Diagnostic> Analyze(Compilation compilation, DiagnosticAnalyzer analyzer)
+    public static ImmutableArray<Diagnostic> Analyze(
+        Compilation compilation,
+        DiagnosticAnalyzer analyzer,
+        IReadOnlyDictionary<string, string>? buildProperties = null)
         => compilation
-            .WithAnalyzers([analyzer])
+            .WithAnalyzers(
+                [analyzer],
+                new AnalyzerOptions(
+                    [],
+                    new BuildProperties(buildProperties ?? new Dictionary<string, string>())))
             .GetAnalyzerDiagnosticsAsync()
             .GetAwaiter()
             .GetResult();

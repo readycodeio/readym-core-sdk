@@ -31,18 +31,34 @@ internal static class ComponentEmitter
     /// </remarks>
     public static void EmitFields(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
     {
-        using (writer.Braces($"internal partial struct {name}{Allocates(accessors)}"))
+        var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
+        // The other half states IReadyComponent and the propagation contract. Indexing and
+        // allocation follow the fields, so they belong on the half that declares them.
+        var contracts = Contracts(accessors, index is null ? null : $"{ArchetypeNames.IndexedComponent}<{index.Type}>");
+
+        using (writer.Braces($"internal partial struct {name}{contracts}"))
         {
             foreach (var accessor in accessors)
                 writer.Line($"public {accessor.Type} {accessor.Field};");
 
             EmitInit(writer, accessors);
+            EmitIndexedValue(writer, index);
         }
     }
 
-    /// <summary>The extra contract a component holding a native collection carries.</summary>
-    private static string Allocates(IReadOnlyList<AccessorModel> accessors)
-        => accessors.Any(accessor => accessor.IsNativeContainer) ? $" : {ArchetypeNames.NativeInit}" : string.Empty;
+    /// <summary>The extra contracts a component carries beyond being a component.</summary>
+    private static string Contracts(IReadOnlyList<AccessorModel> accessors, string? first)
+    {
+        var carried = new List<string>();
+
+        if (first is not null)
+            carried.Add(first);
+
+        if (accessors.Any(accessor => accessor.IsNativeContainer))
+            carried.Add(ArchetypeNames.NativeInit);
+
+        return carried.Count == 0 ? string.Empty : " : " + string.Join(", ", carried);
+    }
 
     /// Creates the collections the component holds. A native collection is a handle to memory
     /// nobody has taken yet, so reading or adding before this has run faults. The store calls it
@@ -64,22 +80,27 @@ internal static class ComponentEmitter
     public static void Emit(SourceWriter writer, string name, IReadOnlyList<AccessorModel> accessors)
     {
         var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
-        var contracts = index is null
+        var contracts = Contracts(accessors, index is null
             ? ArchetypeNames.Component
-            : $"{ArchetypeNames.IndexedComponent}<{index.Type}>";
+            : $"{ArchetypeNames.IndexedComponent}<{index.Type}>");
 
-        using (writer.Braces($"internal struct {name} : {contracts}{Allocates(accessors).Replace(" : ", ", ")}"))
+        using (writer.Braces($"internal struct {name}{contracts}"))
         {
             foreach (var accessor in accessors)
                 writer.Line($"public {accessor.Type} {accessor.Field};");
 
             EmitInit(writer, accessors);
-
-            if (index is null)
-                return;
-
-            writer.Line();
-            writer.Line($"public {index.Type} GetIndexedValue() => {index.Field};");
+            EmitIndexedValue(writer, index);
         }
+    }
+
+    /// Friflo asks the component itself for the value it is indexed by.
+    private static void EmitIndexedValue(SourceWriter writer, AccessorModel? index)
+    {
+        if (index is null)
+            return;
+
+        writer.Line();
+        writer.Line($"public {index.Type} GetIndexedValue() => {index.Field};");
     }
 }

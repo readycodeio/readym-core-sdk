@@ -33,8 +33,11 @@ internal static class ValuesEmitter
             foreach (var accessor in exposed)
             {
                 writer.Line();
+                // The value the component is indexed by writes back through the index.
+                var of = accessor.IsIndex ? "OfIndexed" : "Of";
+
                 writer.Line($"public static {ArchetypeNames.Value}<{model.QualifiedName}, {accessor.Type}> {accessor.Name} {{ get; }}");
-                writer.Line($"    = {ArchetypeNames.Value}.Of<{model.QualifiedName}, {component}, {accessor.Type}>(");
+                writer.Line($"    = {ArchetypeNames.Value}.{of}<{model.QualifiedName}, {component}, {accessor.Type}>(");
                 writer.Line($"        {component}.Fields.{accessor.FieldEntry});");
             }
         }

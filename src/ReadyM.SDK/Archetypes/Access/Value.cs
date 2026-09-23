@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Friflo.Engine.ECS;
 using ReadyM.Api.Mapping.Data;
 using ReadyM.Api.Mapping.Tags;
 
@@ -21,4 +22,10 @@ public static class Value
         where TShape : struct, IArchetypeQueryable
         where TComponent : struct, IReadyComponent
         => new(new ValueAccess<TComponent, TValue>(field));
+
+    /// For the one value a component is indexed by, which has to be written back whole to move it.
+    public static Value<TShape, TKey> OfIndexed<TShape, TComponent, TKey>(Field<TComponent, TKey> field)
+        where TShape : struct, IArchetypeQueryable
+        where TComponent : struct, IReadyComponent, IIndexedComponent<TKey>
+        => new(new IndexedValueAccess<TComponent, TKey>(field));
 }

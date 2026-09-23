@@ -1,4 +1,5 @@
 ﻿using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Client;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
@@ -44,6 +45,33 @@ public class IndexedTests : ClientSdkTest
         Assert.False(Entities.TryLookup<Registered, int>(7, out _));
         Assert.True(Entities.TryLookup<Registered, int>(8, out var found));
         Assert.Equal(8, found.Ticket);
+    }
+
+    /// The same hazard through a value token, which is the only way a client can write at all.
+    [Fact]
+    public void Overriding_the_value_moves_the_entity_in_the_index()
+    {
+        var docked = Entities.Create<Docked>();
+
+        Assert.True(docked.Override(Berth.Field.Slot, 7));
+        Assert.True(docked.Override(Berth.Field.Slot, 8));
+
+        Assert.False(Entities.TryLookup<Berth, int>(7, out _));
+        Assert.True(Entities.TryLookup<Berth, int>(8, out var found));
+        Assert.Equal(8, found.Slot);
+    }
+
+    /// Overriding anything else on an indexed component must leave the index where it was.
+    [Fact]
+    public void Overriding_another_value_leaves_the_index_alone()
+    {
+        var docked = Entities.Create<Docked>();
+
+        Assert.True(docked.Override(Berth.Field.Slot, 5));
+        Assert.True(docked.Override(Berth.Field.Deck, 2));
+
+        Assert.True(Entities.TryLookup<Berth, int>(5, out var found));
+        Assert.Equal(2, found.Deck);
     }
 
     /// Writing a value that is not the index must not disturb it.
