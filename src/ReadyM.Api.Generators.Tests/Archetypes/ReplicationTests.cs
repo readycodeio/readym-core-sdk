@@ -128,7 +128,7 @@ public class ReplicationTests(ITestOutputHelper output)
     [Fact]
     public void A_token_is_typed_to_its_shape()
         => Assert.Contains(
-            "global::ReadyM.SDK.Archetypes.Value<global::Mod.Vitals, int> Health",
+            "global::ReadyM.SDK.Archetypes.Access.Value<global::Mod.Vitals, int> Health",
             Generated(ReplicatedShape));
 
     /// Nothing carries it over a wire, so there is no field table to build a token from.
@@ -142,6 +142,22 @@ public class ReplicationTests(ITestOutputHelper output)
                 public partial int Health { get; set; }
             }
             """));
+
+    /// A shape that declares itself a scope converts to one, which is what lets a query read
+    /// InScope(area) rather than naming the handle. Nothing else in the generator checks that the
+    /// marker is still matched the way a symbol spells it.
+    [Fact]
+    public void A_scope_archetype_converts_to_one()
+        => Assert.Contains(
+            "public static implicit operator global::ReadyM.SDK.Archetypes.Scope",
+            Generated(
+                """
+                [Archetype]
+                public readonly partial struct Camp : global::ReadyM.SDK.Archetypes.IScope
+                {
+                    public partial int Size { get; set; }
+                }
+                """));
 
     private DeclarationModel Model(string shape)
     {
