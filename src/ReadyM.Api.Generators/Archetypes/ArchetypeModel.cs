@@ -449,13 +449,6 @@ internal sealed class DeclarationModel
     /// </summary>
     public bool NeedsMarker => IsArchetype && !CarriesExplicit();
 
-    /// <summary>
-    /// Whether anything appearing on an entity says this shape appeared with it. A shape holding
-    /// nothing of its own is exactly the shapes it includes, so there is no moment of its own to
-    /// watch for.
-    /// </summary>
-    public bool Watchable => NeedsMarker || HasOwnComponent;
-
     /// <summary>Whether the author declared this shape a scope, by naming IScope on their own part.</summary>
     public bool IsScope => Symbol.AllInterfaces.Any(contract => contract.ToDisplayString() == ArchetypeNames.ScopeMarker);
 

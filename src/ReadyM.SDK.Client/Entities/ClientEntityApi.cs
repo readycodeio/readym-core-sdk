@@ -40,8 +40,7 @@ internal sealed class ClientEntityApi : IEntityApi
         if (!DeleteHandlerRegistry.Any)
             return;
 
-        var entity = going.Entity;
-        DeleteHandlerRegistry.RunFor(new EntityHandle(entity.RawEntity, this), entity.Archetype.ComponentTypes);
+        DeleteHandlerRegistry.RunAll(new EntityHandle(going.Entity.RawEntity, this));
     }
 
     public bool Write<TComponent, TValue>(
@@ -169,7 +168,7 @@ internal sealed class ClientEntityApi : IEntityApi
             NativeInitRegistry.InitAll(handle, components);
 
         if (CreateHandlerRegistry.Any)
-            CreateHandlerRegistry.RunAll(handle, components);
+            CreateHandlerRegistry.RunAll(handle);
 
         return rawEntity;
     }

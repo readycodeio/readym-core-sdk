@@ -387,12 +387,12 @@ public class ReplicationTests(ITestOutputHelper output)
 
     // -- what a shape asks to run as its entities appear -------------------------------------------
 
-    /// An archetype holding nothing of its own is found by its marker, so that is what the handler
-    /// hangs on. There is no component to key it by otherwise.
+    /// A handler hangs on everything the shape is made of, the way a query matches it. Keying it on
+    /// one component would leave an archetype that only includes other shapes with nothing to hang on.
     [Fact]
-    public void A_create_handler_on_a_marker_archetype_hangs_on_the_marker()
+    public void A_handler_hangs_on_everything_the_shape_is_made_of()
         => Assert.Contains(
-            "CreateHandlerRegistry.Register<global::Mod.SubjectArchetypeMarker>",
+            "CreateHandlerRegistry.Register(global::Mod.SubjectAccessors.Components,",
             Generated("""
                 [Archetype]
                 public readonly partial struct Subject
@@ -453,7 +453,7 @@ public class ReplicationTests(ITestOutputHelper output)
     [Fact]
     public void A_shape_registers_what_it_asked_to_run_as_one_of_its_entities_goes()
         => Assert.Contains(
-            "DeleteHandlerRegistry.Register<global::Mod.SubjectArchetypeMarker>",
+            "DeleteHandlerRegistry.Register(global::Mod.SubjectAccessors.Components,",
             Generated("""
                 [Archetype]
                 public readonly partial struct Subject

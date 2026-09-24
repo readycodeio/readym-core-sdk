@@ -62,17 +62,8 @@ internal static class ServiceShape
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    public static readonly DiagnosticDescriptor NotWatchable = new(
-        "READYM027",
-        "Shape cannot be watched",
-        "'{0}.{1}' watches {2}, which holds nothing of its own: it is exactly the shapes it "
-        + "includes, so nothing on an entity says it appeared. Watch one of those instead.",
-        "ReadyM",
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
-
     public static readonly DiagnosticDescriptor[] All =
-        [NotPartial, NotSealed, NotAHook, NotAHandler, WatchesNothing, NotWatchable];
+        [NotPartial, NotSealed, NotAHook, NotAHandler, WatchesNothing];
 
     public static Service Read(INamedTypeSymbol service)
     {
@@ -147,12 +138,6 @@ internal static class ServiceShape
                 || !SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, shape))
             {
                 problems.Add(Diagnostic.Create(NotAHandler, at, service.Name, method.Name, shape.Name));
-                continue;
-            }
-
-            if (!DeclarationModel.For(shape).Watchable)
-            {
-                problems.Add(Diagnostic.Create(NotWatchable, at, service.Name, method.Name, shape.Name));
                 continue;
             }
 

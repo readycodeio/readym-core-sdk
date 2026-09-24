@@ -72,6 +72,8 @@ internal static class ArchetypeNames
 
     public const string DeleteHandlers = "global::ReadyM.SDK.Archetypes.DeleteHandlerRegistry";
 
+    public const string EntityHandler = "global::ReadyM.SDK.Archetypes.EntityHandler";
+
     public const string ShapeToken = "global::ReadyM.SDK.Archetypes.Access.Shape";
     public const string Delivery = "global::" + Namespace + ".Delivery";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";

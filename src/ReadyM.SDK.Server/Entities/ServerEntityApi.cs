@@ -81,7 +81,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
             NativeInitRegistry.InitAll(handle, components);
 
         if (CreateHandlerRegistry.Any)
-            CreateHandlerRegistry.RunAll(handle, components);
+            CreateHandlerRegistry.RunAll(handle);
 
         return rawEntity;
     }

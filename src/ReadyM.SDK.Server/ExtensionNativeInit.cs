@@ -25,7 +25,7 @@ internal static class ExtensionNativeInit
         if (!local || !CreateHandlerRegistry.Any || _api is null)
             return;
 
-        CreateHandlerRegistry.RunPresent(new EntityHandle(entity, _api), components);
+        CreateHandlerRegistry.RunAll(new EntityHandle(entity, _api));
     }
 
     /// Worked out once, after every mod has registered its shapes.

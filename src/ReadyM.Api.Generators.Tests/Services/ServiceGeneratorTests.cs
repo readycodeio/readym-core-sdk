@@ -386,17 +386,21 @@ public class ServiceGeneratorTests(ITestOutputHelper output)
             }
             """);
 
-    /// It is exactly what it includes, so nothing appearing on an entity says it arrived.
+    /// <summary>
+    /// A shape holding nothing of its own is exactly the shapes it includes, and is recognised the
+    /// way a query recognises it: by everything it is made of. People write archetypes and rarely
+    /// name a mixin, so refusing this would be an arbitrary hole in the API.
+    /// </summary>
     [Fact]
-    public void A_create_handler_watching_a_shape_that_holds_nothing_of_its_own_is_refused()
-        => AssertReports("READYM027", """
+    public void A_handler_may_watch_a_shape_that_holds_nothing_of_its_own()
+        => Assert.Empty(Reported("""
             [Service]
             public sealed partial class Bookkeeping
             {
                 [CreateHandler(typeof(Nothing))]
                 private void Track(Nothing nothing) { }
             }
-            """);
+            """));
 
     /// A class nobody declared a service is nobody's business, whatever it is called.
     [Fact]

@@ -168,7 +168,8 @@ This only applies to creation via the SDK - not for entities received through re
 // TODO: Allow defining both
 
 An "external" form of `[CreateHandler(typeof(Shape))]` is also supported on a partial class defining a `[Service]`.
-The shape has to be an `[Archetype]` or an `[ArchetypeMixin]` that holds something of its own: one that is only the shapes it includes has no Friflo event to watch for.
+
+Any `[Archetype]` or `[ArchetypeMixin]` can be watched.
 
 There are no guarantees on the order of execution of multiple handlers for the same shape.
 

@@ -38,6 +38,9 @@ public readonly struct EntityHandle
     public bool Is<T>() where T : struct, IArchetypeQueryable
         => _api.HasComponents(_rawEntity, default(T).Components);
 
+    /// The same question asked with a set rather than a type, for the SDK's own bookkeeping.
+    internal bool Has(ComponentSet components) => _api.HasComponents(_rawEntity, components);
+
     public T As<T>() where T : struct, IArchetypeQueryable
     {
         return Is<T>() ? new T { Handle = this } : throw new InvalidEntityException($"Cannot cast entity to type {typeof(T).Name}");

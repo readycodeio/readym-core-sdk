@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -60,7 +60,6 @@ internal static class DeleteHandlerEmitter
             return;
 
         var handler = model.DeleteHandlers[0];
-        var component = model.NeedsMarker ? model.QualifiedMarker : model.QualifiedComponent;
         var arguments = string.Join(", ", handler.Parameters.Select(Resolved));
 
         writer.Line();
@@ -72,26 +71,21 @@ internal static class DeleteHandlerEmitter
                 writer.Line("[global::System.Runtime.CompilerServices.ModuleInitializer]");
 
             writer.Line("public static void Register()");
-            writer.Line($"    => {ArchetypeNames.DeleteHandlers}.Register<{component}>(");
+            writer.Line($"    => {ArchetypeNames.DeleteHandlers}.Register({model.QualifiedAccessors}.Components,");
             writer.Line($"        static (in {ArchetypeNames.EntityHandle} handle)");
             writer.Line($"            => new {model.QualifiedName}(handle).{handler.Name}({arguments}));");
         }
     }
 
-    /// Where a service watching this shape hands its handler in. The component backing a shape never
-    /// leaves the assembly that declared it, and a service watching one may sit anywhere, so the
-    /// shape names it from the inside.
+    /// Where a service watching this shape hands its handler in. The components a shape is made of
+    /// never leave the assembly that declared it, and a service watching one may sit anywhere, so
+    /// the shape hands them over from the inside.
     private static void EmitWatchPoint(SourceWriter writer, DeclarationModel model)
     {
-        if (!model.Watchable)
-            return;
-
-        var component = model.NeedsMarker ? model.QualifiedMarker : model.QualifiedComponent;
-
         writer.Line();
         writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        writer.Line($"public static void ObserveDeleted({ArchetypeNames.DeleteHandlers}.Handler handler)");
-        writer.Line($"    => {ArchetypeNames.DeleteHandlers}.Observe<{component}>(handler);");
+        writer.Line($"public static void ObserveDeleted({ArchetypeNames.EntityHandler} handler)");
+        writer.Line($"    => {ArchetypeNames.DeleteHandlers}.Observe({model.QualifiedAccessors}.Components, handler);");
     }
 
     /// A handler asks for what it needs by naming it, and the game's services answer.

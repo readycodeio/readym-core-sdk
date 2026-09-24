@@ -44,3 +44,20 @@ public sealed partial class Undertaking(Ledger ledger)
         ledger.Chalk.Add(crate.Chalk);
     }
 }
+
+/// <summary>
+/// Ticketed holds nothing of its own: it is exactly the two mixins it includes, one of them over a
+/// component the core owns, so it carries no marker either. It is still the name people write, and
+/// it is watched the way a query matches it.
+/// </summary>
+[Service]
+public sealed partial class Turnstile
+{
+    public int Inside { get; private set; }
+
+    [CreateHandler(typeof(Ticketed))]
+    private void Arrived(Ticketed ticketed) => Inside++;
+
+    [DeleteHandler(typeof(Ticketed))]
+    private void Left(Ticketed ticketed) => Inside--;
+}

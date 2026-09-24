@@ -67,6 +67,24 @@ public class DeleteHandlerTests : ClientSdkTest
         Assert.Equal(["service", "shape"], Container.Resolve<Ledger>().Order);
     }
 
+    /// <summary>
+    /// An archetype that holds nothing of its own has no component and no marker to be keyed by, and
+    /// is still the name people write. It is watched by everything it is made of, the way a query
+    /// matches it.
+    /// </summary>
+    [Fact]
+    public void A_shape_that_holds_nothing_of_its_own_is_watched_all_the_same()
+    {
+        var turnstile = Container.Resolve<Turnstile>();
+        var ticketed = Entities.Create<Ticketed>();
+
+        Assert.Equal(1, turnstile.Inside);
+
+        Entities.Delete(ticketed);
+
+        Assert.Equal(0, turnstile.Inside);
+    }
+
     /// Deleting inside a query is held until the loop ends, and the handlers run when it does.
     [Fact]
     public void One_deleted_inside_a_query_runs_them_when_the_loop_ends()

@@ -19,6 +19,5 @@ READYM023 | ReadyM | Error | A service is not declared sealed.
 READYM024 | ReadyM | Error | A method named Update, Start or Stop cannot be called as one.
 READYM025 | ReadyM | Error | A handler declared in a service cannot be called.
 READYM026 | ReadyM | Error | A handler declared in a service does not name the shape it watches.
-READYM027 | ReadyM | Error | A handler declared in a service watches a shape that holds nothing of its own.
 READYM028 | ReadyM | Error | A delete handler a shape declared for itself cannot be called.
 READYM029 | ReadyM | Error | A shape declares more than one delete handler.

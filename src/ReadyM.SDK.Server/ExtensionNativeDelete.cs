@@ -1,4 +1,4 @@
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
@@ -11,11 +11,11 @@ internal static class ExtensionNativeDelete
     public static void Use(IEntityApi api) => _api = api;
 
     /// Called for every entity the host is about to delete, whoever asked for it.
-    public static void Run(RawEntity entity, IComponentsById components)
+    public static void Run(RawEntity entity)
     {
         if (!DeleteHandlerRegistry.Any || _api is null)
             return;
 
-        DeleteHandlerRegistry.RunPresent(new EntityHandle(entity, _api), components);
+        DeleteHandlerRegistry.RunAll(new EntityHandle(entity, _api));
     }
 }
