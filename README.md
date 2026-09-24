@@ -103,7 +103,7 @@ This attribute applies to replicated shapes only.
 
 The source generator adds an appropriate marker interface to the generated component type.
 
-### Includes
+### Include / IncludeArchetype
 
 Flattens another shape into the current one, so that all of its fields are treated as if they were declared in the current shape.
 

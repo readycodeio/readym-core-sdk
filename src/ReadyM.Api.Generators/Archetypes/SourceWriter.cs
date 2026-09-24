@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -28,7 +28,11 @@ internal sealed class SourceWriter
 
     public Block Braces(string header)
     {
-        Line(header);
+        // An empty header is a block whose declaration was already written, most often because a
+        // preprocessor directive had to sit between the two.
+        if (header.Length > 0)
+            Line(header);
+
         Line("{");
         _indent++;
         return new Block(this);

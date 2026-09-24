@@ -37,6 +37,85 @@ public class ShapeMappingTests : ClientSdkTest
     private static bool OverriddenOf(Rig rig)
         => EntityHandle.Of(rig).GetComponent<TelemetryComponent>().ChangedFromApi;
 
+    private static Roster AsRoster(Rig rig, IEntityApi api)
+        => new EntityHandle(EntityHandle.Of(rig).RawEntity, api).As<Roster>();
+
+    /// Stands in for whatever the game holds a list of values in.
+    private sealed class Squad
+    {
+        public List<int> Ids { get; } = [];
+    }
+
+    private static ShapeMappingRegistry MappedRoster()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Roster, Squad>()
+            .Map(
+                Roster.Field.Members,
+                pull: (members, squad) =>
+                {
+                    members.Clear();
+
+                    foreach (var id in squad.Ids)
+                        members.Add(id);
+                },
+                push: (members, squad) =>
+                {
+                    squad.Ids.Clear();
+
+                    for (var i = 0; i < members.Count; i++)
+                        squad.Ids.Add(members.Get(i));
+                });
+
+        SyncExtensions.Use(registry);
+        return registry;
+    }
+
+    /// A collection is never handed over, so what the handler works is the wrapper over the entity.
+    [Fact]
+    public void A_collection_is_read_out_of_the_game_through_its_members()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+        var squad = new Squad { Ids = { 3, 4 } };
+
+        Assert.True(AsRoster(rig, new Deciding(Api, ecsDrives: false)).Pull(Roster.Field.Members, squad));
+
+        Assert.Equal(2, rig.MembersCount);
+        Assert.Equal(3, rig.GetMembers(0));
+        Assert.Equal(4, rig.GetMembers(1));
+    }
+
+    [Fact]
+    public void And_shown_to_the_game_the_same_way()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+        var squad = new Squad();
+
+        rig.AddMembers(9);
+
+        Assert.True(AsRoster(rig, new Deciding(Api, ecsDrives: true)).Push(Roster.Field.Members, squad));
+        Assert.Equal([9], squad.Ids);
+    }
+
+    /// The game does not drive it, so there is nothing to read back out of it.
+    [Fact]
+    public void A_collection_the_ecs_drives_is_not_pulled()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.False(AsRoster(rig, new Deciding(Api, ecsDrives: true))
+            .Pull(Roster.Field.Members, new Squad { Ids = { 1 } }));
+
+        Assert.Equal(0, rig.MembersCount);
+    }
+
     /// Pulling the value a shape is indexed by moves it in that index, like any other write to it.
     [Fact]
     public void A_pulled_index_value_moves_the_entity_in_the_index()
@@ -300,6 +379,13 @@ public class ShapeMappingTests : ClientSdkTest
             WriteKind kind)
             where TComponent : struct, IComponent
             => inner.Write(rawEntity, ref component, field, value, kind);
+
+        public bool Mirrors<TComponent, TValue>(
+            RawEntity rawEntity,
+            in TComponent component,
+            Field<TComponent, TValue> field)
+            where TComponent : struct, IComponent
+            => !ecsDrives && !field.WasSetFromApi(component);
 
         public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => ecsDrives;
 

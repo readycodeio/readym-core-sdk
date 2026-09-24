@@ -150,6 +150,7 @@ internal static class ExtendedMemberEmitter
             return;
         }
 
+        AccessorEmitter.Marker(writer, forward);
         writer.Line($"public {forward.Declaration($"{prefix}{forward.Name}")}");
         writer.Line($"    => {call}({handle}{forward.Separator}{forward.Arguments});");
     }

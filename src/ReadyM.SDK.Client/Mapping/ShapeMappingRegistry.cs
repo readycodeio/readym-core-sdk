@@ -7,9 +7,53 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
 {
     private readonly Dictionary<(Type Component, Type Context, int Field), object> _mappings = [];
 
+    private readonly Dictionary<(Type Component, Type Context, int Field, Way Way), object> _collections = [];
+
     public IShapeMappingScope<TShape, TContext> For<TShape, TContext>()
         where TShape : struct, IArchetypeQueryable
         => new Scope<TShape, TContext>(this);
+
+    internal Collected<TAccess, TContext>? FindPull<TAccess, TContext>(ValueAccess access)
+#if NET10_0_OR_GREATER
+        where TAccess : allows ref struct
+#endif
+        => Collected<TAccess, TContext>(access, Way.Pull);
+
+    internal Collected<TAccess, TContext>? FindPush<TAccess, TContext>(ValueAccess access)
+#if NET10_0_OR_GREATER
+        where TAccess : allows ref struct
+#endif
+        => Collected<TAccess, TContext>(access, Way.Push);
+
+    /// A handler over a collection cannot be held beside the others: on a runtime carrying ref
+    /// structs it is a delegate whose parameter is one, so the pair is kept apart instead.
+    private Collected<TAccess, TContext>? Collected<TAccess, TContext>(ValueAccess access, Way way)
+#if NET10_0_OR_GREATER
+        where TAccess : allows ref struct
+#endif
+        => _collections.TryGetValue((access.Component, typeof(TContext), access.Field, way), out var found)
+            ? (Collected<TAccess, TContext>)found
+            : null;
+
+    private void Add<TAccess, TContext>(
+        ValueAccess access,
+        Collected<TAccess, TContext> pull,
+        Collected<TAccess, TContext>? push)
+#if NET10_0_OR_GREATER
+        where TAccess : allows ref struct
+#endif
+    {
+        _collections[(access.Component, typeof(TContext), access.Field, Way.Pull)] = pull;
+
+        if (push is not null)
+            _collections[(access.Component, typeof(TContext), access.Field, Way.Push)] = push;
+    }
+
+    private enum Way
+    {
+        Pull,
+        Push
+    }
 
     internal Mapping<TValue, TContext>? Find<TValue, TContext>(ValueAccess<TValue> access)
         => _mappings.TryGetValue((access.Component, typeof(TContext), access.Field), out var found)
@@ -47,6 +91,18 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
             Action<TValue, TContext>? push = null)
         {
             registry.Add(value.Access, new Mapping<TValue, TContext>(push, pull));
+            return this;
+        }
+
+        public IShapeMappingScope<TShape, TContext> Map<TAccess>(
+            Collection<TShape, TAccess> collection,
+            Collected<TAccess, TContext> pull,
+            Collected<TAccess, TContext>? push = null)
+#if NET10_0_OR_GREATER
+            where TAccess : allows ref struct
+#endif
+        {
+            registry.Add(collection.Value, pull, push);
             return this;
         }
 

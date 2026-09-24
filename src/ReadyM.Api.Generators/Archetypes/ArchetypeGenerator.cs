@@ -69,6 +69,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         var model = DeclarationModel.For(symbol);
         var problems = ExplicitComponentRules.Check(model, compilation)
             .AddRange(ReplicationRules.Check(model))
+            .AddRange(CreateHandlerEmitter.Check(model))
             .AddRange(ReplicationRules.CheckPropagation(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
@@ -109,6 +110,8 @@ internal class ArchetypeGenerator : IIncrementalGenerator
 
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks, chunkWrites: !client);
         writer.Line();
+        CollectionAccessEmitter.Emit(writer, model);
+        writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Archetype}{IndexEmitter.Contract(model)}"))
         {
@@ -120,6 +123,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             EmitConversions(writer, model);
             EmitScope(writer, model);
             ValuesEmitter.Emit(writer, model);
+            CreateHandlerEmitter.Emit(writer, model, compilation);
         }
 
         if (view is not null)

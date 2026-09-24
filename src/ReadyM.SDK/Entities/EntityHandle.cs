@@ -98,6 +98,12 @@ public readonly struct EntityHandle
         where TComponent : struct, IComponent
         => _api.Write(_rawEntity, ref component, field, value, kind);
 
+    /// Whether the game may report this value, which is what a collection asks before changing.
+    /// <returns><c>false</c> when the write does not belong on this side.</returns>
+    public bool Mirrors<TComponent, TValue>(Field<TComponent, TValue> field)
+        where TComponent : struct, IComponent
+        => _api.Mirrors(_rawEntity, in GetComponent<TComponent>(), field);
+
     internal bool Allows(Type component, WriteKind kind) 
         => _api.Allows(_rawEntity, component, kind);
 

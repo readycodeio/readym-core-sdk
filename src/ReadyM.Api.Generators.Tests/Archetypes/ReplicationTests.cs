@@ -28,6 +28,11 @@ public class ReplicationTests(ITestOutputHelper output)
         {
             public int Value;
         }
+
+        public struct OwnedComponent : IComponent, ReadyM.Api.Mapping.Tags.IOwnershipBased
+        {
+            public int Value;
+        }
         """;
 
     private const string Networked = "global::ReadyM.Api.Multiplayer.ECS.Components.AreaScopeComponent";
@@ -320,19 +325,129 @@ public class ReplicationTests(ITestOutputHelper output)
             public readonly partial struct Region;
             """);
 
-    /// The component a shape does not own decides this, so a shape restating it has to agree.
+    /// The component a shape does not own carries the contract, and the runtime reads it there.
     [Fact]
-    public void A_stated_propagation_must_match_the_component()
+    public void A_shape_over_a_borrowed_component_must_not_state_propagation()
         => AssertReports("READYM015", """
             [ArchetypeMixin]
-            [ExplicitComponent(typeof(global::Core.MetaComponent))]
+            [ExplicitComponent(typeof(global::Core.LocalComponent))]
             [Propagates(Propagation.OwnershipBased)]
             public readonly partial struct Meta
             {
-                public partial int Owner { get; set; }
+                public partial int Value { get; set; }
             }
             """);
 
+    /// Even agreeing with it, because two places to say it are two places to change it.
+    [Fact]
+    public void Nor_state_the_propagation_the_component_already_carries()
+        => AssertReports("READYM015", """
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.OwnedComponent))]
+            [Propagates(Propagation.OwnershipBased)]
+            public readonly partial struct Owned
+            {
+                public partial int Value { get; set; }
+            }
+            """);
+
+
+    /// The field a value is held in is its name with a lower first letter, which can land on a
+    /// keyword. Sealed, Class and Event are ordinary things for a mod to call a value.
+    [Fact]
+    public void A_value_whose_field_would_be_a_keyword_is_escaped()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial int Sealed { get; set; }
+                public partial int Event { get; set; }
+                public partial int Ordinary { get; set; }
+            }
+            """);
+
+        Assert.Contains("public int @sealed;", generated);
+        Assert.Contains("public int @event;", generated);
+        Assert.Contains("public int ordinary;", generated);
+    }
+
+    /// The same for one that replicates, where the field is reached from more places.
+    [Fact]
+    public void And_escaped_on_a_shape_that_replicates()
+        => Assert.Contains("@sealed", Generated("""
+            [ArchetypeMixin]
+            [Replicated]
+            [Propagates(Propagation.OwnershipBased)]
+            public readonly partial struct Subject
+            {
+                public partial int Sealed { get; set; }
+            }
+            """));
+
+    // -- what a shape asks to run as its entities appear -------------------------------------------
+
+    /// An archetype holding nothing of its own is found by its marker, so that is what the handler
+    /// hangs on. There is no component to key it by otherwise.
+    [Fact]
+    public void A_create_handler_on_a_marker_archetype_hangs_on_the_marker()
+        => Assert.Contains(
+            "CreateHandlerRegistry.Register<global::Mod.SubjectArchetypeMarker>",
+            Generated("""
+                [Archetype]
+                public readonly partial struct Subject
+                {
+                    [CreateHandler]
+                    private void OnCreated() { }
+                }
+                """));
+
+    /// What it asks for comes from the game's services, resolved as it runs rather than before.
+    [Fact]
+    public void A_create_handler_is_handed_what_it_asked_for()
+        => Assert.Contains(
+            "Services.Resolve<global::Core.LocalComponent>()",
+            Generated("""
+                [ArchetypeMixin]
+                public readonly partial struct Subject
+                {
+                    public partial int Value { get; set; }
+
+                    [CreateHandler]
+                    private void OnCreated(global::Core.LocalComponent needed) { }
+                }
+                """));
+
+    /// There is nobody to hand a result to, and nothing for a static one to run on.
+    [Fact]
+    public void A_create_handler_returning_something_is_refused()
+        => AssertReports("READYM020", """
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial int Value { get; set; }
+
+                [CreateHandler]
+                private int OnCreated() => 1;
+            }
+            """);
+
+    /// The order between two would be nobody's to say, so the shape keeps one.
+    [Fact]
+    public void A_shape_declaring_two_create_handlers_is_refused()
+        => AssertReports("READYM021", """
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial int Value { get; set; }
+
+                [CreateHandler]
+                private void First() { }
+
+                [CreateHandler]
+                private void Second() { }
+            }
+            """);
 
     private DeclarationModel Model(string shape)
     {
@@ -365,8 +480,9 @@ public class ReplicationTests(ITestOutputHelper output)
 
     /// Storage that already exists cannot be taught to replicate, so asking is an error rather than
     /// something quietly ignored.
+    /// The component decides whether it crosses the wire, and this one does not.
     [Fact]
-    public void A_shape_over_a_local_component_cannot_replicate()
+    public void A_shape_over_a_local_component_must_not_ask_to_replicate()
     {
         var reported = Report("""
             [ArchetypeMixin]
@@ -396,8 +512,9 @@ public class ReplicationTests(ITestOutputHelper output)
         Assert.DoesNotContain(reported, d => d.Id is "READYM009" or "READYM010");
     }
 
+    /// Nor when it does, because then the shape is asking for something already true of it.
     [Fact]
-    public void A_shape_over_a_networked_component_replicates_without_complaint()
+    public void Nor_when_the_component_is_already_networked()
     {
         var reported = Report($$"""
             [ArchetypeMixin]
@@ -406,7 +523,20 @@ public class ReplicationTests(ITestOutputHelper output)
             public readonly partial struct Subject;
             """);
 
-        Assert.DoesNotContain(reported, d => d.Id is "READYM009" or "READYM010");
+        Assert.Contains(reported, d => d.Id == "READYM010");
+    }
+
+    /// Saying nothing is how a shape over a networked component replicates, and it still does.
+    [Fact]
+    public void A_shape_over_a_networked_component_replicates_without_asking()
+    {
+        var reported = Report($$"""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof({{Networked}}))]
+            public readonly partial struct Subject;
+            """);
+
+        Assert.DoesNotContain(reported, d => d.Id.StartsWith("READYM"));
     }
 
     // -- what the model decides --------------------------------------------------------------------
@@ -520,11 +650,10 @@ public class ReplicationTests(ITestOutputHelper output)
     }
 
     /// A shape that does not replicate has no generated members to reach a collection through, so
-    /// keeping it private would leave it unreachable.
+    /// what it would hold is a handle to memory and no way to work it.
     [Fact]
-    public void A_local_collection_may_be_reachable_as_a_whole()
-    {
-        var reported = Report("""
+    public void A_local_shape_cannot_hold_a_collection()
+        => AssertReports("READYM018", """
             [ArchetypeMixin]
             public readonly partial struct Subject
             {
@@ -532,6 +661,14 @@ public class ReplicationTests(ITestOutputHelper output)
             }
             """);
 
-        Assert.DoesNotContain(reported, d => d.Id == "READYM011");
-    }
+    /// Including keeping it to itself, which was the shape that used to slip through.
+    [Fact]
+    public void Nor_a_private_one()
+        => AssertReports("READYM018", """
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                private partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+            }
+            """);
 }

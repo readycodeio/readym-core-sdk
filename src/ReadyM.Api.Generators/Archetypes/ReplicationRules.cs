@@ -19,9 +19,9 @@ internal static class ReplicationRules
 
     public static readonly DiagnosticDescriptor ComponentCannotReplicate = new(
         "READYM010",
-        "Explicit component cannot replicate",
-        "'{0}' backs '{1}' and is not a networked component, so '{1}' cannot replicate. Drop "
-        + "[Replicated], or give the component the networked contract.",
+        "Replication is stated on a borrowed component",
+        "'{0}' backs '{1}' and decides for itself whether it crosses the wire. Drop [Replicated]: a "
+        + "shape cannot send a component it does not own, and a networked one already sends itself.",
         "ReadyM",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -48,9 +48,10 @@ internal static class ReplicationRules
 
     public static readonly DiagnosticDescriptor PropagationDisagrees = new(
         "READYM015",
-        "Stated propagation is not what the component says",
-        "'{0}' says it propagates as {1}, but '{2}' backs it and does not carry that contract. The "
-        + "component a shape does not own decides this; state what it says, or drop [Propagates].",
+        "Propagation is stated on a borrowed component",
+        "'{0}' says it propagates as {1}, but '{2}' backs it and carries that contract itself. The "
+        + "component a shape does not own decides this, and the runtime reads it there. Drop "
+        + "[Propagates].",
         "ReadyM",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -59,6 +60,16 @@ internal static class ReplicationRules
         "READYM016",
         "Propagation is stated on a shape nothing sends",
         "'{0}' is not replicated. Drop [Propagates], or replicate the shape.",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor CollectionNeedsReplication = new(
+        "READYM018",
+        "Collection sits on a shape nothing sends",
+        "'{0}.{1}' is a collection, and only a replicated component is given the members that work "
+        + "one: Add{1}, Clear{1} and the rest. On '{0}' it would be a handle to memory with nothing "
+        + "to reach it by. Replicate the shape, or hold the values some other way.",
         "ReadyM",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -75,9 +86,7 @@ internal static class ReplicationRules
                 : [];
 
         if (model.ExplicitComponent is { } component)
-            return PropagationContracts.DeclaredBy(component, propagation)
-                ? []
-                : [Diagnostic.Create(PropagationDisagrees, at, model.Name, propagation, component.ToDisplayString())];
+            return [Diagnostic.Create(PropagationDisagrees, at, model.Name, propagation, component.ToDisplayString())];
 
         // Nothing sends a local shape's values, so nothing has to be stopped from writing them.
         return model.IsReplicated ? [] : [Diagnostic.Create(PropagationNeedsReplication, at, model.Name)];
@@ -85,31 +94,31 @@ internal static class ReplicationRules
 
     public static ImmutableArray<Diagnostic> Check(DeclarationModel model)
     {
-        if (!model.HasReplicatedAttribute)
-            return [];
-
         var found = new List<Diagnostic>();
         var at = model.Symbol.Locations.FirstOrDefault() ?? Location.None;
 
         if (model.ExplicitComponent is { } component)
-        {
-            if (!DeclarationModel.IsNetworkedComponent(component))
-                found.Add(Diagnostic.Create(
-                    ComponentCannotReplicate, at, component.ToDisplayString(), model.Name));
+            return model.HasReplicatedAttribute
+                ? [Diagnostic.Create(ComponentCannotReplicate, at, component.ToDisplayString(), model.Name)]
+                : [];
 
-            return [.. found];
+        // Both rules hold whether or not the shape asked to replicate, because what a collection is
+        // reachable by, and what nothing is reachable by, is decided before anything is sent.
+        foreach (var accessor in model.Accessors)
+        {
+            if (!accessor.IsNativeContainer)
+                continue;
+
+            var declared = accessor.Declared?.Locations.FirstOrDefault() ?? at;
+
+            if (!model.IsReplicated)
+                found.Add(Diagnostic.Create(CollectionNeedsReplication, declared, model.Name, accessor.Name));
+            else if (accessor.IsExposed)
+                found.Add(Diagnostic.Create(CollectionIsExposed, declared, model.Name, accessor.Name));
         }
 
-        if (model.Accessors.Count == 0)
+        if (model.HasReplicatedAttribute && model.Accessors.Count == 0)
             found.Add(Diagnostic.Create(NothingToReplicate, at, model.Name));
-
-        foreach (var accessor in model.Accessors)
-            if (accessor.IsNativeContainer && accessor.IsExposed)
-                found.Add(Diagnostic.Create(
-                    CollectionIsExposed,
-                    accessor.Declared?.Locations.FirstOrDefault() ?? at,
-                    model.Name,
-                    accessor.Name));
 
         return [.. found];
     }

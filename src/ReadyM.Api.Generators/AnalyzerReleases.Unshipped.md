@@ -13,3 +13,8 @@ READYM006 | ReadyM | Error | A setter was declared over a member that cannot be 
 READYM007 | ReadyM | Error | An explicit component is not visible from the declaring assembly.
 READYM008 | ReadyM | Error | An [ExplicitCollection] name matches no member of the component.
 READYM017 | ReadyM | Error | A client writes a replicated value straight through its setter.
+READYM019 | ReadyM | Error | A client changes a replicated collection through its own members.
+READYM022 | ReadyM | Error | A system is not declared partial.
+READYM023 | ReadyM | Error | A system has no update, so nothing would ever run it.
+READYM024 | ReadyM | Error | A system has more than one update the SDK could call.
+READYM025 | ReadyM | Error | A method named Update cannot be called as one.

@@ -51,6 +51,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         var model = DeclarationModel.For(symbol);
         var problems = ExplicitComponentRules.Check(model, compilation)
             .AddRange(ReplicationRules.Check(model))
+            .AddRange(CreateHandlerEmitter.Check(model))
             .AddRange(ReplicationRules.CheckPropagation(model));
         // Accessors reachable from a chunk go on whenever the server SDK is there, because another
         // declaration may include this one. The view itself needs this shape to be walkable.
@@ -84,6 +85,8 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
         }
         AccessorEmitter.Emit(writer, model, HandleEmitter.ComponentSet(model), chunks, chunkWrites: !client);
         writer.Line();
+        CollectionAccessEmitter.Emit(writer, model);
+        writer.Line();
 
         using (writer.Braces($"{model.Header} : {ArchetypeNames.Mixin}{IndexEmitter.Contract(model)}"))
         {
@@ -94,6 +97,7 @@ internal class ArchetypeMixinGenerator : IIncrementalGenerator
                 AccessorEmitter.Forwarded(writer, forward, model.QualifiedAccessors);
 
             ValuesEmitter.Emit(writer, model);
+            CreateHandlerEmitter.Emit(writer, model, compilation);
         }
 
         if (view is not null)

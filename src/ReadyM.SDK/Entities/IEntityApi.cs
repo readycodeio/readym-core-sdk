@@ -38,6 +38,10 @@ internal interface IEntityApi
     /// Whether a write of this kind would be applied to the component.
     bool Allows(RawEntity rawEntity, Type component, WriteKind kind);
 
+    /// Whether a mirror of this value would be applied, for a write that carries its own.
+    bool Mirrors<TComponent, TValue>(RawEntity rawEntity, in TComponent component, Field<TComponent, TValue> field)
+        where TComponent : struct, IComponent;
+
     /// Writes one value, as the game reporting it or as an override of it.
     /// <returns><c>false</c> when the write does not belong on this side.</returns>
     bool Write<TComponent, TValue>(

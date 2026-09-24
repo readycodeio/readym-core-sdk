@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -16,7 +17,11 @@ internal static class ValuesEmitter
 
         var exposed = model.Accessors.Where(accessor => accessor.IsExposed && !accessor.IsNativeContainer).ToList();
 
-        if (exposed.Count == 0)
+        // A collection is kept out of reach, and named here all the same: the token is the only way
+        // to it, which is the point of keeping it out of reach in the first place.
+        var collections = CollectionAccessEmitter.Of(model).ToList();
+
+        if (exposed.Count == 0 && collections.Count == 0)
             return;
 
         var component = model.QualifiedComponent;
@@ -39,6 +44,20 @@ internal static class ValuesEmitter
                 writer.Line($"public static {ArchetypeNames.Value}<{model.QualifiedName}, {accessor.Type}> {accessor.Name} {{ get; }}");
                 writer.Line($"    = {ArchetypeNames.Value}.{of}<{model.QualifiedName}, {component}, {accessor.Type}>(");
                 writer.Line($"        {component}.Fields.{accessor.FieldEntry});");
+            }
+
+            foreach (var (collection, held, _) in collections)
+            {
+                if (held is null)
+                    continue;
+
+                var access = CollectionAccessEmitter.QualifiedNameOf(model, collection);
+
+                writer.Line();
+                writer.Line($"public static {ArchetypeNames.Collection}<{model.QualifiedName}, {access}> {collection} {{ get; }}");
+                writer.Line($"    = {ArchetypeNames.Collection}.Of<{model.QualifiedName}, {component}, {held}, {access}>(");
+                writer.Line($"        {component}.Fields.{collection},");
+                writer.Line($"        static (in {ArchetypeNames.EntityHandle} handle) => new {access}(in handle));");
             }
         }
     }

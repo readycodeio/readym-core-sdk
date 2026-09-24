@@ -25,6 +25,63 @@ public static class SyncExtensions
             return handle.ShouldApplyToGame(value.Access.Component) || value.Access.WasSetFromApi(handle);
         }
 
+        /// Whether this collection should be applied from the ECS to the game.
+        public bool CanPush<TAccess>(Collection<TShape, TAccess> collection)
+#if NET10_0_OR_GREATER
+            where TAccess : allows ref struct
+#endif
+        {
+            var handle = EntityHandle.Of(shape);
+
+            return handle.ShouldApplyToGame(collection.Value.Component) || collection.Value.WasSetFromApi(handle);
+        }
+
+        /// Whether this collection should be loaded from the game into the ECS.
+        public bool CanPull<TAccess>(Collection<TShape, TAccess> collection)
+#if NET10_0_OR_GREATER
+            where TAccess : allows ref struct
+#endif
+        {
+            var handle = EntityHandle.Of(shape);
+
+            return !collection.Value.WasSetFromApi(handle)
+                   && handle.Allows(collection.Value.Component, WriteKind.Mirror);
+        }
+
+        /// Shows the game what the collection holds. The handler is handed it to read, and the
+        /// members that would change it answer no while it is being shown.
+        public bool Push<TAccess, TContext>(Collection<TShape, TAccess> collection, TContext context)
+#if NET10_0_OR_GREATER
+            where TAccess : allows ref struct
+#endif
+        {
+            if (!shape.CanPush(collection) || _mappings?.FindPush<TAccess, TContext>(collection.Value) is not { } push)
+                return false;
+
+            var handle = EntityHandle.Of(shape);
+
+            push(collection.Open(in handle), context);
+            collection.Value.ClearApiFlag(handle);
+
+            return true;
+        }
+
+        /// Reads the collection back out of the game, through the members the component exposes.
+        public bool Pull<TAccess, TContext>(Collection<TShape, TAccess> collection, TContext context)
+#if NET10_0_OR_GREATER
+            where TAccess : allows ref struct
+#endif
+        {
+            if (!shape.CanPull(collection) || _mappings?.FindPull<TAccess, TContext>(collection.Value) is not { } pull)
+                return false;
+
+            var handle = EntityHandle.Of(shape);
+
+            pull(collection.Open(in handle), context);
+
+            return true;
+        }
+
         /// Whether this shape should be applied from the ECS to the game.
         public bool CanPush(Shape<TShape> whole)
         {

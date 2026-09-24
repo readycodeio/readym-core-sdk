@@ -48,6 +48,13 @@ internal sealed class ClientEntityApi(
         return true;
     }
 
+    public bool Mirrors<TComponent, TValue>(
+        RawEntity rawEntity,
+        in TComponent component,
+        Field<TComponent, TValue> field)
+        where TComponent : struct, IComponent
+        => Allows(rawEntity, typeof(TComponent), WriteKind.Mirror) && !field.WasSetFromApi(component);
+
     public bool Allows(RawEntity rawEntity, Type component, WriteKind kind)
     {
         // No policy means everything is allowed.
@@ -113,25 +120,34 @@ internal sealed class ClientEntityApi(
     public RawEntity Create(ComponentSet components, RawEntity scope)
     {
         var holder = Resolve(scope);
-        var entity = store.GetEntityByRawEntity(Create(components));
+        var entity = store.GetEntityByRawEntity(Made(components));
 
+        // Before what the shape asked runs, so a handler finds the entity where it will live.
         entity.AddComponent(new InScopeComponent(holder));
 
-        return entity.RawEntity;
+        return Created(entity.RawEntity, components);
     }
 
-    public RawEntity Create(ComponentSet components)
+    public RawEntity Create(ComponentSet components) => Created(Made(components), components);
+
+    private RawEntity Made(ComponentSet components)
     {
         _scope.RefuseIfInQuery("Creating an entity");
 
-        return Created(store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity, components);
+        return store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
     }
 
-    /// A component holding a native collection has no memory until this runs.
+    /// A component holding a native collection has no memory until this runs, and what a shape asked
+    /// to run follows it, once the entity is whole.
     private RawEntity Created(RawEntity rawEntity, ComponentSet components)
     {
+        var handle = new EntityHandle(rawEntity, this);
+
         if (NativeInitRegistry.Any)
-            NativeInitRegistry.InitAll(new EntityHandle(rawEntity, this), components);
+            NativeInitRegistry.InitAll(handle, components);
+
+        if (CreateHandlerRegistry.Any)
+            CreateHandlerRegistry.RunAll(handle, components);
 
         return rawEntity;
     }

@@ -54,6 +54,19 @@ public class ExplicitComponentTests(ITestOutputHelper output)
             public void Started_SetFromApi(System.Collections.Generic.List<int> value, int id) => _started = value;
         }
 
+        /// The same surface, on a component that crosses the wire, which is what makes a change to
+        /// its collection a write the policy decides on.
+        public struct TrackedComponent : global::ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent
+        {
+            public int StartedCount => 0;
+
+            public int GetStarted(int index) => 0;
+
+            public void AddStarted(in int value) { }
+
+            public void ClearStarted() { }
+        }
+
         public struct NotAComponent
         {
             public int Value;
@@ -104,6 +117,17 @@ public class ExplicitComponentTests(ITestOutputHelper output)
     }
 
     /// Everything the run emitted, as one string to read assertions off.
+    private static int Occurrences(string text, string looked)
+    {
+        var found = 0;
+
+        for (var at = text.IndexOf(looked, StringComparison.Ordinal); at >= 0;
+             at = text.IndexOf(looked, at + looked.Length, StringComparison.Ordinal))
+            found++;
+
+        return found;
+    }
+
     private string Generated(string shape)
     {
         var source =
@@ -359,6 +383,52 @@ public class ExplicitComponentTests(ITestOutputHelper output)
             [ExplicitCollection("Started")]
             public readonly partial struct Sequences;
             """);
+
+    /// A collection on a component that replicates is changed under the same rule a value is, and
+    /// says so where the analyzer can read it. The component being borrowed changes nothing here.
+    [Fact]
+    public void A_borrowed_collection_that_replicates_is_changed_under_the_policy()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.TrackedComponent))]
+            [ExplicitCollection("Started")]
+            public readonly partial struct Sequences;
+            """);
+
+        Assert.Contains("if (!handle.Mirrors(global::Core.TrackedComponent.Fields.Started))", generated);
+        Assert.Contains("ChangesAttribute(\"Sequences.Field.Started\")", generated);
+    }
+
+    /// Reading it is not a write, so only the members that change it ask anything: Add and Clear,
+    /// and not Count or Get.
+    [Fact]
+    public void A_borrowed_collection_is_read_without_asking()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.TrackedComponent))]
+            [ExplicitCollection("Started")]
+            public readonly partial struct Sequences;
+            """);
+
+        Assert.Equal(2, Occurrences(generated, "handle.Mirrors("));
+    }
+
+    /// A component nothing sends has no Fields table to ask, and nothing to keep a caller from.
+    [Fact]
+    public void A_borrowed_collection_that_does_not_replicate_is_left_alone()
+    {
+        var generated = Generated("""
+            [ArchetypeMixin]
+            [ExplicitComponent(typeof(global::Core.SequencesComponent))]
+            [ExplicitCollection("Started")]
+            public readonly partial struct Sequences;
+            """);
+
+        Assert.DoesNotContain("Mirrors(", generated);
+        Assert.DoesNotContain("ChangesAttribute", generated);
+    }
 
     [Fact]
     public void A_collection_name_that_matches_is_accepted()

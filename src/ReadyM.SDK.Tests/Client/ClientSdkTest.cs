@@ -32,6 +32,10 @@ public abstract class ClientSdkTest : IDisposable
         _container.RegisterSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
         _container.RegisterSingleton<ILogger>(NullLogger.Instance);
 
+        // What a create handler's parameters are resolved from, which RegisterReadyMSdk does for a
+        // game. This harness builds the graph by hand, so it says the same thing itself.
+        CreateHandlerRegistry.Use(_container);
+
         _container.RegisterSingleton(new EntityStore());
         _container.RegisterSingleton<IEntityApi, ClientEntityApi>();
         _container.RegisterSingleton<IEntities, ClientEntities>();

@@ -17,12 +17,14 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// </remarks>
 internal static class NativeCollectionForwards
 {
-    public static IReadOnlyList<ForwardModel> For(AccessorModel accessor)
+    public static IReadOnlyList<ForwardModel> For(AccessorModel accessor, string shape)
     {
         if (accessor.Declared is null)
             return [];
 
         var name = accessor.Name;
+        var entry = accessor.FieldEntry;
+        var token = $"{shape}.{ValuesEmitter.ClassName}.{accessor.Name}";
         var type = accessor.Declared.Type;
 
         if (SerializationHelper.IsNativeList(type, out var item))
@@ -33,12 +35,12 @@ internal static class NativeCollectionForwards
             [
                 Property($"{name}Count", "int"),
                 Method($"Get{name}", each, ("", "int", "index")),
-                Method($"Set{name}", "void", ("", "int", "index"), ("in ", each, "value")),
+                Changes((entry, token), $"Set{name}", "void", ("", "int", "index"), ("in ", each, "value")),
                 Method($"Contains{name}", "bool", ("in ", each, "value")),
-                Method($"Add{name}", "void", ("in ", each, "value")),
-                Method($"Insert{name}", "void", ("", "int", "index"), ("in ", each, "value")),
-                Method($"RemoveAt{name}", each, ("", "int", "index")),
-                Method($"Clear{name}", "void")
+                Changes((entry, token), $"Add{name}", "void", ("in ", each, "value")),
+                Changes((entry, token), $"Insert{name}", "void", ("", "int", "index"), ("in ", each, "value")),
+                Changes((entry, token), $"RemoveAt{name}", each, ("", "int", "index")),
+                Changes((entry, token), $"Clear{name}", "void")
             ];
         }
 
@@ -51,12 +53,12 @@ internal static class NativeCollectionForwards
             [
                 Property($"{name}Count", "int"),
                 Method($"Get{name}", held, ("in ", byKey, "key")),
-                Method($"Set{name}", "void", ("in ", byKey, "key"), ("in ", held, "value")),
+                Changes((entry, token), $"Set{name}", "void", ("in ", byKey, "key"), ("in ", held, "value")),
                 Method($"Contains{name}Key", "bool", ("in ", byKey, "key")),
                 Method($"Contains{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
-                Method($"Add{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
-                Method($"Remove{name}", "bool", ("in ", byKey, "key")),
-                Method($"Clear{name}", "void")
+                Changes((entry, token), $"Add{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
+                Changes((entry, token), $"Remove{name}", "bool", ("in ", byKey, "key")),
+                Changes((entry, token), $"Clear{name}", "void")
             ];
         }
 
@@ -70,4 +72,12 @@ internal static class NativeCollectionForwards
         string returnType,
         params (string Modifier, string Type, string Name)[] parameters)
         => new(name, returnType, parameters);
+
+    /// A member that changes the collection, which makes it a write like any other.
+    private static ForwardModel Changes(
+        (string Field, string Token) collection,
+        string name,
+        string returnType,
+        params (string Modifier, string Type, string Name)[] parameters)
+        => new(name, returnType, parameters, changes: collection.Field, collection: collection.Token);
 }

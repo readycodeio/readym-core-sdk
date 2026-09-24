@@ -34,6 +34,8 @@ public class ReplicatedWriteAnalyzerTests(ITestOutputHelper output)
         public readonly partial struct Vitals
         {
             public partial int Hp { get; set; }
+
+            private partial global::Yooni.Native.Container.NativeList<int> Marks { get; set; }
         }
 
         [ArchetypeMixin]
@@ -78,7 +80,7 @@ public class ReplicatedWriteAnalyzerTests(ITestOutputHelper output)
         var reported = SourceGeneratorTestHelper.Analyze(
             result.OutputCompilation, new ReplicatedWriteAnalyzer(), properties);
 
-        return [.. reported.Where(diagnostic => diagnostic.Id == "READYM017")];
+        return [.. reported.Where(diagnostic => diagnostic.Id is "READYM017" or "READYM019")];
     }
 
     [Fact]
@@ -92,6 +94,20 @@ public class ReplicatedWriteAnalyzerTests(ITestOutputHelper output)
     [Fact]
     public void Nor_step_one()
         => Assert.Single(Report("        vitals.Hp++;"));
+
+    /// A collection has no setter, so what is refused is every member that changes it.
+    [Fact]
+    public void Nor_change_a_replicated_collection()
+        => Assert.Single(Report("        vitals.AddMarks(1);"));
+
+    [Fact]
+    public void Nor_clear_one()
+        => Assert.Single(Report("        vitals.ClearMarks();"));
+
+    /// Reading one says nothing about who owns it, the same as reading a value.
+    [Fact]
+    public void Reading_a_collection_is_left_alone()
+        => Assert.Empty(Report("        var read = vitals.MarksCount;"));
 
     /// Nothing sends it, so nobody is kept from writing it.
     [Fact]

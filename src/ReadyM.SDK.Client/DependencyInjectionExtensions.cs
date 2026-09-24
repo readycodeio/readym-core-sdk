@@ -1,4 +1,5 @@
 ﻿using ReadyM.Api.DI;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Client.Mapping;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
@@ -25,6 +26,8 @@ public static class DependencyInjectionExtensions
 
     public static void RegisterReadyMSdk(this IDependencyContainer container)
     {
+        CreateHandlerRegistry.Use(container);
+
         container.RegisterSingleton<IEntities, ClientEntities>();
         container.RegisterSingleton<IEntityApi, ClientEntityApi>();
 #if NET

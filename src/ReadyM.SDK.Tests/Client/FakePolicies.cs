@@ -26,11 +26,11 @@ internal sealed class Policy : IMappingDataPolicy<Entity>
     public bool CanGameSetLocally(in Entity context) => GameCopiesIn;
 }
 
-/// Answers for one component and, like the real one, refuses anything else.
+/// Answers for the components a write test goes through and, like the real one, refuses anything else.
 internal sealed class Directory(IMappingDataPolicy<Entity> policy) : IMappingPolicyDirectory
 {
     public IMappingDataPolicy<Entity> ForData(Type componentType)
-        => componentType == typeof(TelemetryComponent)
+        => componentType == typeof(TelemetryComponent) || componentType == typeof(RosterComponent)
             ? policy
             : throw new ArgumentException($"No data policy registered for data type {componentType}");
 

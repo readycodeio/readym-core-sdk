@@ -147,8 +147,10 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 /// <summary>One member of an explicit component, forwarded onto the shape unchanged.</summary>
 internal sealed class ForwardModel
 {
-    public ForwardModel(IMethodSymbol method)
+    public ForwardModel(IMethodSymbol method, string? changes = null, string? collection = null)
     {
+        Changes = changes;
+        Collection = collection;
         Name = method.Name;
         ReturnType = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         Parameters = method.Parameters
@@ -172,12 +174,16 @@ internal sealed class ForwardModel
         string name,
         string returnType,
         IReadOnlyList<(string Modifier, string Type, string Name)> parameters,
-        bool isProperty = false)
+        bool isProperty = false,
+        string? changes = null,
+        string? collection = null)
     {
         Name = name;
         ReturnType = returnType;
         Parameters = parameters;
         IsProperty = isProperty;
+        Changes = changes;
+        Collection = collection;
     }
 
     public string Name { get; }
@@ -187,6 +193,13 @@ internal sealed class ForwardModel
     public IReadOnlyList<(string Modifier, string Type, string Name)> Parameters { get; }
 
     public bool IsProperty { get; }
+
+    /// The Fields entry this member changes, for one that changes anything. A member reached off a
+    /// component the shape borrows says nothing here: the entry is that component's to name.
+    public string? Changes { get; }
+
+    /// The token a caller reaches the collection through instead, for the message that says so.
+    public string? Collection { get; }
 
     public bool Returns => ReturnType != "void";
 
@@ -273,6 +286,7 @@ internal sealed class DeclarationModel
         Extends = ReadExtends(symbol);
         (HasReplicatedAttribute, Delivery) = ReadReplication(symbol);
         Propagation = ReadPropagation(symbol);
+        CreateHandlers = ReadCreateHandlers(symbol);
         Forwards = ReadForwards(symbol, ExplicitComponent, Collections).Concat(CollectionMembers()).ToList();
     }
 
@@ -287,7 +301,7 @@ internal sealed class DeclarationModel
         var found = new List<ForwardModel>();
 
         foreach (var accessor in Accessors)
-            found.AddRange(NativeCollectionForwards.For(accessor));
+            found.AddRange(NativeCollectionForwards.For(accessor, Name));
 
         return found;
     }
@@ -300,6 +314,9 @@ internal sealed class DeclarationModel
 
     /// <summary>Members of the explicit component named by [ExplicitCollection].</summary>
     public IReadOnlyList<string> Collections { get; }
+
+    /// <summary>What the shape asked to run as one of its entities is created.</summary>
+    public IReadOnlyList<IMethodSymbol> CreateHandlers { get; }
 
     /// <summary>Everything those members offer, mirrored onto this shape.</summary>
     public IReadOnlyList<ForwardModel> Forwards { get; }
@@ -624,6 +641,12 @@ internal sealed class DeclarationModel
             .ToList();
     }
 
+    private static IReadOnlyList<IMethodSymbol> ReadCreateHandlers(INamedTypeSymbol symbol)
+        => [.. symbol.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(method => method.GetAttributes().Any(attribute
+                => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.CreateHandlerAttribute))];
+
     private static IReadOnlyList<string> CollectionsOf(INamedTypeSymbol symbol)
         => symbol.GetAttributes()
             .Where(attribute => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.ExplicitCollectionAttribute)
@@ -668,18 +691,41 @@ internal sealed class DeclarationModel
 
         var forwards = new List<ForwardModel>();
 
+        // Only a networked component has a Fields table for a change to be asked about, and only a
+        // shape over one replicates, so a local component's members carry no rule to keep.
+        var replicates = IsNetworkedComponent(component);
+
         foreach (var member in component.GetMembers())
         {
             if (!collections.Any(collection => Forwardable(member, collection)))
                 continue;
 
             if (member is IMethodSymbol method)
-                forwards.Add(new ForwardModel(method));
+            {
+                var changed = replicates
+                    ? collections.FirstOrDefault(collection => Changes(method.Name, collection))
+                    : null;
+
+                forwards.Add(changed is null
+                    ? new ForwardModel(method)
+                    : new ForwardModel(method, changed, $"{symbol.Name}.{ValuesEmitter.ClassName}.{changed}"));
+            }
             else if (member is IPropertySymbol property)
                 forwards.Add(new ForwardModel(property));
         }
 
         return forwards;
+    }
+
+    /// Whether a member of a component changes the named collection rather than reading it. The
+    /// verbs are the ones the field support puts there, so this reads the same surface it wrote.
+    private static bool Changes(string member, string collection)
+    {
+        foreach (var verb in new[] { "Set", "Add", "Insert", "RemoveAt", "Remove", "Clear" })
+            if (member == verb + collection)
+                return true;
+
+        return false;
     }
 
     /// <summary>Whether a member of the component is part of the named collection's surface.</summary>

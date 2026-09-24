@@ -65,12 +65,24 @@ internal sealed class IndexedValueAccess<TComponent, TKey>(Field<TComponent, TKe
         => handle.GetComponent<TComponent>().ClearApiFlag(field);
 }
 
-/// Allows accessing the value without the caller knowing which component it sits in.
-internal abstract class ValueAccess<TValue>
+/// What a token can ask about a value without knowing its type, which is what a collection needs:
+/// it is never handed over, only asked about and then changed where it lies.
+internal abstract class ValueAccess
 {
     internal abstract Type Component { get; }
 
     internal abstract int Field { get; }
+
+    /// Is the API mask non-zero?
+    internal abstract bool WasSetFromApi(in EntityHandle handle);
+
+    /// Called after applying the value to the game.
+    internal abstract void ClearApiFlag(in EntityHandle handle);
+}
+
+/// Allows accessing the value without the caller knowing which component it sits in.
+internal abstract class ValueAccess<TValue> : ValueAccess
+{
 
     /// Writes, going through the policy and set-from-API checks.
     internal abstract bool Write(in EntityHandle handle, TValue value, WriteKind kind);
@@ -79,10 +91,4 @@ internal abstract class ValueAccess<TValue>
 
     /// Unconditional write without touching the API mask.
     internal abstract void Set(in EntityHandle handle, TValue value);
-
-    /// Is the API mask non-zero?
-    internal abstract bool WasSetFromApi(in EntityHandle handle);
-
-    /// Called after applying the value to the game.
-    internal abstract void ClearApiFlag(in EntityHandle handle);
 }

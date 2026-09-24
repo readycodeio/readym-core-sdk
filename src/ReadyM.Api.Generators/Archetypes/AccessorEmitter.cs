@@ -42,6 +42,7 @@ internal static class AccessorEmitter
             foreach (var forward in model.Forwards)
                 Forward(writer, forward, component);
 
+
             if (chunks is null)
                 return;
 
@@ -49,7 +50,8 @@ internal static class AccessorEmitter
                 ChunkMembers(writer, accessor, component, chunks, model.IndexedBy is not null, model.IsReplicated, chunkWrites);
 
             foreach (var forward in model.Forwards)
-                ChunkForward(writer, forward, component, chunks);
+                if (chunkWrites || forward.Changes is null)
+                    ChunkForward(writer, forward, component, chunks);
         }
     }
 
@@ -98,8 +100,25 @@ internal static class AccessorEmitter
             return;
         }
 
-        writer.Line($"public static {forward.ReturnType} {forward.Name}({forward.ParametersAfter($"scoped in {ArchetypeNames.EntityHandle} handle")})");
-        writer.Line($"    => {target}({forward.Arguments});");
+        var signature = $"public static {forward.ReturnType} {forward.Name}("
+                        + $"{forward.ParametersAfter($"scoped in {ArchetypeNames.EntityHandle} handle")})";
+
+        // Changing a collection is the game reporting it, the same as assigning a value is, so it
+        // asks the same question first and does nothing when the answer is no.
+        if (forward.Changes is null)
+        {
+            writer.Line(signature);
+            writer.Line($"    => {target}({forward.Arguments});");
+            return;
+        }
+
+        using (writer.Braces(signature))
+        {
+            writer.Line($"if (!handle.Mirrors({component}.Fields.{forward.Changes}))");
+            writer.Line($"    return{(forward.Returns ? " default" : string.Empty)};");
+            writer.Line();
+            writer.Line($"{(forward.Returns ? "return " : string.Empty)}{target}({forward.Arguments});");
+        }
     }
 
     /// <summary>The same member, reached off a chunk.</summary>
@@ -214,8 +233,17 @@ internal static class AccessorEmitter
             return;
         }
 
+        Marker(writer, forward);
         writer.Line($"public {forward.Signature}");
         writer.Line($"    => {accessors}.{forward.Name}(_handle{Separator(forward)}{forward.Arguments});");
+    }
+
+    /// What tells a call that changes a collection from one that reads it, which is what the
+    /// analyzer reads and what nothing else can tell from a method name.
+    internal static void Marker(SourceWriter writer, ForwardModel forward)
+    {
+        if (forward.Collection is { } collection)
+            writer.Line($"[{ArchetypeNames.Changes}(\"{collection}\")]");
     }
 
     /// <summary>The same, on a chunk view, which passes the chunk and the row it sits on.</summary>

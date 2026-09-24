@@ -48,6 +48,22 @@ internal static class ArchetypeNames
 
     public const string Value = "global::ReadyM.SDK.Archetypes.Access.Value";
 
+    public const string Collection = "global::ReadyM.SDK.Archetypes.Access.Collection";
+
+    public const string Changes = "global::ReadyM.SDK.Attributes.Generated.ChangesAttribute";
+
+    public const string CreateHandlerAttribute = Namespace + ".CreateHandlerAttribute";
+
+    public const string SystemAttribute = Namespace + ".SystemAttribute";
+
+    public const string ModSystem = "global::ReadyM.SDK.Systems.IModSystem";
+
+    public const string SystemRegistry = "global::ReadyM.SDK.Systems.SystemRegistry";
+
+    public const string Tick = "global::ReadyM.SDK.Systems.Tick";
+
+    public const string CreateHandlers = "global::ReadyM.SDK.Archetypes.CreateHandlerRegistry";
+
     public const string ShapeToken = "global::ReadyM.SDK.Archetypes.Access.Shape";
     public const string Delivery = "global::" + Namespace + ".Delivery";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
@@ -116,7 +132,18 @@ internal static class ArchetypeNames
         return ns.Length == 0 ? $"{symbol.Name}.{kind}.g.cs" : $"{ns}.{symbol.Name}.{kind}.g.cs";
     }
 
-    public static string FieldOf(string accessorName) => accessorName.ToLowerFirst();
+    /// The field a value is held in, which is its name with a lower first letter. Lowering it can
+    /// land on a keyword, and a value called Sealed, Class or Event is an ordinary thing for a mod
+    /// to want, so the name is escaped where it has to be rather than refused.
+    public static string FieldOf(string accessorName)
+    {
+        var field = accessorName.ToLowerFirst();
+
+        return Microsoft.CodeAnalysis.CSharp.SyntaxFacts.GetKeywordKind(field)
+               == Microsoft.CodeAnalysis.CSharp.SyntaxKind.None
+            ? field
+            : "@" + field;
+    }
 
 
 

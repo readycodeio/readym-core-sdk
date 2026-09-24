@@ -1,5 +1,6 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -29,7 +30,7 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         Id,
         "Replicated value is written directly",
-        "'{0}.{1}' is replicated - declare a mapping and use \"Pull\", or override the value.",
+        "'{0}.{1}' is replicated - declare a mapping and use \"Pull\", or override the value",
         "ReadyM",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -37,7 +38,18 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
             + "overrules it, is what its propagation decides. A setter carries neither, so on a client "
             + "it is refused everywhere the value can be reached.");
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Rule];
+    private static readonly DiagnosticDescriptor Collection = new(
+        "READYM019",
+        "Replicated collection is changed directly",
+        "'{0}' changes {1}, which is replicated - declare a mapping for {1} and use \"Pull\", or override the value",
+        "ReadyM",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "A collection changes through its own members rather than by assignment, and "
+            + "the rule it keeps is the one a value keeps. A handler declared for it is handed the "
+            + "collection to work, which is where a client changes one.");
+
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Rule, Collection];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -55,6 +67,8 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
 
         var replicates = new ConcurrentDictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
 
+        context.RegisterOperationAction(Changed, OperationKind.Invocation);
+
         context.RegisterOperationAction(
             operation => Inspect(operation, replicates),
             OperationKind.SimpleAssignment,
@@ -62,6 +76,29 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
             OperationKind.CoalesceAssignment,
             OperationKind.Increment,
             OperationKind.Decrement);
+    }
+
+    /// A collection has no setter to see, so the generator marks the members that change it.
+    private static void Changed(OperationAnalysisContext context)
+    {
+        if (context.Operation is not IInvocationOperation invocation
+            || Changes(invocation.TargetMethod) is not { } collection
+            || Authoring(context.ContainingSymbol))
+            return;
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            Collection, invocation.Syntax.GetLocation(), invocation.TargetMethod.Name, collection));
+    }
+
+    private static string? Changes(IMethodSymbol method)
+    {
+        foreach (var attribute in method.GetAttributes())
+            if (attribute.AttributeClass?.Name == "ChangesAttribute"
+                && attribute.ConstructorArguments.Length == 1
+                && attribute.ConstructorArguments[0].Value is string collection)
+                return collection;
+
+        return null;
     }
 
     private static void Inspect(
@@ -77,7 +114,8 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
 
         if (target is not IPropertyReferenceOperation { Property: { SetMethod: not null } property }
             || property.ContainingType is not { } shape
-            || !replicates.GetOrAdd(shape, Replicates))
+            || !replicates.GetOrAdd(shape, Replicates)
+            || Authoring(context.ContainingSymbol))
             return;
 
         if (target.Syntax is { } syntax
@@ -91,6 +129,19 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
     /// The same answer the generator reaches, so the two cannot drift apart.
     private static bool Replicates(INamedTypeSymbol shape)
         => shape.IsValueType && DeclarationModel.For(shape).IsReplicated;
+
+    /// Whether the write sits in a create handler, where the shape is authoring its own entity.
+    /// Nothing has seen it yet, so there is no game reporting a value and nobody to take it from:
+    /// what the policy makes of the write is for the runtime to answer, on the side it runs.
+    private static bool Authoring(ISymbol? containing)
+    {
+        for (var symbol = containing; symbol is IMethodSymbol method; symbol = symbol.ContainingSymbol)
+            if (method.GetAttributes().Any(attribute
+                    => attribute.AttributeClass?.Name == "CreateHandlerAttribute"))
+                return true;
+
+        return false;
+    }
 
     /// Whether the write sits in a handler handed to a mapping, where it is the pull.
     private static bool InsideMapping(SyntaxNode node, SemanticModel? model, CancellationToken ct)

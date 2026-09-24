@@ -59,7 +59,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         if (created.Id == 0)
             throw new InvalidEntityException($"Scope {scope.Id} is gone.");
 
-        return created;
+        return Created(created, components);
     }
 
     public RawEntity Create(ComponentSet components)
@@ -71,11 +71,17 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     }
 
     // A component holding a native collection has no memory until this runs, so it happens as the
-    // entity is created rather than being left to whoever writes the shape first.
+    // entity is created rather than being left to whoever writes the shape first. What a shape asked
+    // to run follows, once the entity is whole.
     private RawEntity Created(RawEntity rawEntity, ComponentSet components)
     {
+        var handle = new EntityHandle(rawEntity, this);
+
         if (NativeInitRegistry.Any)
-            NativeInitRegistry.InitAll(new EntityHandle(rawEntity, this), components);
+            NativeInitRegistry.InitAll(handle, components);
+
+        if (CreateHandlerRegistry.Any)
+            CreateHandlerRegistry.RunAll(handle, components);
 
         return rawEntity;
     }
@@ -171,6 +177,14 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     public bool Allows(RawEntity rawEntity, Type component, WriteKind kind) => true;
 
     public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => false;
+
+    public bool Mirrors<TComponent, TValue>(
+        RawEntity rawEntity,
+        in TComponent component,
+        Field<TComponent, TValue> field
+    ) where TComponent : struct, IComponent
+        // Every write on the server is authoritative, so there is nothing to ask.
+        => true;
 
     public bool Write<TComponent, TValue>(
         RawEntity rawEntity,
