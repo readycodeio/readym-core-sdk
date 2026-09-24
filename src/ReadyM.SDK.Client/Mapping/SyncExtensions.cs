@@ -27,7 +27,7 @@ public static class SyncExtensions
 
         /// Whether this collection should be applied from the ECS to the game.
         public bool CanPush<TAccess>(Collection<TShape, TAccess> collection)
-#if NET10_0_OR_GREATER
+#if NET
             where TAccess : allows ref struct
 #endif
         {
@@ -38,7 +38,7 @@ public static class SyncExtensions
 
         /// Whether this collection should be loaded from the game into the ECS.
         public bool CanPull<TAccess>(Collection<TShape, TAccess> collection)
-#if NET10_0_OR_GREATER
+#if NET
             where TAccess : allows ref struct
 #endif
         {
@@ -51,7 +51,7 @@ public static class SyncExtensions
         /// Shows the game what the collection holds. The handler is handed it to read, and the
         /// members that would change it answer no while it is being shown.
         public bool Push<TAccess, TContext>(Collection<TShape, TAccess> collection, TContext context)
-#if NET10_0_OR_GREATER
+#if NET
             where TAccess : allows ref struct
 #endif
         {
@@ -68,7 +68,7 @@ public static class SyncExtensions
 
         /// Reads the collection back out of the game, through the members the component exposes.
         public bool Pull<TAccess, TContext>(Collection<TShape, TAccess> collection, TContext context)
-#if NET10_0_OR_GREATER
+#if NET
             where TAccess : allows ref struct
 #endif
         {

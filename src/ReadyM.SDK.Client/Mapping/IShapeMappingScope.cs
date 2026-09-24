@@ -20,7 +20,7 @@ public interface IShapeMappingScope<TShape, out TContext>
         Collection<TShape, TAccess> collection,
         Collected<TAccess, TContext> pull,
         Collected<TAccess, TContext>? push = null)
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
         ;

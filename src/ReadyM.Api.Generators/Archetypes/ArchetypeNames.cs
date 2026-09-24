@@ -54,6 +54,8 @@ internal static class ArchetypeNames
 
     public const string CreateHandlerAttribute = Namespace + ".CreateHandlerAttribute";
 
+    public const string DeleteHandlerAttribute = Namespace + ".DeleteHandlerAttribute";
+
     public const string ServiceAttribute = Namespace + ".ServiceAttribute";
 
     public const string UpdatingService = "global::ReadyM.SDK.Services.IUpdatingService";
@@ -67,6 +69,8 @@ internal static class ArchetypeNames
     public const string Disposable = "global::System.IDisposable";
 
     public const string CreateHandlers = "global::ReadyM.SDK.Archetypes.CreateHandlerRegistry";
+
+    public const string DeleteHandlers = "global::ReadyM.SDK.Archetypes.DeleteHandlerRegistry";
 
     public const string ShapeToken = "global::ReadyM.SDK.Archetypes.Access.Shape";
     public const string Delivery = "global::" + Namespace + ".Delivery";

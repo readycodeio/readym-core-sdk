@@ -449,6 +449,69 @@ public class ReplicationTests(ITestOutputHelper output)
             }
             """);
 
+    /// The mirror of a create handler, and its registration sits inside the shape the same way.
+    [Fact]
+    public void A_shape_registers_what_it_asked_to_run_as_one_of_its_entities_goes()
+        => Assert.Contains(
+            "DeleteHandlerRegistry.Register<global::Mod.SubjectArchetypeMarker>",
+            Generated("""
+                [Archetype]
+                public readonly partial struct Subject
+                {
+                    [DeleteHandler]
+                    private void OnDeleted() { }
+                }
+                """));
+
+    /// A shape may declare both, and they register separately.
+    [Fact]
+    public void A_shape_may_be_told_about_both_ends()
+    {
+        var generated = Generated("""
+            [Archetype]
+            public readonly partial struct Subject
+            {
+                [CreateHandler]
+                private void OnCreated() { }
+
+                [DeleteHandler]
+                private void OnDeleted() { }
+            }
+            """);
+
+        Assert.Contains("class OnCreatedRegistration", generated);
+        Assert.Contains("class OnDeletedDeleteRegistration", generated);
+    }
+
+    [Fact]
+    public void A_delete_handler_returning_something_is_refused()
+        => AssertReports("READYM028", """
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial int Value { get; set; }
+
+                [DeleteHandler]
+                private int OnDeleted() => 1;
+            }
+            """);
+
+    [Fact]
+    public void A_shape_declaring_two_delete_handlers_is_refused()
+        => AssertReports("READYM029", """
+            [ArchetypeMixin]
+            public readonly partial struct Subject
+            {
+                public partial int Value { get; set; }
+
+                [DeleteHandler]
+                private void First() { }
+
+                [DeleteHandler]
+                private void Second() { }
+            }
+            """);
+
     private DeclarationModel Model(string shape)
     {
         var compilation = SourceGeneratorTestHelper.CreateCompilation(

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -104,12 +104,13 @@ internal sealed partial class Store : IArchetypeRegistry
 
     private readonly ILogger _logger;
 
-    /// <summary>
     /// Runs native init for components the mod host owns. Those are registered here as opaque stride components, so
     /// <see cref="NativeInitCallback"/> cannot see them and the mod side has to do it. Null when no mod host is
     /// attached, which is always the case on the client.
-    /// </summary>
     private Action<ArchetypeId, RawEntity, bool>? _modPostCreateInit;
+
+    /// Tells the mod host an entity is about to be deleted, so that [DeleteHandler]s can run. Null on the client.
+    private Action<RawEntity>? _modEntityDeletedCallback;
 
     private Thread? _thread;
     private byte _nextArchetypeId;
@@ -145,7 +146,11 @@ internal sealed partial class Store : IArchetypeRegistry
             registration.Register(this);
         }
 
-        OnEntityDelete += _ => { AssertThreadId(); };
+        OnEntityDelete += ev =>
+        {
+            AssertThreadId();
+            _modEntityDeletedCallback?.Invoke(ev.Entity.RawEntity);
+        };
     }
 
     public void SetThread(Thread newThread)
@@ -236,6 +241,11 @@ internal sealed partial class Store : IArchetypeRegistry
     /// </summary>
     public void SetModPostCreateInit(Action<ArchetypeId, RawEntity, bool>? callback)
         => _modPostCreateInit = callback;
+
+    /// <summary>
+    /// Registers the mod host's delete hook. Called once during mod host initialisation.
+    /// </summary>
+    public void SetModEntityDeletedCallback(Action<RawEntity>? callback) => _modEntityDeletedCallback = callback;
 
     /// <param name="local">False for an entity that was created elsewhere and is arriving here.</param>
     internal Entity CreateEntity(

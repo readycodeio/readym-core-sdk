@@ -78,10 +78,14 @@ internal class RegistrationAggregatorGenerator : IIncrementalGenerator
         if (NativeInitEmitter.Applies(model))
             found.Add($"{prefix}{symbol.Name}NativeInit");
 
-        // A handler the shape declared for itself, which sits inside the shape rather than beside it.
+        // Handlers the shape declared for itself, which sit inside the shape rather than beside it.
         if (CreateHandlerEmitter.Check(model).Length == 0)
             foreach (var handler in model.CreateHandlers)
                 found.Add($"{prefix}{symbol.Name}.{handler.Name}Registration");
+
+        if (DeleteHandlerEmitter.Check(model).Length == 0)
+            foreach (var handler in model.DeleteHandlers)
+                found.Add($"{prefix}{symbol.Name}.{handler.Name}DeleteRegistration");
 
         return found.ToImmutable();
     }

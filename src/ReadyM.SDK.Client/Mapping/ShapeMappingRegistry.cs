@@ -14,13 +14,13 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
         => new Scope<TShape, TContext>(this);
 
     internal Collected<TAccess, TContext>? FindPull<TAccess, TContext>(ValueAccess access)
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
         => Collected<TAccess, TContext>(access, Way.Pull);
 
     internal Collected<TAccess, TContext>? FindPush<TAccess, TContext>(ValueAccess access)
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
         => Collected<TAccess, TContext>(access, Way.Push);
@@ -28,7 +28,7 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
     /// A handler over a collection cannot be held beside the others: on a runtime carrying ref
     /// structs it is a delegate whose parameter is one, so the pair is kept apart instead.
     private Collected<TAccess, TContext>? Collected<TAccess, TContext>(ValueAccess access, Way way)
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
         => _collections.TryGetValue((access.Component, typeof(TContext), access.Field, way), out var found)
@@ -39,7 +39,7 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
         ValueAccess access,
         Collected<TAccess, TContext> pull,
         Collected<TAccess, TContext>? push)
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
     {
@@ -98,7 +98,7 @@ internal sealed class ShapeMappingRegistry : IShapeMappingRegistry
             Collection<TShape, TAccess> collection,
             Collected<TAccess, TContext> pull,
             Collected<TAccess, TContext>? push = null)
-#if NET10_0_OR_GREATER
+#if NET
             where TAccess : allows ref struct
 #endif
         {

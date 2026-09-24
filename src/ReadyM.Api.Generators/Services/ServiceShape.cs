@@ -43,9 +43,9 @@ internal static class ServiceShape
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    public static readonly DiagnosticDescriptor NotACreateHandler = new(
+    public static readonly DiagnosticDescriptor NotAHandler = new(
         "READYM025",
-        "Create handler cannot be run",
+        "Handler cannot be run",
         "'{0}.{1}' watches {2}, so it has to be a private instance method returning void and taking "
         + "that shape and nothing else.",
         "ReadyM",
@@ -54,8 +54,8 @@ internal static class ServiceShape
 
     public static readonly DiagnosticDescriptor WatchesNothing = new(
         "READYM026",
-        "Create handler names no shape",
-        "'{0}.{1}' is a create handler in a service, so it has to name a shape to watch: "
+        "Handler names no shape",
+        "'{0}.{1}' is a handler in a service, so it has to name a shape to watch, as in "
         + "[CreateHandler(typeof(Shape))], where Shape is an [Archetype] or an [ArchetypeMixin]. "
         + "Only a shape's own handler may leave it out.",
         "ReadyM",
@@ -72,7 +72,7 @@ internal static class ServiceShape
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor[] All =
-        [NotPartial, NotSealed, NotAHook, NotACreateHandler, WatchesNothing, NotWatchable];
+        [NotPartial, NotSealed, NotAHook, NotAHandler, WatchesNothing, NotWatchable];
 
     public static Service Read(INamedTypeSymbol service)
     {
@@ -88,9 +88,10 @@ internal static class ServiceShape
         var update = ReadHook(service, UpdateName, at, problems);
         var start = ReadHook(service, StartName, at, problems);
         var stop = ReadHook(service, StopName, at, problems);
-        var watching = ReadWatchers(service, problems);
+        var watching = ReadWatchers(service, ArchetypeNames.CreateHandlerAttribute, problems);
+        var leaving = ReadWatchers(service, ArchetypeNames.DeleteHandlerAttribute, problems);
 
-        return new Service(update, start, stop, watching, [.. problems]);
+        return new Service(update, start, stop, watching, leaving, [.. problems]);
     }
 
     public static bool IsService(ISymbol symbol)
@@ -121,13 +122,14 @@ internal static class ServiceShape
 
     private static IReadOnlyList<(IMethodSymbol Method, INamedTypeSymbol Shape)> ReadWatchers(
         INamedTypeSymbol service,
+        string attributeName,
         List<Diagnostic> problems)
     {
         var found = new List<(IMethodSymbol, INamedTypeSymbol)>();
 
         foreach (var method in service.GetMembers().OfType<IMethodSymbol>())
         {
-            if (Handler(method) is not { } attribute)
+            if (Handler(method, attributeName) is not { } attribute)
                 continue;
 
             var at = method.Locations.FirstOrDefault() ?? Location.None;
@@ -144,7 +146,7 @@ internal static class ServiceShape
                 || method.Parameters.Length != 1
                 || !SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, shape))
             {
-                problems.Add(Diagnostic.Create(NotACreateHandler, at, service.Name, method.Name, shape.Name));
+                problems.Add(Diagnostic.Create(NotAHandler, at, service.Name, method.Name, shape.Name));
                 continue;
             }
 
@@ -160,11 +162,11 @@ internal static class ServiceShape
         return found;
     }
 
-    /// The [CreateHandler] on a method, however it was written, or null for anything else.
-    private static AttributeData? Handler(IMethodSymbol method)
+    /// The named handler attribute on a method, however it was written, or null for anything else.
+    private static AttributeData? Handler(IMethodSymbol method, string attributeName)
     {
         foreach (var attribute in method.GetAttributes())
-            if (attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.CreateHandlerAttribute)
+            if (attribute.AttributeClass?.ToDisplayString() == attributeName)
                 return attribute;
 
         return null;
@@ -197,6 +199,7 @@ internal static class ServiceShape
         IMethodSymbol? start,
         IMethodSymbol? stop,
         IReadOnlyList<(IMethodSymbol Method, INamedTypeSymbol Shape)> watching,
+        IReadOnlyList<(IMethodSymbol Method, INamedTypeSymbol Shape)> leaving,
         ImmutableArray<Diagnostic> problems)
     {
         public IMethodSymbol? Update { get; } = update;
@@ -205,13 +208,17 @@ internal static class ServiceShape
 
         public IMethodSymbol? Stop { get; } = stop;
 
+        /// Shapes it is told about as they are created.
         public IReadOnlyList<(IMethodSymbol Method, INamedTypeSymbol Shape)> Watching { get; } = watching;
+
+        /// Shapes it is told about just before they go.
+        public IReadOnlyList<(IMethodSymbol Method, INamedTypeSymbol Shape)> Leaving { get; } = leaving;
 
         public ImmutableArray<Diagnostic> Problems { get; } = problems;
 
         /// A service with either end of a lifetime is started and stopped with the game.
         public bool Hosted => Start is not null || Stop is not null;
 
-        public static Service Refused(Diagnostic problem) => new(null, null, null, [], [problem]);
+        public static Service Refused(Diagnostic problem) => new(null, null, null, [], [], [problem]);
     }
 }

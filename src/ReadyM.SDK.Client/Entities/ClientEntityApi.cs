@@ -12,15 +12,37 @@ using ReadyM.SDK.Exceptions;
 
 namespace ReadyM.SDK.Client.Entities;
 
-internal sealed class ClientEntityApi(
-    EntityStore store,
-    ILogger<ClientEntityApi> logger,
-    // Lazy because this is built early and the mapping policy directory is not.
-    Lazy<IMappingPolicyDirectory>? policies = null
-) : IEntityApi
+internal sealed class ClientEntityApi : IEntityApi
 {
+    private readonly EntityStore _store;
+    private readonly ILogger<ClientEntityApi> _logger;
+
+    // Lazy because this is built early and the mapping policy directory is not.
+    private readonly Lazy<IMappingPolicyDirectory>? _policies;
+
     private readonly ConcurrentDictionary<Type, IMappingDataPolicy<Entity>?> _policyOf = new();
     private QueryScope _scope = new();
+
+    public ClientEntityApi(
+        EntityStore store,
+        ILogger<ClientEntityApi> logger,
+        Lazy<IMappingPolicyDirectory>? policies = null)
+    {
+        _store = store;
+        _logger = logger;
+        _policies = policies;
+
+        store.OnEntityDelete += OnEntityDelete;
+    }
+    
+    private void OnEntityDelete(EntityDelete going)
+    {
+        if (!DeleteHandlerRegistry.Any)
+            return;
+
+        var entity = going.Entity;
+        DeleteHandlerRegistry.RunFor(new EntityHandle(entity.RawEntity, this), entity.Archetype.ComponentTypes);
+    }
 
     public bool Write<TComponent, TValue>(
         RawEntity rawEntity,
@@ -61,25 +83,25 @@ internal sealed class ClientEntityApi(
         if (PolicyOf(component) is not { } policy)
             return true;
 
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
 
         if (kind == WriteKind.Override ? policy.CanSetFromApi(entity) : policy.ShouldGameCopyToEcs(entity))
             return true;
 
         if (kind == WriteKind.Override)
-            logger.LogWarning("Refused an override of {Component} on {Entity}: it is not this client's to set", component.Name, rawEntity.Id);
+            _logger.LogWarning("Refused an override of {Component} on {Entity}: it is not this client's to set", component.Name, rawEntity.Id);
         else
-            logger.LogDebug("Refused a write of {Component} on {Entity}", component.Name, rawEntity.Id);
+            _logger.LogDebug("Refused a write of {Component} on {Entity}", component.Name, rawEntity.Id);
 
         return false;
     }
 
     public bool ShouldApplyToGame(RawEntity rawEntity, Type component)
-        => PolicyOf(component) is not { } policy || policy.ShouldEcsCopyToGame(store.GetEntityByRawEntity(rawEntity));
+        => PolicyOf(component) is not { } policy || policy.ShouldEcsCopyToGame(_store.GetEntityByRawEntity(rawEntity));
 
     private IMappingDataPolicy<Entity>? PolicyOf(Type component)
     {
-        if (policies is null)
+        if (_policies is null)
             return null;
 
         if (_policyOf.TryGetValue(component, out var found))
@@ -87,7 +109,7 @@ internal sealed class ClientEntityApi(
 
         try
         {
-            found = policies.Value.ForData(component);
+            found = _policies.Value.ForData(component);
         }
         catch (ArgumentException)
         {
@@ -102,7 +124,7 @@ internal sealed class ClientEntityApi(
 
     public ComponentRef Locate(RawEntity rawEntity, int componentId)
     {
-        var nodes = store.nodes;
+        var nodes = _store.nodes;
 
         if ((uint)rawEntity.Id >= (uint)nodes.Length)
             throw new InvalidEntityException();
@@ -120,7 +142,7 @@ internal sealed class ClientEntityApi(
     public RawEntity Create(ComponentSet components, RawEntity scope)
     {
         var holder = Resolve(scope);
-        var entity = store.GetEntityByRawEntity(Made(components));
+        var entity = _store.GetEntityByRawEntity(Made(components));
 
         // Before what the shape asked runs, so a handler finds the entity where it will live.
         entity.AddComponent(new InScopeComponent(holder));
@@ -134,7 +156,7 @@ internal sealed class ClientEntityApi(
     {
         _scope.RefuseIfInQuery("Creating an entity");
 
-        return store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
+        return _store.GetArchetype(ClientComponents.Resolve(components)).CreateEntity().RawEntity;
     }
 
     /// A component holding a native collection has no memory until this runs, and what a shape asked
@@ -160,7 +182,7 @@ internal sealed class ClientEntityApi(
     public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey>
     {
-        foreach (var found in store.ComponentIndex<TComponent, TKey>()[key])
+        foreach (var found in _store.ComponentIndex<TComponent, TKey>()[key])
         {
             entity = found.RawEntity;
             return true;
@@ -192,7 +214,7 @@ internal sealed class ClientEntityApi(
         => Resolve(rawEntity).Archetype.ComponentTypes.HasAll(ClientComponents.Resolve(components));
 
     public bool IsAlive(RawEntity rawEntity)
-        => !_scope.IsPending(rawEntity) && !store.GetEntityByRawEntity(rawEntity).IsNull;
+        => !_scope.IsPending(rawEntity) && !_store.GetEntityByRawEntity(rawEntity).IsNull;
 
     public bool Delete(RawEntity rawEntity)
     {
@@ -213,6 +235,8 @@ internal sealed class ClientEntityApi(
         if (!_scope.Leave())
             return;
 
+        _scope.BeginDrain();
+
         foreach (var rawEntity in _scope.Pending)
             DeleteNow(rawEntity);
 
@@ -221,7 +245,7 @@ internal sealed class ClientEntityApi(
 
     private void DeleteNow(RawEntity rawEntity)
     {
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
 
         if (!entity.IsNull)
             entity.DeleteEntity();
@@ -232,7 +256,7 @@ internal sealed class ClientEntityApi(
         if (_scope.IsPending(rawEntity))
             throw new InvalidEntityException();
 
-        var entity = store.GetEntityByRawEntity(rawEntity);
+        var entity = _store.GetEntityByRawEntity(rawEntity);
 
         if (entity.IsNull)
             throw new InvalidEntityException();

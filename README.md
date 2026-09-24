@@ -168,9 +168,13 @@ This only applies to creation via the SDK - not for entities received through re
 // TODO: Allow defining both
 
 An "external" form of `[CreateHandler(typeof(Shape))]` is also supported on a partial class defining a `[Service]`.
+The shape has to be an `[Archetype]` or an `[ArchetypeMixin]` that holds something of its own: one that is only the shapes it includes has no Friflo event to watch for.
 
 There are no guarantees on the order of execution of multiple handlers for the same shape.
 
 ### DeleteHandler
 
-Analogous to CreateHandler, but runs immediately before a component of a given shape is deleted.
+Analogous to CreateHandler, but runs immediately before a component of a given shape is deleted. 
+Client-side handlers run for everyone, regardless of ownership.
+
+A delete queued inside a query is held until the loop ends, and the handlers run when it is applied.

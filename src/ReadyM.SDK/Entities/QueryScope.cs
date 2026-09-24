@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Friflo.Engine.ECS;
 using ReadyM.SDK.Exceptions;
 
@@ -14,12 +14,16 @@ internal struct QueryScope()
     private int _count;
     private int _depth;
 
+    /// Set while the deletions collected during a query are being applied. They are no longer
+    /// pending by then and a delete handler has to be able to read the entity.
+    private bool _draining;
+
     internal HashSet<RawEntity> Pending { get; } = [];
     internal readonly bool InQuery => _depth > 0;
 
     /// <summary>The count is the whole fast path; the lookup is kept out of line behind it.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal readonly bool IsPending(RawEntity rawEntity) => _count > 0 && Contains(rawEntity);
+    internal readonly bool IsPending(RawEntity rawEntity) => !_draining && _count > 0 && Contains(rawEntity);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private readonly bool Contains(RawEntity rawEntity) => Pending.Contains(rawEntity);
@@ -39,10 +43,13 @@ internal struct QueryScope()
         return true;
     }
 
+    internal void BeginDrain() => _draining = true;
+
     internal void Clear()
     {
         Pending.Clear();
         _count = 0;
+        _draining = false;
     }
 
     internal readonly void RefuseIfInQuery(string what)

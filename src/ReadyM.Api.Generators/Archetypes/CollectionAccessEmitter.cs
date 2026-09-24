@@ -64,7 +64,7 @@ internal static class CollectionAccessEmitter
         var handle = ArchetypeNames.EntityHandle;
 
         writer.Line();
-        writer.Line("#if NET10_0_OR_GREATER");
+        writer.Line("#if NET");
         writer.Line($"public readonly ref struct {name}");
         writer.Line("#else");
         writer.Line($"public readonly struct {name}");

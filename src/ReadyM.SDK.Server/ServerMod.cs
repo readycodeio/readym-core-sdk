@@ -25,6 +25,7 @@ public abstract class ServerMod : ServerModBase
         CreateHandlerRegistry.Use(Services);
 
         ExtensionNativeInit.Use(Services.Resolve<IEntityApi>());
+        ExtensionNativeDelete.Use(Services.Resolve<IEntityApi>());
         ServiceRegistry.RegisterAll(Services);
         
         // Init runs once per mod against the one container they share, so the updater says so once.

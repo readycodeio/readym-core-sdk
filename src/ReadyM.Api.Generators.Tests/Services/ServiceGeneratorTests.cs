@@ -316,6 +316,39 @@ public class ServiceGeneratorTests(ITestOutputHelper output)
         Assert.Contains(".Second(new global::Mod.Subject(handle))", generated);
     }
 
+    /// The other end of the same thing, and a service may watch both.
+    [Fact]
+    public void A_service_may_watch_a_shape_arriving_and_going()
+    {
+        var generated = Generated("""
+            [Service]
+            public sealed partial class Bookkeeping
+            {
+                [CreateHandler(typeof(Subject))]
+                private void Arrived(Subject subject) { }
+
+                [DeleteHandler(typeof(Subject))]
+                private void Going(Subject subject) { }
+            }
+            """);
+
+        Assert.Contains("global::Mod.Subject.ObserveCreated(", generated);
+        Assert.Contains("global::Mod.Subject.ObserveDeleted(", generated);
+        Assert.Contains("ServiceRegistry.Hold<global::Mod.Bookkeeping>()", generated);
+    }
+
+    /// The rules are the same whichever end it watches.
+    [Fact]
+    public void A_delete_handler_taking_the_wrong_thing_is_refused()
+        => AssertReports("READYM025", """
+            [Service]
+            public sealed partial class Bookkeeping
+            {
+                [DeleteHandler(typeof(Subject))]
+                private void Track(int other) { }
+            }
+            """);
+
     /// A handler takes the shape it watches and nothing else.
     [Fact]
     public void A_create_handler_taking_the_wrong_thing_is_refused()

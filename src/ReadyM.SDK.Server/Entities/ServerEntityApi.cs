@@ -105,6 +105,8 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         if (!_scope.Leave())
             return;
 
+        _scope.BeginDrain();
+
         foreach (var rawEntity in _scope.Pending)
             _deleteEntity(rawEntity, MatchRevision);
 

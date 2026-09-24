@@ -286,7 +286,8 @@ internal sealed class DeclarationModel
         Extends = ReadExtends(symbol);
         (HasReplicatedAttribute, Delivery) = ReadReplication(symbol);
         Propagation = ReadPropagation(symbol);
-        CreateHandlers = ReadCreateHandlers(symbol);
+        CreateHandlers = ReadHandlers(symbol, ArchetypeNames.CreateHandlerAttribute);
+        DeleteHandlers = ReadHandlers(symbol, ArchetypeNames.DeleteHandlerAttribute);
         Forwards = ReadForwards(symbol, ExplicitComponent, Collections).Concat(CollectionMembers()).ToList();
     }
 
@@ -317,6 +318,9 @@ internal sealed class DeclarationModel
 
     /// <summary>What the shape asked to run as one of its entities is created.</summary>
     public IReadOnlyList<IMethodSymbol> CreateHandlers { get; }
+
+    /// <summary>What the shape asked to run just before one of its entities goes.</summary>
+    public IReadOnlyList<IMethodSymbol> DeleteHandlers { get; }
 
     /// <summary>Everything those members offer, mirrored onto this shape.</summary>
     public IReadOnlyList<ForwardModel> Forwards { get; }
@@ -648,11 +652,11 @@ internal sealed class DeclarationModel
             .ToList();
     }
 
-    private static IReadOnlyList<IMethodSymbol> ReadCreateHandlers(INamedTypeSymbol symbol)
+    private static IReadOnlyList<IMethodSymbol> ReadHandlers(INamedTypeSymbol symbol, string attributeName)
         => [.. symbol.GetMembers()
             .OfType<IMethodSymbol>()
             .Where(method => method.GetAttributes().Any(attribute
-                => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.CreateHandlerAttribute))];
+                => attribute.AttributeClass?.ToDisplayString() == attributeName))];
 
     private static IReadOnlyList<string> CollectionsOf(INamedTypeSymbol symbol)
         => symbol.GetAttributes()

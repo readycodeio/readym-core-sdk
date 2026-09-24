@@ -8,7 +8,8 @@ using ReadyM.Api.Generators.Archetypes;
 namespace ReadyM.Api.Generators.Services;
 
 /// Completes a <c>[Service]</c> class: the lifetime and the update a game calls, the handlers it
-/// watches shapes with, and the registration that makes it one instance anything can ask for.
+/// watches shapes coming and going with, and the registration that makes it one instance anything
+/// can ask for.
 [Generator]
 internal class ServiceGenerator : IIncrementalGenerator
 {
@@ -108,7 +109,10 @@ internal class ServiceGenerator : IIncrementalGenerator
                         writer.Line($"{ArchetypeNames.ServiceRegistry}.Hold<{name}>();");
 
                     foreach (var (method, shape) in read.Watching)
-                        Watch(writer, name, method, shape);
+                        Watch(writer, name, method, shape, "ObserveCreated");
+
+                    foreach (var (method, shape) in read.Leaving)
+                        Watch(writer, name, method, shape, "ObserveDeleted");
                 }
             }
         }
@@ -151,12 +155,17 @@ internal class ServiceGenerator : IIncrementalGenerator
     /// The shape is what the handler is handed in to, since the component behind it never leaves the
     /// assembly that declared it. The service is resolved as the handler runs, not now: the
     /// container is still being filled.
-    private static void Watch(SourceWriter writer, string service, IMethodSymbol method, INamedTypeSymbol shape)
+    private static void Watch(
+        SourceWriter writer,
+        string service,
+        IMethodSymbol method,
+        INamedTypeSymbol shape,
+        string watchPoint)
     {
         var name = shape.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         writer.Line();
-        writer.Line($"{name}.ObserveCreated(");
+        writer.Line($"{name}.{watchPoint}(");
         writer.Line($"    static (in {ArchetypeNames.EntityHandle} handle)");
         writer.Line($"        => {ArchetypeNames.CreateHandlers}.Services.Resolve<{service}>()");
         writer.Line($"            .{method.Name}(new {name}(handle)));");

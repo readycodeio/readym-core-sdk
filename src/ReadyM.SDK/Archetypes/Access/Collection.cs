@@ -7,7 +7,7 @@ namespace ReadyM.SDK.Archetypes.Access;
 /// Names one of a shape's collections, the way <see cref="Value{TShape,TValue}"/> names one of its values.
 public readonly struct Collection<TShape, TAccess>
     where TShape : struct, IArchetypeQueryable
-#if NET10_0_OR_GREATER
+#if NET
     where TAccess : allows ref struct
 #endif
 {
@@ -31,7 +31,7 @@ public static class Collection
         CollectionAccess<TAccess> open)
         where TShape : struct, IArchetypeQueryable
         where TComponent : struct, IReadyComponent
-#if NET10_0_OR_GREATER
+#if NET
         where TAccess : allows ref struct
 #endif
         => new(new ValueAccess<TComponent, TValue>(field), open);
