@@ -1,4 +1,4 @@
-; Unshipped analyzer release
+﻿; Unshipped analyzer release
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 
 ### New Rules
@@ -14,7 +14,9 @@ READYM007 | ReadyM | Error | An explicit component is not visible from the decla
 READYM008 | ReadyM | Error | An [ExplicitCollection] name matches no member of the component.
 READYM017 | ReadyM | Error | A client writes a replicated value straight through its setter.
 READYM019 | ReadyM | Error | A client changes a replicated collection through its own members.
-READYM022 | ReadyM | Error | A system is not declared partial.
-READYM023 | ReadyM | Error | A system has no update, so nothing would ever run it.
-READYM024 | ReadyM | Error | A system has more than one update the SDK could call.
-READYM025 | ReadyM | Error | A method named Update cannot be called as one.
+READYM022 | ReadyM | Error | A service is not declared partial.
+READYM023 | ReadyM | Error | A service is not declared sealed.
+READYM024 | ReadyM | Error | A method named Update, Start or Stop cannot be called as one.
+READYM025 | ReadyM | Error | A create handler declared in a service cannot be called.
+READYM026 | ReadyM | Error | A create handler declared in a service does not name the shape it watches.
+READYM027 | ReadyM | Error | A create handler declared in a service watches a shape that holds nothing of its own.

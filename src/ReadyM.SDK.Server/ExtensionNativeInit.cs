@@ -8,8 +8,6 @@ internal static class ExtensionNativeInit
 {
     private static Type[]? _initialise;
 
-    private static Type[]? _created;
-
     private static IEntityApi? _api;
 
     public static void Use(IEntityApi api) => _api = api;
@@ -27,12 +25,7 @@ internal static class ExtensionNativeInit
         if (!local || !CreateHandlerRegistry.Any || _api is null)
             return;
 
-        _created ??= [.. CreateHandlerRegistry.Components];
-
-        var handle = new EntityHandle(entity, _api);
-
-        foreach (var component in _created)
-            CreateHandlerRegistry.RunIfPresent(handle, components, component);
+        CreateHandlerRegistry.RunPresent(new EntityHandle(entity, _api), components);
     }
 
     /// Worked out once, after every mod has registered its shapes.

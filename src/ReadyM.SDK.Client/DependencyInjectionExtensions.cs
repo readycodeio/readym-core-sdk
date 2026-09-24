@@ -1,6 +1,6 @@
 ﻿using ReadyM.Api.DI;
 using ReadyM.SDK.Archetypes;
-using ReadyM.SDK.Systems;
+using ReadyM.SDK.Services;
 using ReadyM.SDK.Client.Mapping;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
@@ -28,7 +28,7 @@ public static class DependencyInjectionExtensions
     public static void RegisterReadyMSdk(this IDependencyContainer container)
     {
         CreateHandlerRegistry.Use(container);
-        SystemRegistry.RegisterAll(container);
+        ServiceRegistry.RegisterAll(container);
 
         container.RegisterSingleton<IEntities, ClientEntities>();
         container.RegisterSingleton<IEntityApi, ClientEntityApi>();

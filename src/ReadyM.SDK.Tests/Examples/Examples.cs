@@ -1,5 +1,5 @@
 ﻿using ReadyM.SDK.Attributes;
-using ReadyM.SDK.Systems;
+using ReadyM.SDK.Services;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Tests.Examples.Declarations;
 
@@ -43,10 +43,10 @@ public static class Examples
     }
 }
 
-[System]
-public partial class Regeneration(IEntities entities)
+[Service]
+public sealed partial class Regeneration(IEntities entities)
 {
-    private void Update(Tick tick)
+    private void Update()
     {
         foreach (var c in entities.Query<MainCharacter>())
         {

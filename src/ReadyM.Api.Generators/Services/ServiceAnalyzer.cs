@@ -2,13 +2,13 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace ReadyM.Api.Generators.Systems;
+namespace ReadyM.Api.Generators.Services;
 
-/// Explains what a <c>[System]</c> class is missing before the generator silently writes nothing.
+/// Explains what a <c>[Service]</c> class got wrong before the generator silently writes nothing.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public sealed class SystemAnalyzer : DiagnosticAnalyzer
+public sealed class ServiceAnalyzer : DiagnosticAnalyzer
 {
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [.. SystemShape.All];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [.. ServiceShape.All];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -19,11 +19,11 @@ public sealed class SystemAnalyzer : DiagnosticAnalyzer
 
     private static void Inspect(SymbolAnalysisContext context)
     {
-        if (context.Symbol is not INamedTypeSymbol { TypeKind: TypeKind.Class } system
-            || !SystemShape.IsSystem(system))
+        if (context.Symbol is not INamedTypeSymbol { TypeKind: TypeKind.Class } service
+            || !ServiceShape.IsService(service))
             return;
 
-        if (SystemShape.Read(system).Problem is { } problem)
+        foreach (var problem in ServiceShape.Read(service).Problems)
             context.ReportDiagnostic(problem);
     }
 }

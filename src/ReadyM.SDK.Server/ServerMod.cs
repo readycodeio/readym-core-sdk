@@ -4,7 +4,7 @@ using ReadyM.SDK.Entities;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Ecs.Systems;
 using ReadyM.SDK.Server.Systems;
-using ReadyM.SDK.Systems;
+using ReadyM.SDK.Services;
 
 namespace ReadyM.SDK.Server;
 
@@ -25,7 +25,7 @@ public abstract class ServerMod : ServerModBase
         CreateHandlerRegistry.Use(Services);
 
         ExtensionNativeInit.Use(Services.Resolve<IEntityApi>());
-        SystemRegistry.RegisterAll(Services);
+        ServiceRegistry.RegisterAll(Services);
         
         // Init runs once per mod against the one container they share, so the updater says so once.
         // TODO: Wire as standard system somewhere, since this is based on the obsolete ModSystemBase
@@ -34,7 +34,7 @@ public abstract class ServerMod : ServerModBase
         Start();
     }
 
-    /// The mod's own setup: services, systems, handlers. Runs once every shape has been registered.
+    /// The mod's own setup: services, handlers. Runs once every shape has been registered.
     protected abstract void Start();
 
     /// Components registered by hand, for anything not yet described as a shape. Most mods want

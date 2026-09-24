@@ -5,6 +5,7 @@ using ReadyM.Api.DI;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
+using ReadyM.SDK.Services;
 using ReadyM.SDK.Tests.Client.Fixtures;
 
 namespace ReadyM.SDK.Tests.Client;
@@ -32,9 +33,11 @@ public abstract class ClientSdkTest : IDisposable
         _container.RegisterSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
         _container.RegisterSingleton<ILogger>(NullLogger.Instance);
 
-        // What a create handler's parameters are resolved from, which RegisterReadyMSdk does for a
-        // game. This harness builds the graph by hand, so it says the same thing itself.
+        // What a create handler's parameters are resolved from, and the services a handler declared
+        // in one is resolved out of. RegisterReadyMSdk does both for a game; this harness builds the
+        // graph by hand, so it says the same thing itself.
         CreateHandlerRegistry.Use(_container);
+        ServiceRegistry.RegisterAll(_container);
 
         _container.RegisterSingleton(new EntityStore());
         _container.RegisterSingleton<IEntityApi, ClientEntityApi>();

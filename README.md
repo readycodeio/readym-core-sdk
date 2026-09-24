@@ -139,12 +139,26 @@ Using `[Replicates]` and `[Propagates]` on such a shape is forbidden, since the 
 
 Used internally to mark a field of an ExplicitComponent as a native collection type, so that access methods are generated properly.
 
-### System
+### Service
 
-A `partial class` that is annotated with `[System]` mus declare a `void Update()` or `void Update(Tick)` method.
-This method is called once per system/client update loop tick.
+A `sealed partial class` annotated with `[Service]` is always registered as a singleton in DI.
 
-// TODO: Rename to `[Service]`
+Every available lifetime method is duck-typed, optional, and private. A service may declare:
+
+* `void Update()`, called once per client or server update loop tick
+* `void Start()`, called when the game starts, after DI container initialization
+* `void Stop()`, called when the DI container is disposed
+
+A `Time` property is available, with `DeltaTime` (seconds since last update), `Elapsed` (seconds since app start) and `Ticks` (updates so far) fields.
+
+Internally, a service declaring `Start` or `Stop` becomes an `IHostedService`.
+
+Generated:
+
+* `IUpdatingService` and the `Time` property, when an update was declared, plus the registration that makes the game tick it
+* `IHostedService`, when a `Start` or a `Stop` was declared
+* DI registration call
+* the create handler registrations, one per watched shape
 
 ### CreateHandler
 
@@ -154,6 +168,8 @@ This only applies to creation via the SDK - not for entities received through re
 // TODO: Allow defining both
 
 An "external" form of `[CreateHandler(typeof(Shape))]` is also supported on a partial class defining a `[Service]`.
+
+There are no guarantees on the order of execution of multiple handlers for the same shape.
 
 ### DeleteHandler
 

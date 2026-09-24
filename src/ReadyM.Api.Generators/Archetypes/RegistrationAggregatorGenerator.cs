@@ -7,7 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators.Archetypes;
 
 /// <summary>
-/// Gathers every registration a compilation emits into one entry point a host can call.
+/// Gathers every registration a compilation emits into one entry point a host can call: what a shape
+/// adds to an archetype, what it handles as it is created, and every service the assembly declares.
 /// </summary>
 /// <remarks>
 /// Each registration also runs from a module initializer where the target has them, but that only
@@ -32,11 +33,16 @@ internal class RegistrationAggregatorGenerator : IIncrementalGenerator
             static (node, _) => node is StructDeclarationSyntax,
             Read);
 
-        var all = archetypes.Collect().Combine(mixins.Collect());
+        var services = context.SyntaxProvider.ForAttributeWithMetadataName(
+            ArchetypeNames.ServiceAttribute,
+            static (node, _) => node is ClassDeclarationSyntax,
+            ReadService);
+
+        var all = archetypes.Collect().Combine(mixins.Collect()).Combine(services.Collect());
 
         context.RegisterSourceOutput(all, static (spc, found) =>
         {
-            var names = found.Left.Concat(found.Right)
+            var names = found.Left.Left.Concat(found.Left.Right).Concat(found.Right)
                 .SelectMany(entry => entry)
                 .Distinct()
                 .OrderBy(name => name, System.StringComparer.Ordinal)
@@ -72,7 +78,27 @@ internal class RegistrationAggregatorGenerator : IIncrementalGenerator
         if (NativeInitEmitter.Applies(model))
             found.Add($"{prefix}{symbol.Name}NativeInit");
 
+        // A handler the shape declared for itself, which sits inside the shape rather than beside it.
+        if (CreateHandlerEmitter.Check(model).Length == 0)
+            foreach (var handler in model.CreateHandlers)
+                found.Add($"{prefix}{symbol.Name}.{handler.Name}Registration");
+
         return found.ToImmutable();
+    }
+
+    /// <summary>The registration a service produces, unless the analyzer refuses the class.</summary>
+    private static ImmutableArray<string> ReadService(GeneratorAttributeSyntaxContext context, CancellationToken ct)
+    {
+        if (context.TargetSymbol is not INamedTypeSymbol { ContainingType: null } symbol)
+            return [];
+
+        if (Services.ServiceShape.Read(symbol).Problems.Any(problem => problem.Severity == DiagnosticSeverity.Error))
+            return [];
+
+        var ns = ArchetypeNames.NamespaceOf(symbol);
+        var prefix = ns.Length == 0 ? "global::" : $"global::{ns}.";
+
+        return [$"{prefix}{symbol.Name}.Registration"];
     }
 
     private static string Emit(System.Collections.Generic.IReadOnlyList<string> names)

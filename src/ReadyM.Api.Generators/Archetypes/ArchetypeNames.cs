@@ -54,13 +54,17 @@ internal static class ArchetypeNames
 
     public const string CreateHandlerAttribute = Namespace + ".CreateHandlerAttribute";
 
-    public const string SystemAttribute = Namespace + ".SystemAttribute";
+    public const string ServiceAttribute = Namespace + ".ServiceAttribute";
 
-    public const string ModSystem = "global::ReadyM.SDK.Systems.IModSystem";
+    public const string UpdatingService = "global::ReadyM.SDK.Services.IUpdatingService";
 
-    public const string SystemRegistry = "global::ReadyM.SDK.Systems.SystemRegistry";
+    public const string ServiceRegistry = "global::ReadyM.SDK.Services.ServiceRegistry";
 
-    public const string Tick = "global::ReadyM.SDK.Systems.Tick";
+    public const string Time = "global::ReadyM.SDK.Services.UpdateTime";
+
+    public const string HostedService = "global::ReadyM.Api.DI.IHostedService";
+
+    public const string Disposable = "global::System.IDisposable";
 
     public const string CreateHandlers = "global::ReadyM.SDK.Archetypes.CreateHandlerRegistry";
 

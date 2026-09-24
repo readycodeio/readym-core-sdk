@@ -1,16 +1,15 @@
 using Friflo.Engine.ECS.Systems;
 using ReadyM.Api.DI;
-using ReadyM.SDK.Systems;
-using SdkTick = ReadyM.SDK.Systems.Tick;
+using ReadyM.SDK.Services;
 
 namespace ReadyM.SDK.Client.Systems;
 
-/// Wraps our [System]s into a Friflo system.
+/// Wraps the [Service]s that declared an update into a Friflo system.
 public sealed class ModSystemUpdates : BaseSystem
 {
     private readonly IDependencyContainer _services;
 
-    private IReadOnlyList<IModSystem>? _systems;
+    private IReadOnlyList<IUpdatingService>? _updating;
 
     private ulong _count;
 
@@ -18,7 +17,7 @@ public sealed class ModSystemUpdates : BaseSystem
     {
         _services = services;
 
-        SystemRegistry.RegisterAll(services);
+        ServiceRegistry.RegisterAll(services);
     }
 
     public override string Name => "Mod systems";
@@ -28,11 +27,11 @@ public sealed class ModSystemUpdates : BaseSystem
         if (!ModSystems.Running)
             return;
 
-        _systems ??= SystemRegistry.Resolve(_services).ToList();
+        _updating ??= ServiceRegistry.Resolve(_services);
 
-        var moment = new SdkTick(Tick.deltaTime, Tick.time, _count++);
+        var moment = new UpdateTime(Tick.deltaTime, Tick.time, _count++);
 
-        foreach (var system in _systems)
-            system.Update(in moment);
+        foreach (var service in _updating)
+            service.Update(in moment);
     }
 }

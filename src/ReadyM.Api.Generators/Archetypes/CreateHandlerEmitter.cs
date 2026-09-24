@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -54,6 +54,8 @@ internal static class CreateHandlerEmitter
 
     public static void Emit(SourceWriter writer, DeclarationModel model, Compilation compilation)
     {
+        EmitWatchPoint(writer, model);
+
         if (Check(model).Length > 0 || model.CreateHandlers.Count == 0)
             return;
 
@@ -74,6 +76,22 @@ internal static class CreateHandlerEmitter
             writer.Line($"        static (in {ArchetypeNames.EntityHandle} handle)");
             writer.Line($"            => new {model.QualifiedName}(handle).{handler.Name}({arguments}));");
         }
+    }
+
+    /// Where a service watching this shape hands its handler in. The component backing a shape never
+    /// leaves the assembly that declared it, and a service watching one may sit anywhere, so the
+    /// shape names it from the inside.
+    private static void EmitWatchPoint(SourceWriter writer, DeclarationModel model)
+    {
+        if (!model.Watchable)
+            return;
+
+        var component = model.NeedsMarker ? model.QualifiedMarker : model.QualifiedComponent;
+
+        writer.Line();
+        writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+        writer.Line($"public static void ObserveCreated({ArchetypeNames.CreateHandlers}.Handler handler)");
+        writer.Line($"    => {ArchetypeNames.CreateHandlers}.Observe<{component}>(handler);");
     }
 
     /// A handler asks for what it needs by naming it, and the game's services answer.
