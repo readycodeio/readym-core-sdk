@@ -1,5 +1,6 @@
 ﻿using ReadyM.Relay.Server.Sdk;
 using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Entities;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Ecs.Systems;
 using ReadyM.SDK.Server.Systems;
@@ -22,6 +23,8 @@ public abstract class ServerMod : ServerModBase
     protected sealed override void Init()
     {
         CreateHandlerRegistry.Use(Services);
+
+        ExtensionNativeInit.Use(Services.Resolve<IEntityApi>());
         SystemRegistry.RegisterAll(Services);
         
         // Init runs once per mod against the one container they share, so the updater says so once.

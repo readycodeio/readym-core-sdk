@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.Api.DI;
 using Friflo.Engine.ECS.Systems;
 using ReadyM.SDK.Client.Systems;
 using ReadyM.SDK.Systems;
@@ -73,12 +74,17 @@ public class SystemTests : ClientSdkTest
         Assert.Equal(0, Container.Resolve<Counting>().Ticks);
     }
 
-    /// A mod declares its systems as its assembly loads, which can be after the game registered the
-    /// ones it had, so asking for them registers whatever arrived since.
+    /// A container stops taking registrations once the game is running, so updating must only ever
+    /// resolve. Registering is the loading window's business, and saying it again on every tick
+    /// brought the server's polling thread down.
     [Fact]
-    public void Resolving_picks_up_a_system_the_game_had_not_registered()
+    public void Updating_never_registers_anything()
     {
-        foreach (var system in SystemRegistry.Resolve(Container))
+        SystemRegistry.RegisterAll(Container);
+
+        var closed = new Closed(Container);
+
+        foreach (var system in SystemRegistry.Resolve(closed))
             system.Update(new Tick(0.5f, 10f));
 
         Assert.Equal(1, Container.Resolve<Counting>().Ticks);
@@ -96,5 +102,31 @@ public class SystemTests : ClientSdkTest
         ((IModSystem)regeneration).Update(new Tick(0.25f, 2f));
 
         Assert.Equal(0.5f, regeneration.Healed);
+    }
+
+    /// Answers what it is asked for and refuses to be added to, the way a container does once the
+    /// game is running.
+    private sealed class Closed(IDependencyContainer inner) : IDependencyContainer
+    {
+        public T Resolve<T>() => inner.Resolve<T>();
+
+        public IEnumerable<T> ResolveAll<T>() => inner.ResolveAll<T>();
+
+        public void RegisterSingleton<TService>(bool replace = false) => throw Refused();
+
+        public void RegisterSingleton<TService>(TService instance, bool replace = false) => throw Refused();
+
+        public void RegisterSingleton<TService>(Type implementationType, bool replace = false) => throw Refused();
+
+        public void RegisterSingleton<TService, TImplementation>(bool replace = false)
+            where TImplementation : TService
+            => throw Refused();
+
+        public void RegisterSingleton<TService, TImplementation>(TImplementation instance, bool replace = false)
+            where TImplementation : TService
+            => throw Refused();
+
+        private static InvalidOperationException Refused()
+            => new("Container does not allow further registrations.");
     }
 }

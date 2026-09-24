@@ -4,13 +4,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace ReadyM.Api.Generators.Systems;
 
-/// <summary>
 /// Explains what a <c>[System]</c> class is missing before the generator silently writes nothing.
-/// </summary>
-/// <remarks>
-/// It reports rather than the generator so the message lands in the editor, where a generator's
-/// diagnostics do not: an IDE has no descriptor to register a severity against for one, and drops it.
-/// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SystemAnalyzer : DiagnosticAnalyzer
 {

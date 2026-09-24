@@ -25,10 +25,7 @@ public static class SystemRegistry
     }
     
     public static IEnumerable<IModSystem> Resolve(IDependencyContainer container)
-    {
-        RegisterAll(container);
-        return Declared.Values.Select(declaration => declaration.Resolve(container)).ToList();
-    }
+        => Declared.Values.Select(declaration => declaration.Resolve(container)).ToList();
 
     // The type is only known where the system was declared, so what to do with it is captured there.
     private abstract class Declaration

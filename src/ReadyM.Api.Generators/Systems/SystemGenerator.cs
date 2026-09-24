@@ -5,17 +5,8 @@ using ReadyM.Api.Generators.Archetypes;
 
 namespace ReadyM.Api.Generators.Systems;
 
-/// <summary>
 /// Completes a <c>[System]</c> class: the update a game calls, and the registration that makes the
 /// class a singleton anything else can ask for.
-/// </summary>
-/// <remarks>
-/// A system is an ordinary class with an ordinary constructor, so what it needs comes from the
-/// container that built it. Nothing is handed to the update but the tick, and only if it asked.
-///
-/// A class that is not a system yet writes nothing and says nothing: <see cref="SystemAnalyzer"/>
-/// is what explains it, so the message reaches the editor rather than only the build.
-/// </remarks>
 [Generator]
 internal class SystemGenerator : IIncrementalGenerator
 {

@@ -251,21 +251,23 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     
     /// Runs for an entity of an archetype no mod registered, which is where a mod's components
     /// sit when it extended one of the game's own archetypes.
-    internal Action<int>? ExtensionInit { get; set; }
+    internal Action<RawEntity, bool>? ExtensionInit { get; set; }
 
-    public void RunPostCreateInit(ArchetypeId archetypeId, int entityId)
+    public void RunPostCreateInit(ArchetypeId archetypeId, RawEntity entity, byte local)
     {
         try
         {
+            // An archetype a mod registered is one a mod creates entities of, and that path has
+            // already run everything the shape asked for. This is the other kind.
             if (_archetypeEntries.TryGetValue(archetypeId, out var entry))
-                entry.PostCreateInit?.Invoke(entityId);
+                entry.PostCreateInit?.Invoke(entity.Id);
             else
-                ExtensionInit?.Invoke(entityId);
+                ExtensionInit?.Invoke(entity, local != 0);
         }
         catch (Exception e)
         {
             // Throwing here would propagate across the interop border out of the host's entity creation.
-            _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entityId, archetypeId);
+            _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entity.Id, archetypeId);
         }
     }
     

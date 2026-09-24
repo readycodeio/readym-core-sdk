@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.Api.DI;
@@ -13,7 +14,7 @@ public static class CreateHandlerRegistry
 {
     public delegate void Handler(in EntityHandle handle);
 
-    private static readonly ConcurrentDictionary<Type, Handler> Handlers = new();
+    private static readonly ConcurrentDictionary<Type, Declaration> Handlers = new();
 
     private static IDependencyContainer? _services;
 
@@ -28,14 +29,41 @@ public static class CreateHandlerRegistry
     /// Called by generated code for a shape declaring a create handler.
     public static void Register<TComponent>(Handler handler)
         where TComponent : struct, IComponent
-        => Handlers[typeof(TComponent)] = handler;
+        => Handlers[typeof(TComponent)] = new Declaration<TComponent>(handler);
 
     internal static bool Any => !Handlers.IsEmpty;
+    
+    internal static IEnumerable<Type> Components => Handlers.Keys;
 
     internal static void RunAll(in EntityHandle handle, ComponentSet components)
     {
         foreach (var component in components.Types)
-            if (Handlers.TryGetValue(component, out var handler))
+            if (Handlers.TryGetValue(component, out var declaration))
+                declaration.Run(handle);
+    }
+
+    internal static void RunIfPresent(in EntityHandle handle, IComponentsById components, Type component)
+    {
+        if (Handlers.TryGetValue(component, out var declaration))
+            declaration.RunIfPresent(handle, components);
+    }
+
+    private abstract class Declaration
+    {
+        public abstract void Run(in EntityHandle handle);
+
+        public abstract void RunIfPresent(in EntityHandle handle, IComponentsById components);
+    }
+
+    private sealed class Declaration<TComponent>(Handler handler) : Declaration
+        where TComponent : struct, IComponent
+    {
+        public override void Run(in EntityHandle handle) => handler(handle);
+
+        public override void RunIfPresent(in EntityHandle handle, IComponentsById components)
+        {
+            if (components.Has<TComponent>(handle.Id))
                 handler(handle);
+        }
     }
 }

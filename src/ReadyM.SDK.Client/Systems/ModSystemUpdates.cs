@@ -6,11 +6,20 @@ using SdkTick = ReadyM.SDK.Systems.Tick;
 namespace ReadyM.SDK.Client.Systems;
 
 /// Wraps our [System]s into a Friflo system.
-public sealed class ModSystemUpdates(IDependencyContainer services) : BaseSystem
+public sealed class ModSystemUpdates : BaseSystem
 {
+    private readonly IDependencyContainer _services;
+
     private IReadOnlyList<IModSystem>? _systems;
 
     private ulong _count;
+
+    public ModSystemUpdates(IDependencyContainer services)
+    {
+        _services = services;
+
+        SystemRegistry.RegisterAll(services);
+    }
 
     public override string Name => "Mod systems";
 
@@ -19,7 +28,7 @@ public sealed class ModSystemUpdates(IDependencyContainer services) : BaseSystem
         if (!ModSystems.Running)
             return;
 
-        _systems ??= SystemRegistry.Resolve(services).ToList();
+        _systems ??= SystemRegistry.Resolve(_services).ToList();
 
         var moment = new SdkTick(Tick.deltaTime, Tick.time, _count++);
 

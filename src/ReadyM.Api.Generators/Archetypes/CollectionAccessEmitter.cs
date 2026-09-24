@@ -3,18 +3,7 @@ using System.Linq;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
-/// <summary>
 /// Emits the wrapper a mapping handler is handed for one collection.
-/// </summary>
-/// <remarks>
-/// The collection itself never leaves the component: handing it over would let a caller keep it
-/// past the entity and change it where the policy is not looking. This holds the entity instead and
-/// forwards to the same accessors the shape does, so the rules a change keeps are the same ones.
-///
-/// It is a ref struct wherever the runtime carries one. A netstandard2.0 client is hosted by one
-/// that does not, so there it is an ordinary readonly struct, which costs the same and only gives
-/// up being unable to store it.
-/// </remarks>
 internal static class CollectionAccessEmitter
 {
     public static string NameOf(DeclarationModel model, string collection) => model.Name + collection;
@@ -27,8 +16,7 @@ internal static class CollectionAccessEmitter
         return ns.Length == 0 ? "global::" + name : $"global::{ns}.{name}";
     }
 
-    /// The collections a shape holds, from whichever side they came: one it declared and had a
-    /// component generated for, or one it named on a component it borrows.
+    /// The collections a shape holds, declared or named on a component it borrows.
     public static IEnumerable<(string Name, string? Held, IReadOnlyList<ForwardModel> Members)> Of(DeclarationModel model)
     {
         if (!model.IsReplicated)
@@ -50,9 +38,7 @@ internal static class CollectionAccessEmitter
         }
     }
 
-    /// What the component holds a borrowed collection in, which is what its Fields entry is typed
-    /// by. It is the whole-collection setter's parameter: the field support puts one there for every
-    /// kind it carries, and it is the one member naming the type rather than what is in it.
+    /// What the component holds a borrowed collection in, read off its whole-collection setter.
     private static string? HeldAs(IReadOnlyList<ForwardModel> members, string collection)
     {
         foreach (var member in members)
@@ -96,8 +82,7 @@ internal static class CollectionAccessEmitter
         }
     }
 
-    /// The member as a collection reads it, with the value's name taken back out of it: a component
-    /// has to say which collection it means, and something already holding one does not.
+    /// The member as a collection reads it, with the value name taken back out.
     private static void Member(SourceWriter writer, ForwardModel forward, string value, string accessors)
     {
         var name = forward.Name.Replace(value, string.Empty);

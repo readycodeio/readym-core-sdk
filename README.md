@@ -138,3 +138,23 @@ Using `[Replicates]` and `[Propagates]` on such a shape is forbidden, since the 
 ### ExplicitCollection
 
 Used internally to mark a field of an ExplicitComponent as a native collection type, so that access methods are generated properly.
+
+### System
+
+A `partial class` that is annotated with `[System]` mus declare a `void Update()` or `void Update(Tick)` method.
+This method is called once per system/client update loop tick.
+
+// TODO: Rename to `[Service]`
+
+### CreateHandler
+
+Annotated method defined logic that runs immediately after a component of a given shape is created.
+This only applies to creation via the SDK - not for entities received through replication.
+
+// TODO: Allow defining both
+
+An "external" form of `[CreateHandler(typeof(Shape))]` is also supported on a partial class defining a `[Service]`.
+
+### DeleteHandler
+
+Analogous to CreateHandler, but runs immediately before a component of a given shape is deleted.

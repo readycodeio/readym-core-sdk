@@ -10,18 +10,7 @@ using ReadyM.Api.Generators.Archetypes;
 
 namespace ReadyM.Api.Generators.Analyzers;
 
-/// <summary>
 /// Reports a client writing a replicated value straight through its setter.
-/// </summary>
-/// <remarks>
-/// A value projected onto an archetype has no setter on a client, so writing it is already a compile
-/// error. The shape that declares the value keeps its own setter whatever the generator wants, since
-/// C# makes the implementing part implement every accessor the declaration has, and that leaves one
-/// spelling of the same write that compiles. This closes it, so both read the same.
-///
-/// Inside a mapping's handler the write is the pull, which is the one place a client is meant to put
-/// the game's answer into the ECS, so it is left alone there.
-/// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
 {
@@ -78,7 +67,6 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
             OperationKind.Decrement);
     }
 
-    /// A collection has no setter to see, so the generator marks the members that change it.
     private static void Changed(OperationAnalysisContext context)
     {
         if (context.Operation is not IInvocationOperation invocation
@@ -126,13 +114,10 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
             Rule, target.Syntax.GetLocation(), shape.Name, property.Name));
     }
 
-    /// The same answer the generator reaches, so the two cannot drift apart.
     private static bool Replicates(INamedTypeSymbol shape)
         => shape.IsValueType && DeclarationModel.For(shape).IsReplicated;
 
     /// Whether the write sits in a create handler, where the shape is authoring its own entity.
-    /// Nothing has seen it yet, so there is no game reporting a value and nobody to take it from:
-    /// what the policy makes of the write is for the runtime to answer, on the side it runs.
     private static bool Authoring(ISymbol? containing)
     {
         for (var symbol = containing; symbol is IMethodSymbol method; symbol = symbol.ContainingSymbol)
@@ -143,7 +128,7 @@ public sealed class ReplicatedWriteAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    /// Whether the write sits in a handler handed to a mapping, where it is the pull.
+    /// Whether the write sits in a handler handed to a mapping.
     private static bool InsideMapping(SyntaxNode node, SemanticModel? model, CancellationToken ct)
     {
         if (model is null)

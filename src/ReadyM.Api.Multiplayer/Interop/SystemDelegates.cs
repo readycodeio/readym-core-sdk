@@ -1,4 +1,5 @@
-﻿using ReadyM.Api.Idents;
+﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Idents;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
@@ -9,4 +10,4 @@ public delegate void TickSystemsDelegate(float deltaTime, float totalTime);
 ///<remarks>
 /// Called by the host right after it creates an entity, so the mod can run <c>INativeInit.Init</c> for its own components.
 /// </remarks>
-public delegate void PostCreateEntityInitDelegate(ArchetypeId archetype, int entityId);
+public delegate void PostCreateEntityInitDelegate(ArchetypeId archetype, RawEntity entity, byte local);

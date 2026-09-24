@@ -109,7 +109,7 @@ internal sealed partial class Store : IArchetypeRegistry
     /// <see cref="NativeInitCallback"/> cannot see them and the mod side has to do it. Null when no mod host is
     /// attached, which is always the case on the client.
     /// </summary>
-    private Action<ArchetypeId, int>? _modPostCreateInit;
+    private Action<ArchetypeId, RawEntity, bool>? _modPostCreateInit;
 
     private Thread? _thread;
     private byte _nextArchetypeId;
@@ -234,10 +234,14 @@ internal sealed partial class Store : IArchetypeRegistry
     /// <summary>
     /// Registers the mod host's native init hook. Called once during mod host initialisation.
     /// </summary>
-    public void SetModPostCreateInit(Action<ArchetypeId, int>? callback)
+    public void SetModPostCreateInit(Action<ArchetypeId, RawEntity, bool>? callback)
         => _modPostCreateInit = callback;
 
-    internal Entity CreateEntity(ArchetypeId archetypeId, Action<EntityBuilder>? setComponents = null)
+    /// <param name="local">False for an entity that was created elsewhere and is arriving here.</param>
+    internal Entity CreateEntity(
+        ArchetypeId archetypeId,
+        Action<EntityBuilder>? setComponents = null,
+        bool local = true)
     {
         AssertThreadId();
 
@@ -256,7 +260,7 @@ internal sealed partial class Store : IArchetypeRegistry
         // Mod components are stride components here, so their init has to happen on the mod side. This runs before
         // anything can observe the entity, which matters for remote entities: the containers must exist before a
         // snapshot or delta is applied into them.
-        _modPostCreateInit?.Invoke(archetypeId, entity.Id);
+        _modPostCreateInit?.Invoke(archetypeId, entity.RawEntity, local);
 
         return entity;
     }

@@ -6,15 +6,7 @@ using ReadyM.Api.Generators.Archetypes;
 
 namespace ReadyM.Api.Generators.Systems;
 
-/// <summary>
-/// What a class has to look like to be a system, read once and used by both the generator that
-/// writes its other half and the analyzer that explains what is missing.
-/// </summary>
-/// <remarks>
-/// The update is found by its shape rather than by an attribute. A system has exactly one thing it
-/// does each frame, so naming it twice, once in the method and once above it, would only be a second
-/// place for the two to disagree.
-/// </remarks>
+/// What a class has to look like to be a system, for the generator and the analyzer alike.
 internal static class SystemShape
 {
     public const string UpdateName = "Update";
@@ -56,7 +48,6 @@ internal static class SystemShape
 
     public static readonly DiagnosticDescriptor[] All = [NotPartial, NoUpdate, TooManyUpdates, NotAnUpdate];
 
-    /// The update to call, or what is wrong with the class instead. Never both.
     public static (IMethodSymbol? Update, Diagnostic? Problem) Read(INamedTypeSymbol system)
     {
         var at = system.Locations.FirstOrDefault() ?? Location.None;
@@ -84,7 +75,6 @@ internal static class SystemShape
         => symbol.GetAttributes().Any(attribute
             => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.SystemAttribute);
 
-    /// The tick or nothing. Anything else a system needs it asked its constructor for.
     private static bool Callable(IMethodSymbol update)
         => !update.IsStatic
            && update.ReturnsVoid
