@@ -4,6 +4,7 @@
 /// A base class for server-side mod systems that need to perform updates each tick.
 /// Inherit from this class and implement the <see cref="OnUpdate(UpdateTick)"/> method to define your system's behavior.
 /// </summary>
+[Obsolete("Use the [System] attribute on your system class instead.")]
 public abstract class ModSystemBase
 {
     /// <summary>

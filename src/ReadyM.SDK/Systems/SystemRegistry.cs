@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -23,9 +23,12 @@ public static class SystemRegistry
         foreach (var declaration in Declared.Values)
             declaration.Register(container);
     }
-
+    
     public static IEnumerable<IModSystem> Resolve(IDependencyContainer container)
-        => Declared.Values.Select(declaration => declaration.Resolve(container)).ToList();
+    {
+        RegisterAll(container);
+        return Declared.Values.Select(declaration => declaration.Resolve(container)).ToList();
+    }
 
     // The type is only known where the system was declared, so what to do with it is captured there.
     private abstract class Declaration

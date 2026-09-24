@@ -27,3 +27,12 @@ public partial class Counting
 
     private void Update() => Ticks++;
 }
+
+/// Records what it was handed, so a test can see the tick a game put together.
+[System]
+public partial class Recording
+{
+    public Tick Last { get; private set; }
+
+    private void Update(Tick tick) => Last = tick;
+}
