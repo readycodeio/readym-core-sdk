@@ -51,3 +51,131 @@ no changes to it.
 
 `src/` has its own `Directory.Build.props` and does not inherit from anything above it, so the
 projects build the same standalone as they do inside a game SDK checkout.
+
+## SDK attributes and generated code
+
+This is a short overview of the attributes and what they do.
+
+### Archetype / ArchetypeMixin
+
+* `[Archetype]` declares a partial struct an archetype of components.
+* `[ArchetypeMixin]` declares a partial struct an archetype mixin, with an underlying ECS component.
+
+Both archetypes and mixins are collectively called "shapes".
+
+Each `public partial` property with `{ get; set; }` results in the following being generated:
+
+* a field on the associated internal component type
+* [server] the `get` and `set` accessors of the property, which read and write to the component field
+* [client] the `get` and `set` accessors of the property, with the setter throwing (use mapping API instead)
+
+A field of a `NativeList<>` or `NativeDictionary<,>` type is treated as a collection of the underlying type
+and must be declared as a `private partial T field { get; }` property.
+Accessor methods are generated instead of the standard ones.
+
+A shape with no fields still gets an empty component type generated, so that querying for it is possible.
+
+### Replicated
+
+Annotated shapes are replicated to clients in either a reliable or unreliable manner.
+
+### Propagates
+
+Specifies the ECS-to-Game and Game-to-ECS propagation behavior of the shape.
+The sync between the game state and the ECS is defined in terms of the "Push" and "Pull" operations:
+
+* To "push" a value in the ECS (a field of a shape) means to apply it to the game state, e.g. applying other player's positions to their puppet actors.
+* To "pull" a value means to read it from the game state, mirroring it in the ECS. Examples: pulling the player's position from the game to the ECS each frame, or pulling the monster's HP to the ECS when it changes.
+
+An "override" is a forceful write of a value to the ECS, which will then block any "pull" operations until the next "push" operation. 
+
+**Example:** overriding player's position, usually pulled from the game to the ECS each frame, to teleport them.
+
+The `Propagates` attribute specifies a policy that dictates which of these operations are allowed and in which context.
+
+* `Propagation.GameToEcs` - all clients can pull, nobody can push. Used for "views" over game state that would mean nothing when pushed to the game, like a flag that indicates if you are in a specific area.
+* `Propagation.EcsToGame` - all clients can push, nobody can pull. No use case as of yet.
+* `Propagation.Both` - all clients can push and pull. Used for values that make sense to be collaboratively modified by all clients, like a shared score or a shared resource pool.
+* `Propagation.ServerAuthoritative` - nobody can pull or override, everyone can push. Used for values that are completely authoritative on the server, like a PvP tournament state or player's money.
+* `Propagation.OwnershipBased` - only the owner can pull or override, everyone else can only push. Used for values that are replicated to others by a specific client, like the player's position or the player's inventory.
+
+This attribute applies to replicated shapes only.
+
+The source generator adds an appropriate marker interface to the generated component type.
+
+### Include / IncludeArchetype
+
+Flattens another shape into the current one, so that all of its fields are treated as if they were declared in the current shape.
+
+Used to compose mixins into archetypes, or to build archetypes on top of other archetypes.
+
+Generated:
+
+* the `get` accessors of the included shape are added to the including shape type
+* [server] the `set` accessors of the included shape are added to the including shape type
+* [server] the native collection access methods
+
+### Extends
+
+Inverse of `[Includes]`. Placed on the mixin to add it to an archetype, usually declared in another assembly.
+
+Generated:
+
+* extension `get` accessors of the extending mixin are added to the extended archetype type
+* [server] the extension `set` accessors and setter methods (for setting in a query)
+* [server] extensions for the native collection access methods
+
+### Index
+
+The decorated partial property is treated as a key for the shape in index lookup.
+All setters or setter methods are generated in such a way that they update the index when the value changes (writing the whole component to Friflo).
+
+### ExplicitComponent
+
+Used internally to skip generating the underlying component type for a shape, when the component is already declared somewhere else.
+Using `[Replicates]` and `[Propagates]` on such a shape is forbidden, since the replication is configured internally, and propagation behavior is already defined on the underlying component type via a marker interface.
+
+### ExplicitCollection
+
+Used internally to mark a field of an ExplicitComponent as a native collection type, so that access methods are generated properly.
+
+### Service
+
+A `sealed partial class` annotated with `[Service]` is always registered as a singleton in DI.
+
+Every available lifetime method is duck-typed, optional, and private. A service may declare:
+
+* `void Update()`, called once per client or server update loop tick
+* `void Start()`, called when the game starts, after DI container initialization
+* `void Stop()`, called when the DI container is disposed
+
+A `Time` property is available, with `DeltaTime` (seconds since last update), `Elapsed` (seconds since app start) and `Ticks` (updates so far) fields.
+
+Internally, a service declaring `Start` or `Stop` becomes an `IHostedService`.
+
+Generated:
+
+* `IUpdatingService` and the `Time` property, when an update was declared, plus the registration that makes the game tick it
+* `IHostedService`, when a `Start` or a `Stop` was declared
+* DI registration call
+* the create handler registrations, one per watched shape
+
+### CreateHandler
+
+Annotated method defined logic that runs immediately after a component of a given shape is created.
+This only applies to creation via the SDK - not for entities received through replication.
+
+// TODO: Allow defining both
+
+An "external" form of `[CreateHandler(typeof(Shape))]` is also supported on a partial class defining a `[Service]`.
+
+Any `[Archetype]` or `[ArchetypeMixin]` can be watched.
+
+There are no guarantees on the order of execution of multiple handlers for the same shape.
+
+### DeleteHandler
+
+Analogous to CreateHandler, but runs immediately before a component of a given shape is deleted. 
+Client-side handlers run for everyone, regardless of ownership.
+
+A delete queued inside a query is held until the loop ends, and the handlers run when it is applied.

@@ -1,5 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
@@ -12,6 +13,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// All component types - whether defined in the server binary or in this mod - are
 /// identified by <c>int</c> component IDs assigned at registration time.
 /// </summary>
+[Obsolete("Use IEntities instead from SDK 1.0")]
 public partial class EcsApi
 {
     private readonly QueryDelegate _query;
@@ -220,7 +222,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(in Entity entity)
     {
-        return DeleteEntity(entity.Id);
+        return _deleteNetworkedEntity(entity.RawEntity, 1) != 0;
     }
 
     /// <summary>
@@ -230,7 +232,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(int entityId)
     {
-        return _deleteNetworkedEntity(entityId) != 0;
+        return _deleteNetworkedEntity(RawEntities.FromId(entityId), 0) != 0;
     }
 
     /// <summary>
@@ -241,7 +243,7 @@ public partial class EcsApi
     /// <returns>How many entities were deleted.</returns>
     public int DeleteEntityTree(int entityId)
     {
-        return _deleteEntityTree(entityId);
+        return _deleteEntityTree(RawEntities.FromId(entityId), 0);
     }
 
     /// <summary>
@@ -253,7 +255,7 @@ public partial class EcsApi
         return _setParent(childId, parentId);
     }
 
-    /// <summary>0 when the entity has no parent.</summary>
+    /// 0 when the entity has no parent.
     /// <param name="childId">The ID of the child entity.</param>
     /// <returns>The ID of the parent entity, or 0 if there is no parent.</returns>
     public int GetParent(int childId)
@@ -290,7 +292,7 @@ public partial class EcsApi
     public void SetComponent<T>(int entityId, in T component) where T : struct
         => GetComponentRef<T>(entityId) = component;
 
-    /// <summary>False when the entity is gone or does not carry the component.</summary>
+    /// False when the entity is gone or does not carry the component.
     public bool TryGetComponent<T>(int entityId, out T component) where T : struct
     {
         var slot = Locate<T>(entityId);
@@ -312,7 +314,7 @@ public partial class EcsApi
     private unsafe ComponentSlot Locate<T>(int entityId) where T : struct
     {
         ComponentSlot slot;
-        _getComponentSlot(entityId, _registry.ResolveComponentId<T>(), &slot);
+        _getComponentSlot(RawEntities.FromId(entityId), 0, _registry.ResolveComponentId<T>(), &slot);
         return slot;
     }
 
@@ -373,8 +375,8 @@ public partial class EcsApi
         return ref Unsafe.AsRef<T>((void*)slot.Data);
     }
 
-    internal Entity EntityFrom(int entityId)
+    internal Entity EntityFrom(RawEntity rawEntity)
     {
-        return new Entity(entityId, _getComponentSlot, _registry);
+        return new Entity(rawEntity, _getComponentSlot, _registry);
     }
 }

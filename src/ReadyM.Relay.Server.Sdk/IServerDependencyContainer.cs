@@ -7,7 +7,9 @@ namespace ReadyM.Relay.Server.Sdk;
 /// Represents a dependency injection container for server-side mods.
 /// Allows registering systems, apart from standard DI services.
 /// </summary>
+[Obsolete("Use the [Service] attribute on your class instead.")]
 public interface IServerDependencyContainer : IDependencyContainer
 {
+    [Obsolete("Use the [Service] attribute on your class instead.")]
     void RegisterSystem<TSystem>() where TSystem : ModSystemBase;
 }

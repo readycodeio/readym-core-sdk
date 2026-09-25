@@ -21,14 +21,10 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
     public ArchetypeId AreaArchetype { get; private set; }
 
     public void Register(IArchetypeRegistry registry)
-    {
-        AreaArchetype = registry.RegisterArchetype(
-            new ArchetypeBuilder()
-                .Add<MetadataComponent>()
-                .Add<AreaScopeComponent>()
-                .Add<EmptyScopeDeletionComponent>()
-                .AddTag<ScopeEntityTag>()
-                .With(b => areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b)))
-        );
-    }
+        => AreaArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
+            .Add<MetadataComponent>()
+            .Add<AreaScopeComponent>()
+            .Add<EmptyScopeDeletionComponent>()
+            .AddTag<ScopeEntityTag>()
+            .With(b => areaComponentRegistry.Accept(new RegisterAreaComponentsCallback(b))));
 }

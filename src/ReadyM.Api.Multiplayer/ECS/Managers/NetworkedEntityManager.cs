@@ -115,7 +115,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
                 var scope = new InScopeComponent(scopeEntity.Value);
                 b.Add(scope);
             }
-        });
+        }, local: false);
 
         _logger.LogDebug("Network entity {Archetype} {NetId} created (remote)", meta.Archetype, meta.NetId);
 

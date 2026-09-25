@@ -6,6 +6,7 @@ using ReadyM.Api.ECS.Components;
 using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 using Yooni.Native.Container;
@@ -26,6 +27,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
     private readonly IEnumerable<IArchetypeRegistration> _registrations;
+    private readonly ComponentRegistry _components;
 
     public ArchetypeRegistry(ArchetypePointers pointers, IEnumerable<IArchetypeRegistration> registrations, ComponentRegistry registry, EcsApi ecs, ILogger logger)
     {
@@ -33,6 +35,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _componentIdCallback = new CollectComponentIdsCallback(registry, _logger);
         _componentInitCallback = new ComponentInitCallback(ecs);
         _registrations = registrations;
+        _components = registry;
 
         _registerArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<RegisterArchetypeDelegate>(pointers.RegisterArchetype);
         _modifyArchetypeDelegate = Marshal.GetDelegateForFunctionPointer<ModifyArchetypeDelegate>(pointers.ModifyArchetype);
@@ -154,7 +157,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         }
     }
 
-    /// <summary>Every component id currently on the builder.</summary>
+    /// Every component id currently on the builder.
     private List<int> GetComponentIds(ArchetypeBuilder builder)
     {
         var componentIds = new List<int>();
@@ -246,19 +249,25 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         _modifyArchetypeDelegate(archetypeId, nativeNewComponentList);
     }
     
-    public void RunPostCreateInit(ArchetypeId archetypeId, int entityId)
-    {
-        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry) || entry.PostCreateInit == null)
-            return;
+    /// Runs for an entity of an archetype no mod registered, which is where a mod's components
+    /// sit when it extended one of the game's own archetypes.
+    internal Action<RawEntity, bool>? ExtensionInit { get; set; }
 
+    public void RunPostCreateInit(ArchetypeId archetypeId, RawEntity entity, byte local)
+    {
         try
         {
-            entry.PostCreateInit.Invoke(entityId);
+            // An archetype a mod registered is one a mod creates entities of, and that path has
+            // already run everything the shape asked for. This is the other kind.
+            if (_archetypeEntries.TryGetValue(archetypeId, out var entry))
+                entry.PostCreateInit?.Invoke(entity.Id);
+            else
+                ExtensionInit?.Invoke(entity, local != 0);
         }
         catch (Exception e)
         {
             // Throwing here would propagate across the interop border out of the host's entity creation.
-            _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entityId, archetypeId);
+            _logger.LogError(e, "Native init failed for entity {EntityId} of archetype {Archetype}", entity.Id, archetypeId);
         }
     }
     

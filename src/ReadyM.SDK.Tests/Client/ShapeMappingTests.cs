@@ -1,0 +1,422 @@
+﻿using Friflo.Engine.ECS;
+using ReadyM.Api.Mapping.Data;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Client;
+using ReadyM.SDK.Client.Mapping;
+using ReadyM.SDK.Entities;
+using ReadyM.SDK.Tests.Client.Fixtures;
+
+namespace ReadyM.SDK.Tests.Client;
+
+/// Moving a value between the ECS and a game object at a sync point. The direction is the
+/// component's policy to decide, and pushing is what marks an overridden value as shown.
+public class ShapeMappingTests : ClientSdkTest
+{
+    /// Stands in for whatever the game holds the value in.
+    private sealed class Dial
+    {
+        public int Reading { get; set; }
+    }
+
+    private static ShapeMappingRegistry Mapped()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Telemetry, Dial>()
+            .Map(Telemetry.Field.Ticks,
+                 pull: (ref int ticks, Dial dial) => ticks = dial.Reading,
+                 push: (ticks, dial) => dial.Reading = ticks);
+
+        SyncExtensions.Use(registry);
+        return registry;
+    }
+
+    private static T As<T>(in T shape, IEntityApi api) where T : struct, IArchetypeQueryable
+        => new() { Handle = new EntityHandle(EntityHandle.Of(shape).RawEntity, api) };
+
+    private static bool OverriddenOf(Rig rig)
+        => EntityHandle.Of(rig).GetComponent<TelemetryComponent>().ChangedFromApi;
+
+    private static Roster AsRoster(Rig rig, IEntityApi api)
+        => new EntityHandle(EntityHandle.Of(rig).RawEntity, api).As<Roster>();
+
+    /// Stands in for whatever the game holds a list of values in.
+    private sealed class Squad
+    {
+        public List<int> Ids { get; } = [];
+    }
+
+    private static ShapeMappingRegistry MappedRoster()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Roster, Squad>()
+            .Map(
+                Roster.Field.Members,
+                pull: (members, squad) =>
+                {
+                    members.Clear();
+
+                    foreach (var id in squad.Ids)
+                        members.Add(id);
+                },
+                push: (members, squad) =>
+                {
+                    squad.Ids.Clear();
+
+                    for (var i = 0; i < members.Count; i++)
+                        squad.Ids.Add(members.Get(i));
+                });
+
+        SyncExtensions.Use(registry);
+        return registry;
+    }
+
+    /// A collection is never handed over, so what the handler works is the wrapper over the entity.
+    [Fact]
+    public void A_collection_is_read_out_of_the_game_through_its_members()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+        var squad = new Squad { Ids = { 3, 4 } };
+
+        Assert.True(AsRoster(rig, new Deciding(Api, ecsDrives: false)).Pull(Roster.Field.Members, squad));
+
+        Assert.Equal(2, rig.MembersCount);
+        Assert.Equal(3, rig.GetMembers(0));
+        Assert.Equal(4, rig.GetMembers(1));
+    }
+
+    [Fact]
+    public void And_shown_to_the_game_the_same_way()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+        var squad = new Squad();
+
+        rig.AddMembers(9);
+
+        Assert.True(AsRoster(rig, new Deciding(Api, ecsDrives: true)).Push(Roster.Field.Members, squad));
+        Assert.Equal([9], squad.Ids);
+    }
+
+    /// The game does not drive it, so there is nothing to read back out of it.
+    [Fact]
+    public void A_collection_the_ecs_drives_is_not_pulled()
+    {
+        MappedRoster();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.False(AsRoster(rig, new Deciding(Api, ecsDrives: true))
+            .Pull(Roster.Field.Members, new Squad { Ids = { 1 } }));
+
+        Assert.Equal(0, rig.MembersCount);
+    }
+
+    /// Pulling the value a shape is indexed by moves it in that index, like any other write to it.
+    [Fact]
+    public void A_pulled_index_value_moves_the_entity_in_the_index()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Berth, Dial>()
+            .Map(Berth.Field.Slot, (ref int slot, Dial dial) => slot = dial.Reading);
+
+        SyncExtensions.Use(registry);
+
+        var docked = Entities.Create<Docked>();
+
+        Assert.True(docked.Pull(Berth.Field.Slot, new Dial { Reading = 9 }));
+
+        Assert.False(Entities.TryLookup<Berth, int>(0, out _));
+        Assert.True(Entities.TryLookup<Berth, int>(9, out var found));
+        Assert.Equal(9, found.Slot);
+    }
+
+    [Fact]
+    public void The_ecs_value_reaches_the_game_when_it_drives()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var dial = new Dial();
+
+        rig.Ticks = 7;
+
+        Assert.True(As(rig, new Deciding(Api, ecsDrives: true)).Push(Telemetry.Field.Ticks, dial));
+        Assert.Equal(7, dial.Reading);
+    }
+
+    [Fact]
+    public void The_game_value_reaches_the_ecs_when_it_drives()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var dial = new Dial { Reading = 3 };
+
+        Assert.True(As(rig, new Deciding(Api, ecsDrives: false)).Pull(Telemetry.Field.Ticks, dial));
+        Assert.Equal(3, rig.Ticks);
+    }
+
+    /// The other direction is refused rather than silently doing the wrong thing.
+    [Fact]
+    public void Neither_direction_runs_against_the_policy()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var dial = new Dial { Reading = 3 };
+
+        Assert.False(As(rig, new Deciding(Api, ecsDrives: true)).Pull(Telemetry.Field.Ticks, dial));
+        Assert.False(As(rig, new Deciding(Api, ecsDrives: false)).Push(Telemetry.Field.Ticks, dial));
+        Assert.Equal(0, rig.Ticks);
+        Assert.Equal(3, dial.Reading);
+    }
+
+    /// An override is the one thing that pushes on an entity the game otherwise drives, and the
+    /// push is what clears the flag. Nothing asks the mod to.
+    [Fact]
+    public void An_override_pushes_once_and_then_stops()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var dial = new Dial();
+        var driving = new Deciding(Api, ecsDrives: false);
+
+        As(rig, driving).Override(Telemetry.Field.Ticks, 42);
+
+        Assert.True(OverriddenOf(rig));
+        Assert.True(As(rig, driving).Push(Telemetry.Field.Ticks, dial));
+        Assert.Equal(42, dial.Reading);
+
+        Assert.False(OverriddenOf(rig));
+        Assert.False(As(rig, driving).Push(Telemetry.Field.Ticks, dial));
+    }
+
+    /// Until it is pushed, the game must not report over the value the mod just claimed.
+    [Fact]
+    public void An_override_holds_off_the_game()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var driving = new Deciding(Api, ecsDrives: false);
+
+        As(rig, driving).Override(Telemetry.Field.Ticks, 42);
+
+        Assert.False(As(rig, driving).Pull(Telemetry.Field.Ticks, new Dial { Reading = 3 }));
+        Assert.Equal(42, rig.Ticks);
+    }
+
+    /// The plain setter is the game reporting what it did, and it must not report over a value the
+    /// mod has claimed but the game has not been shown yet.
+    [Fact]
+    public void An_override_holds_off_a_plain_write()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+        var driving = new Deciding(Api, ecsDrives: false);
+        var claimed = As(rig, driving);
+
+        claimed.Override(Telemetry.Field.Ticks, 42);
+        claimed.Ticks = 3;
+
+        Assert.Equal(42, rig.Ticks);
+
+        // Once the game has been shown it, the game drives it again.
+        claimed.Push(Telemetry.Field.Ticks, new Dial());
+        claimed.Ticks = 3;
+
+        Assert.Equal(3, rig.Ticks);
+    }
+
+    // -- a value the game owns outright -------------------------------------------------------------
+
+    /// A value the game owns: no push, which the shape's own Propagation would also say.
+    private static void MappedFromGameOnly()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Telemetry, Dial>()
+            .Map(Telemetry.Field.Ticks, (ref int ticks, Dial dial) => ticks = dial.Reading);
+
+        SyncExtensions.Use(registry);
+    }
+
+    [Fact]
+    public void A_value_the_game_owns_still_reaches_the_ecs()
+    {
+        MappedFromGameOnly();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.True(As(rig, new Deciding(Api, ecsDrives: false)).Pull(Telemetry.Field.Ticks, new Dial { Reading = 4 }));
+        Assert.Equal(4, rig.Ticks);
+    }
+
+    /// There is nothing to show the game, so the push says so rather than pretending it happened.
+    [Fact]
+    public void A_value_the_game_owns_cannot_be_pushed()
+    {
+        MappedFromGameOnly();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.False(As(rig, new Deciding(Api, ecsDrives: true)).Push(Telemetry.Field.Ticks, new Dial()));
+    }
+
+    [Fact]
+    public void A_context_nothing_mapped_moves_nothing()
+    {
+        Mapped();
+
+        var rig = Entities.Create<Rig>();
+
+        Assert.False(As(rig, new Deciding(Api, ecsDrives: true)).Push(Telemetry.Field.Ticks, "not a dial"));
+    }
+
+    // -- a correspondence that spans the shape's values ---------------------------------------------
+
+    /// Stands in for a game object read or written in one go.
+    private sealed class Panel
+    {
+        public int Ticks { get; set; }
+
+        public float Load { get; set; }
+    }
+
+    private static void MappedWhole()
+    {
+        var registry = new ShapeMappingRegistry();
+
+        ((IShapeMappingRegistry)registry).For<Telemetry, Panel>()
+            .Map(Telemetry.Field.All,
+                 pull: (telemetry, panel) =>
+                 {
+                     telemetry.Ticks = panel.Ticks;
+                     telemetry.Load = panel.Load;
+                 },
+                 push: (telemetry, panel) =>
+                 {
+                     panel.Ticks = telemetry.Ticks;
+                     panel.Load = telemetry.Load;
+                 });
+
+        SyncExtensions.Use(registry);
+    }
+
+    private static Telemetry AsTelemetry(Rig rig, IEntityApi api)
+        => new EntityHandle(EntityHandle.Of(rig).RawEntity, api).As<Telemetry>();
+
+    [Fact]
+    public void A_shape_wide_push_shows_the_game_every_value()
+    {
+        MappedWhole();
+
+        var rig = Entities.Create<Rig>();
+        var panel = new Panel();
+
+        rig.Ticks = 5;
+        rig.Load = 0.5f;
+
+        Assert.True(AsTelemetry(rig, new Deciding(Api, ecsDrives: true)).Push(Telemetry.Field.All, panel));
+        Assert.Equal(5, panel.Ticks);
+        Assert.Equal(0.5f, panel.Load);
+    }
+
+    [Fact]
+    public void A_shape_wide_pull_reads_every_value_back()
+    {
+        MappedWhole();
+
+        var rig = Entities.Create<Rig>();
+        var panel = new Panel { Ticks = 9, Load = 1.5f };
+
+        Assert.True(AsTelemetry(rig, new Deciding(Api, ecsDrives: false)).Pull(Telemetry.Field.All, panel));
+        Assert.Equal(9, rig.Ticks);
+        Assert.Equal(1.5f, rig.Load);
+    }
+
+    /// One value claimed is enough to push the shape, and the push releases the whole of it.
+    [Fact]
+    public void A_shape_wide_push_releases_the_claim()
+    {
+        MappedWhole();
+
+        var rig = Entities.Create<Rig>();
+        var driving = new Deciding(Api, ecsDrives: false);
+
+        AsTelemetry(rig, driving).Override(Telemetry.Field.Ticks, 42);
+
+        Assert.True(OverriddenOf(rig));
+        Assert.True(AsTelemetry(rig, driving).Push(Telemetry.Field.All, new Panel()));
+        Assert.False(OverriddenOf(rig));
+
+        // And with nothing claimed, the game drives it again.
+        Assert.False(AsTelemetry(rig, driving).Push(Telemetry.Field.All, new Panel()));
+    }
+
+    /// Answers the direction questions itself, standing in for the policies a client would hold.
+    private sealed class Deciding(IEntityApi inner, bool ecsDrives) : IEntityApi
+    {
+        // The ownership policy in miniature: the side that does not drive the value from the game
+        // is the side whose ECS is authoritative, and only the other may report or claim it.
+        public bool Allows(RawEntity rawEntity, Type component, WriteKind kind) => !ecsDrives;
+
+        /// Only the direction questions are answered here. The write rule itself is the client's,
+        /// so a test cannot quietly diverge from it.
+        public bool Write<TComponent, TValue>(
+            RawEntity rawEntity,
+            ref TComponent component,
+            Field<TComponent, TValue> field,
+            TValue value,
+            WriteKind kind)
+            where TComponent : struct, IComponent
+            => inner.Write(rawEntity, ref component, field, value, kind);
+
+        public bool Mirrors<TComponent, TValue>(
+            RawEntity rawEntity,
+            in TComponent component,
+            Field<TComponent, TValue> field)
+            where TComponent : struct, IComponent
+            => !ecsDrives && !field.WasSetFromApi(component);
+
+        public bool ShouldApplyToGame(RawEntity rawEntity, Type component) => ecsDrives;
+
+        public int ComponentIdOf(Type type) => inner.ComponentIdOf(type);
+
+        public ComponentRef Locate(RawEntity rawEntity, int componentId) => inner.Locate(rawEntity, componentId);
+
+        public void ReplaceIndexed<TComponent, TKey>(RawEntity rawEntity, TComponent component)
+            where TComponent : struct, IIndexedComponent<TKey>
+            => inner.ReplaceIndexed<TComponent, TKey>(rawEntity, component);
+
+        public EntityBuffer CollectInScope(RawEntity scope, ComponentSet components)
+            => inner.CollectInScope(scope, components);
+
+        public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+            where TComponent : struct, IIndexedComponent<TKey>
+            => inner.TryFindByIndex<TComponent, TKey>(key, out entity);
+
+        public bool IsAlive(RawEntity rawEntity) => inner.IsAlive(rawEntity);
+
+        public bool HasComponents(RawEntity rawEntity, ComponentSet components)
+            => inner.HasComponents(rawEntity, components);
+
+        public RawEntity Create(ComponentSet components) => inner.Create(components);
+
+        public RawEntity Create(ComponentSet components, RawEntity scope) => inner.Create(components, scope);
+
+        public bool Delete(RawEntity rawEntity) => inner.Delete(rawEntity);
+
+        public void EnterQuery() => inner.EnterQuery();
+
+        public void LeaveQuery() => inner.LeaveQuery();
+    }
+}

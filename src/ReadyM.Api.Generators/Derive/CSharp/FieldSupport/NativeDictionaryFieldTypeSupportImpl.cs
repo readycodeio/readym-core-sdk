@@ -167,6 +167,7 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
     {
         var member = context.Member;
         var i = context.Member.MaskIndex;
+        var maskType = context.Model.MaskInfo!.Type;
         var name = member.GeneratedPropertyName;
         var type = member.Source.Type;
         var fieldName = member.Source.Name;
@@ -176,6 +177,6 @@ internal class NativeDictionaryFieldTypeSupportImpl : NativeContainerFieldTypeSu
         context.AppendLine($"    static c => c.{fieldName},");
         context.AppendLine($"    static (ref c, v) => c.Set{context.Member.GeneratedPropertyName}(v),");
         context.AppendLine($"    static (ref c, v, e) => c.{name}_SetFromApi(v, e),");
-        context.AppendLine($"    static c => c.Is{name}Dirty());");
+        context.AppendLine($"    static c => (c._apiMask & (({maskType})1 << {i})) != 0);");
     }
 }

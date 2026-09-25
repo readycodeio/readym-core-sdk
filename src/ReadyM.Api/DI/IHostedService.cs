@@ -7,6 +7,7 @@ namespace ReadyM.Api.DI;
 /// This allows them to perform any necessary setup at the appropriate time, such as registering event handlers.
 /// The service will be disposed when the game shuts down, allowing for any necessary cleanup.
 /// </summary>
+[Obsolete("Use [Service] classes instead. This interface will be made internal in a future release.")]
 public interface IHostedService : IDisposable
 {
     /// <summary>

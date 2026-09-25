@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
@@ -15,9 +15,21 @@ internal sealed class DeriveTargetInfo(
     ITypeSymbol? requestedDirtyMaskType,
     bool emitDirtyMask,
     bool emitBindDelete,
-    DeriveMapSettings mapSettings)
+    DeriveMapSettings mapSettings,
+    string? accessibility = null,
+    string? qualifiedName = null)
 {
     public bool IsExternal { get; } = isExternal;
+
+    /// How the component is declared. Given explicitly for a component that is being generated, so
+    /// it does not have to exist as a symbol before it can be emitted.
+    public string Accessibility { get; } = accessibility
+        ?? symbol.DeclaredAccessibility.ToString().ToLowerInvariant();
+
+    /// The component's own name, qualified. Same reason: a generated component has no symbol to ask.
+    public string QualifiedName { get; } = qualifiedName
+        ?? DeriveCSharpUtils.FullyQualifiedTypeName(symbol);
+
     public ITypeSymbol Symbol { get; } = symbol ?? throw new ArgumentNullException(nameof(symbol));
     public string Name { get; } = name ?? throw new ArgumentNullException(nameof(name));
     public string Namespace { get; } = @namespace ?? throw new ArgumentNullException(nameof(@namespace));

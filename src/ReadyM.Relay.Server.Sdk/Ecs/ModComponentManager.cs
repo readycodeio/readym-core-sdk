@@ -77,7 +77,8 @@ internal sealed class ModComponentManager : IDisposable
     /// AOT relay's RegisterPluginComponent. The embedded AllocHeap delegate allocates a
     /// fresh TypedComponentHeap&lt;T&gt; each time an archetype needs one.
     /// </summary>
-    public unsafe ModComponentRegistration RegisterComponent<T>() where T : struct, INetworkedComponent
+    public unsafe ModComponentRegistration RegisterComponent<T>(byte delivery = 0)
+        where T : struct, INetworkedComponent
     {
         // Bind the factory to this T at registration time. Capturing via method group
         // means each call to RegisterComponent<T> creates an independent delegate instance
@@ -193,7 +194,8 @@ internal sealed class ModComponentManager : IDisposable
             ReadSnapshot = readSnapshotDelegatePtr,
             WriteDelta = writeDeltaDelegatePtr,
             ReadDelta = readDeltaDelegatePtr,
-            ChangedFromApi = changedFromApiDelegatePtr
+            ChangedFromApi = changedFromApiDelegatePtr,
+            Delivery = delivery
         };
     }
 
