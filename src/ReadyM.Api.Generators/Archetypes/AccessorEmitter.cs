@@ -222,18 +222,24 @@ internal static class AccessorEmitter
         => $"{include.Accessors}.Set{accessor.Name}(_handle, {value})";
 
     /// <summary>A forwarded member on the shape, passing the handle it holds.</summary>
-    public static void Forwarded(SourceWriter writer, ForwardModel forward, string accessors)
+    /// <param name="name">
+    /// What the member is called here, which an include puts its prefix in front of. The accessor
+    /// class it is reached through keeps the name the declaring shape gave it.
+    /// </param>
+    public static void Forwarded(SourceWriter writer, ForwardModel forward, string accessors, string? name = null)
     {
+        var called = name ?? forward.Name;
+
         writer.Line();
 
         if (forward.IsProperty)
         {
-            writer.Line($"public {forward.ReturnType} {forward.Name} => {accessors}.{forward.Name}(_handle);");
+            writer.Line($"public {forward.ReturnType} {called} => {accessors}.{forward.Name}(_handle);");
             return;
         }
 
         Marker(writer, forward);
-        writer.Line($"public {forward.Signature}");
+        writer.Line($"public {forward.Declaration(called)}");
         writer.Line($"    => {accessors}.{forward.Name}(_handle{Separator(forward)}{forward.Arguments});");
     }
 
@@ -246,17 +252,24 @@ internal static class AccessorEmitter
     }
 
     /// <summary>The same, on a chunk view, which passes the chunk and the row it sits on.</summary>
-    public static void ForwardedFromChunk(SourceWriter writer, ForwardModel forward, string accessors, string field)
+    public static void ForwardedFromChunk(
+        SourceWriter writer,
+        ForwardModel forward,
+        string accessors,
+        string field,
+        string? name = null)
     {
+        var called = name ?? forward.Name;
+
         writer.Line();
 
         if (forward.IsProperty)
         {
-            writer.Line($"public {forward.ReturnType} {forward.Name} => {accessors}.{forward.Name}({field}, _index);");
+            writer.Line($"public {forward.ReturnType} {called} => {accessors}.{forward.Name}({field}, _index);");
             return;
         }
 
-        writer.Line($"public {forward.Signature}");
+        writer.Line($"public {forward.Declaration(called)}");
         writer.Line($"    => {accessors}.{forward.Name}({field}, _index{Separator(forward)}{forward.Arguments});");
     }
 

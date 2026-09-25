@@ -139,6 +139,7 @@ internal static class ExtendedMemberEmitter
         string[]? remarks = null)
     {
         var call = $"{model.QualifiedAccessors}.{forward.Name}";
+        var name = forward.Named(prefix);
 
         writer.Line();
 
@@ -146,12 +147,12 @@ internal static class ExtendedMemberEmitter
 
         if (forward.IsProperty)
         {
-            writer.Line($"public {forward.ReturnType} {prefix}{forward.Name} => {call}({handle});");
+            writer.Line($"public {forward.ReturnType} {name} => {call}({handle});");
             return;
         }
 
         AccessorEmitter.Marker(writer, forward);
-        writer.Line($"public {forward.Declaration($"{prefix}{forward.Name}")}");
+        writer.Line($"public {forward.Declaration(name)}");
         writer.Line($"    => {call}({handle}{forward.Separator}{forward.Arguments});");
     }
 

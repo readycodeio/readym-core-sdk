@@ -129,7 +129,7 @@ internal static class ChunkViewEmitter
 
             if (slot is not null)
                 Property(writer, accessor, include.Accessors, slot.Field,
-                    DeclarationModel.For(include.Type).IndexedBy is not null, writes);
+                    DeclarationModel.For(include.Type).IndexedBy is not null, writes, include.Named(accessor.Name));
         }
 
         if (own is not null)
@@ -142,7 +142,8 @@ internal static class ChunkViewEmitter
                 !candidate.IsMarker && candidate.Include?.TypeName == include.TypeName);
 
             if (slot is not null)
-                AccessorEmitter.ForwardedFromChunk(writer, forward, include.Accessors, slot.Field);
+                AccessorEmitter.ForwardedFromChunk(
+                    writer, forward, include.Accessors, slot.Field, include.Named(forward));
         }
     }
 
@@ -152,21 +153,24 @@ internal static class ChunkViewEmitter
         string accessors,
         string field,
         bool indexed,
-        bool writes)
+        bool writes,
+        string? name = null)
     {
         // A value the shape keeps to itself is not put on its chunk view either.
         if (!accessor.IsExposed)
             return;
 
+        var called = name ?? accessor.Name;
+
         writer.Line();
 
         if (!accessor.HasSetter || indexed || !writes)
         {
-            writer.Line($"public {accessor.Type} {accessor.Name} => {accessors}.Get{accessor.Name}({field}, _index);");
+            writer.Line($"public {accessor.Type} {called} => {accessors}.Get{accessor.Name}({field}, _index);");
             return;
         }
 
-        using (writer.Braces($"public {accessor.Type} {accessor.Name}"))
+        using (writer.Braces($"public {accessor.Type} {called}"))
         {
             writer.Line($"get => {accessors}.Get{accessor.Name}({field}, _index);");
             writer.Line($"set => {accessors}.Set{accessor.Name}({field}, _index, value);");

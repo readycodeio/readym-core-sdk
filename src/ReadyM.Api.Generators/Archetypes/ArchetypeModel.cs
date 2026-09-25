@@ -147,10 +147,11 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 /// <summary>One member of an explicit component, forwarded onto the shape unchanged.</summary>
 internal sealed class ForwardModel
 {
-    public ForwardModel(IMethodSymbol method, string? changes = null, string? collection = null)
+    public ForwardModel(IMethodSymbol method, string? changes = null, string? collection = null, string? owns = null)
     {
         Changes = changes;
         Collection = collection;
+        Owns = owns;
         Name = method.Name;
         ReturnType = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         Parameters = method.Parameters
@@ -171,8 +172,9 @@ internal sealed class ForwardModel
         _ => string.Empty
     };
 
-    public ForwardModel(IPropertySymbol property)
+    public ForwardModel(IPropertySymbol property, string? owns = null)
     {
+        Owns = owns;
         Name = property.Name;
         ReturnType = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         Parameters = [];
@@ -186,7 +188,8 @@ internal sealed class ForwardModel
         IReadOnlyList<(string Modifier, string Type, string Name)> parameters,
         bool isProperty = false,
         string? changes = null,
-        string? collection = null)
+        string? collection = null,
+        string? owns = null)
     {
         Name = name;
         ReturnType = returnType;
@@ -194,6 +197,7 @@ internal sealed class ForwardModel
         IsProperty = isProperty;
         Changes = changes;
         Collection = collection;
+        Owns = owns;
     }
 
     public string Name { get; }
@@ -210,6 +214,30 @@ internal sealed class ForwardModel
 
     /// The token a caller reaches the collection through instead, for the message that says so.
     public string? Collection { get; }
+
+    /// <summary>The collection this member belongs to, by the name the shape gave it.</summary>
+    public string? Owns { get; }
+
+    /// <summary>
+    /// What the member is called where a prefix renames it.
+    /// </summary>
+    /// <remarks>
+    /// A collection's name sits inside the member rather than at the front of it, so under the
+    /// prefix Guest, GetNames is GetGuestNames. Putting the prefix in front would give GuestGetNames,
+    /// which reads as a different verb and no longer matches the collection it belongs to.
+    /// </remarks>
+    public string Named(string prefix)
+    {
+        if (prefix.Length == 0)
+            return Name;
+
+        if (Owns is not { } collection)
+            return prefix + Name;
+
+        var at = DeclarationModel.IndexOfCollection(Name, collection);
+
+        return at < 0 ? prefix + Name : Name.Substring(0, at) + prefix + Name.Substring(at);
+    }
 
     public bool Returns => ReturnType != "void";
 
@@ -236,11 +264,22 @@ internal sealed class ForwardModel
 }
 
 /// <summary>One entry of an <c>[Include]</c> or <c>[IncludeArchetype]</c> on an archetype.</summary>
-internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind)
+internal sealed class IncludeModel(INamedTypeSymbol type, IncludeKind kind, string prefix = "")
 {
     public INamedTypeSymbol Type { get; } = type;
 
     public IncludeKind Kind { get; } = kind;
+
+    /// Put in front of every member this include brings, for a name that would otherwise read
+    /// oddly or clash with another include's. <c>ParentCell</c> turns <c>X</c> into
+    /// <c>ParentCellX</c>.
+    public string Prefix { get; } = prefix;
+
+    /// <summary>What a member this include brings is called on the shape that took it.</summary>
+    public string Named(string member) => Prefix + member;
+
+    /// <summary>The same for a forwarded member, whose prefix may belong inside the name.</summary>
+    public string Named(ForwardModel forward) => forward.Named(Prefix);
 
     public string TypeName { get; } = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -576,6 +615,8 @@ internal sealed class DeclarationModel
         var flattened = new List<(IncludeModel, ForwardModel)>();
         var taken = new HashSet<string>(Forwards.Select(forward => forward.Signature));
 
+        // Keyed on what the member ends up called, so a prefix is what keeps two of the same name apart.
+
         FlattenForwards(this, flattened, taken);
         return flattened;
     }
@@ -589,7 +630,8 @@ internal sealed class DeclarationModel
         {
             var included = For(include.Type);
 
-            foreach (var forward in included.Forwards.Where(forward => taken.Add(forward.Signature)))
+            foreach (var forward in included.Forwards
+                         .Where(forward => taken.Add(forward.Declaration(include.Named(forward.Name)))))
                 into.Add((include, forward));
 
             if (include.Kind == IncludeKind.Archetype)
@@ -621,14 +663,16 @@ internal sealed class DeclarationModel
             {
                 var included = For(include.Type);
 
-                foreach (var accessor in included.Accessors.Where(accessor => taken.Add(accessor.Name)))
+                foreach (var accessor in included.Accessors
+                             .Where(accessor => taken.Add(include.Named(accessor.Name))))
                     into.Add((include, accessor));
 
                 Flatten(included, into, taken);
                 continue;
             }
 
-            foreach (var accessor in ReadAccessors(include.Type).Where(accessor => taken.Add(accessor.Name)))
+            foreach (var accessor in ReadAccessors(include.Type)
+                         .Where(accessor => taken.Add(include.Named(accessor.Name))))
                 into.Add((include, accessor));
         }
     }
@@ -711,7 +755,7 @@ internal sealed class DeclarationModel
 
         foreach (var member in component.GetMembers())
         {
-            if (!collections.Any(collection => Forwardable(member, collection)))
+            if (collections.FirstOrDefault(collection => Forwardable(member, collection)) is not { } owns)
                 continue;
 
             if (member is IMethodSymbol method)
@@ -721,11 +765,11 @@ internal sealed class DeclarationModel
                     : null;
 
                 forwards.Add(changed is null
-                    ? new ForwardModel(method)
-                    : new ForwardModel(method, changed, $"{symbol.Name}.{ValuesEmitter.ClassName}.{changed}"));
+                    ? new ForwardModel(method, owns: owns)
+                    : new ForwardModel(method, changed, $"{symbol.Name}.{ValuesEmitter.ClassName}.{changed}", owns));
             }
             else if (member is IPropertySymbol property)
-                forwards.Add(new ForwardModel(property));
+                forwards.Add(new ForwardModel(property, owns));
         }
 
         return forwards;
@@ -762,6 +806,10 @@ internal sealed class DeclarationModel
     /// tighter still, and would drop whatever a hand-written component calls its own.
     /// </remarks>
     private static bool NamesCollection(string member, string collection)
+        => IndexOfCollection(member, collection) >= 0;
+
+    /// <summary>Where the collection's name sits in the member, or -1 when it does not.</summary>
+    internal static int IndexOfCollection(string member, string collection)
     {
         for (var at = member.IndexOf(collection, System.StringComparison.Ordinal);
              at >= 0;
@@ -770,10 +818,10 @@ internal sealed class DeclarationModel
             var after = at + collection.Length;
 
             if (StartsWord(member, at) && (after == member.Length || !char.IsLower(member[after])))
-                return true;
+                return at;
         }
 
-        return false;
+        return -1;
     }
 
     /// A word starts at the front of the name, or where something other than a capital gives way to
@@ -860,7 +908,11 @@ internal sealed class DeclarationModel
             if (name != ArchetypeNames.IncludeAttribute)
                 continue;
 
-            includes.Add(new IncludeModel(included, KindOf(included)));
+            var prefix = attribute.ConstructorArguments.Length > 1
+                ? attribute.ConstructorArguments[1].Value as string
+                : null;
+
+            includes.Add(new IncludeModel(included, KindOf(included), prefix ?? string.Empty));
         }
 
         return includes;

@@ -174,7 +174,7 @@ internal class ArchetypeGenerator : IIncrementalGenerator
             AccessorEmitter.Forwarded(writer, forward, model.QualifiedAccessors);
 
         foreach (var (include, forward) in model.FlattenedForwards())
-            AccessorEmitter.Forwarded(writer, forward, include.Accessors);
+            AccessorEmitter.Forwarded(writer, forward, include.Accessors, include.Named(forward));
     }
 
     /// <summary>Accessors of everything included, flattened onto the archetype.</summary>
@@ -183,7 +183,9 @@ internal class ArchetypeGenerator : IIncrementalGenerator
         foreach (var (include, accessor) in model.FlattenedAccessors())
         {
             writer.Line();
-            HandleEmitter.Accessor(writer, accessor, include.Accessors, partial: false, include.IsReplicated, client);
+            HandleEmitter.Accessor(
+                writer, accessor, include.Accessors, partial: false, include.IsReplicated, client,
+                include.Named(accessor.Name));
         }
     }
 

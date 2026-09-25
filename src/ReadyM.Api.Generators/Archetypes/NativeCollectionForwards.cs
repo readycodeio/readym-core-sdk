@@ -33,14 +33,14 @@ internal static class NativeCollectionForwards
 
             return
             [
-                Property($"{name}Count", "int"),
-                Method($"Get{name}", each, ("", "int", "index")),
-                Changes((entry, token), $"Set{name}", "void", ("", "int", "index"), ("in ", each, "value")),
-                Method($"Contains{name}", "bool", ("in ", each, "value")),
-                Changes((entry, token), $"Add{name}", "void", ("in ", each, "value")),
-                Changes((entry, token), $"Insert{name}", "void", ("", "int", "index"), ("in ", each, "value")),
-                Changes((entry, token), $"RemoveAt{name}", each, ("", "int", "index")),
-                Changes((entry, token), $"Clear{name}", "void")
+                Property(name, $"{name}Count", "int"),
+                Method(name, $"Get{name}", each, ("", "int", "index")),
+                Changes((entry, token, name), $"Set{name}", "void", ("", "int", "index"), ("in ", each, "value")),
+                Method(name, $"Contains{name}", "bool", ("in ", each, "value")),
+                Changes((entry, token, name), $"Add{name}", "void", ("in ", each, "value")),
+                Changes((entry, token, name), $"Insert{name}", "void", ("", "int", "index"), ("in ", each, "value")),
+                Changes((entry, token, name), $"RemoveAt{name}", each, ("", "int", "index")),
+                Changes((entry, token, name), $"Clear{name}", "void")
             ];
         }
 
@@ -51,33 +51,35 @@ internal static class NativeCollectionForwards
 
             return
             [
-                Property($"{name}Count", "int"),
-                Method($"Get{name}", held, ("in ", byKey, "key")),
-                Changes((entry, token), $"Set{name}", "void", ("in ", byKey, "key"), ("in ", held, "value")),
-                Method($"Contains{name}Key", "bool", ("in ", byKey, "key")),
-                Method($"Contains{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
-                Changes((entry, token), $"Add{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
-                Changes((entry, token), $"Remove{name}", "bool", ("in ", byKey, "key")),
-                Changes((entry, token), $"Clear{name}", "void")
+                Property(name, $"{name}Count", "int"),
+                Method(name, $"Get{name}", held, ("in ", byKey, "key")),
+                Changes((entry, token, name), $"Set{name}", "void", ("in ", byKey, "key"), ("in ", held, "value")),
+                Method(name, $"Contains{name}Key", "bool", ("in ", byKey, "key")),
+                Method(name, $"Contains{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
+                Changes((entry, token, name), $"Add{name}", "bool", ("in ", byKey, "key"), ("in ", held, "value")),
+                Changes((entry, token, name), $"Remove{name}", "bool", ("in ", byKey, "key")),
+                Changes((entry, token, name), $"Clear{name}", "void")
             ];
         }
 
         return [];
     }
 
-    private static ForwardModel Property(string name, string type) => new(name, type, [], isProperty: true);
+    private static ForwardModel Property(string owns, string name, string type)
+        => new(name, type, [], isProperty: true, owns: owns);
 
     private static ForwardModel Method(
+        string owns,
         string name,
         string returnType,
         params (string Modifier, string Type, string Name)[] parameters)
-        => new(name, returnType, parameters);
+        => new(name, returnType, parameters, owns: owns);
 
     /// A member that changes the collection, which makes it a write like any other.
     private static ForwardModel Changes(
-        (string Field, string Token) collection,
+        (string Field, string Token, string Owns) collection,
         string name,
         string returnType,
         params (string Modifier, string Type, string Name)[] parameters)
-        => new(name, returnType, parameters, changes: collection.Field, collection: collection.Token);
+        => new(name, returnType, parameters, changes: collection.Field, collection: collection.Token, owns: collection.Owns);
 }

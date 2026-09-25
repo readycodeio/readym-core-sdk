@@ -64,20 +64,27 @@ internal static class HandleEmitter
         _ => "public"
     };
 
+    /// <param name="name">
+    /// What the value is called here, which an include puts its prefix in front of. The accessor
+    /// class it is read through keeps the name the declaring shape gave it.
+    /// </param>
     public static void Accessor(
         SourceWriter writer,
         AccessorModel accessor,
         string accessors,
         bool partial,
         bool replicated = false,
-        bool client = false)
+        bool client = false,
+        string? name = null)
     {
         if (!partial && !accessor.IsExposed)
             return;
 
+        var called = name ?? accessor.Name;
+
         var declaration = partial
-            ? $"{Keyword(accessor)} partial {accessor.Type} {accessor.Name}"
-            : $"{Keyword(accessor)} {accessor.Type} {accessor.Name}";
+            ? $"{Keyword(accessor)} partial {accessor.Type} {called}"
+            : $"{Keyword(accessor)} {accessor.Type} {called}";
 
         // A client writes a replicated value through its token, which is what carries the intent
         // and obeys the component's policy. The shape's own declaration keeps its setter because
