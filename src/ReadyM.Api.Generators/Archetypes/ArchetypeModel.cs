@@ -155,11 +155,21 @@ internal sealed class ForwardModel
         ReturnType = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         Parameters = method.Parameters
             .Select(parameter => (
-                Modifier: parameter.RefKind == RefKind.In ? "in " : string.Empty,
+                Modifier: Passed(parameter.RefKind),
                 Type: parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 parameter.Name))
             .ToList();
     }
+
+    /// How the parameter is passed, which the forwarded member has to repeat both where it is
+    /// declared and where it hands the argument on. TryGet takes its value out.
+    private static string Passed(RefKind kind) => kind switch
+    {
+        RefKind.In => "in ",
+        RefKind.Out => "out ",
+        RefKind.Ref => "ref ",
+        _ => string.Empty
+    };
 
     public ForwardModel(IPropertySymbol property)
     {
@@ -736,9 +746,39 @@ internal sealed class DeclarationModel
     internal static bool Forwardable(ISymbol member, string collection)
         => !member.IsStatic
            && member.DeclaredAccessibility == Accessibility.Public
-           && member.Name.IndexOf(collection, System.StringComparison.Ordinal) >= 0
+           && NamesCollection(member.Name, collection)
            && !IsPlumbing(member.Name)
            && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } or IPropertySymbol { IsIndexer: false };
+
+    /// <summary>
+    /// Whether the member's name carries the collection's name as a word of its own, which is what
+    /// the field support does to it: a verb in front, a role behind, and the name itself between.
+    /// </summary>
+    /// <remarks>
+    /// Looking for the name anywhere in the member also catches a value of the component whose own
+    /// name merely starts with it. A component holding a FaceMorph dictionary alongside a
+    /// FaceMorphsSourcePath string had the string forwarded as part of the collection, which then
+    /// collided with the shape's own declaration of it. Naming the members outright would be
+    /// tighter still, and would drop whatever a hand-written component calls its own.
+    /// </remarks>
+    private static bool NamesCollection(string member, string collection)
+    {
+        for (var at = member.IndexOf(collection, System.StringComparison.Ordinal);
+             at >= 0;
+             at = member.IndexOf(collection, at + 1, System.StringComparison.Ordinal))
+        {
+            var after = at + collection.Length;
+
+            if (StartsWord(member, at) && (after == member.Length || !char.IsLower(member[after])))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// A word starts at the front of the name, or where something other than a capital gives way to
+    /// one. Anything else is the middle of a longer word, which is not this collection.
+    private static bool StartsWord(string member, int at) => at == 0 || !char.IsUpper(member[at - 1]);
 
     /// <summary>Where [ExplicitCollection] names this collection, so a report lands on it.</summary>
     internal static Location LocationOfCollection(INamedTypeSymbol symbol, string collection, Location fallback)

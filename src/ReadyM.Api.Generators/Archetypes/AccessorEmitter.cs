@@ -42,7 +42,6 @@ internal static class AccessorEmitter
             foreach (var forward in model.Forwards)
                 Forward(writer, forward, component);
 
-
             if (chunks is null)
                 return;
 
