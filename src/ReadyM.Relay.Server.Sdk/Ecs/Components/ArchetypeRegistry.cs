@@ -194,7 +194,20 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
         return componentList;
     }
 
+    public ArchetypeId RegisterArchetype(string name, ArchetypeBuilder builder)
+    {
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("An archetype name must not be empty.", nameof(name));
+
+        // Throws when the UTF-8 encoded name does not fit.
+        return RegisterArchetypeCore(new NativeString256(name, false), builder);
+    }
+
+    [Obsolete("Name the archetype with RegisterArchetype(name, builder). Unnamed archetypes are never persisted.")]
     public ArchetypeId RegisterArchetype(ArchetypeBuilder builder)
+        => RegisterArchetypeCore(NativeString256.Null, builder);
+
+    private ArchetypeId RegisterArchetypeCore(NativeString256 name, ArchetypeBuilder builder)
     {
         foreach (var filter in _filters)
         {
@@ -203,7 +216,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
 
         var componentList = GetComponentIds(builder);
         var nativeComponentList = ToNative(componentList);
-        var archetypeId = _registerArchetypeDelegate(nativeComponentList);
+        var archetypeId = _registerArchetypeDelegate(name, nativeComponentList);
 
         _archetypeEntries[archetypeId] = new ArchetypeEntry
         {
@@ -212,7 +225,7 @@ internal sealed class ArchetypeRegistry : IArchetypeRegistry, IHostedService
             PostCreateInit = CreatePostCreateInit(builder),
         };
 
-        _logger.LogDebug("Registering archetype {Archetype} {Components}", archetypeId, componentList);
+        _logger.LogDebug("Registering archetype {Archetype} '{Name}' {Components}", archetypeId, name.ToString(), componentList);
 
         return archetypeId;
     }

@@ -23,6 +23,7 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
     public void Register(IArchetypeRegistry registry)
     {
         CellArchetype = registry.RegisterArchetype(
+            CoreArchetypeNames.Cell,
             new ArchetypeBuilder()
                 .Add<MetadataComponent>()
                 .Add<CellScopeComponent>()

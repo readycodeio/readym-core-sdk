@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using Friflo.Engine.ECS;
@@ -23,7 +24,7 @@ namespace ReadyM.Api.ECS.Worlds;
 [WrapperInclude("^OnTag.*")]
 [WrapperInclude("^EventRecorder")]
 [WrapperInclude("^GetEntity.*")]
-internal sealed partial class Store : IArchetypeRegistry
+internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
 {
     private struct ArchetypeEntry
     {
@@ -115,6 +116,8 @@ internal sealed partial class Store : IArchetypeRegistry
     private byte _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly Dictionary<int, ArchetypeId> _archetypeByEntityId = [];
+    private readonly Dictionary<string, ArchetypeId> _archetypeIdByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<ArchetypeId, string> _archetypeNameById = [];
     private readonly CreateEntityBatchCallback _consCallback;
     private readonly NativeInitCallback _nativeInitCallback;
     private readonly List<IArchetypeBuilderCallback> _filters = [];
@@ -193,7 +196,34 @@ internal sealed partial class Store : IArchetypeRegistry
         }
     }
 
+    public ArchetypeId RegisterArchetype(string name, ArchetypeBuilder builder)
+    {
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("An archetype name must not be empty.", nameof(name));
+
+        if (_archetypeIdByName.TryGetValue(name, out var existing))
+            throw new InvalidOperationException($"Archetype name '{name}' is already registered as {existing}.");
+
+        var archetypeId = RegisterArchetypeCore(builder);
+        _archetypeIdByName.Add(name, archetypeId);
+        _archetypeNameById.Add(archetypeId, name);
+
+        _logger.LogDebug("Named archetype {ArchetypeId} '{Name}'", archetypeId, name);
+
+        return archetypeId;
+    }
+
+    [Obsolete("Name the archetype with RegisterArchetype(name, builder). Unnamed archetypes are never persisted.")]
     public ArchetypeId RegisterArchetype(ArchetypeBuilder builder)
+        => RegisterArchetypeCore(builder);
+
+    public bool TryGetArchetypeId(string name, out ArchetypeId archetypeId)
+        => _archetypeIdByName.TryGetValue(name, out archetypeId);
+
+    public bool TryGetName(ArchetypeId archetypeId, [NotNullWhen(true)] out string? name)
+        => _archetypeNameById.TryGetValue(archetypeId, out name);
+
+    private ArchetypeId RegisterArchetypeCore(ArchetypeBuilder builder)
     {
         var id = _nextArchetypeId++;
         var archetypeId = new ArchetypeId(id);
