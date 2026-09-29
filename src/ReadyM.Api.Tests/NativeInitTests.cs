@@ -51,7 +51,7 @@ public sealed class NativeInitTests
     public void NativeFieldsAreAllocatedOnEntityCreation()
     {
         ArchetypeId archetype = default;
-        var store = CreateStore(r => archetype = r.RegisterArchetype(new ArchetypeBuilder().Add<ListComponent>()));
+        var store = CreateStore(r => archetype = r.RegisterArchetype("Archetype", new ArchetypeBuilder().Add<ListComponent>()));
 
         var entity = store.CreateEntity(archetype);
 
@@ -62,7 +62,7 @@ public sealed class NativeInitTests
     public void AllocatedListIsUsable()
     {
         ArchetypeId archetype = default;
-        var store = CreateStore(r => archetype = r.RegisterArchetype(new ArchetypeBuilder().Add<ListComponent>()));
+        var store = CreateStore(r => archetype = r.RegisterArchetype("Archetype2", new ArchetypeBuilder().Add<ListComponent>()));
 
         var entity = store.CreateEntity(archetype);
         entity.GetComponent<ListComponent>().Items.Add(7);
@@ -76,7 +76,7 @@ public sealed class NativeInitTests
     public void ComponentsWithoutTheInterfaceAreLeftAlone()
     {
         ArchetypeId archetype = default;
-        var store = CreateStore(r => archetype = r.RegisterArchetype(new ArchetypeBuilder().Add<PlainComponent>()));
+        var store = CreateStore(r => archetype = r.RegisterArchetype("Archetype3", new ArchetypeBuilder().Add<PlainComponent>()));
 
         var entity = store.CreateEntity(archetype);
 
@@ -90,7 +90,7 @@ public sealed class NativeInitTests
         // the allocated one and the list goes back to being uncreated.
         ArchetypeId archetype = default;
         var store = CreateStore(r =>
-            archetype = r.RegisterArchetype(new ArchetypeBuilder().Add(new ListComponent())));
+            archetype = r.RegisterArchetype("Archetype4", new ArchetypeBuilder().Add(new ListComponent())));
 
         var entity = store.CreateEntity(archetype);
 

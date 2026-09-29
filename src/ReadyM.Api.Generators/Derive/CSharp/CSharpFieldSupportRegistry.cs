@@ -22,6 +22,7 @@ internal class CSharpFieldSupportRegistry
 
     private static readonly ICSharpTypeSerializationImpl[] CSharpSerializationImpls =
     [
+        new EntitySerializationImpl(),
         new PrimitiveSerializationImpl(),
         new EnumSerializationImpl(),
         new VectorLikeSerializationImpl(),
@@ -30,7 +31,10 @@ internal class CSharpFieldSupportRegistry
         new NativeStringSerializationImpl(),
         new CustomMethodSerializationImpl(),
     ];
-    
+
+    internal static readonly ICSharpSerializationCodec NetDataCodec = new NetDataSerializationCodec();
+    internal static readonly ICSharpSerializationCodec SaveCodec = new SaveSerializationCodec();
+
     internal static readonly DeriveTypeSupportVisitorBase<ICSharpFieldTypeSupportImpl> FieldTypeSupportVisitor = new(
         CSharpFieldSupportImpls,
         new FallbackFieldTypeSupportImpl()

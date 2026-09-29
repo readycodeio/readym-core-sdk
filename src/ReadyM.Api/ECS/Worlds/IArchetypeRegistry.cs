@@ -11,8 +11,21 @@ public interface IArchetypeRegistry
     /// <summary>
     /// Registers a new entity archetype with the configured components.
     /// </summary>
+    /// <param name="name">
+    /// The stable name of the archetype, unique across the registry. It is part of the save file format: renaming an
+    /// archetype makes older saves of its entities unloadable. Mods should namespace their names, e.g. "MyMod:Chest".
+    /// </param>
     /// <param name="builder">The archetype builder with the configured components.</param>
     /// <returns>The identifier of the defined archetype.</returns>
+    ArchetypeId RegisterArchetype(string name, ArchetypeBuilder builder);
+
+    /// <summary>
+    /// Registers a new unnamed entity archetype with the configured components. Entities of an unnamed archetype
+    /// are never persisted.
+    /// </summary>
+    /// <param name="builder">The archetype builder with the configured components.</param>
+    /// <returns>The identifier of the defined archetype.</returns>
+    [Obsolete("Name the archetype with RegisterArchetype(name, builder). Unnamed archetypes are never persisted.")]
     ArchetypeId RegisterArchetype(ArchetypeBuilder builder);
 
     /// <summary>

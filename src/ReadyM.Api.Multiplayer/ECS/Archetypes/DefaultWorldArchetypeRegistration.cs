@@ -22,7 +22,7 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
 
     public void Register(IArchetypeRegistry registry)
     {
-        WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
+        WorldArchetype = registry.RegisterArchetype(CoreArchetypeNames.World, new ArchetypeBuilder()
             .Add<MetadataComponent>()
             .AddTag<ScopeEntityTag>()
             .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));

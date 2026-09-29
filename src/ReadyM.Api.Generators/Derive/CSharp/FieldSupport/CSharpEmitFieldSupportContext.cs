@@ -10,7 +10,8 @@ internal class CSharpEmitFieldSupportContext(
     DeriveMemberModel member,
     DeriveTargetModel model,
     IDeriveSupportVisitor<ITypeSymbol, CSharpEmitSerializeContext> serializeVisitor,
-    IDeriveSupportVisitor<ITypeSymbol, CSharpEmitDeserializeContext> deserializeVisitor) : CSharpEmitContextBase(state)
+    IDeriveSupportVisitor<ITypeSymbol, CSharpEmitDeserializeContext> deserializeVisitor,
+    ICSharpSerializationCodec codec) : CSharpEmitContextBase(state)
 {
     public readonly DeriveMemberModel Member = member;
     public readonly DeriveTargetModel Model = model;
@@ -39,7 +40,7 @@ internal class CSharpEmitFieldSupportContext(
     {
         using (State.WithCurrent(varName, varType))
         {
-            var nestedContext = new CSharpEmitSerializeContext(State, serializeVisitor);
+            var nestedContext = new CSharpEmitSerializeContext(State, serializeVisitor, codec);
             serializeVisitor.Visit(varType, nestedContext);
         }
     }
@@ -48,7 +49,7 @@ internal class CSharpEmitFieldSupportContext(
     {
         using (State.WithCurrent(varName, varType))
         {
-            var nestedContext = new CSharpEmitDeserializeContext(State, deserializeVisitor);
+            var nestedContext = new CSharpEmitDeserializeContext(State, deserializeVisitor, codec);
             deserializeVisitor.Visit(varType, nestedContext);
         }
     }

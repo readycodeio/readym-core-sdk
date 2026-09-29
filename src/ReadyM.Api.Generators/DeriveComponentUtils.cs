@@ -54,6 +54,14 @@ internal static class DeriveComponentUtils
                 "mode",
                 (1 << 0) | (1 << 2));
         }
+        else if (AttributeUtils.HasAttribute(symbol, "DeriveSavableComponentAttribute"))
+        {
+            mode = (1 << 0) | (1 << 2);
+        }
+        else if (AttributeUtils.HasAttribute(symbol, "DeriveSaveSerializableAttribute"))
+        {
+            mode = (1 << 0) | (1 << 2) | (1 << 3) | (1 << 4);
+        }
         else
         {
             mode = (1 << 0) | (1 << 2);

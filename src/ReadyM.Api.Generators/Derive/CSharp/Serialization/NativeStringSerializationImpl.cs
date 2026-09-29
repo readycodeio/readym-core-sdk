@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.CodeAnalysis;
-using static ReadyM.Api.Generators.DeriveCSharpUtils;
 
 namespace ReadyM.Api.Generators.Derive.CSharp.Serialization;
 
@@ -11,19 +10,17 @@ internal class NativeStringSerializationImpl : CSharpTypeSerializationImplBase
 
     protected override void EmitSerialize(ITypeSymbol symbol, CSharpEmitSerializeContext context)
     {
-        if (!SerializationHelper.IsNativeString(symbol, out var size))
-            throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native list type");
+        if (!SerializationHelper.IsNativeString(symbol, out _))
+            throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native string type");
 
-        context.State.ModuleState.AddUsing("Yooni.Native.Serialization");
-        context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
+        context.Codec.WriteNativeString(context);
     }
 
     protected override void EmitDeserialize(ITypeSymbol symbol, CSharpEmitDeserializeContext context)
     {
-        if (!SerializationHelper.IsNativeString(symbol, out var size))
-            throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native list type");
+        if (!SerializationHelper.IsNativeString(symbol, out _))
+            throw new InvalidOperationException($"Type {symbol.ToDisplayString()} is not a supported native string type");
 
-        context.State.ModuleState.AddUsing("Yooni.Native.Serialization");
-        context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
+        context.Codec.ReadNativeString(context);
     }
 }

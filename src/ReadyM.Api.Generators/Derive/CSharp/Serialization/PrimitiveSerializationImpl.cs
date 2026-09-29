@@ -8,11 +8,8 @@ internal sealed class PrimitiveSerializationImpl : CSharpTypeSerializationImplBa
         => SerializationHelper.IsSerializablePrimitive(type.SpecialType);
 
     protected override void EmitSerialize(ITypeSymbol symbol, CSharpEmitSerializeContext context)
-        => context.AppendLine($"writer.Put({context.State.CurrentVar});");
-    
+        => context.Codec.WritePrimitive(context);
+
     protected override void EmitDeserialize(ITypeSymbol symbol, CSharpEmitDeserializeContext context)
-    {
-        var getMethod = SerializationHelper.GetDeserializationMethod(context.State.CurrentType.SpecialType);
-        context.AppendLine($"{context.State.CurrentVar} = reader.{getMethod}();");
-    }
+        => context.Codec.ReadPrimitive(context);
 }

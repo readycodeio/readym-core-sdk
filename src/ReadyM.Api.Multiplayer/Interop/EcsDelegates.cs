@@ -12,7 +12,11 @@ namespace ReadyM.Api.Multiplayer.Interop;
 
 internal delegate int GetComponentIdByNameDelegate(NativeString256 typeName);
 
-internal delegate ArchetypeId RegisterArchetypeDelegate(NativeList<int> componentsSerialized);
+/// <summary>
+/// Registers an archetype on the host. An empty <paramref name="name"/> registers it unnamed, which means its entities
+/// are never persisted.
+/// </summary>
+internal delegate ArchetypeId RegisterArchetypeDelegate(NativeString256 name, NativeList<int> componentsSerialized);
 
 internal delegate void ModifyArchetypeDelegate(ArchetypeId archetype, NativeList<int> componentsSerialized);
 

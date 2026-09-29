@@ -23,6 +23,7 @@ internal sealed class DefaultAreaArchetypeRegistration(IAreaComponentRegistry ar
     public void Register(IArchetypeRegistry registry)
     {
         AreaArchetype = registry.RegisterArchetype(
+            CoreArchetypeNames.Area,
             new ArchetypeBuilder()
                 .Add<MetadataComponent>()
                 .Add<AreaScopeComponent>()
