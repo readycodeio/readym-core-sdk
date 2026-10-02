@@ -65,9 +65,9 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
         {
             MetadataComponent.Serialize(meta, _writer);
 
-            // NOTE: This tag clearing has to happen here to make sure that snapshot captures the newly created entities
-            // as well. This is because the client-side creation message handler might miss the entities where the
-            // scope entity was missing
+            // NOTE: Deferred through the group's command buffer, so the tag is still set for the rest of this tick:
+            // a snapshot built in this tick excludes the entity, which this create message carries instead. From the
+            // next tick on, snapshots include it.
             CommandBuffer.RemoveTag<LocallyCreatedEntityTag>(entity.Id);
         });
 
