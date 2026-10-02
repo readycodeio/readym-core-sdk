@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Helpers;
@@ -8,7 +8,10 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.Mapping.Policies;
 
-internal class ServerAuthoritativeDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel) : IMappingDataPolicyFactory
+/// Register this ahead of PropagationDataPolicyFactory, whose server-authoritative policy knows
+/// nothing about ownership and would otherwise take these components.
+internal class ServerAuthoritativeDataPolicyFactory(ClientOwnershipManager ownership, DataSideChannel sideChannel)
+    : IMappingDataPolicyFactory
 {
     public bool Supports(Type dataType, Type contextType)
         => contextType == typeof(Entity) && typeof(IServerAuthoritative).IsAssignableFrom(dataType);

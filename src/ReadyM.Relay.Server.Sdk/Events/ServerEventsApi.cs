@@ -88,7 +88,7 @@ public sealed class ServerEventsApi : IDisposable
 
     private void Raise(ServerEventKind kind, ServerEventPayload payload)
     {
-        var entity = _ecs.EntityFrom(payload.EntityId);
+        var entity = _ecs.EntityFrom(payload.Entity);
 
         switch (kind)
         {

@@ -12,7 +12,6 @@
 
     <ItemGroup>
         <PackageReference Include="Friflo.Json.Fliox.Annotation" Version="1.0.4" />
-        <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
     </ItemGroup>
 

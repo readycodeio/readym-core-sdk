@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
@@ -12,6 +13,7 @@ namespace ReadyM.Relay.Server.Sdk.Ecs;
 /// All component types - whether defined in the server binary or in this mod - are
 /// identified by <c>int</c> component IDs assigned at registration time.
 /// </summary>
+[Obsolete("Use IEntities instead from SDK 1.0")]
 public partial class EcsApi
 {
     private readonly QueryDelegate _query;
@@ -209,15 +211,15 @@ public partial class EcsApi
     /// <returns>Whether the area has a scope entity.</returns>
     public unsafe bool TryGetAreaScopeEntity(AreaId areaId, out Entity entity)
     {
-        int entityId;
+        RawEntity scopeEntity;
 
-        if (_tryGetAreaScopeEntity(areaId, &entityId) == 0)
+        if (_tryGetAreaScopeEntity(areaId, &scopeEntity) == 0)
         {
             entity = default;
             return false;
         }
 
-        entity = EntityFrom(entityId);
+        entity = EntityFrom(scopeEntity);
         return true;
     }
 
@@ -244,12 +246,12 @@ public partial class EcsApi
     /// <exception cref="InvalidOperationException">The area already has a scope entity.</exception>
     public Entity CreateAreaScopeEntity(AreaId areaId)
     {
-        var entityId = _createAreaScopeEntity(areaId);
+        var scopeEntity = _createAreaScopeEntity(areaId);
 
-        if (entityId == 0)
+        if (scopeEntity == default)
             throw new InvalidOperationException($"Area entity for {areaId} already exists. Cannot create a duplicate.");
 
-        return EntityFrom(entityId);
+        return EntityFrom(scopeEntity);
     }
 
     /// <summary>
@@ -260,15 +262,15 @@ public partial class EcsApi
     /// <returns>Whether the cell has a scope entity.</returns>
     public unsafe bool TryGetCellScopeEntity(FullCellId cellId, out Entity entity)
     {
-        int entityId;
+        RawEntity scopeEntity;
 
-        if (_tryGetCellScopeEntity(cellId, &entityId) == 0)
+        if (_tryGetCellScopeEntity(cellId, &scopeEntity) == 0)
         {
             entity = default;
             return false;
         }
 
-        entity = EntityFrom(entityId);
+        entity = EntityFrom(scopeEntity);
         return true;
     }
 
@@ -313,12 +315,12 @@ public partial class EcsApi
     /// <exception cref="InvalidOperationException">The cell already has a scope entity, or its area has none.</exception>
     public Entity CreateCellScopeEntity(FullCellId cellId)
     {
-        var entityId = _createCellScopeEntity(cellId);
+        var scopeEntity = _createCellScopeEntity(cellId);
 
-        if (entityId == 0)
+        if (scopeEntity == default)
             throw new InvalidOperationException($"Cell entity for {cellId} already exists or parent area does not exist. Cannot create a duplicate.");
 
-        return EntityFrom(entityId);
+        return EntityFrom(scopeEntity);
     }
 
     /// <inheritdoc cref="CreateCellScopeEntity(FullCellId)"/>
@@ -356,7 +358,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(in Entity entity)
     {
-        return DeleteEntity(entity.Id);
+        return _deleteNetworkedEntity(entity.RawEntity, 1) != 0;
     }
 
     /// <summary>
@@ -366,7 +368,7 @@ public partial class EcsApi
     /// <returns>Whether the entity was deleted (true) or already gone (false).</returns>
     public bool DeleteEntity(int entityId)
     {
-        return _deleteNetworkedEntity(entityId) != 0;
+        return _deleteNetworkedEntity(RawEntities.FromId(entityId), 0) != 0;
     }
 
     /// <summary>
@@ -377,7 +379,7 @@ public partial class EcsApi
     /// <returns>How many entities were deleted.</returns>
     public int DeleteEntityTree(int entityId)
     {
-        return _deleteEntityTree(entityId);
+        return _deleteEntityTree(RawEntities.FromId(entityId), 0);
     }
 
     /// <summary>
@@ -389,7 +391,7 @@ public partial class EcsApi
         return _setParent(childId, parentId);
     }
 
-    /// <summary>0 when the entity has no parent.</summary>
+    /// 0 when the entity has no parent.
     /// <param name="childId">The ID of the child entity.</param>
     /// <returns>The ID of the parent entity, or 0 if there is no parent.</returns>
     public int GetParent(int childId)
@@ -426,7 +428,7 @@ public partial class EcsApi
     public void SetComponent<T>(int entityId, in T component) where T : struct
         => GetComponentRef<T>(entityId) = component;
 
-    /// <summary>False when the entity is gone or does not carry the component.</summary>
+    /// False when the entity is gone or does not carry the component.
     public bool TryGetComponent<T>(int entityId, out T component) where T : struct
     {
         var slot = Locate<T>(entityId);
@@ -444,11 +446,11 @@ public partial class EcsApi
     public bool HasComponent<T>(int entityId) where T : struct => Locate<T>(entityId).Found();
 
     public ref T GetComponentRef<T>(int entityId) where T : struct => ref SlotRef<T>(Locate<T>(entityId));
-
+    
     private unsafe ComponentSlot Locate<T>(int entityId) where T : struct
     {
         ComponentSlot slot;
-        _getComponentSlot(entityId, _componentIds.Resolve<T>(), &slot);
+        _getComponentSlot(RawEntities.FromId(entityId), 0, _componentIds.Resolve<T>(), &slot);
         return slot;
     }
 
@@ -509,8 +511,8 @@ public partial class EcsApi
         return ref Unsafe.AsRef<T>((void*)slot.Data);
     }
 
-    internal Entity EntityFrom(int entityId)
+    internal Entity EntityFrom(RawEntity rawEntity)
     {
-        return new Entity(entityId, _getComponentSlot, _componentIds);
+        return new Entity(rawEntity, _getComponentSlot, _componentIds);
     }
 }

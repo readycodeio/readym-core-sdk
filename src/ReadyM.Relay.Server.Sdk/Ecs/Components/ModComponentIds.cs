@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using ReadyM.Api.Multiplayer.Interop;
 using Yooni.Native.Container;
 
@@ -42,20 +42,24 @@ internal sealed class ModComponentIds
     /// the schema and reads the result back.
     /// </para>
     /// </summary>
-    internal int Resolve<T>() where T : struct
+    internal int Resolve<T>() where T : struct => Resolve(typeof(T));
+
+    /// <inheritdoc cref="Resolve{T}"/>
+    /// <param name="type">The component type, for a caller that only knows it at run time.</param>
+    internal int Resolve(Type type)
     {
-        if (_resolved.TryGetValue(typeof(T), out var cached))
+        if (_resolved.TryGetValue(type, out var cached))
             return cached;
 
-        var id = _getComponentIdByName(new NativeString256(typeof(T).FullName, false));
+        var id = _getComponentIdByName(new NativeString256(type.FullName, false));
         if (id < 0)
         {
             throw new InvalidOperationException(
-                $"The server does not know component {typeof(T).FullName}. Either it was never registered, or "
+                $"The server does not know component {type.FullName}. Either it was never registered, or "
                 + "this ran before the server finished building its component table.");
         }
 
-        _resolved.Add(typeof(T), id);
+        _resolved.Add(type, id);
         return id;
     }
 }

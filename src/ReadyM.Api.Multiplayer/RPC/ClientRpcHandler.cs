@@ -1,9 +1,12 @@
-﻿namespace ReadyM.Api.Multiplayer.RPC;
+﻿using System;
+
+namespace ReadyM.Api.Multiplayer.RPC;
 
 /// <summary>
 /// Base class for a client-side RPC handler.
 /// Each class that defines RPC methods with [RpcEvent] attributes must inherit from this class.
 /// </summary>
+[Obsolete("Part of old 0.x SDK. Use [ClientToClients] contracts instead.")]
 public abstract class ClientRpcHandler : RpcBase
 {
     /// <summary>

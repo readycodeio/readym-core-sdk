@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.Api.DI;
 using ReadyM.Api.Helpers;
@@ -52,6 +53,7 @@ public abstract class RpcBase : IHostedService
     /// Schedules a callback to be run on the game thread.
     /// All RPC handlers are already doing this, there is no need to call this method manually.
     /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     protected void RunOnGameThread(Action callback)
     {
         Scheduler.Schedule((_, c) => c(), callback);

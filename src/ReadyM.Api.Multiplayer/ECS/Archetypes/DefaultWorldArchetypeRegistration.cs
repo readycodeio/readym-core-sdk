@@ -12,6 +12,7 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
 {
     private class RegisterWorldComponentsCallback(ArchetypeBuilder builder) : IWorldComponentRegistryCallback
     {
+    	// FIXME: that is not true
         public void AcceptModComponent(IWorldComponentRegistry registry, ModComponentInfo info, string typeFullName)
             => throw new NotSupportedException(
                 $"{nameof(AcceptModComponent)} is not supported here: the world archetype is fixed at build time, and a mod cannot add to it. "
@@ -27,13 +28,8 @@ internal sealed class DefaultWorldArchetypeRegistration(IWorldComponentRegistry 
     public ArchetypeId WorldArchetype { get; private set; }
 
     public void Register(IArchetypeRegistry registry)
-    {
-        WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
+        => WorldArchetype = registry.RegisterArchetype(new ArchetypeBuilder()
             .Add<MetadataComponent>()
-            // The world entity is the world scope, and is server-owned like every other scope entity: the
-            // tag is what stops a client deleting it, and what tells anything counting entities that this
-            // one is infrastructure rather than something a player or a mod made.
-            .AddTag<ScopeEntityTag>()
+            .AddTag<ScopeEntityTag>() // FIXME (Kuba): The world entity is not a scope, this tag here is to prevent being included in ownership transfer queries
             .With(b => worldComponentRegistry.Accept(new RegisterWorldComponentsCallback(b))));
-    }
 }

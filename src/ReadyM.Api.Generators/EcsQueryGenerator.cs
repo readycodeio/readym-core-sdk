@@ -67,6 +67,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using System;");
+        sb.AppendLine("using Friflo.Engine.ECS;");
         sb.AppendLine("using ReadyM.Api.Multiplayer.Interop;");
         sb.AppendLine();
         sb.AppendLine("namespace ReadyM.Relay.Server.Sdk.Ecs;");
@@ -101,15 +102,15 @@ internal class EcsQueryGenerator : IIncrementalGenerator
         var t = Types(n);
         var w = StructWhere(n);
 
-        sb.AppendLine($"    private static unsafe void IterateChunkWithIds<{t}>(IntPtr ids, ChunkComponent* comps, int n, int count)");
+        sb.AppendLine($"    private static unsafe void IterateChunkWithIds<{t}>(IntPtr entities, ChunkComponent* comps, int n, int count)");
         sb.AppendLine($"        {w}");
         sb.AppendLine("    {");
         sb.AppendLine($"        var cb = (EmbedForEachEntity<{t}>)_tlsState.Callback!;");
-        sb.AppendLine("        var idPtr = (int*)ids;");
+        sb.AppendLine("        var idPtr = (RawEntity*)entities;");
         ChunkBases(sb, n);
         sb.AppendLine();
         sb.AppendLine("        for (var i = 0; i < count; i++)");
-        sb.AppendLine($"            cb({CallArgs(n)}, idPtr[i]);");
+        sb.AppendLine($"            cb({CallArgs(n)}, idPtr[i].Id);");
         sb.AppendLine("    }");
         sb.AppendLine();
 
@@ -152,7 +153,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
         sb.AppendLine("        where TState : class;");
         sb.AppendLine();
 
-        sb.AppendLine($"    private static unsafe void IterateChunk<{t}>(IntPtr ids, ChunkComponent* comps, int n, int count)");
+        sb.AppendLine($"    private static unsafe void IterateChunk<{t}>(IntPtr entities, ChunkComponent* comps, int n, int count)");
         sb.AppendLine($"        {w}");
         sb.AppendLine("    {");
         sb.AppendLine($"        var cb = (EmbedForEach<{t}>)_tlsState.Callback!;");
@@ -163,7 +164,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        sb.AppendLine($"    private static unsafe void IterateChunkState<{t}, TState>(IntPtr ids, ChunkComponent* comps, int n, int count)");
+        sb.AppendLine($"    private static unsafe void IterateChunkState<{t}, TState>(IntPtr entities, ChunkComponent* comps, int n, int count)");
         sb.AppendLine($"        {w} where TState : unmanaged");
         sb.AppendLine("    {");
         sb.AppendLine($"        var cb = (EmbedForEachState<{t}, TState>)_tlsState.Callback!;");
@@ -175,7 +176,7 @@ internal class EcsQueryGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        sb.AppendLine($"    private static unsafe void IterateChunkManagedState<{t}, TState>(IntPtr ids, ChunkComponent* comps, int n, int count)");
+        sb.AppendLine($"    private static unsafe void IterateChunkManagedState<{t}, TState>(IntPtr entities, ChunkComponent* comps, int n, int count)");
         sb.AppendLine($"        {w} where TState : class");
         sb.AppendLine("    {");
         sb.AppendLine($"        var cb = (EmbedForEachStateManaged<{t}, TState>)_tlsState.Callback!;");

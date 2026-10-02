@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using JetBrains.Annotations;
 using ReadyM.Api.Interop;
 
 namespace ReadyM.Api.Mapping.Events;
 
-[UsedImplicitly(ImplicitUseTargetFlags.Members)]
 internal static class NativeMappedEventManagerBindings
 {
     public delegate void RegisterNativeGameEventHandlerDelegate(IntPtr managerPtr, int eventId, ClosureTrampoline1 callback);

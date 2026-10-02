@@ -34,6 +34,13 @@
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />
         <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
+
+        <!-- The SDK the generator actually targets. Referenced so a test can run the generator
+             against the real attributes and types rather than stand-ins that cannot drift. -->
+        <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj" />
+        <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj" />
+        <ProjectReference Include="..\ReadyM.SDK.Server\ReadyM.SDK.Server.csproj" />
+        <ProjectReference Include="..\ReadyM.SDK.Client\ReadyM.SDK.Client.csproj" />
     </ItemGroup>
 
 </Project>

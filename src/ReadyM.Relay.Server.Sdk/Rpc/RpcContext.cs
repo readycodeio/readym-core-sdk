@@ -8,6 +8,6 @@ namespace ReadyM.Relay.Server.Sdk.Rpc;
 /// </summary>
 public readonly struct RpcContext(PlayerId sender)
 {
-    /// <summary>The client player who sent this RPC.</summary>
+    /// The client player who sent this RPC.
     public PlayerId Sender { get; } = sender;
 }

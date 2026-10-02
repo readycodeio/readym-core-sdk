@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -18,6 +18,9 @@ namespace ReadyM.Api.Generators;
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 {
     private const string BaseClassName = "ServerRpcHandlersBase";
+    private const string ClientBaseClassName = "ServerRpcClient";
+    private const string BaseTypeMetadataName = "ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase";
+    private const string BaseFqn = "global::ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase";
     private const string ManifestClassName = "ServerRpcManifest";
     private const string RpcContextFqn = "global::ReadyM.Relay.Server.Sdk.Rpc.RpcContext";
     private const string PlayerIdFqn = "global::ReadyM.Api.Idents.PlayerId";
@@ -26,7 +29,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
     {
         var handlerClasses = context.SyntaxProvider
             .CreateSyntaxProvider(Predicate, Transform)
-            .Where(x => x is not null)
+            .Where(x => x.Symbol is not null)
             .Collect();
 
         context.RegisterSourceOutput(handlerClasses, static (ctx, classes) => GenerateSources(ctx, classes));
@@ -34,20 +37,51 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
     private static bool Predicate(SyntaxNode node, CancellationToken _) =>
         node is ClassDeclarationSyntax cls &&
-        cls.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)) &&
-        cls.BaseList is not null;
+        cls.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
-    private static INamedTypeSymbol? Transform(GeneratorSyntaxContext context, CancellationToken _)
+    /// The class, plus what its target lets the registration carry. A pair rather than a symbol,
+    /// so the pipeline is never handed a whole compilation to compare.
+    private static (INamedTypeSymbol? Symbol, bool ModuleInitializer) Transform(
+        GeneratorSyntaxContext context, CancellationToken _)
     {
+        (INamedTypeSymbol? Symbol, bool ModuleInitializer) none = (null, false);
+
         if (context.Node is not ClassDeclarationSyntax)
-            return null;
+            return none;
 
         var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol;
         if (classSymbol is null || classSymbol.IsAbstract)
-            return null;
+            return none;
 
-        return DerivesFrom(classSymbol, BaseClassName) ? classSymbol : null;
+        var found = (
+            Symbol: (INamedTypeSymbol?)classSymbol,
+            ModuleInitializer: Archetypes.ExtendsEmitter.HasModuleInitializer(context.SemanticModel.Compilation));
+
+        if (DerivesFrom(classSymbol, BaseClassName))
+            return found;
+
+        // Both sides of an RPC name their contracts the same way and a class need not say which
+        // side it is, so the compilation does: only a server mod references the base below. A class
+        // that still writes the client's own base is that side's, wherever it is compiled.
+        return ServerRpcModel.HasServerRpcFor(classSymbol)
+               && !DerivesFrom(classSymbol, ClientBaseClassName)
+               && IsServerSide(context.SemanticModel.Compilation)
+            ? found
+            : none;
     }
+
+
+    /// <summary>Whether this compilation is a server mod, which is what the server SDK being
+    /// reachable means. A client mod never references it.</summary>
+    internal static bool IsServerSide(Compilation compilation) =>
+        compilation.GetTypeByMetadataName(BaseTypeMetadataName) is not null;
+
+    /// <summary>
+    /// Whether the mod wrote a base of its own. When it did not, the generated half supplies one,
+    /// which is what lets a class name only the contracts it implements.
+    /// </summary>
+    private static bool HasOwnBase(INamedTypeSymbol symbol) =>
+        symbol.BaseType is not null && symbol.BaseType.SpecialType != SpecialType.System_Object;
 
     private static bool DerivesFrom(INamedTypeSymbol symbol, string baseName)
     {
@@ -63,13 +97,13 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
     private static void GenerateSources(
         SourceProductionContext context,
-        ImmutableArray<INamedTypeSymbol?> rawClasses)
+        ImmutableArray<(INamedTypeSymbol? Symbol, bool ModuleInitializer)> rawClasses)
     {
-        var classes = rawClasses.Where(c => c is not null).Select(c => c!).ToList();
-
         // Each class names its own contract set, so a mod can host handlers for several of them.
-        foreach (var classSymbol in classes)
+        foreach (var (symbol, moduleInitializer) in rawClasses.Where(c => c.Symbol is not null))
         {
+            var classSymbol = symbol!;
+
             if (!ServerRpcModel.TryResolveContracts(context, classSymbol, out var contractsType, out var manifest))
                 continue;
 
@@ -88,7 +122,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                 })
                 .ToList();
 
-            GenerateHandlerClass(context, classSymbol, rpcs, manifestFqn);
+            GenerateHandlerClass(context, classSymbol, rpcs, manifestFqn, moduleInitializer);
         }
     }
 
@@ -96,12 +130,14 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         SourceProductionContext context,
         INamedTypeSymbol classSymbol,
         List<(string Name, IMethodSymbol? Request, IMethodSymbol? Response)> rpcs,
-        string manifestFqn)
+        string manifestFqn,
+        bool moduleInitializer)
     {
         var ns = classSymbol.ContainingNamespace.ToDisplayString();
         var className = classSymbol.Name;
         var fullClassName = classSymbol.ToDisplayString();
         var access = classSymbol.DeclaredAccessibility.ToString().ToLower();
+        var baseList = HasOwnBase(classSymbol) ? string.Empty : $" : {BaseFqn}";
 
         var sb = new StringBuilder($$"""
                                      // <auto-generated/>
@@ -114,7 +150,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
                                      namespace {{ns}};
 
-                                     {{access}} partial class {{className}}
+                                     {{access}} partial class {{className}}{{baseList}}
                                      {
 
                                      """);
@@ -170,6 +206,8 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                         {{deinitCalls}}
                             }
                         """);
+
+        RpcRegistrationEmitter.Emit(sb, classSymbol, moduleInitializer, "Server");
 
         sb.AppendLine("}");
 

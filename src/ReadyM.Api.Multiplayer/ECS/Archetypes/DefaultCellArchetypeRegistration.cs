@@ -27,15 +27,12 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
     public ArchetypeId CellArchetype { get; private set; }
 
     public void Register(IArchetypeRegistry registry)
-    {
-        CellArchetype = registry.RegisterArchetype(
+        => CellArchetype = registry.RegisterArchetype(
             new ArchetypeBuilder()
                 .Add<MetadataComponent>()
                 .Add<CellScopeComponent>()
                 .Add<InParentAreaScopeComponent>()
                 .Add<EmptyScopeDeletionComponent>()
                 .AddTag<ScopeEntityTag>()
-                .With(b => cellComponentRegistry.Accept(new RegisterCellComponentsCallback(b)))
-        );
-    }
+                .With(b => cellComponentRegistry.Accept(new RegisterCellComponentsCallback(b))));
 }

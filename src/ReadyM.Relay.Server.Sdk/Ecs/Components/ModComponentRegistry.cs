@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -16,6 +16,11 @@ internal sealed class ModComponentRegistry(
 {
     private readonly RegisterModComponentDelegate _registerModComponent =
         Marshal.GetDelegateForFunctionPointer<RegisterModComponentDelegate>(aotPointers.RegisterModComponent);
+
+    private readonly AddArchetypeExtensionDelegate? _addArchetypeExtension =
+        aotPointers.AddArchetypeExtension == IntPtr.Zero
+            ? null
+            : Marshal.GetDelegateForFunctionPointer<AddArchetypeExtensionDelegate>(aotPointers.AddArchetypeExtension);
 
     // Types this mod has registered. Only a duplicate-registration guard; it says nothing about ids, which
     // the server does not assign until every mod has finished declaring. See ModComponentIds for those.
@@ -67,7 +72,7 @@ internal sealed class ModComponentRegistry(
     /// call, which the native registry's own by-type overload also needs: a generated nested type cannot be
     /// named from the outer type's generic argument.
     /// </summary>
-    internal void RegisterLocalComponent(Type componentType)
+    public void RegisterLocalComponent(Type componentType)
     {
         if (!componentType.IsValueType)
             throw new ArgumentException($"{componentType.FullName} is not a value type.", nameof(componentType));
@@ -106,7 +111,7 @@ internal sealed class ModComponentRegistry(
     /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
-    public void RegisterComponent<T>() where T : struct, INetworkedComponent
+    public void RegisterComponent<T>(byte delivery = 0) where T : struct, INetworkedComponent
     {
         var type = typeof(T);
         var stride = Unsafe.SizeOf<T>();
@@ -117,7 +122,7 @@ internal sealed class ModComponentRegistry(
         if (stride > 256)
             throw new ArgumentException($"{type.Name} is {stride} bytes which exceeds the 256-byte maximum.");
 
-        var registration = heapManager.RegisterComponent<T>();
+        var registration = heapManager.RegisterComponent<T>(delivery);
         _registerModComponent(registration, new NativeString256(typeof(T).FullName, false));
 
         logger.LogDebug("Registered component {Component}", type.FullName);
@@ -125,5 +130,36 @@ internal sealed class ModComponentRegistry(
         // The generated ChangeComponent that goes with this one is derived by a filter, see
         // ModChangeComponentRegistration, rather than dug out of the type here.
         Collect<T>();
+    }
+
+    /// <summary>
+    /// Adds components to an archetype the game registered, named by the shape it is declared as so a mod never holds an archetype id.
+    /// </summary>
+    public void AddArchetypeExtensions(Type shape, IReadOnlyList<Type> components)
+    {
+        if (components.Count == 0 || _addArchetypeExtension is null)
+            return;
+
+        logger.LogDebug("Adding {Components} to {Shape}", components, shape.FullName);
+
+        var shapeName = new NativeString256(shape.FullName, false);
+
+        foreach (var component in components)
+            _addArchetypeExtension(shapeName, new NativeString256(component.FullName, false));
+    }
+
+    /// <summary>
+    /// Declares a networked component known only as a <see cref="Type"/>.
+    /// </summary>
+    public void RegisterComponent(Type component, byte delivery)
+    {
+        if (!component.IsValueType)
+            throw new ArgumentException($"{component.FullName} is not a value type.", nameof(component));
+
+        var method = typeof(ModComponentRegistry)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Single(m => m is { Name: nameof(RegisterComponent), IsGenericMethodDefinition: true });
+
+        method.MakeGenericMethod(component).Invoke(this, [delivery]);
     }
 }

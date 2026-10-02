@@ -1,5 +1,7 @@
-﻿// ReSharper disable once CheckNamespace
+﻿#if !NETCOREAPP3_0_OR_GREATER
+// ReSharper disable once CheckNamespace
 namespace System.Runtime.CompilerServices;
 
-/// <exclude/>
-internal static class IsExternalInit;
+public static class IsExternalInit;
+
+#endif

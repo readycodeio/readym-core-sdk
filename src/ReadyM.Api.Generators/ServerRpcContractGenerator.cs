@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace ReadyM.Api.Generators;
 
 /// <summary>
-/// Runs on the Common project. For classes marked [ServerRpcContracts], emits partial method
+/// Runs on the Common project. For classes marked [RpcContracts], emits partial method
 /// implementations and the ServerRpcManifest (the shared code assignment referenced by both the
 /// server handler and client event generators). Overloads of a name collapse to one manifest entry
 /// (one wire code). See <see cref="ClientToServerAttribute"/> for the direction rules.
@@ -67,12 +67,10 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
 
         ValidateDirections(context, allMethods);
 
-        // One entry per unique name, sorted for a stable client/server code assignment.
-        var names = allMethods
-            .Select(x => x.Method.Name)
-            .Distinct()
-            .OrderBy(n => n)
-            .ToList();
+        // Two code spaces: what goes through the server, and what clients send each other. One
+        // entry per unique name in each, sorted so every process assigns the same codes.
+        var serverNames = Names(allMethods, ServerRpcModel.IsServerDirected);
+        var clientNames = Names(allMethods, ServerRpcModel.IsClientToClients);
 
         // Manifest goes in the first contracts class's namespace (all should share a root namespace).
         var manifestNs = classes[0].Symbol.ContainingNamespace.ToDisplayString();
@@ -84,8 +82,18 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         foreach (var cls in classes)
             EmitPartialImplementations(context, cls);
 
-        EmitManifest(context, manifestNs, manifestId, names);
+        EmitManifest(context, manifestNs, manifestId, serverNames, clientNames);
     }
+
+    private static List<string> Names(
+        List<(ContractClassInfo Class, IMethodSymbol Method)> allMethods,
+        System.Func<IMethodSymbol, bool> inSpace) =>
+        allMethods
+            .Where(x => inSpace(x.Method))
+            .Select(x => x.Method.Name)
+            .Distinct()
+            .OrderBy(n => n, System.StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>
     /// Every method must declare at least one direction, and each direction of a name at most once.
@@ -97,23 +105,71 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
     {
         foreach (var (_, method) in allMethods)
         {
-            if (!ServerRpcModel.IsClientToServer(method) && !ServerRpcModel.IsServerToClient(method))
+            if (!ServerRpcModel.IsServerDirected(method) && !ServerRpcModel.IsClientToClients(method))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     new DiagnosticDescriptor(
                         "SRPC001", "Missing RPC direction",
-                        "Server RPC contract method '{0}' must be marked [ClientToServer] and/or [ServerToClient].",
+                        "RPC contract method '{0}' must be marked [ClientToServer], [ServerToClient] "
+                        + "and/or [ClientToClients].",
                         "ServerRpc", DiagnosticSeverity.Error, true),
                     method.Locations.FirstOrDefault(),
                     method.Name));
+
+                continue;
             }
+
+            if (ServerRpcModel.IsServerDirected(method) && ServerRpcModel.IsClientToClients(method))
+                ReportMixedSpace(context, method);
+
+            if (ServerRpcModel.IsClientToClients(method))
+                ValidateRelayMode(context, method);
         }
 
         foreach (var group in allMethods.GroupBy(x => x.Method.Name))
         {
             ReportIfDuplicateDirection(context, group, ServerRpcModel.IsClientToServer, "[ClientToServer]");
             ReportIfDuplicateDirection(context, group, ServerRpcModel.IsServerToClient, "[ServerToClient]");
+            ReportIfDuplicateDirection(context, group, ServerRpcModel.IsClientToClients, "[ClientToClients]");
+
+            // Overloads of a name share one wire code, and the two spaces number theirs separately,
+            // so a name has to sit in one of them.
+            if (group.Any(x => ServerRpcModel.IsServerDirected(x.Method))
+                && group.Any(x => ServerRpcModel.IsClientToClients(x.Method)))
+                foreach (var (_, method) in group)
+                    ReportMixedSpace(context, method);
         }
+    }
+
+    /// <summary>A name is either relayed between clients or routed through the server, never both.</summary>
+    private static void ReportMixedSpace(SourceProductionContext context, IMethodSymbol method)
+        => context.ReportDiagnostic(Diagnostic.Create(
+            new DiagnosticDescriptor(
+                "SRPC006", "Mixed RPC directions",
+                "RPC name '{0}' mixes [ClientToClients] with [ClientToServer] or [ServerToClient]. "
+                + "A peer-to-peer RPC is assigned a client event code and cannot share a name with one "
+                + "the server routes, so give it a name of its own.",
+                "ServerRpc", DiagnosticSeverity.Error, true),
+            method.Locations.FirstOrDefault(),
+            method.Name));
+
+    /// <summary>The relay modes a mod may ask for, which is not all of them.</summary>
+    private static void ValidateRelayMode(SourceProductionContext context, IMethodSymbol method)
+    {
+        var mode = ServerRpcModel.RelayModeOf(method);
+
+        // 4 is EntityOwner and 5 is Peers, both carried by the enum but not offered to mods.
+        if (mode is not (4 or 5))
+            return;
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            new DiagnosticDescriptor(
+                "SRPC007", "Relay mode is not part of the public API",
+                "'{0}' asks for a relay mode that is not part of the public API. Use one of "
+                + "AreaOfInterestOthers, AreaOfInterestAll, GlobalOthers or GlobalAll.",
+                "ServerRpc", DiagnosticSeverity.Error, true),
+            method.Locations.FirstOrDefault(),
+            method.Name));
     }
 
     private static void ReportIfDuplicateDirection(
@@ -152,10 +208,10 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         // #error in the offending file for any undirected method (alongside the SRPC001 diagnostic).
         foreach (var method in cls.Methods)
         {
-            if (!ServerRpcModel.IsClientToServer(method) && !ServerRpcModel.IsServerToClient(method))
+            if (!ServerRpcModel.IsServerDirected(method) && !ServerRpcModel.IsClientToClients(method))
             {
                 sb.AppendLine(
-                    $"#error Server RPC contract method '{method.Name}' must be marked [ClientToServer] and/or [ServerToClient].");
+                    $"#error RPC contract method '{method.Name}' must be marked [ClientToServer], [ServerToClient] and/or [ClientToClients].");
             }
         }
 
@@ -182,7 +238,8 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         SourceProductionContext context,
         string ns,
         string manifestId,
-        List<string> names)
+        List<string> serverNames,
+        List<string> clientNames)
     {
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
@@ -197,7 +254,8 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine("/// Referenced by both the server handler and client event generators.");
         sb.AppendLine("/// Set <see cref=\"Offset\"/> once at mod startup before any InitRpc() runs:");
         sb.AppendLine("/// <code>");
-        sb.AppendLine($"///   {ManifestClassName}.Offset = offsetProvider.GetNextOffset({ManifestClassName}.TotalEventCount);");
+        sb.AppendLine($"///   {ManifestClassName}.Offset = serverOffsets.GetNextOffset({ManifestClassName}.TotalEventCount);");
+        sb.AppendLine($"///   {ManifestClassName}.ClientOffset = clientOffsets.GetNextOffset({ManifestClassName}.TotalClientEventCount);");
         sb.AppendLine("/// </code>");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"public static class {ManifestClassName}");
@@ -208,16 +266,31 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"    public const string Id = \"{manifestId}\";");
         sb.AppendLine();
-        sb.AppendLine($"    public const byte TotalEventCount = {names.Count};");
+        sb.AppendLine("    /// <summary>How many codes this set takes out of the server RPC space.</summary>");
+        sb.AppendLine($"    public const byte TotalEventCount = {serverNames.Count};");
         sb.AppendLine();
         sb.AppendLine("    public static byte Offset { get; set; }");
         sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// How many codes this set takes out of the client RPC space, which is where the");
+        sb.AppendLine("    /// peer-to-peer RPCs live. A separate space, so a separate offset.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public const byte TotalClientEventCount = {clientNames.Count};");
+        sb.AppendLine();
+        sb.AppendLine("    public static byte ClientOffset { get; set; }");
+        sb.AppendLine();
 
-        for (var i = 0; i < names.Count; i++)
+        for (var i = 0; i < serverNames.Count; i++)
         {
-            var name = names[i];
-            sb.AppendLine($"    public const RelayMessageCode {name}Code =");
+            sb.AppendLine($"    public const RelayMessageCode {serverNames[i]}Code =");
             sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {i});");
+            sb.AppendLine();
+        }
+
+        for (var i = 0; i < clientNames.Count; i++)
+        {
+            sb.AppendLine($"    public const RelayMessageCode {clientNames[i]}Code =");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinClientRpcEvent + {i});");
             sb.AppendLine();
         }
 

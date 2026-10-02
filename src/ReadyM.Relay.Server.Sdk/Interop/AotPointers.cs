@@ -1,7 +1,9 @@
-namespace ReadyM.Relay.Server.Sdk.Interop;
+﻿namespace ReadyM.Relay.Server.Sdk.Interop;
 
 /// <exclude/>
 public struct AotPointers
 {
     public required IntPtr RegisterModComponent;
+    public required IntPtr GetComponentIdByName;
+    public required IntPtr AddArchetypeExtension;
 }

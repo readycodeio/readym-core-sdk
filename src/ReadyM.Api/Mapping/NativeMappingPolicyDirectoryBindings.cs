@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using JetBrains.Annotations;
 
 namespace ReadyM.Api.Mapping;
 
 /// <exclude />
-[UsedImplicitly(ImplicitUseTargetFlags.Members)]
 public static class NativeMappingPolicyDirectoryBindings
 {
     public delegate byte CanGameEventNotifyEcsDelegate(IntPtr objectPtr, int eventId, IntPtr context);

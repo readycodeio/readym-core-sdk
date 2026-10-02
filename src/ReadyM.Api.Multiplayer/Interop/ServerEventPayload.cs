@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
 using LiteNetLib;
 using ReadyM.Api.Idents;
 
@@ -10,6 +11,6 @@ public struct ServerEventPayload
     public PlayerId Player;
     public AreaId Area;
     public CellId Cell;
-    public int EntityId;
+    public RawEntity Entity;
     public DisconnectReason Reason;
 }

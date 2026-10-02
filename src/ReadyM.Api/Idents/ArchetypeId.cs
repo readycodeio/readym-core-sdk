@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using LiteNetLib.Utils;
 
@@ -14,6 +14,8 @@ public struct ArchetypeId(byte id) : IEquatable<ArchetypeId>, INetSerializable
     public static ArchetypeId None => new(0);
     
     private byte _id = id;
+
+    internal byte Raw => _id;
 
     public bool Equals(ArchetypeId other)
         => _id == other._id;
