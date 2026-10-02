@@ -96,14 +96,14 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// <summary>
     /// Fired immediately after the client requests to join an area of interest. The client is not yet in the area
     /// of interest when this is fired.
-    /// Always called from the MAIN thread.
+    /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<AreaId>? OnRequestedJoinArea;
 
     /// <summary>
     /// Fired immediately after the client requests to set active cells.
     /// The cells are not yet active for the client when this is fired.
-    /// Always called from the MAIN thread.
+    /// Always called from the same NETWORK thread.
     /// </summary>
     event Action<ReadOnlyList<CellId>>? OnRequestedSetActiveCells;
 
@@ -126,7 +126,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// Fired immediately after the client requests to leave an area of interest. The client has not yet left the
     /// area of interest when this is fired. In particular, it is possible to still receive messages addressed to the
     /// "stale" area of interest before the `OnLeftArea` event is fired. 
-    /// Always called from the MAIN thread.
+    /// Always called from the same NETWORK thread.
     /// </summary>
     event Action? OnRequestedLeaveArea;
 
@@ -208,6 +208,8 @@ internal interface IRelayClient : IRpcClient, IDisposable
 
     // NOTE: These are user side methods.
     // TODO: Separate into two different interfaces
+
+    /// <summary>Any thread: starts the connection on the network thread and waits for the handshake, unless called on that thread.</summary>
     void RequestConnect();
     void RequestDisconnect();
     void RequestReconnect();
