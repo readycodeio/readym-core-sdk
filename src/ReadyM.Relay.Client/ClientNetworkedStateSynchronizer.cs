@@ -59,7 +59,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     private readonly INetworkedComponentRegistry _netComponentRegistry;
 
     private readonly SystemGroup _clearDirtySystemGroup;
-    private readonly Dictionary<NetworkId, PlayerId> _pendingOwnershipTransfers = [];
 
     protected SystemGroup ReceiveSystemGroup { get; }
 
@@ -183,19 +182,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
     [ThreadStatic]
     private static int _skipEcsEventMessages;
 
-    private void ApplyPendingOwnershipTransfer(NetworkId netId)
-    {
-        if (!_pendingOwnershipTransfers.Remove(netId, out var owner))
-            return;
-
-        if (!NetEntity.TryGetEntityByNetworkId(netId, out var entity))
-            return;
-
-        entity.Value.GetComponent<MetadataComponent>().Owner = owner;
-        OnOwnershipChanged(entity.Value);
-        Logger.LogInformation("Applied parked ownership transfer for entity {Id}", netId);
-    }
-
     protected void OnEcsSnapshotMessageHandler(ServerEventHeader header, NetDataReader reader)
     {
         _receiveSystem.Scheduler.Schedule(static (_, self, readerCopy) =>
@@ -216,7 +202,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var _))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
-                        self.ApplyPendingOwnershipTransfer(meta.NetId);
                     }
                     else
                     {
@@ -260,8 +245,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     }
                     else
                     {
-                        self._pendingOwnershipTransfers[netId] = newOwner;
-                        self.Logger.LogInformation("Parked ownership transfer for not yet created entity: {Id}", netId);
+                        self.Logger.LogInformation("Ignored ownership transfer to {Owner} for entity {Id} that does not exist here yet, its creation carries the current owner", newOwner, netId);
                     }
                 }
             }
@@ -350,7 +334,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
                     if (!self.NetEntity.TryGetEntityByNetworkId(meta.NetId, out var entity))
                     {
                         self.NetEntity.CreateRemoteNetworkedEntity(meta, scopeEntity);
-                        self.ApplyPendingOwnershipTransfer(meta.NetId);
                     }
                     else
                     {
@@ -376,7 +359,6 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             try
             {
                 _skipEcsEventMessages++;
-                self._pendingOwnershipTransfers.Remove(netId0);
                 if (self.NetEntity.TryGetEntityByNetworkId(netId0, out var entity))
                 {
                     self.Logger.LogDebug("Deleting remote entity: {Id}", netId0);
