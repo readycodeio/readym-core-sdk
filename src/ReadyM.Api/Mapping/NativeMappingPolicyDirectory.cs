@@ -12,7 +12,7 @@ namespace ReadyM.Api.Mapping;
 
 internal class NativeMappingPolicyDirectory(
     DataSideChannel sideChannel,
-    INativeComponentRegistry registry,
+    INativeTypeRegistry registry,
     IMappedEntityManager<IntPtr> entityMapper,
     ECS.Worlds.Store world,
     ILogger logger
@@ -58,7 +58,7 @@ internal class NativeMappingPolicyDirectory(
         policy = null!;
         entity = default;
 
-        var type = registry.GetComponentType(componentId);
+        var type = registry.GetTypeById(componentId);
         if (type == null)
             throw new ArgumentException($"No component type found for component ID {componentId}");
 
@@ -77,7 +77,7 @@ internal class NativeMappingPolicyDirectory(
         policy = null!;
         entity = default;
 
-        var type = registry.GetComponentType(componentId);
+        var type = registry.GetTypeById(componentId);
         if (type == null)
             throw new ArgumentException($"No component type found for component ID {componentId}");
 
@@ -94,7 +94,7 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanGameEventNotifyEcs(int eventId)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
@@ -106,7 +106,7 @@ internal class NativeMappingPolicyDirectory(
     // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool CanGameEventNotifyEcs(int eventId, IntPtr context)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
@@ -122,7 +122,7 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanEcsInvokeGameEvent(int eventId)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
@@ -133,7 +133,7 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanEcsInvokeGameEvent(int eventId, IntPtr context)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
@@ -149,7 +149,7 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanGameEventRunLocally(int eventId)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
@@ -160,7 +160,7 @@ internal class NativeMappingPolicyDirectory(
 
     public bool CanGameEventRunLocally(int eventId, IntPtr context)
     {
-        var type = registry.GetComponentType(eventId);
+        var type = registry.GetTypeById(eventId);
 
         if (type == null)
             throw new ArgumentException($"No component type found for event ID {eventId}");
