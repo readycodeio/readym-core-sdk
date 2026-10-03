@@ -1,36 +1,20 @@
-using System;
 using System.Collections.Generic;
 
 namespace ReadyM.Api.ECS.Registry;
 
+// NOTE: A component-only registry with ids. The counter is in `IdTypeRegistryBase`; this only keeps the narrow
+// interfaces.
 internal abstract class IdComponentRegistryBase<TRegistry, TComponent>(
     IEnumerable<IComponentRegistrationBase<TRegistry, TComponent>> registrations)
-    : ComponentRegistryBase<TRegistry, TComponent>(registrations)
+    : IdTypeRegistryBase<TRegistry, TComponent, INoGameEvents>(registrations), IComponentRegistryBase<TRegistry, TComponent>
     where TRegistry : IComponentRegistryBase<TRegistry, TComponent>
 {
-    private byte _componentCount;
-
     protected byte GetNextComponentId()
-        => _componentCount;
+        => GetNextId();
 
-    protected override TRegistry RegisterComponentImpl<T>(T defaultValue = default)
-    {
-        if (_componentCount == byte.MaxValue)
-        {
-            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
-        }
-        _componentCount++;
+    public TRegistry RegisterFilter(IComponentRegistryCallbackBase<TRegistry, TComponent> filter)
+        => RegisterFilter(new ComponentOnlyCallback<TRegistry, TComponent>(filter));
 
-        return base.RegisterComponentImpl(defaultValue);
-    }
-
-    protected void SkipId()
-    {
-        if (_componentCount == byte.MaxValue)
-        {
-            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
-        }
-
-        _componentCount++;
-    }
+    public void Accept(IComponentRegistryCallbackBase<TRegistry, TComponent> callback)
+        => Accept(new ComponentOnlyCallback<TRegistry, TComponent>(callback));
 }
