@@ -1,12 +1,12 @@
 ﻿using System.Runtime.InteropServices;
 using ReadyM.Api.Interop.Registry;
-using ReadyM.Api.Mapping.Tags;
+using ReadyM.Api.Mapping.Events;
 
 namespace ReadyM.Api.Tests.TestEvents;
 
-[InteropType]
+[InteropType, DeriveIGameEvent, AlwaysPropagates]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public partial struct NativeEvent : IAlwaysPropagates
+public partial struct NativeEvent
 {
     public IntPtr Actor { get; init; }
     public int IntValue { get; init; }

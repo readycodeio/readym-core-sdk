@@ -44,15 +44,26 @@ internal static class SourceGeneratorTestHelper
             output);
     }
 
+    // NOTE: ReadyM.Api shows its internals to this assembly name, for generated code that implements them.
+    private const string InternalsVisibleName = "ReadyM.Api.Generators.Tests.Dynamic";
+
     public static GeneratorRunResult RunGenerator<TGenerator>(
         IEnumerable<(string Path, string Source)> sources,
         ITestOutputHelper output)
         where TGenerator : IIncrementalGenerator, new()
-    {
-        if (sources is null)
-            throw new ArgumentNullException(nameof(sources));
+        => RunGenerator<TGenerator>(CreateCompilation(sources, output), output);
 
-        var inputCompilation = CreateCompilation(sources, output);
+    /// <summary>As <see cref="RunGenerator{TGenerator}(IEnumerable{ValueTuple{string,string}},ITestOutputHelper)"/>,
+    /// compiled under the name ReadyM.Api shows its internals to.</summary>
+    public static GeneratorRunResult RunGeneratorSeeingInternals<TGenerator>(
+        IEnumerable<(string Path, string Source)> sources,
+        ITestOutputHelper output)
+        where TGenerator : IIncrementalGenerator, new()
+        => RunGenerator<TGenerator>(CreateCompilation(sources, output, InternalsVisibleName), output);
+
+    private static GeneratorRunResult RunGenerator<TGenerator>(Compilation inputCompilation, ITestOutputHelper output)
+        where TGenerator : IIncrementalGenerator, new()
+    {
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new TGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -90,7 +101,9 @@ internal static class SourceGeneratorTestHelper
         peStream.Position = 0;
         pdbStream.Position = 0;
 
-        return AssemblyLoadContext.Default.LoadFromStream(peStream, pdbStream);
+        // NOTE: Every assembly under the fixed name gets a load context of its own, since one context holds one per name.
+        var context = compilation.AssemblyName == InternalsVisibleName ? new AssemblyLoadContext(null) : AssemblyLoadContext.Default;
+        return context.LoadFromStream(peStream, pdbStream);
     }
 
     public static Compilation CreateCompilation(string source, ITestOutputHelper output)
@@ -105,7 +118,8 @@ internal static class SourceGeneratorTestHelper
 
     public static Compilation CreateCompilation(
         IEnumerable<(string Path, string Source)> sources,
-        ITestOutputHelper output)
+        ITestOutputHelper output,
+        string? assemblyName = null)
     {
         if (sources is null)
             throw new ArgumentNullException(nameof(sources));
@@ -129,7 +143,7 @@ internal static class SourceGeneratorTestHelper
             .ToArray();
 
         return CSharpCompilation.Create(
-            assemblyName: "ReadyM.Api.Generators.Tests.Dynamic_" + Guid.NewGuid().ToString("N"),
+            assemblyName: assemblyName ?? $"ReadyM.Api.Generators.Tests.Dynamic_{Guid.NewGuid():N}",
             syntaxTrees: syntaxTrees,
             references: GetMetadataReferences(output),
             options: new CSharpCompilationOptions(

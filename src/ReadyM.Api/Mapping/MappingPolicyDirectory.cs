@@ -7,7 +7,6 @@ using ReadyM.Api.Mapping.CreateDestroy;
 using ReadyM.Api.Mapping.Events;
 using ReadyM.Api.Mapping.Policies.Data;
 using ReadyM.Api.Mapping.Policies.Data.Common;
-using ReadyM.Api.Mapping.Policies.Event;
 using ReadyM.Api.Mapping.Tags;
 
 namespace ReadyM.Api.Mapping;
@@ -22,10 +21,6 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
     private readonly object _dataLock = new();
     private readonly Dictionary<(Type, Type), IMappingDataPolicyBase> _dataPolicies = new();
     private readonly List<IMappingDataPolicyFactory> _dataPolicyFactories = [];
-
-    protected readonly object eventLock = new();
-    protected readonly Dictionary<(Type, Type), IMappingEventPolicyBase> eventPolicies = new();
-    protected readonly List<IMappingEventPolicyFactory> eventPolicyFactories = [];
 
     public IMappingCreateDeletePolicy<TGameObject> ForCreateDelete<TGameObject>(ArchetypeId archetypeId)
         where TGameObject : class
@@ -106,46 +101,6 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
 
     public IMappingDataPolicy<Entity> ForData(Type componentType)
         => ForData<Entity>(componentType);
-
-    public IMappingEventPolicy<TContext> ForEvent<TContext>(Type eventType)
-    {
-        lock (eventLock)
-        {
-            var key = (eventType, typeof(TContext));
-
-            if (!eventPolicies.TryGetValue(key, out var untypedPolicy))
-            {
-                foreach (var factory in eventPolicyFactories)
-                {
-                    if (!factory.Supports(eventType, typeof(TContext)))
-                        continue;
-
-                    untypedPolicy = factory.CreatePolicy<TContext>(eventType);
-                    break;
-                }
-
-                if (untypedPolicy == null)
-                    throw new ArgumentException($"No event policy registered for event type {eventType}");
-
-                eventPolicies.Add(key, untypedPolicy);
-            }
-
-            return (IMappingEventPolicy<TContext>)untypedPolicy;
-        }
-    }
-
-    public IMappingEventPolicy<TContext> ForEvent<TEvent, TContext>()
-        where TEvent : struct, IMappingContext<TContext>
-    {
-        return ForEvent<TContext>(typeof(TEvent));
-    }
-
-    public IMappingEventPolicy<Entity> ForEvent<TEvent>()
-        where TEvent : struct, IMappingContext<Entity>
-        => ForEvent<TEvent, Entity>();
-    
-    public IMappingEventPolicy<Entity> ForEvent(Type eventType)
-        => ForEvent<Entity>(eventType);
 
     // ---
 
@@ -229,51 +184,4 @@ internal class MappingPolicyDirectory(DataSideChannel sideChannel) : IMappingPol
             shouldRunLocally);
         RegisterData<TComponent, Entity>(policy);
     }
-
-    // ---
-
-    public void RegisterDefaultEvent(IMappingEventPolicyFactory factory)
-    {
-        eventPolicyFactories.Add(factory);
-    }
-
-    public void RegisterDefaultEvent<TContext>(
-        Func<TContext, bool> shouldGameEventPropagate,
-        Func<TContext, bool> shouldEcsEventPropagate,
-        ShouldRunLocallyDelegate<TContext> shouldRunLocally)
-    {
-        var policyFactory = new FuncEntityEventPolicyFactory<TContext>(
-            shouldGameEventPropagate,
-            shouldEcsEventPropagate,
-            shouldRunLocally);
-        RegisterDefaultEvent(policyFactory);
-    }
-
-    public void RegisterEvent<TEvent, TContext>(IMappingEventPolicy<TContext> policy)
-        where TEvent : struct, IEquatable<TEvent>
-        where TContext : struct
-    {
-        eventPolicies.Add((typeof(TEvent), typeof(TContext)), policy);
-    }
-
-    public void RegisterEvent<TEvent, TContext>(
-        ShouldPropagateToEcsDelegate<TContext> shouldPropagateToEcs,
-        ShouldPropagateToGameDelegate<TContext> shouldPropagateToGame,
-        ShouldRunLocallyDelegate<TContext> shouldRunLocally)
-        where TEvent : struct, IEquatable<TEvent>
-        where TContext : struct
-    {
-        var policy = new FuncEventPolicy<TEvent, TContext>(shouldPropagateToEcs, shouldPropagateToGame, shouldRunLocally, sideChannel);
-        RegisterEvent<TEvent, TContext>(policy);
-    }
-
-    public void RegisterEvent<TEvent>(
-        ShouldPropagateToEcsDelegate<Entity> shouldPropagateToEcs,
-        ShouldPropagateToGameDelegate<Entity> shouldPropagateToGame,
-        ShouldRunLocallyDelegate<Entity> shouldRunLocally)
-        where TEvent : struct, IEquatable<TEvent>
-        => RegisterEvent<TEvent, Entity>(
-            shouldPropagateToEcs,
-            shouldPropagateToGame,
-            shouldRunLocally);
 }

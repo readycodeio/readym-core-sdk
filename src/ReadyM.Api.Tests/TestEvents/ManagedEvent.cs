@@ -1,8 +1,9 @@
-﻿using ReadyM.Api.Mapping.Tags;
+﻿using ReadyM.Api.Mapping.Events;
 
 namespace ReadyM.Api.Tests.TestEvents;
 
-public struct ManagedEvent : IAlwaysPropagates
+[DeriveIGameEvent, AlwaysPropagates]
+public partial struct ManagedEvent
 {
     public int IntValue { get; init; }
     public float FloatValue { get; init; }

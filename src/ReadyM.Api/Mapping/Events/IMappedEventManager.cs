@@ -1,5 +1,4 @@
 using System;
-using ReadyM.Api.Mapping.Tags;
 
 namespace ReadyM.Api.Mapping.Events;
 
@@ -13,7 +12,7 @@ internal interface IMappedEventManager
 
     void RegisterEcsEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct;
-    
+
     void RegisterEcsEventHandler<TEvent, TArg0, TArg1, TArg2>(Action<TEvent, TArg0, TArg1, TArg2> handler, TArg0 arg0, TArg1 arg1, TArg2 arg2)
         where TEvent : struct;
 
@@ -26,17 +25,25 @@ internal interface IMappedEventManager
     void RegisterGameEventHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
         where TEvent : struct;
 
-    /// Propagate the event to both the ECS and the game, regardless of the policy.
-    void InvokeInGameAndNotifyEcs<TEvent, TContext>(in TEvent ev, TContext context)
-        where TEvent : struct, IMappingContext<TContext>;
+    /// Notify the ECS, then invoke in game, each as the event's policy allows.
+    void InvokeInGameAndNotifyEcs<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
 
-    /// Propagate the event to the ECS if the event policy allows it.
     /// <returns>Whether the event was propagated.</returns>
-    bool NotifyEcsIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
-        where TEvent : struct, IMappingContext<TContext>;
+    bool NotifyEcsIfApplicable<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
 
-    /// Propagate the event to the game if the event policy allows it.
     /// <returns>Whether the event was propagated.</returns>
-    bool InvokeInGameIfApplicable<TEvent, TContext>(in TEvent ev, TContext context)
-        where TEvent : struct, IMappingContext<TContext>;
+    bool InvokeInGameIfApplicable<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
+
+    /// The event policy's answers, for call sites that need one without notifying or invoking anything.
+    GameEventNotifyResult CanGameEventNotifyEcs<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
+
+    GameEventResult CanGameEventRunLocally<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
+
+    GameEventResult CanEcsInvokeGameEvent<TEvent>(in TEvent ev)
+        where TEvent : struct, IGameEvent;
 }

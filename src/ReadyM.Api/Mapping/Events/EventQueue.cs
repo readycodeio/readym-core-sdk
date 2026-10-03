@@ -8,23 +8,11 @@ internal class EventQueue(ILogger logger)
 {
     private abstract class EntryBase
     {
-        public abstract void Invoke(in object ev);
+        // empty
     }
 
     private abstract class EntryBase<TEvent> : EntryBase
     {
-        public override void Invoke(in object ev)
-        {
-            if (ev is TEvent typedEv)
-            {
-                Invoke(typedEv);
-            }
-            else
-            {
-                throw new InvalidOperationException($"Invalid event type passed to entry. Expected {typeof(TEvent).FullName}, got {ev.GetType().FullName}");
-            }
-        }
-
         public abstract void Invoke(in TEvent ev);
     }
 
@@ -63,29 +51,6 @@ internal class EventQueue(ILogger logger)
             if (_handlers.Count == 0)
             {
                 logger.LogWarning("Invoking event of type {EventType} with no handlers registered", typeof(TEvent).FullName);
-            }
-
-            foreach (var (handler, arg) in _handlers)
-            {
-                handler(ev, arg);
-            }
-        }
-    }
-
-    private class OpaqueEntry<TArg>(ILogger logger) : EntryBase
-    {
-        private readonly List<(Action<object, TArg>, TArg)> _handlers = new();
-
-        public void RegisterHandler(Action<object, TArg> handler, TArg arg)
-        {
-            _handlers.Add((handler, arg));
-        }
-
-        public override void Invoke(in object ev)
-        {
-            if (_handlers.Count == 0)
-            {
-                logger.LogWarning("Invoking event of type {EventType} with no handlers registered", ev.GetType().FullName);
             }
 
             foreach (var (handler, arg) in _handlers)
@@ -185,19 +150,6 @@ internal class EventQueue(ILogger logger)
         ((Entry<TEvent, TArg>)entry).RegisterHandler(handler, arg);
     }
 
-    public void RegisterOpaqueHandler<TArg>(Type eventType, Action<object, TArg> handler, TArg arg)
-    {
-        var key = (eventType, typeof(TArg));
-        if (!_handlersArg1.TryGetValue(key, out var entry))
-        {
-            entry = new OpaqueEntry<TArg>(logger);
-            _handlersArg1[key] = entry;
-            AddEntry(eventType, entry);
-        }
-
-        ((OpaqueEntry<TArg>)entry).RegisterHandler(handler, arg);
-    }
-
     public void RegisterHandler<TEvent, TArg0, TArg1>(Action<TEvent, TArg0, TArg1> handler, TArg0 arg0, TArg1 arg1)
     {
         var key = (typeof(TEvent), typeof(TArg0), typeof(TArg1));
@@ -230,18 +182,7 @@ internal class EventQueue(ILogger logger)
         {
             foreach (var entry in entryList)
             {
-                entry.Invoke(ev!);
-            }
-        }
-    }
-
-    public void Invoke(in object ev, Type eventType)
-    {
-        if (_entriesByEventType.TryGetValue(eventType, out var entryList))
-        {
-            foreach (var entry in entryList)
-            {
-                entry.Invoke(ev);
+                ((EntryBase<TEvent>)entry).Invoke(ev);
             }
         }
     }

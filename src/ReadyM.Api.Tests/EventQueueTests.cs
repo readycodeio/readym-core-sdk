@@ -26,18 +26,6 @@ public class EventQueueTests
     }
 
     [Fact]
-    public void AOneArgumentHandlerRunsOncePerObjectInvoke()
-    {
-        var queue = NewQueue();
-        var calls = 0;
-        queue.RegisterHandler<Ping>(_ => calls++);
-
-        queue.Invoke(new Ping { Value = 1 }, typeof(Ping));
-
-        Assert.Equal(1, calls);
-    }
-
-    [Fact]
     public void EveryHandlerRunsOnceGroupedByItsKeyInTheOrderTheKeyFirstAppeared()
     {
         var queue = NewQueue();
@@ -50,20 +38,6 @@ public class EventQueueTests
         queue.Invoke(new Ping { Value = 1 });
 
         Assert.Equal(["first, with an argument", "third, with an argument", "second, without", "fourth, without"], order);
-    }
-
-    [Fact]
-    public void TheObjectPathRunsEveryHandlerOnceToo()
-    {
-        var queue = NewQueue();
-        var order = new List<string>();
-        queue.RegisterHandler<Ping, string>((_, name) => order.Add(name), "with an argument");
-        queue.RegisterHandler<Ping>(_ => order.Add("without"));
-        queue.RegisterHandler<Ping>(_ => order.Add("without, again"));
-
-        queue.Invoke(new Ping { Value = 1 }, typeof(Ping));
-
-        Assert.Equal(["with an argument", "without", "without, again"], order);
     }
 
     [Fact]

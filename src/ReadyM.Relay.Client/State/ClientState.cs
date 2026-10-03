@@ -107,6 +107,12 @@ internal class ClientState : IDisposable
     public PlayerId? LocalPlayerId
         => _localPlayerEntry?.PlayerId;
 
+    /// <summary>Whether the local player is the master client of its current area.</summary>
+    public bool IsMasterClient
+        => CurrentAreaEntity is { } area
+           && LocalPlayerId is { } local
+           && area.GetComponent<AreaScopeComponent>().MasterClient == local;
+
     public PlayerEntry? LocalPlayerEntry
         => _localPlayerEntry;
 
