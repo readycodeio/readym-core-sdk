@@ -617,6 +617,8 @@ namespace {ns}
 """);
 
         var maskType = CppTypeName(model.MaskInfo.Type);
+        var allFields = model.Members.Aggregate(0UL, (mask, member) => mask | (1UL << member.MaskIndex));
+        var allFieldsLiteral = "0x" + allFields.ToString("X", CultureInfo.InvariantCulture) + "ULL";
         sb.AppendLine($$"""
     public:
         void ClearApiFlag()
@@ -637,6 +639,11 @@ namespace {ns}
         void MarkChangedFromApi()
         {
             _apiMask = _dirtyMask;
+        }
+
+        void MarkAllChangedFromApi()
+        {
+            _apiMask = static_cast<{{maskType}}>({{allFieldsLiteral}});
         }
 
 """);
