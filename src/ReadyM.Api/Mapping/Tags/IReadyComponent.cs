@@ -9,4 +9,5 @@ public interface IReadyComponent : IComponent
     void ClearApiFlag();
     void ClearApiFlag(int field);
     void MarkChangedFromApi();
+    void MarkAllChangedFromApi();
 }
