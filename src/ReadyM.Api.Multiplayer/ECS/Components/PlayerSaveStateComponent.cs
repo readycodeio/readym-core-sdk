@@ -18,4 +18,6 @@ public partial struct PlayerSaveStateComponent : IServerAuthoritative
     private PlayerId _owner;
 
     private PlayerStateOrigin _origin;
+
+    private NetworkedComponentMask _restored;
 }

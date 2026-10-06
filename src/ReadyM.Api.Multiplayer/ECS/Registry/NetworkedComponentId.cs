@@ -11,6 +11,8 @@ internal struct NetworkedComponentId(byte id) : IEquatable<NetworkedComponentId>
     
     private byte _id = id;
 
+    public byte RawValue => _id;
+
     public bool Equals(NetworkedComponentId other)
         => _id == other._id;
 
