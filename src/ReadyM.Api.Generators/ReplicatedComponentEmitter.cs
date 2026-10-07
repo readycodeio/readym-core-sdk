@@ -330,6 +330,9 @@ using {ns};
 
     private static void EmitApiFlagHelpers(StringBuilder sb, DeriveTargetModel model)
     {
+        var allFields = model.Members.Aggregate(0UL, (mask, member) => mask | (1UL << member.MaskIndex));
+        var allFieldsLiteral = "0x" + allFields.ToString("X", CultureInfo.InvariantCulture) + "UL";
+
         sb.AppendLine($"""
     /// <exclude />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -342,6 +345,9 @@ using {ns};
     /// <exclude />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void MarkChangedFromApi() => _apiMask = _dirtyMask;
+    /// <exclude />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void MarkAllChangedFromApi() => _apiMask = unchecked(({model.MaskInfo!.Type.Name}){allFieldsLiteral});
 
 """);
     }
