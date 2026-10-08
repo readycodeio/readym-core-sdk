@@ -3,9 +3,9 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 
 namespace ReadyM.Api.Multiplayer.ECS.Registry;
 
-internal class DefaultNativeComponentRegistration : INativeComponentRegistration
+internal class DefaultNativeTypeRegistration : INativeTypeRegistration
 {
-    public void Register(INativeComponentRegistry registry)
+    public void Register(INativeTypeRegistry registry)
     {
         registry.RegisterComponent<LocallyCreatedEntityTag>();
         registry.RegisterComponent<MetadataComponent>();

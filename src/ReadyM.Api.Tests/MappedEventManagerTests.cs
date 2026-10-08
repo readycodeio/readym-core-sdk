@@ -17,11 +17,11 @@ namespace ReadyM.Api.Tests;
 
 public class MappedEventManagerTests
 {
-    private class TestEventsRegistration : INativeComponentRegistration
+    private class TestEventsRegistration : INativeTypeRegistration
     {
-        public void Register(INativeComponentRegistry registry)
+        public void Register(INativeTypeRegistry registry)
         {
-            registry.RegisterComponent<NativeEvent>();
+            registry.RegisterEvent<NativeEvent>();
         }
     }
 
@@ -58,9 +58,9 @@ public class MappedEventManagerTests
         container.Register(typeof(ILogger<>), typeof(Logger<>), ifAlreadyRegistered: IfAlreadyRegistered.Replace);
         container.RegisterInstance(loggerFactory.CreateLogger("Tests"));
 
-        container.Register<INativeComponentRegistration, TestEventsRegistration>();
+        container.Register<INativeTypeRegistration, TestEventsRegistration>();
 
-        container.Register<INativeComponentRegistry, NativeComponentRegistry>();
+        container.Register<INativeTypeRegistry, NativeTypeRegistry>();
         container.Register<NativeMappedEventManager>();
 
         container.RegisterInstance(new EntityStore());

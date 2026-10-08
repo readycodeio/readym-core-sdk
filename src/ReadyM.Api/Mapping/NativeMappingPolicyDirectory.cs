@@ -12,7 +12,7 @@ namespace ReadyM.Api.Mapping;
 
 internal class NativeMappingPolicyDirectory(
     DataSideChannel sideChannel,
-    INativeComponentRegistry registry,
+    INativeTypeRegistry registry,
     IMappedEntityManager<IntPtr> entityMapper,
     ECS.Worlds.Store world,
     ILogger logger
