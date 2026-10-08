@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -58,6 +58,11 @@ internal static class ArchetypeNames
     public const string DeleteHandlerAttribute = Namespace + ".DeleteHandlerAttribute";
 
     public const string ServiceAttribute = Namespace + ".ServiceAttribute";
+    public const string CommandAttribute = Namespace + ".CommandAttribute";
+
+    public const string CommandRegistry = "global::ReadyM.SDK.Commands.CommandRegistry";
+    public const string CommandProvider = "global::ReadyM.SDK.Commands.ICommandProvider";
+    public const string CommandProvidersRegistry = "global::ReadyM.SDK.Commands.CommandProviders";
 
     public const string UpdateOrderAttribute = Namespace + ".UpdateOrderAttribute";
 
