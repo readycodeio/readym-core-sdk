@@ -4,6 +4,7 @@ using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Jobs;
+using ReadyM.Api.Mapping.Tags;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.Extensions;
@@ -18,6 +19,9 @@ internal class ApplyDeltaJob<T>(
 {
     private readonly bool _useSetComponent =
         typeof(T).GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IIndexedComponent<>));
+
+    // Only the server may write these; a client delta to one is dropped even when the client owns the entity.
+    private static readonly bool ServerAuthoritative = typeof(IServerAuthoritative).IsAssignableFrom(typeof(T));
 
     [ThreadStatic]
     private static T _skipInstance;
@@ -45,6 +49,14 @@ internal class ApplyDeltaJob<T>(
             if (authoritativeSender.HasValue && owner != authoritativeSender.Value)
             {
                 // Non-owner sender: consume the bytes to stay aligned, but do not apply/relay.
+                _skipInstance.ReadDelta(reader);
+                continue;
+            }
+
+            if (authoritativeSender.HasValue && ServerAuthoritative)
+            {
+                // Server-authoritative component: consume the bytes to stay aligned, but do not apply/relay.
+                logger.LogWarning("Dropping delta for server-authoritative {Component} entity {NetId} from client {Sender}", typeof(T).Name, netId, authoritativeSender.Value);
                 _skipInstance.ReadDelta(reader);
                 continue;
             }

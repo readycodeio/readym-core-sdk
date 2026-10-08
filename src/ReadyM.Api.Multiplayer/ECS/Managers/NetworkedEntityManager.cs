@@ -25,6 +25,9 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
     // NOTE: This event will be fired on the ECS thread.
     public event Action<NetworkId, Entity>? OnEntityDelete;
 
+    // NOTE: This event will be fired on the ECS thread.
+    public event Action<NetworkId, Entity>? OnNetworkEntityRetired;
+
     public NetworkedEntityManager(
         Store world,
         IPlayerIdProvider playerIdProvider,
@@ -78,11 +81,7 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         Action<EntityBuilder>? setComponents = null,
         PlayerId? ownerOverride = null)
     {
-        var playerId = _playerIdProvider.PlayerId;
-        if (playerId == null)
-            throw new InvalidOperationException();
-
-        var netId = new NetworkId(playerId.Value, ++_nextNetworkedId);
+        var netId = NextNetworkId();
         var owner = ownerOverride ?? netId.Creator;
         var meta = new MetadataComponent(netId, archetypeId, owner);
         var entity = _world.CreateEntity(archetypeId, b =>
@@ -120,6 +119,57 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         _logger.LogDebug("Network entity {Archetype} {NetId} created (remote)", meta.Archetype, meta.NetId);
 
         return entity;
+    }
+
+    public void MoveToScope(Entity entity, Entity? scopeEntity)
+    {
+        // Entities in a scope point at it by NetworkId on clients, so a scope getting a new one would orphan them.
+        if (entity.Tags.Has<ScopeEntityTag>())
+            throw new InvalidOperationException("Scope entities cannot change scope.");
+        if (scopeEntity is { } target && !target.Tags.Has<ScopeEntityTag>())
+            throw new InvalidOperationException("Target is not a scope entity.");
+
+        Entity? current = entity.TryGetComponent<InScopeComponent>(out var inScope) ? inScope.ScopeEntity : null;
+        if (current == scopeEntity)
+            return;
+
+        var meta = entity.GetComponent<MetadataComponent>();
+
+        // Clients know the entity only once it was sent: one still tagged as locally created never reached them.
+        if (IsReplicated(current) && !entity.Tags.Has<LocallyCreatedEntityTag>())
+        {
+            // Still in the old scope here, so the delete is routed to that scope's viewers.
+            OnNetworkEntityRetired?.Invoke(meta.NetId, entity);
+            _netIdTombstones.Add(meta.NetId);
+
+            meta = new MetadataComponent(NextNetworkId(), meta.Archetype, meta.Owner);
+            entity.AddComponent(meta); // indexed: replace, not mutate
+        }
+
+        // Indexed link: replace, not mutate.
+        if (scopeEntity is { } scope)
+            entity.AddComponent(new InScopeComponent(scope));
+        else
+            entity.RemoveComponent<InScopeComponent>();
+
+        // The entity-created system sends it to the new scope's viewers on the next tick.
+        if (IsReplicated(scopeEntity))
+            entity.AddTag<LocallyCreatedEntityTag>();
+
+        _logger.LogDebug("Network entity {Archetype} moved to scope {Scope} as {NetId}", meta.Archetype, scopeEntity?.Id, meta.NetId);
+    }
+
+    // No scope means global, which is replicated to everyone; only the server scope is never replicated.
+    private static bool IsReplicated(Entity? scopeEntity)
+        => scopeEntity is not { } scope || !scope.Tags.Has<ServerScopeTag>();
+
+    private NetworkId NextNetworkId()
+    {
+        var playerId = _playerIdProvider.PlayerId;
+        if (playerId == null)
+            throw new InvalidOperationException();
+
+        return new NetworkId(playerId.Value, ++_nextNetworkedId);
     }
 
     public bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity)
