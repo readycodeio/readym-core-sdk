@@ -127,6 +127,33 @@ public class ArchetypeBuilder
         }
     }
 
+    /// <summary>True when the archetype already declares a component of type <typeparamref name="T"/>.</summary>
+    internal bool Contains<T>() where T : struct, IComponent
+    {
+        var probe = new ContainsProbe<T>();
+        Accept(probe);
+        return probe.Found;
+    }
+
+    private sealed class ContainsProbe<TProbe> : IArchetypeBuilderCallback where TProbe : struct, IComponent
+    {
+        public bool Found { get; private set; }
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder) where T : struct, IComponent
+            => Found |= typeof(T) == typeof(TProbe);
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue) where T : struct, IComponent
+            => Found |= typeof(T) == typeof(TProbe);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+        {
+        }
+
+        public void AcceptTag<T>(ArchetypeBuilder builder) where T : struct, ITag
+        {
+        }
+    }
+
     internal void ForceComponentAOT<T>()
         where T : struct, IComponent
     {

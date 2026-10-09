@@ -121,7 +121,7 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
     private readonly Dictionary<ArchetypeId, string> _archetypeNameById = [];
     private readonly CreateEntityBatchCallback _consCallback;
     private readonly NativeInitCallback _nativeInitCallback;
-    private readonly List<IArchetypeBuilderCallback> _filters = [];
+    private readonly List<IArchetypeBuilderCallback> _filters = [new SavedArchetypeFilter()];
 
     public SystemRoot SystemRoot { get; }
 
