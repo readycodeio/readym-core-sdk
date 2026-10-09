@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.DI;
 using ReadyM.Api.ECS.Systems;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Mapping.Tags;
 using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
@@ -40,8 +41,12 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
             var id = registry.GetNetworkedComponentId<T>();
             var deliveryMethod = registry.GetNetworkedComponentDeliveryMethod<T>();
 
-            owner.Logger.LogTrace("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner._netTime, deliveryMethod, owner.RelayClient));
+            if (!typeof(IServerAuthoritative).IsAssignableFrom(typeof(T)))
+            {
+                owner.Logger.LogTrace("Registering client send for: {ComponentType} with ID {Id}", typeof(T).Name, id);
+                owner.SendSystemGroup.Add(new ClientSendComponentDeltaSystem<T>(id, owner._netTime, deliveryMethod, owner.RelayClient));
+            }
+
             owner._clearDirtySystemGroup.Add(new ClearDirtySystem<T>());
         }
     }
