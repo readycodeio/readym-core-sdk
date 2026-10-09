@@ -20,7 +20,7 @@ internal sealed class DefaultCellArchetypeRegistration(ICellComponentRegistry ce
         public void AcceptComponent<T>(ICellComponentRegistry registry, T defaultValue = default)
             where T : struct, IComponent
         {
-            builder.Add<T>();
+            builder.Add(defaultValue);
         }
     }
 
