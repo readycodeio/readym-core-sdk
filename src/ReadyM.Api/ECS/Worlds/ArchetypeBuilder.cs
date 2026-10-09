@@ -12,6 +12,9 @@ namespace ReadyM.Api.ECS.Worlds;
 /// </summary>
 public class ArchetypeBuilder
 {
+    /// <summary>False for an archetype whose entities never leave the server.</summary>
+    public bool IsReplicated { get; private set; } = true;
+
     private readonly List<Action<IArchetypeBuilderCallback>> _acceptCallbacks = [];
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
@@ -69,6 +72,12 @@ public class ArchetypeBuilder
             accept(filter);
         }
 
+        return this;
+    }
+
+    public ArchetypeBuilder Unreplicated()
+    {
+        IsReplicated = false;
         return this;
     }
 

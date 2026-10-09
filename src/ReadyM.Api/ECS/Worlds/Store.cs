@@ -316,6 +316,16 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
         return entity;
     }
 
+    public bool IsReplicated(ArchetypeId archetypeId)
+    {
+        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
+        {
+            throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
+        }
+
+        return entry.Builder.IsReplicated;
+    }
+
     /// <summary>
     /// The archetype an entity was created under.
     /// </summary>
