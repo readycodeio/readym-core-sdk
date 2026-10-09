@@ -34,6 +34,8 @@ public partial struct AreaId : INetSerializable, IEquatable<AreaId>
 
     public static AreaId Invalid => default;
 
+    internal string RawValue => _id.ToString();
+
     public void Serialize(NetDataWriter writer)
     {
         _id.Serialize(writer);
