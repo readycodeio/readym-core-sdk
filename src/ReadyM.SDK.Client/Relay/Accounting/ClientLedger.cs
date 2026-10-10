@@ -34,8 +34,11 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     {
     }
 
-    /// <summary>The server says the local player now sees this scope; its entities follow in the same message.</summary>
-    public Entity ApplyEnterScope(MetadataComponent scopeMeta)
+    /// <summary>
+    /// The server says the local player now sees this scope, with the scope's own entity unless it is the global scope;
+    /// the scope's entities follow in the same message. Returns the scope entity, a null entity for the global scope.
+    /// </summary>
+    public Entity ApplyEnterScope(NetworkId scope, MetadataComponent? scopeEntity)
         => default;
 
     /// <summary>The server says the local player no longer sees this scope: its entities are deleted here, owing nothing.</summary>
