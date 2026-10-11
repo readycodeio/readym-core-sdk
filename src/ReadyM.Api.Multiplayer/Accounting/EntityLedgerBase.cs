@@ -43,7 +43,7 @@ internal abstract class EntityLedgerBase : IDisposable
         NetEntity = netEntity;
         Logger = logger;
         _lastSentIn = world.ComponentIndex<LastSentInComponent, RawEntity>();
-        _unsent = world.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<UnsentCreateTag>()));
+        _unsent = world.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<LocallyCreatedEntityTag>()));
         _moved = world.Query<MetadataComponent>(new QueryFilter().AllComponents(ComponentTypes.Get<LastSentInComponent>()));
         _ownerChanged = world.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<OwnerChangedTag>()));
         _createdBy = world.Query<MetadataComponent>(new QueryFilter().AllComponents(ComponentTypes.Get<CreatedByComponent>()));
@@ -180,7 +180,7 @@ internal abstract class EntityLedgerBase : IDisposable
         var scope = ScopeOf(entity);
         var from = entity.TryGetComponent<LastSentInComponent>(out var lastSentIn) ? lastSentIn.Scope : scope;
         var creator = entity.TryGetComponent<CreatedByComponent>(out var createdBy) ? createdBy.Origin : PlayerId.Server;
-        return (scope, from, entity.Tags.Has<UnsentCreateTag>(), creator, PlayerOf(entity));
+        return (scope, from, entity.Tags.Has<LocallyCreatedEntityTag>(), creator, PlayerOf(entity));
     }
 
     /// <summary>The entities a selection picks, in a list of the ledger's own that holds until the next call.</summary>
@@ -203,13 +203,13 @@ internal abstract class EntityLedgerBase : IDisposable
             _scratch.Add(entity);
         foreach (var entity in _moved.Entities)
         {
-            if (!entity.Tags.Has<UnsentCreateTag>())
+            if (!entity.Tags.Has<LocallyCreatedEntityTag>())
                 _scratch.Add(entity);
         }
 
         foreach (var entity in _ownerChanged.Entities)
         {
-            if (!entity.Tags.Has<UnsentCreateTag>() && !entity.HasComponent<LastSentInComponent>())
+            if (!entity.Tags.Has<LocallyCreatedEntityTag>() && !entity.HasComponent<LastSentInComponent>())
                 _scratch.Add(entity);
         }
 
@@ -218,7 +218,8 @@ internal abstract class EntityLedgerBase : IDisposable
 
     protected void MarkUnsent(Entity entity, PlayerId holder)
     {
-        entity.AddTag<UnsentCreateTag>();
+        if (!entity.Tags.Has<LocallyCreatedEntityTag>())
+            entity.AddTag<LocallyCreatedEntityTag>();
         if (holder != PlayerId.Server)
             entity.AddComponent(new CreatedByComponent(holder));
         _marked = true;
@@ -234,7 +235,7 @@ internal abstract class EntityLedgerBase : IDisposable
     /// <summary>Puts an entity in another scope, remembering where it was last sent if anyone holds it as it was.</summary>
     protected void MoveMarked(Entity entity, Entity scope)
     {
-        var heldAsSent = !entity.Tags.Has<UnsentCreateTag>() || entity.HasComponent<CreatedByComponent>();
+        var heldAsSent = !entity.Tags.Has<LocallyCreatedEntityTag>() || entity.HasComponent<CreatedByComponent>();
         if (heldAsSent && !entity.HasComponent<LastSentInComponent>())
         {
             entity.AddComponent(new LastSentInComponent(ScopeOf(entity)));
@@ -390,8 +391,8 @@ internal abstract class EntityLedgerBase : IDisposable
 
             foreach (var entity in _scratch)
             {
-                if (entity.Tags.Has<UnsentCreateTag>())
-                    entity.RemoveTag<UnsentCreateTag>();
+                if (entity.Tags.Has<LocallyCreatedEntityTag>())
+                    entity.RemoveTag<LocallyCreatedEntityTag>();
                 if (entity.Tags.Has<OwnerChangedTag>())
                     entity.RemoveTag<OwnerChangedTag>();
                 if (entity.HasComponent<LastSentInComponent>())

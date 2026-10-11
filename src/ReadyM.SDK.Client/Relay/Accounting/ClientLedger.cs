@@ -121,7 +121,6 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
 
         Changing();
         var (entity, _) = NetEntity.CreateNetworkedEntity(archetype, scope == default ? null : scope);
-        entity.RemoveTag<LocallyCreatedEntityTag>();
         MarkUnsent(entity, PlayerId.Server);
         return entity;
     }
@@ -319,7 +318,7 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
 
     protected override void OnDeleted(Entity entity)
     {
-        if (_applying > 0 || entity.Tags.Has<UnsentCreateTag>())
+        if (_applying > 0 || entity.Tags.Has<LocallyCreatedEntityTag>())
             return;
 
         var meta = entity.GetComponent<MetadataComponent>();
