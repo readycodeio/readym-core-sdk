@@ -194,19 +194,17 @@ internal abstract class EntityLedgerBase : IDisposable
     }
 
     /// <summary>Deletes every entity in a scope; the scope entity itself stays.</summary>
-    protected void DeleteContents(Entity scope)
+    protected static void DeleteContents(Entity scope)
     {
-        _scratch.Clear();
+        var contents = new List<Entity>();
         foreach (var link in scope.GetIncomingLinks<InScopeComponent>())
-            _scratch.Add(link.Entity);
+            contents.Add(link.Entity);
 
-        foreach (var entity in _scratch)
+        foreach (var entity in contents)
         {
             if (!entity.IsNull)
                 entity.DeleteEntity();
         }
-
-        _scratch.Clear();
     }
 
     /// <summary>Puts an entity in a scope, or in the global scope for a null scope entity.</summary>
