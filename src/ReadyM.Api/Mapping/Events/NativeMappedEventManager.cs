@@ -13,7 +13,7 @@ namespace ReadyM.Api.Mapping.Events;
 internal class NativeMappedEventManager(
     DataSideChannel sideChannel,
     INativeMappingPolicyDirectory policyDir,
-    INativeComponentRegistry nativeRegistry,
+    INativeTypeRegistry nativeRegistry,
     IMappedEntityManager<IntPtr> entityMapper,
     ILogger logger
 ) : MappedEventManager(sideChannel, policyDir, logger)
@@ -31,7 +31,7 @@ internal class NativeMappedEventManager(
 
     public void RegisterNativeGameEventHandler(int eventId, ClosureTrampoline1 callback)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
 
         if (eventType is null || !typeof(IInteropType).IsAssignableFrom(eventType))
         {
@@ -55,7 +55,7 @@ internal class NativeMappedEventManager(
 
     public void RegisterNativeEcsEventHandler(int eventId, ClosureTrampoline1 callback)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
 
         if (eventType is null || !typeof(IInteropType).IsAssignableFrom(eventType))
         {
@@ -79,7 +79,7 @@ internal class NativeMappedEventManager(
 
     public bool NotifyEcsIfApplicable(int eventId, IntPtr data)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
         if (eventType is null)
         {
             logger.LogError("Attempted to notify ECS of unknown event with id {EventId}", eventId);
@@ -115,7 +115,7 @@ internal class NativeMappedEventManager(
     // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool NotifyEcsIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
         if (eventType is null)
         {
             logger.LogError("Attempted to notify ECS of unknown event with id {EventId}", eventId);
@@ -156,7 +156,7 @@ internal class NativeMappedEventManager(
 
     public bool InvokeInGameIfApplicable(int eventId, IntPtr data)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
         if (eventType is null)
         {
             logger.LogError("Attempted to invoke in Game an unknown event with id {EventId}", eventId);
@@ -192,7 +192,7 @@ internal class NativeMappedEventManager(
     // TODO: For now, we hard-code IntPtr as context, for IOwnershipBased events
     public bool InvokeInGameIfApplicable(int eventId, IntPtr data, IntPtr context)
     {
-        var eventType = nativeRegistry.GetComponentType(eventId);
+        var eventType = nativeRegistry.GetTypeById(eventId);
         if (eventType is null)
         {
             logger.LogError("Attempted to invoke in Game an unknown event with id {EventId}", eventId);
