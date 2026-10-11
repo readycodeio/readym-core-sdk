@@ -22,8 +22,11 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     private readonly Dictionary<Entity, NetworkId> _seen = [];
 
     private readonly List<NetworkId> _deletes = [];
-    private int _deleteEntry;
     private bool _deletesSent;
+
+    // Scopes whose unsent creates were sent to the server this round.
+    private readonly HashSet<Entity> _createsSent = [];
+    private readonly List<Entity> _createScopes = [];
 
     // Above zero while a message from the server is applied: what it deletes is owed to nobody.
     private int _applying;
@@ -119,7 +122,7 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
         Changing();
         var (entity, _) = NetEntity.CreateNetworkedEntity(archetype, scope == default ? null : scope);
         entity.RemoveTag<LocallyCreatedEntityTag>();
-        SetGroup(entity, new LedgerGroup(scope, scope, true, localPlayer, default));
+        MarkUnsent(entity, PlayerId.Server);
         return entity;
     }
 
@@ -285,49 +288,50 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
         }
     }
 
+    /// <summary>One create entry per scope with unsent creates, and one delete entry, each owed to the server.</summary>
     protected override void Collect()
     {
-        foreach (var group in Groups)
+        _createScopes.Clear();
+        foreach (var entity in MarkedEntities())
         {
-            if (group.Main.Contains(PlayerId.Server) || EntitiesOf(group.Id).Count == 0)
-                continue;
+            var scope = ScopeOf(entity);
+            if (!_createsSent.Contains(scope) && !_createScopes.Contains(scope))
+                _createScopes.Add(scope);
+        }
 
-            var scope = group.Key.Scope;
+        foreach (var scope in _createScopes)
+        {
             _seen.TryGetValue(scope, out var scopeNetId);
-            Owe(LedgerEntryKind.Create, scope, scopeNetId, default, PlayerId.Server, [PlayerId.Server], null, group.Id);
+            Owe(LedgerEntryKind.Create, (scope, scope, true, PlayerId.Server, default), scopeNetId, PlayerId.Server, [PlayerId.Server], null);
         }
 
         if (_deletes.Count > 0 && !_deletesSent)
-            Owe(LedgerEntryKind.Delete, default, default, default, PlayerId.Server, [PlayerId.Server], [.._deletes], _deleteEntry);
+            Owe(LedgerEntryKind.Delete, (default, default, false, PlayerId.Server, default), default, PlayerId.Server, [PlayerId.Server], [.._deletes]);
     }
 
-    protected override void OnSent(in LedgerEntry entry)
+    protected override void OnSent(in LedgerEntry entry, int source)
     {
         if (entry.Kind == LedgerEntryKind.Delete)
             _deletesSent = true;
         else
-            GroupOf(entry.Group).Main.Add(PlayerId.Server);
+            _createsSent.Add(entry.Scope);
     }
 
     protected override void OnDeleted(Entity entity)
     {
-        if (_applying > 0 || TryGetGroup(entity, out _))
+        if (_applying > 0 || entity.Tags.Has<UnsentCreateTag>())
             return;
 
         var meta = entity.GetComponent<MetadataComponent>();
-        if (meta.Owner != localPlayer)
-            return;
-
-        if (_deleteEntry == 0)
-            _deleteEntry = NextId();
-        _deletes.Add(meta.NetId);
+        if (meta.Owner == localPlayer)
+            _deletes.Add(meta.NetId);
     }
 
     protected override void OnCommit()
     {
         _deletes.Clear();
         _deletesSent = false;
-        _deleteEntry = 0;
+        _createsSent.Clear();
     }
 
     private Entity ScopeByNetId(NetworkId scopeNetId)

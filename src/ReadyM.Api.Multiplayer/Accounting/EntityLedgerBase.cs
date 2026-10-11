@@ -7,34 +7,49 @@ using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
+using EntitySelection = (Friflo.Engine.ECS.Entity Scope, Friflo.Engine.ECS.Entity From, bool Unsent, ReadyM.Api.Idents.PlayerId Creator, Friflo.Engine.ECS.Entity Player);
 
 namespace ReadyM.Api.Multiplayer.Accounting;
 
 /// <summary>
 /// Records every change to a networked entity that others must hear about, applying it at once, and hands the sending
-/// systems what is still owed as entries. What is owed about an entity is a mark on the entity naming its group; an
-/// entry is a group or a scope and the players owed it. Once nothing is owed the marks go. ECS thread only.
+/// systems what is still owed as entries. What is owed about an entity is a set of marks on the entity: unsent, moved
+/// from the scope it was last sent in, made by a client, owner changed. An entry is the inputs that pick entities by
+/// those marks, and the players owed them. Once nothing is owed the marks go. ECS thread only.
 /// </summary>
 internal abstract class EntityLedgerBase : IDisposable
 {
-    private readonly ComponentIndex<LedgerGroupComponent, int> _groupIndex;
-    private readonly Dictionary<LedgerGroup, int> _groupIds = [];
-    private readonly Dictionary<int, GroupState> _groups = [];
+    private readonly ComponentIndex<LastSentInComponent, RawEntity> _lastSentIn;
+    private readonly ArchetypeQuery<MetadataComponent> _unsent;
+    private readonly ArchetypeQuery<MetadataComponent> _moved;
+    private readonly ArchetypeQuery<MetadataComponent> _ownerChanged;
+    private readonly ArchetypeQuery<MetadataComponent> _createdBy;
+    private readonly ArchetypeQuery<MetadataComponent> _globalContent;
+    private readonly EntityList _entities = new();
+    private readonly EntityList _selected = new();
     private readonly List<Draft> _drafts = [];
     private readonly List<Entity> _scratch = [];
     private Dictionary<EntryKey, int> _entryIds = [];
     private List<LedgerEntry> _pending = [];
+    private List<List<int>> _sources = [];
     private int _nextEntryId;
-    private int _nextGroupId;
     private bool _dirty;
     private bool _sending;
+    private bool _marked;
 
     protected EntityLedgerBase(Store world, NetworkedEntityManager netEntity, ILogger logger)
     {
         World = world;
         NetEntity = netEntity;
         Logger = logger;
-        _groupIndex = world.ComponentIndex<LedgerGroupComponent, int>();
+        _lastSentIn = world.ComponentIndex<LastSentInComponent, RawEntity>();
+        _unsent = world.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<UnsentCreateTag>()));
+        _moved = world.Query<MetadataComponent>(new QueryFilter().AllComponents(ComponentTypes.Get<LastSentInComponent>()));
+        _ownerChanged = world.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<OwnerChangedTag>()));
+        _createdBy = world.Query<MetadataComponent>(new QueryFilter().AllComponents(ComponentTypes.Get<CreatedByComponent>()));
+        _globalContent = world.Query<MetadataComponent>(new QueryFilter()
+            .WithoutAnyComponents(ComponentTypes.Get<InScopeComponent>())
+            .WithoutAnyTags(Tags.Get<ScopeEntityTag>()));
         world.OnEntityDelete += OnEntityDelete;
     }
 
@@ -44,7 +59,7 @@ internal abstract class EntityLedgerBase : IDisposable
 
     protected ILogger Logger { get; }
 
-    /// <summary>What is still owed, each entry the inputs of a query and the players owed what it returns.</summary>
+    /// <summary>What is still owed, each entry the inputs that pick entities and the players owed them.</summary>
     public ReadyM.Api.Helpers.ReadOnlyList<LedgerEntry> Pending
     {
         get
@@ -60,33 +75,40 @@ internal abstract class EntityLedgerBase : IDisposable
         get
         {
             Refresh();
-            return _pending.Count == 0 && _groups.Count == 0;
+            return _pending.Count == 0 && !_marked;
         }
     }
 
     public void Dispose()
         => World.OnEntityDelete -= OnEntityDelete;
 
-    /// <summary>The query an entry's inputs describe.</summary>
-    public ArchetypeQuery<MetadataComponent> Query(in LedgerEntry entry)
+    /// <summary>
+    /// The entities an entry is about: every entity in the scope for a snapshot, the marked entities its inputs pick
+    /// for anything else, none for a leave or a delete. The list is reused: it holds until the next call.
+    /// </summary>
+    public EntityList Entities(in LedgerEntry entry)
     {
+        _entities.Clear();
         switch (entry.Kind)
         {
             case LedgerEntryKind.EnterScope when entry.Scope == default:
-                return World.Query<MetadataComponent>(new QueryFilter()
-                    .WithoutAnyComponents(ComponentTypes.Get<InScopeComponent>())
-                    .WithoutAnyTags(Tags.Get<ScopeEntityTag>()));
+                foreach (var entity in _globalContent.Entities)
+                    Add(_entities, entity);
+                break;
 
             case LedgerEntryKind.EnterScope:
-                return World.Query<MetadataComponent>().HasValue<InScopeComponent, Entity>(entry.Scope);
+                foreach (var link in entry.Scope.GetIncomingLinks<InScopeComponent>())
+                    Add(_entities, link.Entity);
+                break;
 
+            case LedgerEntryKind.Create:
+            case LedgerEntryKind.ScopeChange:
             case LedgerEntryKind.OwnerChange:
-                return World.Query<MetadataComponent>(new QueryFilter().AllTags(Tags.Get<OwnerChangedTag>()))
-                    .HasValue<LedgerGroupComponent, int>(entry.Group);
-
-            default:
-                return World.Query<MetadataComponent>().HasValue<LedgerGroupComponent, int>(entry.Group);
+                AddSelected(_entities, (entry.Scope, entry.From, entry.Unsent, entry.Creator, entry.Player), entry.Kind == LedgerEntryKind.OwnerChange);
+                break;
         }
+
+        return _entities;
     }
 
     /// <summary>Records that the entry's entities were sent to the entry's players; throws for an entry not pending.</summary>
@@ -104,7 +126,8 @@ internal abstract class EntityLedgerBase : IDisposable
             throw new InvalidOperationException($"Ledger entry {entry.Id} ({entry.Kind}) is not pending: it was sent already, or is out of date");
 
         _sending = true;
-        OnSent(_pending[index]);
+        foreach (var source in _sources[index])
+            OnSent(_pending[index], source);
         _dirty = true;
     }
 
@@ -118,8 +141,11 @@ internal abstract class EntityLedgerBase : IDisposable
     /// <summary>Adds what is owed now, through <see cref="Owe"/>.</summary>
     protected abstract void Collect();
 
-    /// <summary>Records what sending a pending entry changed.</summary>
-    protected abstract void OnSent(in LedgerEntry entry);
+    /// <summary>
+    /// Records what sending a pending entry changed, once for each source <see cref="Owe"/> was given for it: drafts
+    /// that pick the same entities for the same players are one entry, their net ids together.
+    /// </summary>
+    protected abstract void OnSent(in LedgerEntry entry, int source);
 
     /// <summary>A networked entity is being deleted, by anyone; it can still be read.</summary>
     protected abstract void OnDeleted(Entity entity);
@@ -140,57 +166,84 @@ internal abstract class EntityLedgerBase : IDisposable
         _dirty = true;
     }
 
-    /// <summary>Adds an entry to what is owed; the players list becomes the entry's own.</summary>
-    protected void Owe(LedgerEntryKind kind, Entity scope, NetworkId scopeNetId, Entity from, PlayerId excludedOrigin,
-        List<PlayerId> players, List<NetworkId>? netIds, int group)
-        => _drafts.Add(new Draft(new EntryKey(kind, group, scope, from, excludedOrigin, PlayerSet.Of(players)),
-            scopeNetId, players, netIds));
+    /// <summary>
+    /// Adds an entry to what is owed; the players list becomes the entry's own. The source, the side's own index of what
+    /// the entry stands for in this rebuild, comes back to <see cref="OnSent"/>.
+    /// </summary>
+    protected void Owe(LedgerEntryKind kind, in EntitySelection selection, NetworkId scopeNetId, PlayerId excludedOrigin,
+        List<PlayerId> players, List<NetworkId>? netIds, int source = -1)
+        => _drafts.Add(new Draft(kind, selection, scopeNetId, excludedOrigin, players, netIds, source));
 
-    /// <summary>A fresh id for a group or for anything else an entry names.</summary>
-    protected int NextId()
-        => ++_nextGroupId;
-
-    /// <summary>Every group that has had an entity this round, emptied or not.</summary>
-    protected Dictionary<int, GroupState>.ValueCollection Groups => _groups.Values;
-
-    protected GroupState GroupOf(int id)
-        => _groups[id];
-
-    /// <summary>The entities of a group; copy before changing any of them.</summary>
-    protected Entities EntitiesOf(int group)
-        => _groupIndex[group];
-
-    protected bool TryGetGroup(Entity entity, out LedgerGroup group)
+    /// <summary>What an entity's marks say about it: where it is, where it was last sent, whether unsent and who holds it.</summary>
+    protected EntitySelection SelectionOf(Entity entity)
     {
-        if (entity.TryGetComponent<LedgerGroupComponent>(out var mark))
-        {
-            group = _groups[mark.Group].Key;
-            return true;
-        }
-
-        group = default;
-        return false;
+        var scope = ScopeOf(entity);
+        var from = entity.TryGetComponent<LastSentInComponent>(out var lastSentIn) ? lastSentIn.Scope : scope;
+        var creator = entity.TryGetComponent<CreatedByComponent>(out var createdBy) ? createdBy.Origin : PlayerId.Server;
+        return (scope, from, entity.Tags.Has<UnsentCreateTag>(), creator, PlayerOf(entity));
     }
 
-    /// <summary>Puts the entity in a group, or takes it out of any when nothing is owed about it.</summary>
-    protected void SetGroup(Entity entity, in LedgerGroup group)
+    /// <summary>The entities a selection picks, in a list of the ledger's own that holds until the next call.</summary>
+    protected EntityList Selected(in EntitySelection selection)
     {
-        if (group.OwesNothing && !entity.Tags.Has<OwnerChangedTag>())
+        _selected.Clear();
+        AddSelected(_selected, selection, false);
+        return _selected;
+    }
+
+    /// <summary>The entity itself when it must be picked on its own; a null entity otherwise.</summary>
+    protected virtual Entity PlayerOf(Entity entity)
+        => default;
+
+    /// <summary>Every entity carrying a mark, each once, for <see cref="Collect"/>.</summary>
+    protected List<Entity> MarkedEntities()
+    {
+        _scratch.Clear();
+        foreach (var entity in _unsent.Entities)
+            _scratch.Add(entity);
+        foreach (var entity in _moved.Entities)
         {
-            if (entity.HasComponent<LedgerGroupComponent>())
-                entity.RemoveComponent<LedgerGroupComponent>();
-            return;
+            if (!entity.Tags.Has<UnsentCreateTag>())
+                _scratch.Add(entity);
         }
 
-        if (!_groupIds.TryGetValue(group, out var id))
+        foreach (var entity in _ownerChanged.Entities)
         {
-            id = NextId();
-            _groupIds.Add(group, id);
-            _groups.Add(id, new GroupState(id, group));
+            if (!entity.Tags.Has<UnsentCreateTag>() && !entity.HasComponent<LastSentInComponent>())
+                _scratch.Add(entity);
         }
 
-        if (!entity.TryGetComponent<LedgerGroupComponent>(out var mark) || mark.Group != id)
-            entity.AddComponent(new LedgerGroupComponent(id));
+        return _scratch;
+    }
+
+    protected void MarkUnsent(Entity entity, PlayerId holder)
+    {
+        entity.AddTag<UnsentCreateTag>();
+        if (holder != PlayerId.Server)
+            entity.AddComponent(new CreatedByComponent(holder));
+        _marked = true;
+    }
+
+    protected void MarkOwnerChanged(Entity entity)
+    {
+        if (!entity.Tags.Has<OwnerChangedTag>())
+            entity.AddTag<OwnerChangedTag>();
+        _marked = true;
+    }
+
+    /// <summary>Puts an entity in another scope, remembering where it was last sent if anyone holds it as it was.</summary>
+    protected void MoveMarked(Entity entity, Entity scope)
+    {
+        var heldAsSent = !entity.Tags.Has<UnsentCreateTag>() || entity.HasComponent<CreatedByComponent>();
+        if (heldAsSent && !entity.HasComponent<LastSentInComponent>())
+        {
+            entity.AddComponent(new LastSentInComponent(ScopeOf(entity)));
+            _marked = true;
+        }
+
+        PutInScope(entity, scope);
+        if (entity.TryGetComponent<LastSentInComponent>(out var lastSentIn) && lastSentIn.Scope == scope)
+            entity.RemoveComponent<LastSentInComponent>();
     }
 
     /// <summary>Deletes every entity in a scope; the scope entity itself stays.</summary>
@@ -224,6 +277,44 @@ internal abstract class EntityLedgerBase : IDisposable
     protected static NetworkId NetIdOf(Entity entity)
         => entity == default || entity.IsNull ? default : entity.GetComponent<MetadataComponent>().NetId;
 
+    /// <summary>Adds the entities a selection picks, looking only at the smallest set of marked entities it can be in.</summary>
+    private void AddSelected(EntityList list, in EntitySelection selection, bool ownerChangedOnly)
+    {
+        if (selection.Player != default)
+        {
+            if (!selection.Player.IsNull)
+                AddIfSelected(list, selection.Player, selection, ownerChangedOnly);
+        }
+        else if (selection.Unsent)
+        {
+            foreach (var entity in _unsent.Entities)
+                AddIfSelected(list, entity, selection, ownerChangedOnly);
+        }
+        else if (selection.From != selection.Scope)
+        {
+            foreach (var entity in _lastSentIn[selection.From.RawEntity])
+                AddIfSelected(list, entity, selection, ownerChangedOnly);
+        }
+        else
+        {
+            foreach (var entity in _ownerChanged.Entities)
+                AddIfSelected(list, entity, selection, ownerChangedOnly);
+        }
+    }
+
+    private void AddIfSelected(EntityList list, Entity entity, in EntitySelection selection, bool ownerChangedOnly)
+    {
+        if (SelectionOf(entity) == selection && (!ownerChangedOnly || entity.Tags.Has<OwnerChangedTag>()))
+            Add(list, entity);
+    }
+
+    private static void Add(EntityList list, Entity entity)
+    {
+        if (list.Count == 0)
+            list.SetStore(entity.Store);
+        list.Add(entity);
+    }
+
     private void OnEntityDelete(EntityDelete evt)
     {
         if (!evt.Entity.HasComponent<MetadataComponent>())
@@ -244,105 +335,111 @@ internal abstract class EntityLedgerBase : IDisposable
         Collect();
 
         var ids = new Dictionary<EntryKey, int>();
+        var positions = new Dictionary<EntryKey, int>();
         var pending = new List<LedgerEntry>(_drafts.Count);
+        var sources = new List<List<int>>(_drafts.Count);
+        var netIdLists = new List<List<NetworkId>?>(_drafts.Count);
         foreach (var draft in _drafts)
         {
-            if (!_entryIds.TryGetValue(draft.Key, out var id))
-                id = ++_nextEntryId;
-            ids[draft.Key] = id;
+            var key = new EntryKey(draft.Kind, draft.Selection, draft.ExcludedOrigin, PlayerSet.Of(draft.Players));
+            if (positions.TryGetValue(key, out var at))
+            {
+                // Two deletes for the same players under the same scope go as one.
+                netIdLists[at]!.AddRange(draft.NetIds ?? []);
+                sources[at].Add(draft.Source);
+                continue;
+            }
 
-            var netIds = draft.NetIds is null
-                ? ReadyM.Api.Helpers.ReadOnlyList<NetworkId>.Empty
-                : new ReadyM.Api.Helpers.ReadOnlyList<NetworkId>(draft.NetIds);
-            pending.Add(new LedgerEntry(id, draft.Key.Kind, draft.Key.Scope, draft.ScopeNetId, draft.Key.From,
-                draft.Key.ExcludedOrigin, new ReadyM.Api.Helpers.ReadOnlyList<PlayerId>(draft.Players), netIds, draft.Key.Group));
+            if (!_entryIds.TryGetValue(key, out var id))
+                id = ++_nextEntryId;
+            ids[key] = id;
+            positions[key] = pending.Count;
+
+            var s = draft.Selection;
+            var netIds = draft.NetIds is null ? null : new List<NetworkId>(draft.NetIds);
+            pending.Add(new LedgerEntry(id, draft.Kind, s.Scope, draft.ScopeNetId, s.From, s.Unsent, s.Creator, s.Player,
+                draft.ExcludedOrigin, new ReadyM.Api.Helpers.ReadOnlyList<PlayerId>(draft.Players),
+                netIds is null ? ReadyM.Api.Helpers.ReadOnlyList<NetworkId>.Empty : new ReadyM.Api.Helpers.ReadOnlyList<NetworkId>(netIds)));
+            sources.Add([draft.Source]);
+            netIdLists.Add(netIds);
         }
 
         _drafts.Clear();
         _entryIds = ids;
         _pending = pending;
+        _sources = sources;
 
         if (pending.Count == 0)
             Commit();
     }
 
-    /// <summary>Nothing is owed: every mark goes, and with it every group.</summary>
+    /// <summary>Nothing is owed: every mark goes.</summary>
     private void Commit()
     {
-        _scratch.Clear();
-        foreach (var id in _groups.Keys)
+        if (_marked)
         {
-            foreach (var entity in _groupIndex[id])
+            _scratch.Clear();
+            foreach (var entity in _unsent.Entities)
                 _scratch.Add(entity);
+            foreach (var entity in _moved.Entities)
+                _scratch.Add(entity);
+            foreach (var entity in _ownerChanged.Entities)
+                _scratch.Add(entity);
+            foreach (var entity in _createdBy.Entities)
+                _scratch.Add(entity);
+
+            foreach (var entity in _scratch)
+            {
+                if (entity.Tags.Has<UnsentCreateTag>())
+                    entity.RemoveTag<UnsentCreateTag>();
+                if (entity.Tags.Has<OwnerChangedTag>())
+                    entity.RemoveTag<OwnerChangedTag>();
+                if (entity.HasComponent<LastSentInComponent>())
+                    entity.RemoveComponent<LastSentInComponent>();
+                if (entity.HasComponent<CreatedByComponent>())
+                    entity.RemoveComponent<CreatedByComponent>();
+            }
+
+            _scratch.Clear();
+            _marked = false;
         }
 
-        foreach (var entity in _scratch)
-        {
-            entity.RemoveComponent<LedgerGroupComponent>();
-            if (entity.Tags.Has<OwnerChangedTag>())
-                entity.RemoveTag<OwnerChangedTag>();
-        }
-
-        _scratch.Clear();
-        _groups.Clear();
-        _groupIds.Clear();
         _entryIds.Clear();
         _sending = false;
         OnCommit();
     }
 
-    /// <summary>One group, and which of its players were sent what this round.</summary>
-    protected sealed class GroupState(int id, LedgerGroup key)
-    {
-        public int Id { get; } = id;
-
-        public LedgerGroup Key { get; } = key;
-
-        /// <summary>Players sent a create, scope change or delete of the group: each is sent one of them at most.</summary>
-        public HashSet<PlayerId> Main { get; } = [];
-
-        /// <summary>Players sent the group's ownership change.</summary>
-        public HashSet<PlayerId> Owner { get; } = [];
-    }
-
-    private readonly struct EntryKey(LedgerEntryKind kind, int group, Entity scope, Entity from, PlayerId excludedOrigin, PlayerSet players)
+    private readonly struct EntryKey(LedgerEntryKind kind, EntitySelection selection, PlayerId excludedOrigin, PlayerSet players)
         : IEquatable<EntryKey>
     {
-        public LedgerEntryKind Kind { get; } = kind;
-
-        public int Group { get; } = group;
-
-        public Entity Scope { get; } = scope;
-
-        public Entity From { get; } = from;
-
-        public PlayerId ExcludedOrigin { get; } = excludedOrigin;
-
-        public PlayerSet Players { get; } = players;
+        private readonly LedgerEntryKind _kind = kind;
+        private readonly EntitySelection _selection = selection;
+        private readonly PlayerId _excludedOrigin = excludedOrigin;
+        private readonly PlayerSet _players = players;
 
         public bool Equals(EntryKey other)
-            => Kind == other.Kind && Group == other.Group && Scope == other.Scope && From == other.From
-               && ExcludedOrigin == other.ExcludedOrigin && Players.Equals(other.Players);
+            => _kind == other._kind && _selection == other._selection && _excludedOrigin == other._excludedOrigin
+               && _players.Equals(other._players);
 
         public override bool Equals(object? obj)
             => obj is EntryKey other && Equals(other);
 
         public override int GetHashCode()
-        {
-            var hash = (int)Kind;
-            hash = hash * 31 + Group;
-            hash = hash * 31 + Scope.GetHashCode();
-            hash = hash * 31 + From.GetHashCode();
-            hash = hash * 31 + ExcludedOrigin.GetHashCode();
-            return hash * 31 + Players.GetHashCode();
-        }
+            => ((int)_kind * 31 + _selection.GetHashCode()) * 31 + _players.GetHashCode();
     }
 
-    private readonly struct Draft(EntryKey key, NetworkId scopeNetId, List<PlayerId> players, List<NetworkId>? netIds)
+    private readonly struct Draft(LedgerEntryKind kind, EntitySelection selection, NetworkId scopeNetId, PlayerId excludedOrigin,
+        List<PlayerId> players, List<NetworkId>? netIds, int source)
     {
-        public EntryKey Key { get; } = key;
+        public int Source { get; } = source;
+
+        public LedgerEntryKind Kind { get; } = kind;
+
+        public EntitySelection Selection { get; } = selection;
 
         public NetworkId ScopeNetId { get; } = scopeNetId;
+
+        public PlayerId ExcludedOrigin { get; } = excludedOrigin;
 
         public List<PlayerId> Players { get; } = players;
 
