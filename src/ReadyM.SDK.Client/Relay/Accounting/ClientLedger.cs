@@ -28,8 +28,11 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     // Above zero while a message from the server is applied: what it deletes is owed to nobody.
     private int _applying;
 
-    // Requests to change area or cells that the server has not confirmed yet.
-    private int _unconfirmed;
+    // Requests to change area or cells that the server has not confirmed yet, oldest first; a cell change lists the
+    // cells it leaves.
+    private readonly Queue<List<Entity>?> _unconfirmed = new();
+    private int _areaChanges;
+    private List<Entity>? _cellChange;
 
     public PlayerId LocalPlayer => localPlayer;
 
@@ -41,26 +44,70 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
         => Sees(localPlayer, scope);
 
     /// <summary>
-    /// Whether the local player may create or delete in the scope: it sees it; outside the global scope, the server has
-    /// confirmed every change of area or cells it asked for, since until then a scope it holds may be one it is leaving;
-    /// and it is not the player scope of another player, which that player's moves take the local player in and out of.
+    /// Whether the local player may create or delete in the scope: it sees it; outside the global scope, no change of
+    /// area is unconfirmed, since until then a scope it holds may be one it is leaving or left and rejoined; it is not
+    /// a cell the unconfirmed change of cells leaves; and it is not the player scope of another player, a read-only view.
     /// </summary>
     public bool MayChange(Entity scope)
-        => Sees(scope)
-           && (scope == default
-               || (_unconfirmed == 0
-                   && (!scope.HasComponent<PlayerScopeComponent>() || scope.GetComponent<MetadataComponent>().Owner == localPlayer)));
+    {
+        if (!Sees(scope))
+            return false;
+        if (scope == default)
+            return true;
 
-    /// <summary>The local player asked the server to change its area or cells.</summary>
-    public void MembershipRequested()
-        => _unconfirmed++;
+        return _areaChanges == 0
+               && (_cellChange is null || !_cellChange.Contains(scope))
+               && (!scope.HasComponent<PlayerScopeComponent>() || scope.GetComponent<MetadataComponent>().Owner == localPlayer);
+    }
+
+    /// <summary>
+    /// Whether the local player may ask to change its cells: it is properly in an area, every change of area confirmed
+    /// and the area sent, and no change of cells is unconfirmed.
+    /// </summary>
+    public bool MayChangeCells
+    {
+        get
+        {
+            if (_areaChanges > 0 || _cellChange is not null)
+                return false;
+
+            foreach (var scope in _seen.Keys)
+            {
+                if (scope != default && scope.HasComponent<AreaScopeComponent>())
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>The local player asked the server to join an area or leave its area; allowed with a change of cells unconfirmed.</summary>
+    public void AreaChangeRequested()
+    {
+        _areaChanges++;
+        _unconfirmed.Enqueue(null);
+    }
+
+    /// <summary>The local player asked the server to change its cells, leaving these; throws unless <see cref="MayChangeCells"/>.</summary>
+    public void CellChangeRequested(IEnumerable<Entity> cellsLeft)
+    {
+        if (!MayChangeCells)
+            throw new InvalidOperationException("The local player may change its cells only once properly in an area, one change at a time");
+
+        _cellChange = [..cellsLeft];
+        _unconfirmed.Enqueue(_cellChange);
+    }
 
     /// <summary>The server confirmed the oldest change of area or cells the local player asked for.</summary>
     public void MembershipConfirmed()
     {
-        if (_unconfirmed == 0)
+        if (_unconfirmed.Count == 0)
             throw new InvalidOperationException("The server confirmed a change of area or cells nobody asked for");
-        _unconfirmed--;
+
+        if (_unconfirmed.Dequeue() is null)
+            _areaChanges--;
+        else
+            _cellChange = null;
     }
 
     /// <summary>Creates an entity owned by the local player in a scope it may change, owed to the server.</summary>
