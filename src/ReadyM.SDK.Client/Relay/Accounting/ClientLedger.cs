@@ -43,7 +43,7 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     /// <summary>
     /// Whether the local player may create or delete in the scope: it sees it; outside the global scope, the server has
     /// confirmed every change of area or cells it asked for, since until then a scope it holds may be one it is leaving;
-    /// and it is not another player's player scope, which that player's moves take the local player in and out of.
+    /// and it is not the player scope of another player, which that player's moves take the local player in and out of.
     /// </summary>
     public bool MayChange(Entity scope)
         => Sees(scope)
