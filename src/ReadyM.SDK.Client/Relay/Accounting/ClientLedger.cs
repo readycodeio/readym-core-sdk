@@ -20,12 +20,16 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
 {
     // The scopes the server says the local player sees, with their net ids; a null entity is the global scope.
     private readonly Dictionary<Entity, NetworkId> _seen = [];
+
     private readonly List<NetworkId> _deletes = [];
     private int _deleteEntry;
     private bool _deletesSent;
 
     // Above zero while a message from the server is applied: what it deletes is owed to nobody.
     private int _applying;
+
+    // Requests to change area or cells that the server has not confirmed yet.
+    private int _unconfirmed;
 
     public PlayerId LocalPlayer => localPlayer;
 
@@ -36,11 +40,34 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     public bool Sees(Entity scope)
         => Sees(localPlayer, scope);
 
-    /// <summary>Creates an entity owned by the local player in a scope it sees, owed to the server.</summary>
+    /// <summary>
+    /// Whether the local player may create or delete in the scope: it sees it; outside the global scope, the server has
+    /// confirmed every change of area or cells it asked for, since until then a scope it holds may be one it is leaving;
+    /// and it is not another player's player scope, which that player's moves take the local player in and out of.
+    /// </summary>
+    public bool MayChange(Entity scope)
+        => Sees(scope)
+           && (scope == default
+               || (_unconfirmed == 0
+                   && (!scope.HasComponent<PlayerScopeComponent>() || scope.GetComponent<MetadataComponent>().Owner == localPlayer)));
+
+    /// <summary>The local player asked the server to change its area or cells.</summary>
+    public void MembershipRequested()
+        => _unconfirmed++;
+
+    /// <summary>The server confirmed the oldest change of area or cells the local player asked for.</summary>
+    public void MembershipConfirmed()
+    {
+        if (_unconfirmed == 0)
+            throw new InvalidOperationException("The server confirmed a change of area or cells nobody asked for");
+        _unconfirmed--;
+    }
+
+    /// <summary>Creates an entity owned by the local player in a scope it may change, owed to the server.</summary>
     public Entity Create(ArchetypeId archetype, Entity scope)
     {
-        if (!Sees(scope))
-            throw new InvalidOperationException($"The local player cannot create in a scope it does not see: {scope}");
+        if (!MayChange(scope))
+            throw new InvalidOperationException($"The local player cannot create in {scope} now: see MayChange");
 
         Changing();
         var (entity, _) = NetEntity.CreateNetworkedEntity(archetype, scope == default ? null : scope);
@@ -53,8 +80,8 @@ internal sealed class ClientLedger(Store world, NetworkedEntityManager netEntity
     public void Delete(Entity entity)
     {
         var meta = entity.GetComponent<MetadataComponent>();
-        if (meta.Owner != localPlayer || !entity.Tags.Has<ClientDeletableTag>())
-            throw new InvalidOperationException($"The local player cannot delete {meta.NetId}: only an owner deletes, and only a client-deletable entity");
+        if (meta.Owner != localPlayer || !entity.Tags.Has<ClientDeletableTag>() || !MayChange(ScopeOf(entity)))
+            throw new InvalidOperationException($"The local player cannot delete {meta.NetId}: only its own client-deletable entities, where MayChange allows");
 
         Changing();
         entity.DeleteEntity();
