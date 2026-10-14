@@ -21,8 +21,9 @@ public enum RelayMessageCode : byte
     EcsChangeOwnership = 246,
     RequestSetActiveCellsEvent = 245,
     EcsChangeScope = 244,
+    EcsInternedStrings = 243,
 
-    MinBuiltInEvent = EcsChangeScope,
+    MinBuiltInEvent = EcsInternedStrings,
     MaxAnyCustomEvent = MinBuiltInEvent - 1,
 
     MaxServerRpcEvent = MaxAnyCustomEvent,

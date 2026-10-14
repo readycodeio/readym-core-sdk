@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Worlds;
@@ -28,5 +29,6 @@ internal interface INetworkedEntityManager
     bool TryGetEntityByNetworkId(NetworkId netId, [NotNullWhen(true)] out Entity? entity);
     void DeleteEntitiesInScope(Entity scopeEntity, bool skipSync, bool deleteScopeEntity);
     void DeleteAllNetworkedEntities(bool skipSync);
+    void DeleteEntities(IReadOnlyList<Entity> entities, bool skipSync);
     bool TryDeleteEntity(int entityId);
 }

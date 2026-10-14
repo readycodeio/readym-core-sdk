@@ -47,7 +47,7 @@ internal class ShimRecordingJsonConverter : JsonConverter<ShimRecording>
     {
         writer.WriteStartObject();
         writer.WritePropertyName("playerId");
-        var playerRawValue = value.PlayerId?.RawValue ?? -1;
+        int playerRawValue = (int?)value.PlayerId?.RawValue ?? -1;
         writer.WriteNumberValue(playerRawValue);
         writer.WritePropertyName("items");
         JsonSerializer.Serialize(writer, value.ResponseItems, options);

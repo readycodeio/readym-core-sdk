@@ -75,6 +75,15 @@ public static class ServiceRegistry
             .OfType<IUpdatingService>()
             .ToList();
 
+    /// <summary>The declared services that implement <typeparamref name="T"/>, built, in type name order.</summary>
+    /// <remarks>A [Service] is registered by its own type only, so this is how a host finds the ones playing a role.</remarks>
+    public static List<T> ResolveAll<T>(IDependencyContainer container) where T : class
+        => Declared.Values
+            .Where(declaration => typeof(T).IsAssignableFrom(declaration.Service))
+            .OrderBy(declaration => declaration.Service.FullName, StringComparer.Ordinal)
+            .Select(declaration => (T)declaration.Get(container))
+            .ToList();
+
     private static List<Declaration> InUpdateOrder(ILogger? logger)
     {
         var updating = Declared.Values.Where(declaration => declaration.Order is not null).ToList();

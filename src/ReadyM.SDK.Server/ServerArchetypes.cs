@@ -23,20 +23,13 @@ public static class ServerArchetypes
 
         foreach (var shape in ArchetypeContributions.Shapes())
         {
-            var contributed = new List<Type>();
-
-            // What the shape itself brought.
             foreach (var component in ArchetypeContributions.OwnGenerated(shape))
             {
                 if (registered.Add(component) && !Replicates(component))
                     host.RegisterLocalComponent(component);
-
-                contributed.Add(component);
             }
 
-            // What mods added with [Extends], again only what they generated. A mixin sitting on
-            // a component the game already declares is the old pipeline's to place, not ours.
-            contributed.AddRange(ArchetypeRegistry.GeneratedAddedTo(shape));
+            var contributed = Contributed(shape);
 
             if (contributed.Count == 0)
                 continue;
@@ -46,5 +39,21 @@ public static class ServerArchetypes
         }
 
         return applied;
+    }
+
+    /// Every component a mod adds to the game's archetype for a shape.
+    internal static List<Type> Contributed(Type shape)
+    {
+        var contributed = new List<Type>(ArchetypeContributions.OwnGenerated(shape));
+        
+        contributed.AddRange(ArchetypeRegistry.GeneratedAddedTo(shape));
+        
+        foreach (var change in contributed.Where(Replicates).Select(ChangeComponents.Of).OfType<Type>().ToList())
+        {
+            if (!contributed.Contains(change))
+                contributed.Add(change);
+        }
+
+        return contributed;
     }
 }

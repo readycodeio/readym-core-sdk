@@ -29,6 +29,10 @@ public partial struct CellId : INetSerializable, IEquatable<CellId>
 
     public static CellId Invalid => default;
 
+    public string ToManaged() => _id.ToManaged();
+
+    internal string RawValue => _id.ToString();
+
     public void Serialize(NetDataWriter writer) => _id.Serialize(writer);
 
     public void Deserialize(NetDataReader reader) => _id.Deserialize(reader);

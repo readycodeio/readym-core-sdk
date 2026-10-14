@@ -6,6 +6,7 @@ using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.ECS.Worlds;
+using ReadyM.Api.Multiplayer.Interning;
 using ReadyM.Api.Multiplayer.Protocol;
 
 namespace ReadyM.Relay.Client;
@@ -21,6 +22,8 @@ internal class ClientEcsUpdateLoop(Store world, ILogger logger)
 
     public bool IsRunning { get; private set; }
     private float _applicationTime;
+
+    public ClientInternedStringIndex InternedStringIndex { get; } = new(logger);
 
     public void Start()
     {
@@ -48,6 +51,8 @@ internal class ClientEcsUpdateLoop(Store world, ILogger logger)
         }
 
         _applicationTime += deltaTime;
+
+        using var internedStrings = InternedStrings.Enter(InternedStringIndex);
         world.SystemRoot.Update(new UpdateTick(deltaTime, _applicationTime));
     }
 

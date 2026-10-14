@@ -88,7 +88,16 @@ internal unsafe delegate int WriteDeltaDelegate(IntPtr heapSelf, int index, byte
 
 internal unsafe delegate int ReadSnapshotDelegate(IntPtr heapSelf, int index, byte* buffer, int size);
 
-internal unsafe delegate int ReadDeltaDelegate(IntPtr heapSelf, int index, byte* buffer, int size, byte clearDirty);
+internal unsafe delegate int ReadDeltaDelegate(
+    IntPtr heapSelf,
+    int index,
+    byte* buffer,
+    int size,
+    byte clearDirty,
+    int entityId,
+    uint currentTime,
+    uint lastObservedTime,
+    byte resolveConflicts);
 
 /// 1 if the component was changed from the API (a server override), else 0.
 internal delegate byte ChangedFromApiDelegate(IntPtr heapSelf, int index);

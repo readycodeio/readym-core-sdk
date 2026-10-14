@@ -12,6 +12,9 @@ namespace ReadyM.Api.ECS.Worlds;
 /// </summary>
 public class ArchetypeBuilder
 {
+    /// <summary>False for an archetype whose entities never leave the server.</summary>
+    public bool IsReplicated { get; private set; } = true;
+
     private readonly List<Action<IArchetypeBuilderCallback>> _acceptCallbacks = [];
     private readonly List<IArchetypeBuilderCallback> _filters = [];
 
@@ -69,6 +72,12 @@ public class ArchetypeBuilder
             accept(filter);
         }
 
+        return this;
+    }
+
+    public ArchetypeBuilder Unreplicated()
+    {
+        IsReplicated = false;
         return this;
     }
 
@@ -140,6 +149,37 @@ public class ArchetypeBuilder
         foreach (var accept in _acceptCallbacks)
         {
             accept(callback);
+        }
+    }
+
+    /// <summary>True when the archetype already declares a component of type <typeparamref name="T"/>.</summary>
+    internal bool Contains<T>() where T : struct, IComponent
+    {
+        var probe = new ContainsProbe<T>();
+        Accept(probe);
+        return probe.Found;
+    }
+
+    private sealed class ContainsProbe<TProbe> : IArchetypeBuilderCallback where TProbe : struct, IComponent
+    {
+        public bool Found { get; private set; }
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder) where T : struct, IComponent
+            => Found |= typeof(T) == typeof(TProbe);
+
+        public void AcceptComponentType<T>(ArchetypeBuilder builder, T defaultValue) where T : struct, IComponent
+            => Found |= typeof(T) == typeof(TProbe);
+
+        public void AcceptStrideComponent(ArchetypeBuilder builder, int structIndex, int stride)
+        {
+        }
+
+        public void AcceptTag<T>(ArchetypeBuilder builder) where T : struct, ITag
+        {
+        }
+
+        public void AcceptTags(ArchetypeBuilder builder, in Tags tags)
+        {
         }
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace ReadyM.Api.Generators.Archetypes;
 
@@ -81,9 +81,13 @@ internal static class AccessorEmitter
         if (!accessor.HasSetter || indexed || !chunkWrites)
             return;
 
+        // A replicated value is written through the row's handle into the chunk, the same write a handle's setter
+        // makes: on the server that stamps the field with the server's time, which only a write knowing the entity can
         writer.Line();
-        writer.Line($"public static void Set{accessor.Name}(in {chunks.ComponentChunk} chunk, int index, {accessor.Type} value)");
-        writer.Line($"    => {write};");
+        writer.Line($"public static void Set{accessor.Name}(in {chunks.ComponentChunk} chunk, int index, in {ArchetypeNames.EntityHandle} handle, {accessor.Type} value)");
+        writer.Line(Marked(accessor, replicated)
+            ? $"    => handle.Write(ref chunk.As<{component}>(index), {Entry(accessor, component)}, value, {ArchetypeNames.WriteKind}.Mirror);"
+            : $"    => {write};");
     }
 
     /// <summary>A member of the component itself, reached through a handle.</summary>

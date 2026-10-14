@@ -5,38 +5,14 @@ using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Compat;
 using ReadyM.Api.ECS.Jobs;
-using ReadyM.Api.Multiplayer.ECS.Components;
-using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.Extensions;
-using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
-internal sealed class SerializationJobRegistry
+internal sealed class NetworkedComponentJobRegistry
 {
-    private class RegisterJobsCallback(SerializationJobRegistry owner) : INetworkedComponentRegistryCallback
-    {
-        public void AcceptModComponent(INetworkedComponentRegistry registry, ModComponentInfo info, string typeFullName)
-            => throw new NotSupportedException(
-                $"{nameof(AcceptModComponent)} is not supported here: mod component serialization is wired separately, see ModNetworkedComponentRegistration. "
-                + $"Offending component: {typeFullName}.");
-
-        public void AcceptComponent<T>(INetworkedComponentRegistry registry, T defaultValue = default)
-            where T : struct, INetworkedComponent
-        {
-            var id = registry.GetNetworkedComponentId<T>();
-
-            owner._logger.LogDebug("Registering jobs for: {ComponentType} with ID {Id}", typeof(T).Name, id);
-            owner.RegisterApplyDeltaJob(id, new ApplyDeltaJob<T>(owner._netEntity, owner._playerIdProvider, owner._logger));
-            owner.RegisterApplySnapshotJob(id, new ApplySnapshotJob<T>(owner._netEntity));
-            owner.RegisterWriteSnapshotJob(id, new WriteSnapshotJob<T>(id));
-        }
-    }
-
     private readonly INetworkedComponentRegistry _registry;
-    private readonly INetworkedEntityManager _netEntity;
-    private readonly IPlayerIdProvider _playerIdProvider;
     private readonly ILogger _logger;
 
     private readonly Dictionary<NetworkedComponentId, IJob<NetDataReader>> _applyDeltaJobs = [];
@@ -48,33 +24,31 @@ internal sealed class SerializationJobRegistry
     private readonly Dictionary<NetworkedComponentId, Action?> _onApplySnapshotByComponentId = [];
     private readonly Dictionary<NetworkedComponentId, Action?> _onApplyDeltaByComponentId = [];
 
-    public SerializationJobRegistry(
+    public NetworkedComponentJobRegistry(
         INetworkedComponentRegistry registry,
-        INetworkedEntityManager netEntity,
-        IPlayerIdProvider playerIdProvider,
-        ILogger logger)
+        ILogger logger,
+        IEnumerable<INetworkedComponentJobRegistration> registrations)
     {
         _registry = registry;
-        _netEntity = netEntity;
-        _playerIdProvider = playerIdProvider;
         _logger = logger;
 
-        registry.Accept(new RegisterJobsCallback(this));
+        foreach (var registration in registrations)
+        {
+            registration.Register(registry, this);
+        }
     }
 
-    internal void RegisterApplyDeltaJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
+    public void RegisterApplyDeltaJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
     {
         _applyDeltaJobs.Add(componentId, job);
     }
 
-    internal void RegisterApplySnapshotJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
+    public void RegisterApplySnapshotJob(NetworkedComponentId componentId, IJob<NetDataReader> job)
     {
         _applySnapshotJobs.Add(componentId, job);
     }
 
-    internal void RegisterWriteSnapshotJob(
-        NetworkedComponentId componentId,
-        IJob<EntityStore, QueryFilter, Entity?, NetDataWriter> job)
+    public void RegisterWriteSnapshotJob(NetworkedComponentId componentId, IJob<EntityStore, QueryFilter, Entity?, NetDataWriter> job)
     {
         _writeSnapshotJobs.Add(componentId, job);
     }

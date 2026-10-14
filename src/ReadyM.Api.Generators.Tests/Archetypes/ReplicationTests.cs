@@ -187,6 +187,9 @@ public class ReplicationTests(ITestOutputHelper output)
         return string.Concat(result.GeneratedSyntaxTrees.Select(tree => tree.ToString()));
     }
 
+    /// A chunk setter takes the row's handle, which is what its write stamps the server's time with.
+    private const string ChunkSetter = "chunk, int index, in global::ReadyM.SDK.Entities.EntityHandle handle, int value";
+
     /// A chunk write goes straight into the component array, past the policy and the masks that a
     /// client write has to obey, so a client build does not get one.
     [Fact]
@@ -194,18 +197,24 @@ public class ReplicationTests(ITestOutputHelper output)
     {
         var generated = GeneratedFor(ReplicatedShape, "Client");
 
-        Assert.DoesNotContain("chunk, int index, int value", generated);
+        Assert.DoesNotContain(ChunkSetter, generated);
         Assert.Contains("chunk, int index)", generated);
     }
 
     [Fact]
     public void A_server_build_keeps_its_chunk_setters()
-        => Assert.Contains("chunk, int index, int value", GeneratedFor(ReplicatedShape, "Server"));
+        => Assert.Contains(ChunkSetter, GeneratedFor(ReplicatedShape, "Server"));
 
     /// A build that says nothing is a server, so nothing an existing project has is taken away.
     [Fact]
     public void An_unstated_side_keeps_them()
-        => Assert.Contains("chunk, int index, int value", Generated(ReplicatedShape));
+        => Assert.Contains(ChunkSetter, Generated(ReplicatedShape));
+
+    /// A replicated value is written through the row's handle, the same write a handle's setter makes, so a
+    /// write in a query loop stamps the field just as one through a handle does.
+    [Fact]
+    public void A_chunk_setter_writes_a_replicated_value_through_the_handle()
+        => Assert.Contains("=> handle.Write(ref chunk.As<", GeneratedFor(ReplicatedShape, "Server"));
 
     private const string CarryingShape =
         """

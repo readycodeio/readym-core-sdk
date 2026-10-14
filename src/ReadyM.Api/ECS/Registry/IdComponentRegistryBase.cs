@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Friflo.Engine.ECS;
 
 namespace ReadyM.Api.ECS.Registry;
 
@@ -15,16 +16,17 @@ internal abstract class IdComponentRegistryBase<TRegistry, TComponent>(
 
     protected override TRegistry RegisterComponentImpl<T>(T defaultValue = default)
     {
-        if (_componentCount == byte.MaxValue)
-        {
-            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue} components");
-        }
-        _componentCount++;
-
+        TakeId();
         return base.RegisterComponentImpl(defaultValue);
     }
 
-    protected void SkipId()
+    protected override TRegistry RegisterModComponentImpl(ModComponentInfo info, string typeFullName)
+    {
+        TakeId();
+        return base.RegisterModComponentImpl(info, typeFullName);
+    }
+
+    private void TakeId()
     {
         if (_componentCount == byte.MaxValue)
         {

@@ -18,3 +18,10 @@ public delegate void PostCreateEntityInitDelegate(ArchetypeId archetype, RawEnti
 /// run as one goes. Unlike creation, this runs for every entity, replicated ones included.
 /// </remarks>
 public delegate void EntityDeletedDelegate(RawEntity entity);
+
+/// <exclude/>
+///<remarks>
+/// Called by the host to run mod seeder <paramref name="seeder"/> on a new scope entity. Returns 1 when it ran and 0
+/// when it threw, which the mod side has logged.
+/// </remarks>
+public delegate byte SeedScopeDelegate(int seeder, RawEntity scope);

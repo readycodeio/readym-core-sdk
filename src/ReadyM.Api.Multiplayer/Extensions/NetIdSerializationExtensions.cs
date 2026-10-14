@@ -8,7 +8,8 @@ internal static class NetIdSerializationExtensions
 {
     public static bool TryGetNetworkId(this NetDataReader reader, out NetworkId result)
     {
-        if (reader.AvailableBytes >= 6)
+        // A VarUShort creator and a VarUInt id, a byte each at the least
+        if (reader.AvailableBytes >= 2)
         {
             result = reader.Get<NetworkId>();
             return true;

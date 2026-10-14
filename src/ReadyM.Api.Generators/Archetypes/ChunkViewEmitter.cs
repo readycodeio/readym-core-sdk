@@ -186,7 +186,7 @@ internal static class ChunkViewEmitter
         using (writer.Braces($"public {accessor.Type} {called}"))
         {
             writer.Line($"get => {accessors}.Get{accessor.Name}({field}, _index);");
-            writer.Line($"set => {accessors}.Set{accessor.Name}({field}, _index, value);");
+            writer.Line($"set => {accessors}.Set{accessor.Name}({field}, _index, Handle, value);");
         }
     }
 

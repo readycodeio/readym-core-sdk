@@ -6,12 +6,15 @@ using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Multiplayer.ECS.Values;
 
-[DeriveJsonSerializable]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal partial struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
+internal struct NetworkId(PlayerId creator, uint id) : IEquatable<NetworkId>, INetSerializable
 {
-    public uint Id { get; private set; } = id; // 4 bytes
-    public PlayerId Creator { get; private set; } = creator; // 2 bytes
+    // 1-5 bytes on the wire, 4 bytes in memory
+    private VarUInt _id = id;
+    public uint Id => _id.Value;
+
+    // 1-3 bytes on the wire, 4 bytes in memory
+    public PlayerId Creator { get; private set; } = creator;
 
     public bool Equals(NetworkId other)
         => Creator == other.Creator && Id == other.Id;
@@ -39,12 +42,12 @@ internal partial struct NetworkId(PlayerId creator, uint id) : IEquatable<Networ
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(Creator);
-        writer.Put(Id);
+        writer.Put(_id);
     }
 
     public void Deserialize(NetDataReader reader)
     {
         Creator = reader.Get<PlayerId>();
-        Id = reader.GetUInt();
+        _id = reader.Get<VarUInt>();
     }
 }

@@ -103,7 +103,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
                 continue;
 
             var components = ArchetypeRegistry.SetFor(shape, queryable.Components);
-            
+
             if (components.Replicated && !Binds(shape))
                 continue;
 
@@ -149,7 +149,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         if (id >= 0)
             return new ArchetypeId((byte)id);
-        
+
         if (components.Replicated)
             throw new InvalidOperationException(
                 $"{shape} is declared replicated, but this game registers no archetype for it. Bind it "
@@ -205,8 +205,15 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     private ArchetypeId Register(ComponentSet components)
     {
-        var ids = ResolveIds(components);
-        var native = new NativeList<int>(ids.Length, AllocatorKind.Default);
+        var ids = new List<int>(ResolveIds(components));
+
+        foreach (var component in components.Types)
+        {
+            if (ChangeComponents.Of(component) is { } change && _registry.TryResolve(change, out var changeId) && !ids.Contains(changeId))
+                ids.Add(changeId);
+        }
+
+        var native = new NativeList<int>(ids.Count, AllocatorKind.Default);
 
         foreach (var id in ids)
             native.Add(id);
@@ -290,7 +297,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         in TComponent component,
         Field<TComponent, TValue> field
     ) where TComponent : struct, IComponent
-        // Every write on the server is authoritative, so there is nothing to ask.
         => true;
 
     public bool Write<TComponent, TValue>(
@@ -301,8 +307,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         WriteKind kind
     ) where TComponent : struct, IComponent
     {
-        // Every write on the server is authoritative.
-        field.Set(ref component, value);
+        field.SetFromApi(ref component, value, rawEntity.Id);
         return true;
     }
 
@@ -357,7 +362,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         _indexes.Remember<TComponent, TKey>(component.GetIndexedValue(), rawEntity);
     }
-    
+
     public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {

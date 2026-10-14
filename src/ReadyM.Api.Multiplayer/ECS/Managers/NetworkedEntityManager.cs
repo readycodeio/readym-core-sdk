@@ -252,6 +252,19 @@ internal sealed class NetworkedEntityManager : INetworkedEntityManager, IDisposa
         into.Add(entity);
     }
 
+    public void DeleteEntities(IReadOnlyList<Entity> entities, bool skipSync)
+    {
+        if (skipSync)
+            _skipNetSync++;
+
+        foreach (var entity in entities)
+            _commandBuffer.DeleteEntity(entity.Id);
+        _commandBuffer.Playback();
+
+        if (skipSync)
+            _skipNetSync--;
+    }
+
     public void DeleteAllNetworkedEntities(bool skipSync)
     {
         if (skipSync)

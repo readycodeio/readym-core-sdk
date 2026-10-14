@@ -48,18 +48,26 @@ internal sealed class ModComponentIds
     /// <param name="type">The component type, for a caller that only knows it at run time.</param>
     internal int Resolve(Type type)
     {
-        if (_resolved.TryGetValue(type, out var cached))
-            return cached;
+        if (TryResolve(type, out var id))
+            return id;
 
-        var id = _getComponentIdByName(new NativeString256(type.FullName, false));
+        throw new InvalidOperationException(
+            $"The server does not know component {type.FullName}. Either it was never registered, or "
+            + "this ran before the server finished building its component table.");
+    }
+
+    /// <inheritdoc cref="Resolve{T}"/>
+    /// <returns><c>false</c> for a component the server does not know, which is not cached.</returns>
+    internal bool TryResolve(Type type, out int id)
+    {
+        if (_resolved.TryGetValue(type, out id))
+            return true;
+
+        id = _getComponentIdByName(new NativeString256(type.FullName, false));
         if (id < 0)
-        {
-            throw new InvalidOperationException(
-                $"The server does not know component {type.FullName}. Either it was never registered, or "
-                + "this ran before the server finished building its component table.");
-        }
+            return false;
 
         _resolved.Add(type, id);
-        return id;
+        return true;
     }
 }

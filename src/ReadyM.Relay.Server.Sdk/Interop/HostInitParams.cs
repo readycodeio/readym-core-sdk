@@ -9,4 +9,5 @@ public struct HostInitParams
     public required ArchetypePointers ArchetypePointers;
     public required PlayerApiPointers PlayerApiPointers;
     public required ServerEventsPointers ServerEventsPointers;
+    public required InternedStringsPointers InternedStringsPointers;
 }

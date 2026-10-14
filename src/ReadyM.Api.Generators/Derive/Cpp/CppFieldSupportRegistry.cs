@@ -9,6 +9,7 @@ internal class CppFieldSupportRegistry
     private static readonly ICppFieldTypeSupportImpl[] CppFieldSupportImpls =
     [
         new CppOverrideFieldTypeSupportImpl(),
+        new QuantizedFieldTypeSupportImpl(),
         new PrimitiveFieldTypeSupportImpl(),
         new EnumFieldTypeSupportImpl(),
         new VectorLikeFieldTypeSupportImpl(),

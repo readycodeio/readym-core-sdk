@@ -12,8 +12,8 @@ using ReadyM.Relay.Client.State;
 
 namespace ReadyM.Relay.Client.ECS.Systems;
 
-internal class ClientSendEntityCreatedSystem(SerializationJobRegistry serializationJobRegistry, ClientState state, IRelayClient relay)
-    : SendEntityCreatedSystemBase(serializationJobRegistry)
+internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJobRegistry, ClientState state, IRelayClient relay)
+    : SendEntityCreatedSystemBase(netJobRegistry)
 {
     protected override QueryFilter SetupFilter(QueryFilter filter, SendContext context)
     {

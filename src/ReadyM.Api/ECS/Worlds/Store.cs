@@ -129,7 +129,7 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
     private readonly Dictionary<ArchetypeId, string> _archetypeNameById = [];
     private readonly CreateEntityBatchCallback _consCallback;
     private readonly NativeInitCallback _nativeInitCallback;
-    private readonly List<IArchetypeBuilderCallback> _filters = [];
+    private readonly List<IArchetypeBuilderCallback> _filters = [new SavedArchetypeFilter()];
 
     public SystemRoot SystemRoot { get; }
 
@@ -314,6 +314,16 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
         _archetypeByEntityId[entity.Id] = archetypeId;
 
         return entity;
+    }
+
+    public bool IsReplicated(ArchetypeId archetypeId)
+    {
+        if (!_archetypeEntries.TryGetValue(archetypeId, out var entry))
+        {
+            throw new ArgumentException($"Archetype with ID {archetypeId} is not registered.");
+        }
+
+        return entry.Builder.IsReplicated;
     }
 
     /// <summary>

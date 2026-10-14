@@ -14,14 +14,14 @@ namespace ReadyM.Api.Idents;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public partial struct PlayerId : INetSerializable, IEquatable<PlayerId>
 {
-    private ushort _id;
+    private VarUShort _id;
 
     internal PlayerId(ushort id)
     {
         _id = id;
     }
 
-    public ushort RawValue => _id;
+    public ushort RawValue => _id.Value;
 
     /// <summary>
     /// The PlayerId representing the server itself.
@@ -41,7 +41,7 @@ public partial struct PlayerId : INetSerializable, IEquatable<PlayerId>
 
     public void Deserialize(NetDataReader reader)
     {
-        _id = reader.GetUShort();
+        _id = reader.Get<VarUShort>();
     }
 
     public bool Equals(PlayerId other)

@@ -5,7 +5,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Jobs;
 
 /// <summary>
 /// Thread-local sender of the delta batch being applied. The server sets it around
-/// <see cref="SerializationJobRegistry.ApplyDelta"/> so <see cref="ApplyDeltaJob{T}"/> can reject
+/// <see cref="NetworkedComponentJobRegistry.ApplyDelta"/> so <see cref="ApplyDeltaJob{T}"/> can reject
 /// deltas from a non-owner. Left unset on the client (deltas there are trusted server relays).
 /// </summary>
 internal static class DeltaApplyContext

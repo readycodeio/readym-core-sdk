@@ -22,3 +22,5 @@ READYM026 | ReadyM | Error | A handler declared in a service does not name the s
 READYM028 | ReadyM | Error | A delete handler a shape declared for itself cannot be called.
 READYM029 | ReadyM | Error | A shape declares more than one delete handler.
 READYM036 | ReadyM | Error | An archetype states replication with [Replicated] rather than on [Archetype].
+READYM039 | ReadyM | Error | Quantization is stated on a shape backed by a borrowed component.
+READYM040 | ReadyM | Error | Quantization is stated on a shape that is not replicated.
