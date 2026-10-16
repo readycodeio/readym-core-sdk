@@ -12,13 +12,14 @@ using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Extensions;
+using ReadyM.Api.Multiplayer.Networking;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Client.Utilities;
 
 namespace ReadyM.Relay.Client;
 
-internal class RelayClient : IRelayClient
+internal class RelayClient : IRelayClient, INetEventListener
 {
     private class NetworkThreadContext : IRelayClientNetworkThreadContext
     {
@@ -50,8 +51,11 @@ internal class RelayClient : IRelayClient
     // one iteration and the next on the same thread.
     private readonly NetManager _client;
 
-    // Only used to subscribe to events, only ever used on the main thread.
-    private readonly EventBasedNetListener _listener;
+    // LiteNetLib's threads queue every callback here; the network thread drains it into this class's INetEventListener methods.
+    private readonly NetEventQueueHelper _events = new();
+
+    // The thread running RunAsync, so RequestConnect knows not to wait on it.
+    private volatile Thread? _networkThread;
 
     // Read-only value types, so thread safe
     private readonly string _host;
@@ -79,10 +83,20 @@ internal class RelayClient : IRelayClient
     private volatile bool _isRunning;
     private readonly ManualResetEventSlim _playerIdAssignedEvent = new();
 
-    public bool RequestedConnect { get; private set; }
-    public AreaId? RequestedAreaId { get; private set; }
-    CellId[]? _requestedActiveCells;
-    public ReadOnlyList<CellId>? RequestedActiveCells => _requestedActiveCells == null ? null : new (_requestedActiveCells.ToList()); //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
+    // Network thread only; other threads read them through _publishedRequests.
+    private bool _requestedConnect;
+    private AreaId? _requestedAreaId;
+    private CellId[]? _requestedActiveCells;
+
+    // Replaced by the network thread after every change to the three fields above, so other threads read them as one set.
+    private volatile Tuple<bool, AreaId?, CellId[]?> _publishedRequests = Tuple.Create(false, (AreaId?)null, (CellId[]?)null);
+
+    public bool RequestedConnect => _publishedRequests.Item1;
+    public AreaId? RequestedAreaId => _publishedRequests.Item2;
+    public ReadOnlyList<CellId>? RequestedActiveCells => _publishedRequests.Item3 is { } cells ? new(cells.ToList()) : null; //TO DO: replace ReadOnlyList with a new ReadOnlyArray class
+
+    private void Publish()
+        => _publishedRequests = Tuple.Create(_requestedConnect, _requestedAreaId, _requestedActiveCells);
 
     // NOTE: There is no `Connected` property because there is no conceivable way that could make reading it thread-safe.
     // Connection can be dropped at any time. Hence, if such property existed, reading from it on the main thread
@@ -294,15 +308,12 @@ internal class RelayClient : IRelayClient
         _host = host;
         _port = port;
         _scheduler = new PendingActionUpdater<IRelayClientNetworkThreadContext>(_netThreadContext, _logger);
+        _scheduler.Wake = _events.Wake;
 
-        _listener = new EventBasedNetListener();
-        _listener.NetworkReceiveEvent += OnListenerNetworkReceiveEvent;
-        _listener.NetworkLatencyUpdateEvent += OnNetworkLatencyUpdateEvent;
-        _listener.PeerDisconnectedEvent += OnPeerDisconnectedEvent;
-
-        _client = new NetManager(_listener)
+        // Callbacks run on LiteNetLib's threads and only queue; AutoRecycle off keeps each reader valid until handled.
+        _client = new NetManager(_events)
         {
-            AutoRecycle = true,
+            AutoRecycle = false,
             EnableStatistics = true,
             UnsyncedEvents = true,
         };
@@ -376,10 +387,6 @@ internal class RelayClient : IRelayClient
         {
             Stop();
         }
-
-        _listener.PeerDisconnectedEvent -= OnPeerDisconnectedEvent;
-        _listener.NetworkLatencyUpdateEvent -= OnNetworkLatencyUpdateEvent;
-        _listener.NetworkReceiveEvent -= OnListenerNetworkReceiveEvent;
     }
 
     public int GetMaxPacketSize(DeliveryMethod deliveryMethod)
@@ -414,35 +421,73 @@ internal class RelayClient : IRelayClient
 
         await Task.Yield();
         _scheduler.SetThread(Thread.CurrentThread);
+        _networkThread = Thread.CurrentThread;
 
-        while (!token.IsCancellationRequested)
+        try
         {
-            try
+            while (!token.IsCancellationRequested)
             {
-                _client.PollEvents();
-
-                RestoreDisconnectTimeoutWhenTrafficResumes();
-
-                OnClientUpdate?.Invoke(_netThreadContext);
-
-                var hadPendingActions = _scheduler.Update();
-                _client.TriggerUpdate();
-
-                if (!hadPendingActions)
+                try
                 {
-                    await Task.Delay(Constants.ClientNetworkTickRateMs, token);
+                    _events.Drain(this, _logger);
+
+                    RestoreDisconnectTimeoutWhenTrafficResumes();
+
+                    OnClientUpdate?.Invoke(_netThreadContext);
+
+                    var hadPendingActions = _scheduler.Update();
+                    _client.TriggerUpdate();
+
+                    if (!hadPendingActions)
+                    {
+                        // Resumes on this thread, so work posted to its context runs while it waits.
+                        await _events.Wake.WaitAsync(HousekeepingInterval, token);
+                        _events.ConsumeWakes();
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogWarning(ex, "Client loop was cancelled");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unhandled exception in client thread");
                 }
             }
-            catch (OperationCanceledException ex)
-            {
-                _logger.LogWarning(ex, "Client loop was cancelled");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled exception in client thread");
-            }
+        }
+        finally
+        {
+            _events.Discard();
+            _networkThread = null;
+            _scheduler.SetThread(null);
         }
     }
+
+    // The loop wakes at least this often, for the disconnect timeout and delayed scheduled work.
+    private static readonly TimeSpan HousekeepingInterval = TimeSpan.FromMilliseconds(10);
+
+    // Network thread: these are called by _events.Drain, never by LiteNetLib directly.
+    void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
+        => OnListenerNetworkReceiveEvent(peer, reader, channelNumber, deliveryMethod);
+
+    void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
+        => OnPeerDisconnectedEvent(peer, disconnectInfo);
+
+    void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency)
+        => OnNetworkLatencyUpdateEvent(peer, latency);
+
+    void INetEventListener.OnConnectionRequest(ConnectionRequest request)
+        => request.Reject();
+
+    void INetEventListener.OnPeerConnected(NetPeer peer)
+    {
+    }
+
+    void INetEventListener.OnNetworkError(System.Net.IPEndPoint endPoint, System.Net.Sockets.SocketError socketError)
+        => throw new InvalidOperationException("Network errors are not queued");
+
+    void INetEventListener.OnNetworkReceiveUnconnected(System.Net.IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
+        => throw new InvalidOperationException("Unconnected messages are not queued");
 
     public void Stop()
     {
@@ -453,16 +498,21 @@ internal class RelayClient : IRelayClient
         }
 
         _isRunning = false;
-        _scheduler.SetThread(null);
 
         _logger.LogDebug("Stopping on {Host}:{Port}...", _host, _port);
 
         OnRequestedStop?.Invoke();
 
-        // NOTE: `OnDisconnected` will be called by LiteNetLib when the client is disconnected.
-        _client.DisconnectAll();
-        _client.PollEvents();
+        // On the network thread while the loop runs, inline once it has left.
+        _scheduler.RunSynchronously(static (_, self) => self.StopOnNetworkThread(), this);
 
+        _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
+    }
+
+    private void StopOnNetworkThread()
+    {
+        _client.DisconnectAll();
+        _events.Drain(this, _logger); // Handles the disconnect just queued, raising OnDisconnected.
         _client.Stop();
 
         // NOTE: It is possible that the client requests a disconnect, and simultaneously the server disconnects
@@ -471,19 +521,30 @@ internal class RelayClient : IRelayClient
         {
             _logger.LogWarning("Already disconnected: {Reason}", _netThreadContext.LastDisconnectedReason);
         }
-
-        _logger.LogDebug("Stopped on {Host}:{Port}", _host, _port);
     }
 
     public void RequestConnect()
     {
-        if (RequestedConnect)
+        // The connect starts on the network thread, and the caller waits for the handshake unless it is that thread.
+        var started = _scheduler.RunSynchronously(static (_, self) => self.ConnectOnNetworkThread(), this);
+        if (!started || Thread.CurrentThread == _networkThread)
+            return;
+
+        if (!_playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs))
+            _scheduler.Schedule(static (_, self) => self.ReportConnectTimeout(), this);
+    }
+
+    private bool ConnectOnNetworkThread()
+    {
+        if (_requestedConnect)
         {
             _logger.LogWarning("Relay client is already connecting");
-            return;
+            return false;
         }
 
-        RequestedConnect = true;
+        _requestedConnect = true;
+        Publish();
+        _playerIdAssignedEvent.Reset();
 
         _logger.LogInformation("Connecting on {Host}:{Port}...", _host, _port);
 
@@ -492,9 +553,11 @@ internal class RelayClient : IRelayClient
         var writer = new NetDataWriter();
         _options.Serialize(writer);
         _client.Connect(_host, _port, writer);
+        return true;
+    }
 
-        _playerIdAssignedEvent.Wait(Constants.ClientConnectionTimeoutMs);
-
+    private void ReportConnectTimeout()
+    {
         if (_netThreadContext.PlayerId == null)
         {
             _logger.LogError("Failed to assign PlayerId within {Timeout} ms", Constants.ClientConnectionTimeoutMs);
@@ -503,22 +566,24 @@ internal class RelayClient : IRelayClient
     }
 
     public void RequestDisconnect()
+        => _scheduler.Schedule(static (_, self) => self.DisconnectOnNetworkThread(), this);
+
+    private void DisconnectOnNetworkThread()
     {
-        if (!RequestedConnect)
+        if (!_requestedConnect)
         {
             _logger.LogWarning("Relay client is already disconnecting");
             return;
         }
 
-        RequestedConnect = false;
+        _requestedConnect = false;
+        Publish();
 
         _logger.LogInformation("Explicitly disconnecting from {Host}:{Port}", _host, _port);
 
         OnRequestedDisconnect?.Invoke();
 
         _client.DisconnectAll();
-
-        _playerIdAssignedEvent.Reset();
     }
 
     public void RequestReconnect()
@@ -528,26 +593,30 @@ internal class RelayClient : IRelayClient
     }
 
     public void RequestJoinArea(AreaId areaId)
+        => _scheduler.Schedule(static (_, self, areaId0) => self.JoinAreaOnNetworkThread(areaId0), this, areaId);
+
+    private void JoinAreaOnNetworkThread(AreaId areaId)
     {
-        if (!RequestedConnect)
+        if (!_requestedConnect)
         {
             _logger.LogError("Relay client is not connected to the server");
             return;
         }
 
-        if (RequestedAreaId != null)
+        if (_requestedAreaId != null)
         {
-            _logger.LogWarning("Already requested to join a different area {AreaId}", RequestedAreaId.Value);
-            RequestLeaveArea();
+            _logger.LogWarning("Already requested to join a different area {AreaId}", _requestedAreaId.Value);
+            LeaveAreaOnNetworkThread();
         }
 
-        if (RequestedAreaId == areaId)
+        if (_requestedAreaId == areaId)
         {
             _logger.LogWarning("Already requested to join area {AreaId}", areaId);
             return;
         }
 
-        RequestedAreaId = areaId;
+        _requestedAreaId = areaId;
+        Publish();
 
         var playerId = PlayerId;
         if (playerId == null)
@@ -565,8 +634,11 @@ internal class RelayClient : IRelayClient
     }
 
     public void RequestSetActiveCells(IEnumerable<CellId> cellIds)
+        => _scheduler.Schedule(static (_, self, cells) => self.SetActiveCellsOnNetworkThread(cells), this, cellIds.ToArray());
+
+    private void SetActiveCellsOnNetworkThread(CellId[] cellIds)
     {
-        if (!RequestedConnect)
+        if (!_requestedConnect)
         {
             _logger.LogError("Relay client is not connected to the server");
             return;
@@ -578,7 +650,8 @@ internal class RelayClient : IRelayClient
             return;
         }
 
-        _requestedActiveCells = cellIds.ToArray();
+        _requestedActiveCells = cellIds;
+        Publish();
 
         var playerId = PlayerId;
         if (playerId == null)
@@ -595,20 +668,24 @@ internal class RelayClient : IRelayClient
     }
 
     public void RequestLeaveArea()
+        => _scheduler.Schedule(static (_, self) => self.LeaveAreaOnNetworkThread(), this);
+
+    private void LeaveAreaOnNetworkThread()
     {
-        if (!RequestedConnect)
+        if (!_requestedConnect)
         {
             _logger.LogError("Relay client is not connected to the server");
             return;
         }
 
-        if (RequestedAreaId == null)
+        if (_requestedAreaId == null)
         {
             _logger.LogWarning("Already requested to leave area");
             return;
         }
 
-        RequestedAreaId = null;
+        _requestedAreaId = null;
+        Publish();
 
         var playerId = PlayerId;
         if (playerId == null)
@@ -773,6 +850,7 @@ internal class RelayClient : IRelayClient
                     _netThreadContext.AreaPlayers.Remove(playerId);
                     _netThreadContext.ActiveCells.Clear();
                     _requestedActiveCells = null;
+                    Publish();
                 }
 
                 break;
@@ -877,6 +955,7 @@ internal class RelayClient : IRelayClient
                 }
 
                 _requestedActiveCells = null;
+                Publish();
 
                 _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
 
@@ -1042,6 +1121,7 @@ internal class RelayClient : IRelayClient
         _netThreadContext.AllPlayers.Clear();
         _netThreadContext.AreaPlayers.Clear();
         _requestedActiveCells = null;
+        Publish();
         // NOTE: `PlayerId` is not reset! Changing `PlayerId` here would introduce race conditions for the users of
         // this property on the main thread.
 
@@ -1053,7 +1133,7 @@ internal class RelayClient : IRelayClient
         {
             _netThreadContext.LastDisconnectedReason = DisconnectedReason.Timeout;
         }
-        else if (info.AdditionalData.TryGetByte(out var b))
+        else if (info.AdditionalData != null && info.AdditionalData.TryGetByte(out var b))
         {
             _netThreadContext.LastDisconnectedReason = (DisconnectedReason)b;
             _logger.LogWarning("Disconnected from server with reason: {Reason}", _netThreadContext.LastDisconnectedReason);

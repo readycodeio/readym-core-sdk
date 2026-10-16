@@ -708,6 +708,17 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
     protected TContext _context;
 
+    /// <summary>Released whenever work is queued, to wake the owner's network thread waiting on it.</summary>
+    internal SemaphoreSlim? Wake;
+
+    // Called under _lock.
+    private void Enqueue(PendingGroupBase group)
+    {
+        _queue.Add(group);
+        if (Wake is { CurrentCount: 0 } wake)
+            wake.Release();
+    }
+
     protected PendingActionScheduler(TContext context, ILogger logger)
     {
         this.logger = logger;
@@ -753,7 +764,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = _group.AddAsync(action);
 
             _queueIndex++;
-            _queue.Add(_group);
+            Enqueue(_group);
         }
 
         await tcs.Task;
@@ -794,7 +805,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         await tcs.Task;
@@ -835,7 +846,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         await tcs.Task;
@@ -875,7 +886,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         await tcs.Task;
@@ -915,7 +926,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         await tcs.Task;
@@ -955,7 +966,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3, arg4);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         await tcs.Task;
@@ -994,7 +1005,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = await tcs.Task;
@@ -1035,7 +1046,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = await tcs.Task;
@@ -1076,7 +1087,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = await tcs.Task;
@@ -1117,7 +1128,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = await tcs.Task;
@@ -1145,7 +1156,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             _group.Add(action);
 
             _queueIndex++;
-            _queue.Add(_group);
+            Enqueue(_group);
         }
     }
 
@@ -1172,7 +1183,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(action, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1199,7 +1210,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(action, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1226,7 +1237,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(action, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1253,7 +1264,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(action, arg0, arg1, arg2, arg3);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1280,7 +1291,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(action, arg0, arg1, arg2, arg3, arg4);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1307,7 +1318,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(func);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1334,7 +1345,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(func, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1361,7 +1372,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(func, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1388,7 +1399,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             group.Add(func, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
     }
 
@@ -1450,7 +1461,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = _group.AddAsync(action);
 
             _queueIndex++;
-            _queue.Add(_group);
+            Enqueue(_group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1490,7 +1501,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1530,7 +1541,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1570,7 +1581,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1610,7 +1621,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1650,7 +1661,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(action, arg0, arg1, arg2, arg3, arg4);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1689,7 +1700,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1730,7 +1741,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1771,7 +1782,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg0, arg1);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);
@@ -1812,7 +1823,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             tcs = group.AddAsync(func, arg0, arg1, arg2);
 
             _queueIndex++;
-            _queue.Add(group);
+            Enqueue(group);
         }
 
         var result = WaitForCompletion(tcs.Task.AsTask(), timeoutMs);

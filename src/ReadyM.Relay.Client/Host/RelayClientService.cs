@@ -66,13 +66,16 @@ internal sealed class RelayClientService(IRelayClient relayClient, ILogger logge
 
         logger.LogInformation("Stopping RelayClientService...");
 
+        // Stopped before the loop is cancelled, so its own disconnect is handled on its network thread.
+        relayClient.Stop();
+
         _source?.Cancel();
 
-        _isolatedNoParallelismAsyncContextThread?.Join();
+        // The task first: its continuations run on the context thread, which Join shuts down.
         _task?.GetAwaiter().GetResult();
+        _isolatedNoParallelismAsyncContextThread?.Join();
 
         IsRunning = false;
-        relayClient.Stop();
 
         logger.LogInformation("Stopped RelayClientService.");
     }
