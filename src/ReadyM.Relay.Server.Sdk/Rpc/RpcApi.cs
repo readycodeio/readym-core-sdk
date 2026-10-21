@@ -29,7 +29,8 @@ public class RpcApi
     private readonly IChangeTrackingStore _changeTracking;
     private readonly Dictionary<Delegate, ServerRpcHandlerDelegate> _pinnedDelegates = new();
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();
-    private readonly Dictionary<Delegate, HashSet<RelayMessageCode>> _toCode = new();
+    // A code once per time it was added, as the relay holds it
+    private readonly Dictionary<Delegate, List<RelayMessageCode>> _toCode = new();
 
     internal RpcApi(RpcApiPointers pointers, INetworkTime netTime, IChangeTrackingStore changeTracking)
     {
@@ -75,25 +76,16 @@ public class RpcApi
     /// <exclude/>
     public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
-        if (!_pinnedDelegates.Remove(handler, out var realHandler))
+        // The handler stays pinned while another code still has it
+        if (!_pinnedDelegates.TryGetValue(handler, out var realHandler)
+            || !_toCode.TryGetValue(handler, out var codes)
+            || !codes.Remove(eventCode))
         {
             throw new InvalidOperationException(
                 "Handler not found. Make sure to only remove handlers that were added.");
         }
 
         _removeServerRpcMessageHandler(eventCode, realHandler);
-
-        if (!_toCode.TryGetValue(handler, out var codes))
-        {
-            throw new InvalidOperationException("Handler not found. Make sure to remove handlers that were added.");
-        }
-
-        if (!codes.Contains(eventCode))
-        {
-            throw new InvalidOperationException("Handler not found. Make sure to remove handlers that were added.");
-        }
-
-        codes.Remove(eventCode);
 
         if (codes.Count == 0)
         {
