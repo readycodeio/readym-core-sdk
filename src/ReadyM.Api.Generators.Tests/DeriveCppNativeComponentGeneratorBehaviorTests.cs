@@ -76,6 +76,82 @@ public partial struct AppearanceComponent : IComponent
     }
 
     [Fact]
+    public void GeneratedCppFragment_ForFloatingPointFields_StoresAnyChangeFromOrToZero()
+    {
+        const string source = """
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct ItemDataComponent : IComponent
+{
+    private byte _dirtyMask;
+    private byte _apiMask;
+
+    private float _weight;
+    private double _precise;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        Assert.Empty(result.OutputDiagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.Contains("if ((_weight == 0) != (value == 0) || std::abs(_weight - value) > 0.1f)", generatedText);
+        Assert.Contains("if ((_precise == 0) != (value == 0) || std::abs(_precise - value) > 0.1)", generatedText);
+    }
+
+    [Fact]
+    public void GeneratedCppFragment_ForVectorFields_StoresAnyAxisChangeFromOrToZero()
+    {
+        const string source = """
+using System.Numerics;
+using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
+using ReadyM.Api.Attributes;
+using ReadyM.Api.Multiplayer.Generators;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
+[StructLayout(LayoutKind.Sequential)]
+public partial struct PlacementComponent : IComponent
+{
+    private byte _dirtyMask;
+    private byte _apiMask;
+
+    private Vector2 _axis;
+    private Vector3 _position;
+    private Vector4 _color;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveCppNativeComponentGenerator>(source, output);
+
+        Assert.Empty(result.OutputDiagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+
+        var generatedText = string.Join(
+            Environment.NewLine,
+            result.GeneratedSyntaxTrees.Select(t => t.GetText().ToString()));
+
+        Assert.Contains("if ((_axis.X == 0) != (value.X == 0) || (_axis.Y == 0) != (value.Y == 0) || ", generatedText);
+        Assert.Contains("::DistanceSquared(_axis, value) > 0.01f)", generatedText);
+        Assert.Contains("if ((_position.X == 0) != (value.X == 0) || (_position.Y == 0) != (value.Y == 0) || (_position.Z == 0) != (value.Z == 0) || ", generatedText);
+        Assert.Contains("::DistanceSquared(_position, value) > 0.01f)", generatedText);
+        Assert.Contains("(_color.Z == 0) != (value.Z == 0) || (_color.W == 0) != (value.W == 0) || ", generatedText);
+        Assert.Contains("::DistanceSquared(_color, value) > 0.01f)", generatedText);
+    }
+
+    [Fact]
     public void GeneratedCppFragment_ForNativeComponentWithListFields_ContainsExpectedListAccessorsSettersDirtyMaskAndBackingFields()
     {
         const string source = """

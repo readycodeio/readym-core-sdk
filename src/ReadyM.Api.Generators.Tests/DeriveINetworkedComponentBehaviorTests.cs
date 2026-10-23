@@ -550,8 +550,16 @@ public partial struct FloatComponent : INetworkedComponent
         Assert.False(initiallyDirty);
 
         valueProperty.SetValue(instance, 0.05f);
+        var dirtyAfterSmallChangeFromZero = (bool)isDirtyProperty.GetValue(instance)!;
+        Assert.True(dirtyAfterSmallChangeFromZero);
+        Assert.Equal(0.05f, (float)valueProperty.GetValue(instance)!);
+
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+
+        valueProperty.SetValue(instance, 0.1f);
         var stillCleanAfterSmallChange = (bool)isDirtyProperty.GetValue(instance)!;
         Assert.False(stillCleanAfterSmallChange);
+        Assert.Equal(0.05f, (float)valueProperty.GetValue(instance)!);
 
         valueProperty.SetValue(instance, 0.2f);
         var dirtyAfterLargeChange = (bool)isDirtyProperty.GetValue(instance)!;
@@ -571,6 +579,120 @@ public partial struct FloatComponent : INetworkedComponent
         valueProperty.SetValue(instance, 0.4f);
         var dirtyAfterSecondLargeChange = (bool)isDirtyProperty.GetValue(instance)!;
         Assert.True(dirtyAfterSecondLargeChange);
+    }
+
+    [Theory]
+    [InlineData("float", 0.1)]
+    [InlineData("float", 0.01)]
+    [InlineData("float", -0.05)]
+    [InlineData("double", 0.1)]
+    [InlineData("double", 0.01)]
+    public void FloatingPointField_ChangeFromOrToZero_IsStoredAndMarkedHoweverSmall(string typeName, double next)
+    {
+        var source = $$"""
+using System;
+using ReadyM.Api.Multiplayer.Generators;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using LiteNetLib.Utils;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent]
+public partial struct ZeroBoundaryComponent : INetworkedComponent
+{
+    private {{typeName}} _value;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveINetworkedComponentGenerator>(source, output);
+        Assert.Empty(result.OutputDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var assembly = SourceGeneratorTestHelper.EmitToAssembly(result.OutputCompilation, output);
+        var componentType = assembly.GetType("ReadyM.Api.Generators.Tests.TestTypes.ZeroBoundaryComponent");
+        Assert.NotNull(componentType);
+        var instance = Activator.CreateInstance(componentType)!;
+        var valueProperty = componentType.GetProperty("Value")!;
+        var isDirtyProperty = componentType.GetProperty("IsDirty")!;
+        var clearDirtyMethod = componentType.GetMethod("ClearDirty")!;
+
+        object Typed(double value) => typeName == "float" ? (object)(float)value : value;
+
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+        valueProperty.SetValue(instance, Typed(0));
+        Assert.False((bool)isDirtyProperty.GetValue(instance)!);
+
+        valueProperty.SetValue(instance, Typed(next));
+
+        Assert.Equal(Typed(next), valueProperty.GetValue(instance));
+        Assert.True((bool)isDirtyProperty.GetValue(instance)!);
+
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+        valueProperty.SetValue(instance, Typed(0));
+
+        Assert.Equal(Typed(0), valueProperty.GetValue(instance));
+        Assert.True((bool)isDirtyProperty.GetValue(instance)!);
+    }
+
+    [Theory]
+    [InlineData("Vector2", 0)]
+    [InlineData("Vector2", 1)]
+    [InlineData("Vector3", 0)]
+    [InlineData("Vector3", 2)]
+    [InlineData("Vector4", 1)]
+    [InlineData("Vector4", 3)]
+    public void VectorField_AxisChangeFromOrToZero_IsStoredAndMarkedHoweverSmall(string typeName, int axis)
+    {
+        var source = $$"""
+using System;
+using System.Numerics;
+using ReadyM.Api.Multiplayer.Generators;
+using ReadyM.Api.Multiplayer.ECS.Components;
+using LiteNetLib.Utils;
+
+namespace ReadyM.Api.Generators.Tests.TestTypes;
+
+[DeriveINetworkedComponent]
+public partial struct VectorZeroBoundaryComponent : INetworkedComponent
+{
+    private {{typeName}} _value;
+}
+""";
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DeriveINetworkedComponentGenerator>(source, output);
+        Assert.Empty(result.OutputDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var assembly = SourceGeneratorTestHelper.EmitToAssembly(result.OutputCompilation, output);
+        var componentType = assembly.GetType("ReadyM.Api.Generators.Tests.TestTypes.VectorZeroBoundaryComponent");
+        Assert.NotNull(componentType);
+        var instance = Activator.CreateInstance(componentType)!;
+        var valueProperty = componentType.GetProperty("Value")!;
+        var isDirtyProperty = componentType.GetProperty("IsDirty")!;
+        var clearDirtyMethod = componentType.GetMethod("ClearDirty")!;
+
+        var vectorType = valueProperty.PropertyType;
+        var axisCount = typeName switch { "Vector2" => 2, "Vector3" => 3, _ => 4 };
+
+        // Every other axis sits at 1, so a move of the tested axis by 0.05 is far within the distance epsilon.
+        object Vector(float axisValue, float otherAxes = 1f)
+            => Activator.CreateInstance(vectorType, Enumerable.Range(0, axisCount).Select(i => (object)(i == axis ? axisValue : otherAxes)).ToArray())!;
+
+        valueProperty.SetValue(instance, Vector(0f));
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+
+        valueProperty.SetValue(instance, Vector(0.05f));
+        Assert.Equal(Vector(0.05f), valueProperty.GetValue(instance));
+        Assert.True((bool)isDirtyProperty.GetValue(instance)!);
+
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+        valueProperty.SetValue(instance, Vector(0f));
+        Assert.Equal(Vector(0f), valueProperty.GetValue(instance));
+        Assert.True((bool)isDirtyProperty.GetValue(instance)!);
+
+        // A small move that keeps every axis on the same side of 0 is still ignored.
+        clearDirtyMethod.Invoke(instance, Array.Empty<object>());
+        valueProperty.SetValue(instance, Vector(0f, otherAxes: 1.05f));
+        Assert.Equal(Vector(0f), valueProperty.GetValue(instance));
+        Assert.False((bool)isDirtyProperty.GetValue(instance)!);
     }
 
     [Fact]
