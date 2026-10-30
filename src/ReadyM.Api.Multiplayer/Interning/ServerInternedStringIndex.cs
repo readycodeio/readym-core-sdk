@@ -11,8 +11,6 @@ namespace ReadyM.Api.Multiplayer.Interning;
 /// <summary>Gives every new string the next id and queues it for the clients.</summary>
 internal sealed class ServerInternedStringIndex : IInternedStringIndex
 {
-    public const int DefaultCapacity = 65536;
-
     private readonly int _capacity;
     private readonly Dictionary<NativeString256, uint> _ids = new();
     private readonly List<NativeString256> _names = new();

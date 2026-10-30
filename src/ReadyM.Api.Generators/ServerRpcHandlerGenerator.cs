@@ -228,7 +228,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                             public void Send{{eventName}}({{sendParamList}})
                             {
                                 var writer = new NetDataWriter();
-                                writer.Put((byte)({{codeRef}}));
+                                global::ReadyM.Api.Serialization.VarUShortExtensions.PutVarUShort(writer, (ushort)({{codeRef}}));
                         """);
 
         foreach (var p in payloadParams)

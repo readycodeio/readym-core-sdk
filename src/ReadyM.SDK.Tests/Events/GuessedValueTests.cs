@@ -16,7 +16,7 @@ namespace ReadyM.SDK.Tests.Events;
 /// </remarks>
 public class GuessedValueTests : ClientSdkTest
 {
-    private const RelayMessageCode Code = RelayMessageCode.MaxServerRpcEvent;
+    private const RelayMessageCode Code = (RelayMessageCode)ushort.MaxValue;
 
 
     private Settlement Town(int hour = 5)

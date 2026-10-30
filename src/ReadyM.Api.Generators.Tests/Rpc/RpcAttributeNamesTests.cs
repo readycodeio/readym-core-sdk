@@ -38,7 +38,7 @@ public class RpcAttributeNamesTests(ITestOutputHelper output)
         var manifest = Manifest(contracts);
 
         Assert.Contains("public const string Id = \"Mod.Common\";", manifest);
-        Assert.Contains("public const byte TotalEventCount = 2;", manifest);
+        Assert.Contains("public const ushort TotalEventCount = 2;", manifest);
         Assert.Contains("PingCode", manifest);
         Assert.Contains("PongCode", manifest);
     }

@@ -482,17 +482,17 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
         sb.AppendLine("    /// <summary>This set's stable identity: the assembly that declares it.</summary>");
         sb.AppendLine($"    public const string Id = \"{manifestId}\";");
         sb.AppendLine();
-        sb.AppendLine("    /// <summary>How many codes this set takes out of the server-directed space.</summary>");
-        sb.AppendLine($"    public const byte TotalEventCount = {events.Count};");
+        sb.AppendLine("    /// <summary>How many codes this set takes.</summary>");
+        sb.AppendLine($"    public const ushort TotalEventCount = {events.Count};");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>Set once at mod startup, before any event is raised or received.</summary>");
-        sb.AppendLine("    public static byte Offset { get; set; }");
+        sb.AppendLine("    public static ushort Offset { get; set; }");
         sb.AppendLine();
 
         for (var i = 0; i < events.Count; i++)
         {
             sb.AppendLine($"    public const RelayMessageCode {events[i].Symbol.Name}Code =");
-            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {i});");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinAnyCustomEvent + {i});");
             sb.AppendLine();
         }
 

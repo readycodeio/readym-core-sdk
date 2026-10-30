@@ -142,7 +142,7 @@ public class NetworkedEventThreadTests : IDisposable
 
     private struct Ping : INetworkedEvent
     {
-        public RelayMessageCode Code => RelayMessageCode.MaxServerRpcEvent;
+        public RelayMessageCode Code => (RelayMessageCode)ushort.MaxValue;
 
         public void Serialize(NetDataWriter writer)
         {
@@ -151,7 +151,7 @@ public class NetworkedEventThreadTests : IDisposable
 
     private sealed class PingContract : INetworkedEventContract<Ping>
     {
-        public RelayMessageCode Code => RelayMessageCode.MaxServerRpcEvent;
+        public RelayMessageCode Code => (RelayMessageCode)ushort.MaxValue;
 
         public EventScope Scope => EventScope.Server;
 

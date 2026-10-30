@@ -66,8 +66,8 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
         foreach (var group in groupsByClass)
         {
-            var eventCodeByte = 0;
-            var maxEventCode = eventCodeByte;
+            var eventIndex = 0;
+            var maxEventCode = eventIndex;
 
             var classSymbol = group.Key;
             var ns = classSymbol!.ContainingNamespace.ToDisplayString();
@@ -96,9 +96,9 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
             foreach (var method in group)
             {
-                if (eventCodeByte > byte.MaxValue)
+                if (eventIndex > ushort.MaxValue)
                 {
-                    sb.AppendLine("""#error "Too many RPC events; limit is 256." """);
+                    sb.AppendLine($"""#error "Too many RPC events; limit is {ushort.MaxValue}." """);
                     break;
                 }
 
@@ -205,7 +205,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                                         if (!senderPlayerId.HasValue)
                                             return;
                                         
-                                        var message = RelayMessage.ByRelayMode((RelayMessageCode)({{eventCodeByte}} + Offset), senderPlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                        var message = RelayMessage.ByRelayMode(Code({{eventIndex}}), senderPlayerId.Value, (RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                         var writer = message.Writer;
                                 """);
 
@@ -237,7 +237,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
 
                               """);
 
-                dispatchCases.AppendLine($"            case {eventCodeByte}:\n            {{");
+                dispatchCases.AppendLine($"            case {eventIndex}:\n            {{");
 
                 payloadCount = 0;
                 for (var i = 0; i < paramTypes.Count; i++)
@@ -295,15 +295,15 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                 dispatchCases.AppendLine("                break;");
                 dispatchCases.AppendLine("            }");
 
-                maxEventCode = eventCodeByte;
-                eventCodeByte++;
+                maxEventCode = eventIndex;
+                eventIndex++;
             }
 
             // Emit OnCustomEvent override
             sb.AppendLine($$"""
                                 private void OnCustomRpcMessageHandler(CustomRelayEventHeader header, NetDataReader reader)
                                 {
-                                    switch ((byte)header.EventCode - Offset)
+                                    switch ((int)header.EventCode - (int)Code(0))
                                     {
                             {{dispatchCases}}
                                         default:
@@ -313,15 +313,18 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                                     
                                 protected override void InitRpc()
                                 {
-                                    RelayClient.AddClientRpcMessageHandler((RelayMessageCode)Offset, (RelayMessageCode)({{maxEventCode}} + Offset), OnCustomRpcMessageHandler);
+                                    RelayClient.AddClientRpcMessageHandler(Code(0), Code({{maxEventCode}}), OnCustomRpcMessageHandler);
                                 }
                                     
                                 protected override void DeInitRpc()
                                 {
-                                    RelayClient.RemoveClientRpcMessageHandler((RelayMessageCode)Offset, (RelayMessageCode)({{maxEventCode}} + Offset), OnCustomRpcMessageHandler);
+                                    RelayClient.RemoveClientRpcMessageHandler(Code(0), Code({{maxEventCode}}), OnCustomRpcMessageHandler);
                                 }
                                 
-                                protected override byte EventsCount => {{maxEventCode + 1}};
+                                protected override ushort EventsCount => {{maxEventCode + 1}};
+
+                                private RelayMessageCode Code(int eventIndex)
+                                    => (RelayMessageCode)((int)RelayMessageCode.MinAnyCustomEvent + Offset + eventIndex);
                             """);
 
             sb.AppendLine("}");

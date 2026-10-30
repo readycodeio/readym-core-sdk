@@ -32,7 +32,7 @@ public class NetworkedEventRegistryTests
 
     private struct Knock : INetworkedEvent
     {
-        public RelayMessageCode Code => RelayMessageCode.MinServerRpcEvent;
+        public RelayMessageCode Code => RelayMessageCode.MinAnyCustomEvent;
 
         public void Serialize(NetDataWriter writer)
         {
@@ -41,7 +41,7 @@ public class NetworkedEventRegistryTests
 
     private sealed class Contract : INetworkedEventContract<Knock>
     {
-        public RelayMessageCode Code => RelayMessageCode.MinServerRpcEvent;
+        public RelayMessageCode Code => RelayMessageCode.MinAnyCustomEvent;
 
         public EventScope Scope => EventScope.Server;
 

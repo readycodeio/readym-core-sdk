@@ -11,7 +11,6 @@ internal static class Constants
     public const string AgonesLastAllocated = "agones.dev/last-allocated";
     public const int ServerNetworkTickRateMs = 10;
     public const int ClientNetworkTickRateMs = 1;
-    public const int ShimClientTickRateMs = 1;
     public const int ServerEcsUpdateRateMs = 2;
     public const int ClientEcsUpdateRateMs = 2;
     public const int ClientConnectionTimeoutMs = 5000;

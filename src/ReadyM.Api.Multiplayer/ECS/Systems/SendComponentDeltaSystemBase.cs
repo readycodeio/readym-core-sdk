@@ -9,6 +9,7 @@ using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
@@ -76,7 +77,7 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
     private void CreatePacketHeader(NetDataWriter writer)
     {
-        writer.Put((byte)RelayMessageCode.EcsDelta);
+        writer.PutMessageCode(RelayMessageCode.EcsDelta);
         writer.Put(_networkTime.GetCurrentTime());
         writer.Put(ComponentId);
     }

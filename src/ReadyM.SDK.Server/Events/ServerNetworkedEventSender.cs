@@ -1,6 +1,7 @@
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Relay.Server.Sdk.Players;
 using ReadyM.Relay.Server.Sdk.Rpc;
@@ -35,7 +36,7 @@ internal sealed class ServerNetworkedEventSender(RpcApi relay, IEntities entitie
     private static NetDataWriter Message(RelayMessageCode code, NetworkedEventHeader header, NetDataWriter payload)
     {
         var message = new NetDataWriter();
-        message.Put((byte)code);
+        message.PutMessageCode(code);
         header.Write(message);
         message.Put(payload.Data, 0, payload.Length);
 

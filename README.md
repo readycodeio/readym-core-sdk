@@ -250,8 +250,8 @@ public static partial class CoopRpcContracts
 ```
 
 One name is one wire code, so a request and its response share a name and may carry different payloads.
-A name is either routed through the server or relayed between clients, never both: the two are numbered
-out of separate code spaces, so mixing them under one name is refused.
+A name is either routed through the server or relayed between clients, never both: each set's two kinds
+are numbered as separate blocks, and a code is read by its block, so mixing them under one name is refused.
 
 Implementing a set is a `partial class` annotated with `[RpcHandlersFor(typeof(TheContracts))]`, on
 the client, on the server, or both. It needs no base class and may implement any subset of the stubs:

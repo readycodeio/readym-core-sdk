@@ -36,7 +36,7 @@ public struct RelayMessage
     public static RelayMessage ToServer(RelayMessageCode eventCode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
-        writer.Put((byte)eventCode);
+        writer.PutMessageCode(eventCode);
         return new RelayMessage(
             eventCode,
             writer,

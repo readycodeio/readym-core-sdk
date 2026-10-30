@@ -52,42 +52,38 @@ public class ClientToClientsTests(ITestOutputHelper output)
 
     // -- the manifest ------------------------------------------------------------------------------
 
-    /// <summary>
-    /// The two spaces are numbered from their own ends, so a peer-to-peer name never takes a code a
-    /// server RPC would have had.
-    /// </summary>
+    /// <summary>A peer-to-peer name is numbered within its own block, which the host places after every server code.</summary>
     [Fact]
-    public void A_peer_to_peer_name_is_assigned_out_of_the_client_code_space()
+    public void A_peer_to_peer_name_is_numbered_within_its_own_block()
     {
         var manifest = Manifest();
 
         Assert.Contains(
             "public const RelayMessageCode ChatMessageCode =\r\n"
                 .Replace("\r\n", Environment.NewLine)
-            + "        (RelayMessageCode)(RelayMessageCode.MinClientRpcEvent + 0);",
+            + "        (RelayMessageCode)(RelayMessageCode.MinAnyCustomEvent + 0);",
             manifest);
     }
 
     [Fact]
-    public void The_server_names_keep_the_server_code_space()
+    public void The_server_names_are_in_the_manifest_too()
     {
         var manifest = Manifest();
 
         Assert.Contains("BossHpScaledCode", manifest);
         Assert.Contains("ScaleBossHpCode", manifest);
-        Assert.DoesNotContain("ChatMessageCode =\n        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent", manifest);
     }
 
-    /// <summary>Each space is handed out by its own provider, so each carries its own size and offset.</summary>
+    /// <summary>The server's names and the peer-to-peer ones are separate blocks, each with its own size and offset.</summary>
     [Fact]
-    public void Each_space_carries_its_own_count_and_offset()
+    public void Each_block_carries_its_own_count_and_offset()
     {
         var manifest = Manifest();
 
-        Assert.Contains("public const byte TotalEventCount = 2;", manifest);
-        Assert.Contains("public static byte Offset { get; set; }", manifest);
-        Assert.Contains("public const byte TotalClientEventCount = 1;", manifest);
-        Assert.Contains("public static byte ClientOffset { get; set; }", manifest);
+        Assert.Contains("public const ushort TotalEventCount = 2;", manifest);
+        Assert.Contains("public static ushort Offset { get; set; }", manifest);
+        Assert.Contains("public const ushort TotalClientEventCount = 1;", manifest);
+        Assert.Contains("public static ushort ClientOffset { get; set; }", manifest);
     }
 
     // -- the client class --------------------------------------------------------------------------

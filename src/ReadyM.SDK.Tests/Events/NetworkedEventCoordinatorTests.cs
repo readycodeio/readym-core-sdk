@@ -25,7 +25,7 @@ namespace ReadyM.SDK.Tests.Events;
 /// </summary>
 public class NetworkedEventCoordinatorTests
 {
-    private const RelayMessageCode Wire = RelayMessageCode.MaxServerRpcEvent;
+    private const RelayMessageCode Wire = (RelayMessageCode)ushort.MaxValue;
 
     private static readonly PlayerId Me = new(2);
 
