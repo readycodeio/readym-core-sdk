@@ -185,16 +185,6 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                     sb.AppendLine($"""#warning "RelayMode must be specified in RpcEvent attribute for method '{methodName}'" """);
                     relayMode = "0"; // default
                 }
-
-                if (relayMode == "4" && !paramTypes.First(x => x.Type != null).Type!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Contains("NetworkId"))
-                {
-                    sb.AppendLine("""#error "RelayMode.EntityOwner is not part of public API" """);
-                }
-
-                if (relayMode == "5")
-                {
-                    sb.AppendLine("""#error "RelayMode.Peers is not part of public API" """);
-                }
                 
                 sb.AppendLine($$"""
                                     public void {{sendMethod}}({{sendParamList}})

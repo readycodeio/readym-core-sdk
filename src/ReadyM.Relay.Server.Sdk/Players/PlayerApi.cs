@@ -11,8 +11,7 @@ namespace ReadyM.Relay.Server.Sdk.Players;
 /// <summary>
 /// Provides access to player events and actions on the server.
 /// </summary>
-[Obsolete("Will be made internal, use IPlayers instead")]
-public class PlayerApi : IPlayers
+internal class PlayerApi : IPlayers
 {
     private readonly KickPlayerDelegate _kickPlayer;
     private readonly PinnedDelegateStore _pinnedDelegateStore = new();

@@ -60,7 +60,6 @@ internal static class ServerSdk
         if (api is Entities.ServerEntityApi server)
             server.ApplyDeclaredTags();
 
-        // TODO: Wire as a standard system somewhere, since this is based on the obsolete ModSystemBase
         ModSystemUpdates.Wire(services);
     }
 }

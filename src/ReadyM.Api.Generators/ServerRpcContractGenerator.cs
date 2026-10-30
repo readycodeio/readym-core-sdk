@@ -122,9 +122,6 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
             if (ServerRpcModel.IsServerDirected(method) && ServerRpcModel.IsClientToClients(method))
                 ReportMixedSpace(context, method);
 
-            if (ServerRpcModel.IsClientToClients(method))
-                ValidateRelayMode(context, method);
-
             ValidateEntityParameters(context, method);
         }
 
@@ -154,25 +151,6 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
                 "ServerRpc", DiagnosticSeverity.Error, true),
             method.Locations.FirstOrDefault(),
             method.Name));
-
-    /// <summary>The relay modes a mod may ask for, which is not all of them.</summary>
-    private static void ValidateRelayMode(SourceProductionContext context, IMethodSymbol method)
-    {
-        var mode = ServerRpcModel.RelayModeOf(method);
-
-        // 4 is EntityOwner and 5 is Peers, both carried by the enum but not offered to mods.
-        if (mode is not (4 or 5))
-            return;
-
-        context.ReportDiagnostic(Diagnostic.Create(
-            new DiagnosticDescriptor(
-                "SRPC007", "Relay mode is not part of the public API",
-                "'{0}' asks for a relay mode that is not part of the public API. Use one of "
-                + "AreaOfInterestOthers, AreaOfInterestAll, GlobalOthers or GlobalAll.",
-                "ServerRpc", DiagnosticSeverity.Error, true),
-            method.Locations.FirstOrDefault(),
-            method.Name));
-    }
 
     /// <summary>
     /// A shape travels as its entity's network id, so one whose entities never get one cannot be sent. Checked here,

@@ -12,7 +12,7 @@ namespace ReadyM.Api.Generators.Tests.Rpc;
 /// </summary>
 public class RpcBaseClassTests(ITestOutputHelper output)
 {
-    private static readonly Assembly[] Sdk = [typeof(ReadyM.Api.Multiplayer.ServerRpcForAttribute).Assembly];
+    private static readonly Assembly[] Sdk = [typeof(Multiplayer.ClientToClientsAttribute).Assembly];
 
     /// <summary>
     /// A client mod has no reference to the server SDK, which is what the generators read the side

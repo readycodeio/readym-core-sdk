@@ -45,22 +45,6 @@ public struct RelayMessage
             deliveryMethod
         );
     }
-
-    /// <summary>
-    /// Send an event to a specific player or group of players.
-    /// </summary>
-    internal static RelayMessage ToPeers(RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers, DeliveryMethod deliveryMethod)
-    {
-        var writer = new NetDataWriter();
-        writer.PutCustomRelayEventHeader(eventCode, playerId, peers);
-        return new RelayMessage(
-            eventCode,
-            writer,
-            peers,
-            RelayMode.Peers,
-            deliveryMethod
-        );
-    }
     
     /// <summary>
     /// Send an event with a specific delivery method.

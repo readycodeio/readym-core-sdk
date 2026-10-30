@@ -1,6 +1,8 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
-using ReadyM.Api.Generators;
+using ReadyM.Api.Multiplayer;
+using ReadyM.Relay.Server.Sdk.Rpc;
+using ReadyM.SDK.Attributes;
 using Xunit;
 
 namespace ReadyM.Api.Generators.Tests.Rpc;
@@ -15,14 +17,14 @@ public class RpcAttributeNamesTests(ITestOutputHelper output)
 {
     private static readonly Assembly[] Sdk =
     [
-        typeof(ReadyM.SDK.Attributes.RpcContractsAttribute).Assembly,
-        typeof(ReadyM.Api.Multiplayer.ServerRpcForAttribute).Assembly,
+        typeof(RpcContractsAttribute).Assembly,
+        typeof(ClientToClientsAttribute).Assembly,
     ];
 
     /// <summary>A client mod cannot reach the server SDK, which is how a baseless class is placed.</summary>
     private static readonly string[] AsAClientMod =
     [
-        typeof(ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase).Assembly.GetName().Name!,
+        typeof(ServerRpcHandlersBase).Assembly.GetName().Name!,
     ];
 
     private const string New = "RpcContracts";

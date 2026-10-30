@@ -1,5 +1,4 @@
-﻿using System;
-using LiteNetLib.Utils;
+﻿using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -10,57 +9,18 @@ internal static class NetDataWriterExtensions
 {
     public static void PutCustomRelayEventHeader(this NetDataWriter writer, RelayMessageCode eventCode, PlayerId playerId, RelayMode relayMode)
     {
-        if (relayMode == RelayMode.Peers)
-            throw new ArgumentException("Use PutCustomRelayEventHeader with PlayerId[] for RelayMode.Peers", nameof(relayMode));
         writer.PutMessageCode(eventCode);
         writer.Put(playerId);
         var flags = (byte)relayMode;
         writer.Put(flags);
     }
-
-    public static void PutCustomRelayEventHeader(this NetDataWriter writer, RelayMessageCode eventCode, PlayerId playerId, PlayerId[] peers)
-    {
-        writer.PutMessageCode(eventCode);
-        writer.Put(playerId);
-        var flags = (byte)RelayMode.Peers;
-        writer.Put(flags);
-        writer.Put((ushort)peers.Length);
-        foreach (var peerId in peers)
-        {
-            writer.Put(peerId);
-        }
-    }
-
+    
     public static CustomRelayEventHeader GetCustomRelayEventHeader(this NetDataReader reader, RelayMessageCode eventCode)
     {
         var sender = reader.Get<PlayerId>();
         var flags = reader.GetByte();
 
         var relayMode = (RelayMode)flags;
-
-        if (relayMode == RelayMode.Peers)
-        {
-            var peersLength = reader.GetUShort();
-            var peers = new PlayerId[peersLength];
-            for (var i = 0; i < peersLength; i++)
-            {
-                peers[i] = reader.Get<PlayerId>();
-            }
-
-            return new CustomRelayEventHeader(eventCode, sender, peers, relayMode);
-        }
-        else
-        {
-            return new CustomRelayEventHeader(eventCode, sender, null, relayMode);
-        }
-    }
-
-    // We do not write the sender, since the server tracks peer IDs anyway.
-    public static void PutServerRpcEventHeader(this NetDataWriter writer, RelayMessageCode eventCode)
-    {
-        if (eventCode < RelayMessageCode.MinAnyCustomEvent)
-            throw new ArgumentOutOfRangeException(
-                nameof(eventCode), eventCode, $"A server RPC code is at least {nameof(RelayMessageCode.MinAnyCustomEvent)}.");
-        writer.PutMessageCode(eventCode);
+        return new CustomRelayEventHeader(eventCode, sender, null, relayMode);
     }
 }
