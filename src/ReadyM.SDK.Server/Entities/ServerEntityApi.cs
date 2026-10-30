@@ -153,6 +153,10 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
         var id = _resolveArchetype(new NativeString256(shape, useWide: false));
 
+        if (id > byte.MaxValue)
+            throw new InvalidOperationException(
+                $"The relay gave {shape} the archetype id {id}, and an archetype's id is one byte.");
+
         if (id >= 0)
             return new ArchetypeId((byte)id);
 
