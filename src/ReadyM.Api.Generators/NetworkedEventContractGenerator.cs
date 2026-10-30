@@ -218,6 +218,10 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"        {VectorSerialization}.Serialize({member.Name}, writer);");
             }
+            else if (member.Type is INamedTypeSymbol { TypeKind: TypeKind.Enum, EnumUnderlyingType: { } underlying })
+            {
+                sb.AppendLine($"        writer.Put(({underlying.ToDisplayString()}){member.Name});");
+            }
             else
             {
                 sb.AppendLine($"        writer.Put({member.Name});");

@@ -361,6 +361,22 @@ public class NetworkedEventTests(ITestOutputHelper output)
             public partial struct Landing { public Vector3 Where { get; set; } }
             """);
 
+    /// <summary>An enum travels as its underlying type, so a byte enum is one byte on the wire.</summary>
+    [Fact]
+    public void An_enum_member_travels_as_its_underlying_type()
+    {
+        var generated = Generated(RunCommon("""
+            using ReadyM.SDK.Attributes;
+            namespace Other.Common;
+            public enum Posture : byte { Standing, Sitting }
+            [NetworkedEvent(EventScope.Global, Policy.Anyone)]
+            public partial struct Sat { public Posture Posture { get; set; } }
+            """));
+
+        Assert.Contains("writer.Put((byte)Posture);", generated);
+        Assert.Contains("(global::Other.Common.Posture)reader.GetByte()", generated);
+    }
+
     /// <summary>One event that cannot be sent does not take the rest of the assembly's events down with it.</summary>
     [Fact]
     public void An_event_that_cannot_travel_leaves_the_others_generated()
