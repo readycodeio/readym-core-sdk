@@ -628,6 +628,39 @@ public class NetworkedEventTests(ITestOutputHelper output)
             """);
 
     [Fact]
+    public void Skipping_the_raising_client_outside_apply_is_an_error()
+        => AssertClientError("NEVT013", """
+            using ReadyM.SDK.Attributes;
+            using ReadyM.SDK.Events;
+            using Other.Common;
+            namespace Other.Client;
+            [Service]
+            public partial class Rogue
+            {
+                [EventHandler(Stage.Observe, SkipOnRaisingClient = true)]
+                public void Count(in HitEvent e, EventContext ctx) { }
+            }
+            """);
+
+    [Fact]
+    public void An_apply_that_skips_the_raising_client_runs_only_elsewhere()
+    {
+        var client = Generated(RunClientWith("""
+            using ReadyM.SDK.Attributes;
+            using Other.Common;
+            namespace Other.Client;
+            [Service]
+            public partial class HitView
+            {
+                [EventHandler(Stage.Apply, SkipOnRaisingClient = true)]
+                public void Play(in HitEvent e) { }
+            }
+            """));
+
+        Assert.Contains("if (!context.IsRaisingClient)\n                    hitView.Play(", client);
+    }
+
+    [Fact]
     public void An_after_constraint_orders_one_mod_behind_another()
         => Assert.Contains("Other.Scoreboard", Generated(RunClient()));
 

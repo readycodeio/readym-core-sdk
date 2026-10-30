@@ -61,11 +61,11 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
                 contract.TryCell(in networkEvent, out var cell) ? cell : null,
                 origin))
         {
-            Refuse(ref networkEvent, new EventContext(origin, EventCancellation.Cancelled(PolicyCancellerName, null)));
+            Refuse(ref networkEvent, new EventContext(origin, false, EventCancellation.Cancelled(PolicyCancellerName, null)));
             return;
         }
 
-        var context = new EventContext(origin, new EventCancellation());
+        var context = new EventContext(origin, false, new EventCancellation());
         RunStage(Stage.Validate, ref networkEvent, context);
         RunStage(Stage.Filter, ref networkEvent, context);
 

@@ -89,7 +89,7 @@ public class EventCancellationTests
     [Fact]
     public void The_context_carries_who_raised_it()
     {
-        var here = new EventContext(Raiser, new EventCancellation());
+        var here = new EventContext(Raiser, false, new EventCancellation());
         Assert.Equal(Raiser, here.Origin);
     }
 
@@ -97,7 +97,7 @@ public class EventCancellationTests
     public void Cancelling_through_the_context_refuses_the_event()
     {
         var cancellation = new EventCancellation();
-        var ctx = new EventContext(Raiser, cancellation);
+        var ctx = new EventContext(Raiser, false, cancellation);
 
         ctx.Cancel(Refusal.OutOfRange);
 
@@ -109,7 +109,7 @@ public class EventCancellationTests
     public void A_rejected_handler_reads_who_refused_through_the_context()
     {
         var cancellation = new EventCancellation();
-        var ctx = new EventContext(Raiser, cancellation);
+        var ctx = new EventContext(Raiser, false, cancellation);
 
         cancellation.SetCurrentMod("Other.Censor");
         ctx.Cancel(Refusal.Untargetable);

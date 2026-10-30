@@ -43,6 +43,9 @@ public class NetworkedEventCoordinatorTests
         /// <summary>What this mod's Filter adds to the damage, so a rewrite can be seen downstream.</summary>
         public int Adds { get; init; }
 
+        /// <summary>What each Apply was told about whether this machine is the client that raised the event.</summary>
+        public List<bool> AppliedOnRaisingClient { get; } = [];
+
         public string Mod => name;
 
         public IReadOnlyList<string> After => after;
@@ -50,6 +53,9 @@ public class NetworkedEventCoordinatorTests
         public void Run(Stage stage, ref Blow e, EventContext ctx)
         {
             ran.Add($"{name}:{stage}:{e.Damage}");
+
+            if (stage == Stage.Apply)
+                AppliedOnRaisingClient.Add(ctx.IsRaisingClient);
 
             if (stage == Stage.Filter)
                 e.Damage += Adds;
@@ -237,6 +243,33 @@ public class NetworkedEventCoordinatorTests
         relay.Deliver(Wire, Arriving(false, Somebody, 3));
 
         Assert.Equal(["A:Apply:3", "B:Apply:3", "A:Observe:3", "B:Observe:3"], _ran);
+    }
+
+    /// <summary>What SkipOnRaisingClient reads, so an Apply the raising client already did does not happen twice.</summary>
+    [Fact]
+    public void An_event_this_client_raised_comes_back_marked_as_raised_here()
+    {
+        var mod = new Handlers("A", _ran);
+        var (_, relay) = OnClient(mod);
+        relay.PlayerId = Me;
+
+        relay.Deliver(Wire, Arriving(false, Me, 3));
+        relay.Deliver(Wire, Arriving(false, Somebody, 3));
+
+        Assert.Equal([true, false], mod.AppliedOnRaisingClient);
+    }
+
+    /// <summary>The server is no client, so nothing it applies is skipped, whoever raised the event.</summary>
+    [Fact]
+    public void Nothing_the_server_applies_is_marked_as_raised_on_a_client()
+    {
+        var mod = new Handlers("A", _ran);
+        var server = OnServer(mod);
+
+        server.Raise(default, PlayerId.Server);
+        server.Raise(default, Somebody);
+
+        Assert.Equal([false, false], mod.AppliedOnRaisingClient);
     }
 
     /// <summary>A filter's rewrite is what every later stage, in every mod, is given.</summary>

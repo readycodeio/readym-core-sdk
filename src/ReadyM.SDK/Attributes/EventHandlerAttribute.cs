@@ -23,6 +23,12 @@ public sealed class EventHandlerAttribute(Stage stage) : Attribute
     /// <summary>Which stage of event propagation this method handles.</summary>
     public Stage Stage { get; } = stage;
 
+    /// <summary>
+    /// On <see cref="Stage.Apply"/> only: skip this handler on the client that raised the event, because that
+    /// client already did what it applies.
+    /// </summary>
+    public bool SkipOnRaisingClient { get; set; }
+
     // TODO: Before?
     /// <summary>
     /// The manifest id of a mod this handler runs after, for the rare case where dependency order is not enough.
