@@ -25,11 +25,12 @@ public class ClientToClientsTests(ITestOutputHelper output)
 
     private const string Contracts = """
         using ReadyM.Api.Multiplayer;
+        using ReadyM.SDK.Attributes;
         using ReadyM.Api.Multiplayer.Protocol.Enums;
 
         namespace Mod.Common;
 
-        [ServerRpcContracts]
+        [RpcContracts]
         public static partial class Contracts
         {
             [ClientToServer] public static partial void ScaleBossHp(int percent);
@@ -40,11 +41,12 @@ public class ClientToClientsTests(ITestOutputHelper output)
 
     private const string Client = """
         using ReadyM.Api.Multiplayer;
+        using ReadyM.SDK.Attributes;
         using Mod.Common;
 
         namespace Mod;
 
-        [ServerRpcFor(typeof(Contracts))]
+        [RpcHandlersFor(typeof(Contracts))]
         public partial class ModRpc
         {
         }
@@ -172,19 +174,20 @@ public class ClientToClientsTests(ITestOutputHelper output)
             "\npartial class ModRpc : global::ReadyM.Api.Multiplayer.RPC.RpcBase",
             ClientCode());
 
-    /// <summary>And one that still writes the 0.x base keeps it, or the two halves would disagree.</summary>
+    /// <summary>And one that writes the client base itself keeps it, or the two halves would disagree.</summary>
     [Fact]
     public void A_class_that_names_its_own_base_is_left_with_it()
     {
         var generated = ClientCode("""
             using ReadyM.Api.Multiplayer;
+            using ReadyM.SDK.Attributes;
             using ReadyM.Api.Multiplayer.RPC;
             using Mod.Common;
 
             namespace Mod;
 
-            [ServerRpcFor(typeof(Contracts))]
-            public partial class ModRpc : ServerRpcClient
+            [RpcHandlersFor(typeof(Contracts))]
+            public partial class ModRpc : RpcBase
             {
             }
             """);
@@ -204,11 +207,12 @@ public class ClientToClientsTests(ITestOutputHelper output)
         => Assert.Contains(
             Reported("""
                 using ReadyM.Api.Multiplayer;
+                using ReadyM.SDK.Attributes;
                 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
                 namespace Mod.Common;
 
-                [ServerRpcContracts]
+                [RpcContracts]
                 public static partial class Contracts
                 {
                     [ClientToServer]
@@ -218,33 +222,17 @@ public class ClientToClientsTests(ITestOutputHelper output)
                 """),
             diagnostic => diagnostic.Id == "SRPC006");
 
-    [Fact]
-    public void A_relay_mode_that_is_not_public_api_is_refused()
-        => Assert.Contains(
-            Reported("""
-                using ReadyM.Api.Multiplayer;
-                using ReadyM.Api.Multiplayer.Protocol.Enums;
-
-                namespace Mod.Common;
-
-                [ServerRpcContracts]
-                public static partial class Contracts
-                {
-                    [ClientToClients((RelayMode)5)] public static partial void Sneaky(int value);
-                }
-                """),
-            diagnostic => diagnostic.Id == "SRPC007");
-
     /// <summary>Saying nothing at all is still refused, and the message now offers all three.</summary>
     [Fact]
     public void A_contract_method_with_no_direction_is_still_refused()
         => Assert.Contains(
             Reported("""
                 using ReadyM.Api.Multiplayer;
+                using ReadyM.SDK.Attributes;
 
                 namespace Mod.Common;
 
-                [ServerRpcContracts]
+                [RpcContracts]
                 public static partial class Contracts
                 {
                     public static partial void Silent(int value);

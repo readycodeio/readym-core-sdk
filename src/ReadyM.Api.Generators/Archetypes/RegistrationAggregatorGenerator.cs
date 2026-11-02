@@ -53,23 +53,17 @@ internal class RegistrationAggregatorGenerator : IIncrementalGenerator
             static (node, _) => node is ClassDeclarationSyntax,
             ReadRpcHandlers);
 
-        // The 0.x spelling of the same attribute, so a mod that has not moved over is collected too.
-        var legacyHandlers = context.SyntaxProvider.ForAttributeWithMetadataName(
-            ArchetypeNames.ServerRpcForAttribute,
-            static (node, _) => node is ClassDeclarationSyntax,
-            ReadRpcHandlers);
-
         var all = archetypes.Collect().Combine(mixins.Collect())
             .Combine(services.Collect()).Combine(entries.Collect()).Combine(configs.Collect())
-            .Combine(handlers.Collect()).Combine(legacyHandlers.Collect());
+            .Combine(handlers.Collect());
 
         context.RegisterSourceOutput(all, static (spc, found) =>
         {
-            var declared = found.Left.Left;
+            var declared = found.Left;
 
             var names = declared.Left.Left.Left.Left.Concat(declared.Left.Left.Left.Right)
                 .Concat(declared.Left.Left.Right).Concat(declared.Left.Right).Concat(declared.Right)
-                .Concat(found.Left.Right).Concat(found.Right)
+                .Concat(found.Right)
                 .SelectMany(entry => entry)
                 .Distinct()
                 .OrderBy(name => name, System.StringComparer.Ordinal)

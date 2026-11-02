@@ -83,26 +83,6 @@ public class RpcRegistrationTests(ITestOutputHelper output)
             "global::Mod.Rpc.Registration.Register();",
             Run(new RegistrationAggregatorGenerator(), Handlers, AsAClientMod));
 
-    /// <summary>
-    /// The 0.x spelling of the attribute is collected too, or a mod that has not moved over would
-    /// quietly stop registering its RPC classes.
-    /// </summary>
-    [Fact]
-    public void The_aggregator_names_one_that_still_uses_the_old_attribute()
-        => Assert.Contains(
-            "global::Mod.Rpc.Registration.Register();",
-            Run(new RegistrationAggregatorGenerator(), """
-                using ReadyM.Api.Multiplayer;
-                using Mod.Common;
-
-                namespace Mod;
-
-                [ServerRpcFor(typeof(Contracts))]
-                public partial class Rpc
-                {
-                }
-                """, AsAClientMod));
-
     /// <summary>Nothing is written for a class no generator completes, so naming it would not compile.</summary>
     [Fact]
     public void The_aggregator_leaves_out_a_class_that_is_not_partial()
