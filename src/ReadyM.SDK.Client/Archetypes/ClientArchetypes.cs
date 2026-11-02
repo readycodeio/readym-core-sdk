@@ -44,4 +44,32 @@ internal static class ClientArchetypes
 
         return applied;
     }
+
+    /// <summary>
+    /// Registers an archetype under its full name for every replicated shape the game does not bind. The server
+    /// does the same, so the two agree on the ids as long as they load the same shapes.
+    /// </summary>
+    /// <param name="bound">The archetype the game registered for each shape, by full name.</param>
+    /// <returns>Each archetype registered, by the shape's full name.</returns>
+    public static List<(string Shape, ArchetypeId Archetype)> RegisterReplicated(
+        IArchetypeRegistry registry,
+        IReadOnlyDictionary<string, ArchetypeId> bound)
+    {
+        var registered = new List<(string, ArchetypeId)>();
+
+        foreach (var (_, name, components) in ArchetypeContributions.Replicated())
+        {
+            if (bound.ContainsKey(name))
+                continue;
+
+            var builder = new ArchetypeBuilder();
+
+            foreach (var component in components.Types)
+                builder.Add(component);
+
+            registered.Add((name, registry.RegisterArchetype(name, builder)));
+        }
+
+        return registered;
+    }
 }

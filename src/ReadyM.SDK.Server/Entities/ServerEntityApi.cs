@@ -94,7 +94,27 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     }
 
     private ArchetypeId ArchetypeOf(ComponentSet components)
-        => _archetypeIds.GetOrAdd(components, static (set, self) => self.Tagged(set, self.Bound(set) ?? self.Register(set)), this);
+        => _archetypeIds.GetOrAdd(components, static (set, self) => self.Tagged(set, self.Bound(set) ?? self.Local(set)), this);
+
+    /// <summary>
+    /// Registers an archetype under its full name for every replicated shape the game does not bind. A client
+    /// does the same with the shapes it loads, so the two agree on the ids as long as they load the same ones.
+    /// </summary>
+    internal int RegisterReplicatedShapes()
+    {
+        var registered = 0;
+
+        foreach (var (shape, name, components) in ArchetypeContributions.Replicated())
+        {
+            if (Binds(shape))
+                continue;
+
+            Register(components, new NativeString256(name, useWide: false));
+            registered++;
+        }
+
+        return registered;
+    }
 
     /// <summary>
     /// Settles the archetype of every shape that declared tags.
@@ -145,7 +165,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return archetype;
     }
 
-    /// <summary>The archetype this game registered for the shape, or null when it registers none.</summary>
+    /// <summary>The archetype registered under the shape's name, or null when there is none.</summary>
     private ArchetypeId? Bound(ComponentSet components)
     {
         if (ArchetypeRegistry.ShapeOf(components)?.FullName is not { } shape)
@@ -157,17 +177,23 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
             throw new InvalidOperationException(
                 $"The relay gave {shape} the archetype id {id}, and an archetype's id is one byte.");
 
-        if (id >= 0)
-            return new ArchetypeId((byte)id);
+        return id >= 0 ? new ArchetypeId((byte)id) : null;
+    }
 
+    /// <summary>A fresh archetype for a set that never leaves this side.</summary>
+    private ArchetypeId Local(ComponentSet components)
+    {
+        // Registered now, its id would depend on what this side happened to create first, and the client would
+        // read the entity as whatever it gave that id to.
         if (components.Replicated)
             throw new InvalidOperationException(
-                $"{shape} is declared replicated, but this game registers no archetype for it. Bind it "
-                + "with IArchetypeShapeBindings on both the client and the server, or the entity would "
-                + "reach the other side under an id only this one knows. An archetype that never leaves "
-                + "this side is [Archetype(Networked = false)].");
+                $"{ArchetypeRegistry.ShapeOf(components)?.FullName ?? components.ToString()} replicates, but "
+                + "no archetype was registered for it. The SDK registers one for every replicated shape loaded "
+                + "by the time the mods start. An archetype that never leaves this side is "
+                + "[Archetype(Networked = false)].");
 
-        return null;
+        // Unnamed: a local shape declares no stable name yet, so its entities are not persisted.
+        return Register(components, NativeString256.Null);
     }
 
     // A component holding a native collection has no memory until this runs, so it happens as the
@@ -213,7 +239,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _scope.Clear();
     }
 
-    private ArchetypeId Register(ComponentSet components)
+    private ArchetypeId Register(ComponentSet components, NativeString256 name)
     {
         var ids = new List<int>(ResolveIds(components));
 
@@ -228,8 +254,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         foreach (var id in ids)
             native.Add(id);
 
-        // Unnamed: an SDK shape declares no stable name yet, so its entities are not persisted.
-        return _registerArchetype(NativeString256.Null, native);
+        return _registerArchetype(name, native);
     }
 
     public unsafe bool TryGetScope(RawEntity entity, out RawEntity scope)

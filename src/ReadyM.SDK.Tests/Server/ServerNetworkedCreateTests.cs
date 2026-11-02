@@ -96,6 +96,21 @@ public class ServerNetworkedCreateTests : ServerSdkTest
         Assert.Contains(typeof(Unbound).FullName!, refused.Message);
     }
 
+    /// <summary>Unless the SDK registered one under its name as the mods started, which a client does too.</summary>
+    [Fact]
+    public void A_replicating_shape_the_game_never_bound_is_registered_as_the_mods_start()
+    {
+        // The pass takes every replicated shape this assembly declares, the client's fixtures too, so the relay has
+        // to know all of what they hold.
+        foreach (var (_, _, components) in ArchetypeContributions.Replicated())
+        foreach (var component in components.Types)
+            Relay.RegisterUnnamed(component);
+
+        Api.RegisterReplicatedShapes();
+
+        Assert.NotNull(Relay.NetworkedOf(IdentityOf(Entities.Create<Unbound>())));
+    }
+
     // -- who owns it -------------------------------------------------------------------------------
 
     /// <summary>Null is the server's own, which is what a server making an entity means.</summary>

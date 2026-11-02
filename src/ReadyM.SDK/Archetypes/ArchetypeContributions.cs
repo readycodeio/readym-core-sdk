@@ -14,6 +14,24 @@ internal static class ArchetypeContributions
     public static IEnumerable<Type> Shapes()
         => Core.Concat(ArchetypeRegistry.Declared()).Concat(ArchetypeRegistry.Extended()).Distinct();
 
+    /// <summary>
+    /// Every declared shape that replicates, by full name: the order both sides register the ones their game does
+    /// not bind in, so they hand out the same ids whatever order the assemblies loaded in.
+    /// </summary>
+    public static IEnumerable<(Type Shape, string Name, ComponentSet Components)> Replicated()
+    {
+        foreach (var shape in ArchetypeRegistry.Declared().OrderBy(shape => shape.FullName, StringComparer.Ordinal))
+        {
+            if (shape.FullName is not { } name || Activator.CreateInstance(shape) is not IArchetypeQueryable queryable)
+                continue;
+
+            var components = ArchetypeRegistry.SetFor(shape, queryable.Components);
+
+            if (components.Replicated)
+                yield return (shape, name, components);
+        }
+    }
+
     /// <summary>The components the SDK generated for a shape.</summary>
     public static IEnumerable<Type> OwnGenerated(Type shape)
     {

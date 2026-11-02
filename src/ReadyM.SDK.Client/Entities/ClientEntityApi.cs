@@ -278,9 +278,8 @@ internal sealed class ClientEntityApi : IEntityApi
         }
 
         throw new InvalidOperationException(
-            $"{shape?.FullName ?? components.ToString()} replicates, but this game registers no "
-            + "archetype for it. Bind it with IArchetypeShapeBindings on both the client and the "
-            + "server, or the entity would reach the other side under an id only this one knows.");
+            $"{shape?.FullName ?? components.ToString()} replicates, but no archetype was registered "
+            + "for it. ApplyArchetypeExtensions registers one for every replicated shape loaded by then.");
     }
 
     private static ArchetypeBuilder Builder(ComponentSet components)

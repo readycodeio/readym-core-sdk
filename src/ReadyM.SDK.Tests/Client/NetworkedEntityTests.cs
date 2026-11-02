@@ -249,6 +249,19 @@ public class NetworkedEntityTests : IDisposable
         Assert.Contains(typeof(Unbound).FullName!, refused.Message);
     }
 
+    /// <summary>Unless the SDK's pass registered one under its name, as the server does with the same shapes.</summary>
+    [Fact]
+    public void A_replicating_shape_the_game_never_bound_is_registered_by_the_sdk()
+    {
+        foreach (var (shape, archetype) in ClientArchetypes.RegisterReplicated(World, _bound))
+            _bound[shape] = archetype;
+
+        ArchetypeBindings.Use(_bound);
+
+        Assert.True(World.TryGetArchetypeId(typeof(Unbound).FullName!, out var registered));
+        Assert.Equal(registered, Archetype(Entities.Create<Unbound>()));
+    }
+
     // -- reading what the SDK does not name --------------------------------------------------------
 
     private bool Has<TComponent>(object shape) where TComponent : struct, IComponent

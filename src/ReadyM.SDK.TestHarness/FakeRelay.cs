@@ -433,7 +433,13 @@ internal sealed class FakeRelay
         for (var i = 0; i < ids.Length; i++)
             ids[i] = componentIds[i];
 
-        return RegisterArchetype(ids);
+        var archetype = RegisterArchetype(ids);
+
+        // The real host finds a named archetype by its name, which is how a shape it does not bind finds its own.
+        if (name.Length > 0)
+            _boundShapes[name.ToString()] = archetype;
+
+        return archetype;
     }
 
     /// <summary>The id this game gives a shape, the way its own archetype registration would.</summary>
