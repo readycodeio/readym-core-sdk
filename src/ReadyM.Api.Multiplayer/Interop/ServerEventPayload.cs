@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using LiteNetLib;
@@ -13,4 +14,5 @@ internal struct ServerEventPayload
     public CellId Cell;
     public RawEntity Entity;
     public DisconnectReason Reason;
+    public Guid ReadyMId;
 }

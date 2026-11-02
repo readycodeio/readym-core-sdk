@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Friflo.Engine.ECS;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Idents;
@@ -6,66 +7,48 @@ using ReadyM.Api.Interop;
 using ReadyM.Api.Multiplayer;
 using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.Interop;
-using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Interop;
+using ReadyM.SDK.Archetypes;
+using ReadyM.SDK.Archetypes.Core;
+using ReadyM.SDK.Entities;
 
-namespace ReadyM.Relay.Server.Sdk.Events;
+namespace ReadyM.SDK.Server.Events;
 
-/// <summary>
-/// Provides an API for subscribing to server events.
-/// </summary>
-[Obsolete("Will be made internal, use IServerEvents instead")]
-public sealed class ServerEventsApi : IServerEvents, IDisposable
+/// <summary>Hands the host's server events to mods, with the entity each one is about as its shape.</summary>
+internal sealed class ServerEvents : IServerEvents, IDisposable
 {
-    /// <summary>Fires when a player has connected and their player entity exists.</summary>
-    public event Action<PlayerId, Entity>? OnPlayerConnected;
-    /// <summary>Fires when a player has left or dropped, after they left their area.</summary>
-    public event Action<PlayerId, Entity, DisconnectReason>? OnPlayerDisconnected;
-    /// <summary>Fires when an area comes into use, as the first player enters it.</summary>
-    public event Action<AreaId, Entity>? OnAreaCreated;
-    /// <summary>Fires when the last player has left an area, unless the server keeps it while empty.</summary>
-    public event Action<AreaId, Entity>? OnAreaDeleted;
-    /// <summary>Fires when any player enters an area, the first one included.</summary>
+    public event Action<Player, Guid>? OnPlayerConnected;
+    public event Action<Player, DisconnectReason>? OnPlayerDisconnected;
+    public event Action<Area>? OnAreaCreated;
+    public event Action<Area>? OnAreaDeleted;
     public event Action<PlayerId, AreaId>? OnPlayerJoinedArea;
-    /// <summary>Fires when any player leaves an area.</summary>
     public event Action<PlayerId, AreaId>? OnPlayerLeftArea;
-    /// <summary>Fires when a cell comes into use, as the first player loads it.</summary>
-    public event Action<AreaId, CellId, Entity>? OnCellCreated;
-    /// <summary>Fires when the last player has unloaded a cell, unless the server keeps it while empty.</summary>
-    public event Action<AreaId, CellId, Entity>? OnCellDeleted;
-    /// <summary>Fires when any player loads a cell, the first one included.</summary>
-    public event Action<PlayerId, AreaId, CellId>? OnPlayerActivatedCell;
-    /// <summary>Fires when any player unloads a cell.</summary>
-    public event Action<PlayerId, AreaId, CellId>? OnPlayerDeactivatedCell;
-
-    /// <summary>
-    /// Raised once, when the world entity exists. A mod's Init runs before that, so this is the earliest
-    /// point at which world components can be written.
-    /// </summary>
-    public event Action<Entity>? OnWorldEntityCreated;
+    public event Action<Cell>? OnCellCreated;
+    public event Action<Cell>? OnCellDeleted;
+    public event Action<PlayerId, FullCellId>? OnPlayerActivatedCell;
+    public event Action<PlayerId, FullCellId>? OnPlayerDeactivatedCell;
+    public event Action<World>? OnWorldCreated;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
     private readonly PinnedDelegateStore _pinnedDelegates = new();
-    private readonly EcsApi _ecs;
+    private readonly IEntityApi _entities;
     private readonly INetworkTime _netTime;
     private readonly IChangeTrackingStore _changeTracking;
     private readonly ILogger _logger;
     private bool _disposed;
 
-    internal ServerEventsApi(
+    internal ServerEvents(
         ServerEventsPointers pointers,
-        EcsApi ecs,
+        IEntityApi entities,
         INetworkTime netTime,
         IChangeTrackingStore changeTracking,
         ILogger logger)
     {
         if (pointers.Subscribe == IntPtr.Zero || pointers.Unsubscribe == IntPtr.Zero)
-        {
             throw new ArgumentException("The host provided no server events bridge", nameof(pointers));
-        }
 
-        _ecs = ecs;
+        _entities = entities;
         _netTime = netTime;
         _changeTracking = changeTracking;
         _logger = logger;
@@ -78,7 +61,6 @@ public sealed class ServerEventsApi : IServerEvents, IDisposable
         subscribe(_dispatch);
     }
 
-    /// <summary>Stops receiving the server's events.</summary>
     public void Dispose()
     {
         // Registered as both this class and IServerEvents, so the container may dispose it twice
@@ -94,7 +76,7 @@ public sealed class ServerEventsApi : IServerEvents, IDisposable
     {
         try
         {
-            // NOTE: We are on the ECS thread already (ServerEventsApi forwards ServerState)
+            // The host raises these on the ECS thread
             using var _ = ComponentWriteContext.EnterServerAuthoring(_netTime.GetCurrentTime(), _changeTracking);
             Raise(kind, payload);
         }
@@ -106,21 +88,19 @@ public sealed class ServerEventsApi : IServerEvents, IDisposable
 
     private void Raise(ServerEventKind kind, ServerEventPayload payload)
     {
-        var entity = _ecs.EntityFrom(payload.Entity);
-
         switch (kind)
         {
             case ServerEventKind.PlayerConnected:
-                OnPlayerConnected?.Invoke(payload.Player, entity);
+                OnPlayerConnected?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId);
                 break;
             case ServerEventKind.PlayerDisconnected:
-                OnPlayerDisconnected?.Invoke(payload.Player, entity, payload.Reason);
+                OnPlayerDisconnected?.Invoke(Shape<Player>(payload.Entity), payload.Reason);
                 break;
             case ServerEventKind.AreaCreated:
-                OnAreaCreated?.Invoke(payload.Area, entity);
+                OnAreaCreated?.Invoke(Shape<Area>(payload.Entity));
                 break;
             case ServerEventKind.AreaDeleted:
-                OnAreaDeleted?.Invoke(payload.Area, entity);
+                OnAreaDeleted?.Invoke(Shape<Area>(payload.Entity));
                 break;
             case ServerEventKind.PlayerJoinedArea:
                 OnPlayerJoinedArea?.Invoke(payload.Player, payload.Area);
@@ -129,22 +109,25 @@ public sealed class ServerEventsApi : IServerEvents, IDisposable
                 OnPlayerLeftArea?.Invoke(payload.Player, payload.Area);
                 break;
             case ServerEventKind.CellCreated:
-                OnCellCreated?.Invoke(payload.Area, payload.Cell, entity);
+                OnCellCreated?.Invoke(Shape<Cell>(payload.Entity));
                 break;
             case ServerEventKind.CellDeleted:
-                OnCellDeleted?.Invoke(payload.Area, payload.Cell, entity);
+                OnCellDeleted?.Invoke(Shape<Cell>(payload.Entity));
                 break;
             case ServerEventKind.PlayerActivatedCell:
-                OnPlayerActivatedCell?.Invoke(payload.Player, payload.Area, payload.Cell);
+                OnPlayerActivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell));
                 break;
             case ServerEventKind.PlayerDeactivatedCell:
-                OnPlayerDeactivatedCell?.Invoke(payload.Player, payload.Area, payload.Cell);
+                OnPlayerDeactivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell));
                 break;
             case ServerEventKind.WorldEntityCreated:
-                OnWorldEntityCreated?.Invoke(entity);
+                OnWorldCreated?.Invoke(Shape<World>(payload.Entity));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");
         }
     }
+
+    private T Shape<T>(RawEntity entity) where T : struct, IArchetypeQueryable
+        => new() { Handle = new EntityHandle(entity, _entities) };
 }

@@ -395,10 +395,6 @@ internal sealed class FakeRelay
     internal bool IsManaged<T>(RawEntity entity) where T : struct
         => _entities[entity.Id].Archetype.HeapOf(IdOf(typeof(T))) is ManagedHeap<T>;
 
-    /// <summary>The v0 server api bound to this relay, for comparing the two generations.</summary>
-    internal EcsApi CreateEcsApi()
-        => new(Pointers, new ModComponentIds(Aot.GetComponentIdByName));
-
     /// <summary>The v1 server api bound to this relay, wired the way the mod host wires it.</summary>
     internal ServerEntityApi CreateEntityApi()
         => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName));
