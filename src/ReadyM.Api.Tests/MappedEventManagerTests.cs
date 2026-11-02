@@ -25,7 +25,8 @@ public class MappedEventManagerTests
         }
     }
 
-    private NativeMappedEventManager GetManager()
+    /// <param name="ecsThread">The thread the ECS runs on; with none yet, an ECS handler runs at once.</param>
+    private (NativeMappedEventManager Manager, PendingActionUpdater<CommandBufferSynced> EcsScheduler) GetManager(Thread? ecsThread)
     {
         var container = new Container(rules =>
             rules.With(FactoryMethod.ConstructorWithResolvableArguments)
@@ -67,14 +68,42 @@ public class MappedEventManagerTests
         container.RegisterMany<Store>(nonPublicServiceTypes: true);
 
         container.Register<IMappedEntityManager<IntPtr>, MappedEntityManager<IntPtr>>();
-        return container.Resolve<NativeMappedEventManager>();
+
+        var ecsScheduler = new PendingActionUpdater<CommandBufferSynced>(null!, container.Resolve<ILogger>());
+        ecsScheduler.SetThread(ecsThread);
+        container.RegisterInstance<PendingActionScheduler<CommandBufferSynced>>(ecsScheduler);
+
+        return (container.Resolve<NativeMappedEventManager>(), ecsScheduler);
+    }
+
+    /// <summary>Runs on a thread of its own and waits for it, which a task does not promise: a waited task may run inline.</summary>
+    private static void OnAnotherThread(Action action)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+            throw new InvalidOperationException("The other thread failed", failure);
     }
 
     [Fact]
     public void ReactsToEcsEvents()
     {
         // Arrange
-        var manager = GetManager();
+        var (manager, _) = GetManager(ecsThread: null);
         var ecsHandled = false;
 
         manager.RegisterEcsEventHandler<ManagedEvent>(ev =>
@@ -100,7 +129,7 @@ public class MappedEventManagerTests
     public void ReactsToGameEvents()
     {
         // Arrange
-        var manager = GetManager();
+        var (manager, _) = GetManager(ecsThread: null);
         var handled = false;
 
         manager.RegisterGameEventHandler<ManagedEvent>(ev =>
@@ -126,7 +155,7 @@ public class MappedEventManagerTests
     public void ReactsToBothEvents()
     {
         // Arrange
-        var manager = GetManager();
+        var (manager, _) = GetManager(ecsThread: null);
         var ecsHandled = false;
         var gameHandled = false;
 
@@ -158,7 +187,7 @@ public class MappedEventManagerTests
     public void ReactsToNativeEcsEvents()
     {
         // Arrange
-        var manager = GetManager();
+        var (manager, _) = GetManager(ecsThread: null);
         var ecsHandled = false;
 
         manager.RegisterEcsEventHandler<NativeEvent>(ev =>
@@ -195,7 +224,7 @@ public class MappedEventManagerTests
     public void ReactsToNativeEcsEventsAsManaged()
     {
         // Arrange
-        var manager = GetManager();
+        var (manager, _) = GetManager(ecsThread: null);
         var ecsHandled = false;
 
         manager.RegisterEcsEventHandler<NativeEvent>(ev =>
@@ -215,5 +244,92 @@ public class MappedEventManagerTests
 
         // Assert
         Assert.True(ecsHandled);
+    }
+
+    /// <summary>The game reports most events on its own threads, and a handler must only ever see the ECS thread.</summary>
+    [Fact]
+    public void An_ecs_handler_notified_from_another_thread_runs_on_the_ecs_threads_next_update()
+    {
+        var (manager, ecsScheduler) = GetManager(Thread.CurrentThread);
+        Thread? ranOn = null;
+
+        manager.RegisterEcsEventHandler<ManagedEvent>(ev =>
+        {
+            Assert.Equal(5, ev.IntValue);
+            ranOn = Thread.CurrentThread;
+        });
+
+        var propagated = false;
+        OnAnotherThread(() => propagated = manager.NotifyEcsIfApplicable(new ManagedEvent { IntValue = 5 }, default(EmptyContext)));
+
+        Assert.True(propagated);
+        Assert.Null(ranOn);
+
+        ecsScheduler.Update();
+
+        Assert.Same(Thread.CurrentThread, ranOn);
+    }
+
+    /// <summary>Notified on the ECS thread itself, the handler runs before the notify returns.</summary>
+    [Fact]
+    public void An_ecs_handler_notified_on_the_ecs_thread_runs_at_once()
+    {
+        var (manager, _) = GetManager(Thread.CurrentThread);
+        var handled = false;
+
+        manager.RegisterEcsEventHandler<ManagedEvent>(_ => handled = true);
+        manager.NotifyEcsIfApplicable(new ManagedEvent { IntValue = 5 }, default(EmptyContext));
+
+        Assert.True(handled);
+    }
+
+    /// <summary>
+    /// A handler that runs later still counts as the event propagating to the ECS, so invoking the same event in the
+    /// game from it is refused rather than looping back.
+    /// </summary>
+    [Fact]
+    public void A_deferred_ecs_handler_cannot_invoke_its_event_back_into_the_game()
+    {
+        var (manager, ecsScheduler) = GetManager(Thread.CurrentThread);
+        bool? invokedInGame = null;
+
+        manager.RegisterGameEventHandler<ManagedEvent>(_ => Assert.Fail("The event looped back into the game."));
+        manager.RegisterEcsEventHandler<ManagedEvent>(ev =>
+            invokedInGame = manager.InvokeInGameIfApplicable(ev, default(EmptyContext)));
+
+        OnAnotherThread(() => manager.NotifyEcsIfApplicable(new ManagedEvent { IntValue = 5 }, default(EmptyContext)));
+        ecsScheduler.Update();
+
+        Assert.False(invokedInGame);
+    }
+
+    /// <summary>A native event is read while the game's copy exists, and handled on the ECS thread afterwards.</summary>
+    [Fact]
+    public void A_native_ecs_event_is_read_at_once_and_handled_on_the_ecs_thread()
+    {
+        var (manager, ecsScheduler) = GetManager(Thread.CurrentThread);
+        int? handledValue = null;
+
+        manager.RegisterEcsEventHandler<NativeEvent>(ev => handledValue = ev.IntValue);
+
+        OnAnotherThread(() =>
+        {
+            var evPtr = Marshal.AllocHGlobal(Marshal.SizeOf<NativeEvent>());
+            try
+            {
+                Marshal.StructureToPtr(new NativeEvent { Actor = IntPtr.Zero, IntValue = 7 }, evPtr, false);
+                manager.NotifyEcsIfApplicable(NativeEvent.Id, evPtr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(evPtr);
+            }
+        });
+
+        Assert.Null(handledValue);
+
+        ecsScheduler.Update();
+
+        Assert.Equal(7, handledValue);
     }
 }

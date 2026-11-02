@@ -1,18 +1,27 @@
 ﻿using System;
+using Friflo.Engine.ECS;
 using Microsoft.Extensions.Logging;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Mapping.Tags;
 
 namespace ReadyM.Api.Mapping.Events;
 
+/// <remarks>
+/// An ECS handler always runs on the ECS thread: at once when the game reports an event there, and on the next ECS
+/// tick when it reports it from any other thread.
+/// </remarks>
 internal class MappedEventManager(
     DataSideChannel sideChannel,
     IMappingPolicyDirectory policyDir,
+    PendingActionScheduler<CommandBufferSynced> ecsScheduler,
     ILogger logger
 ) : IMappedEventManager
 {
     protected readonly EventQueue incomingEcsEventQueue = new(logger);
     protected readonly EventQueue incomingGameEventQueue = new(logger);
+
+    /// <summary>Runs work on the ECS thread.</summary>
+    protected readonly PendingActionScheduler<CommandBufferSynced> ecsScheduler = ecsScheduler;
 
     public void RegisterEcsEventHandler<TEvent>(Action<TEvent> handler)
         where TEvent : struct
@@ -56,12 +65,18 @@ internal class MappedEventManager(
         if (!policyDir.ForEvent<TEvent, TContext>().CanGameEventNotifyEcs(context))
             return false;
 
+        ecsScheduler.Schedule(static (_, self, ev0) => self.InvokeEcsHandlers(ev0), this, ev);
+        return true;
+    }
+
+    private void InvokeEcsHandlers<TEvent>(TEvent ev)
+        where TEvent : struct
+    {
+        // Pushed on the ECS thread, where the handlers run, so one of them invoking the event in the game is refused
         using (sideChannel.PushScope<PropagatingToEcsScope<TEvent>>())
         {
             incomingEcsEventQueue.Invoke(ev);
         }
-
-        return true;
     }
 
     /// <inheritdoc/>
