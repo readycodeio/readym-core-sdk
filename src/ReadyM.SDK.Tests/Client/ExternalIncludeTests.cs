@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.Versioning;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Tests.Client.Fixtures;
 using ReadyM.SDK.Tests.ExternalMod;
@@ -10,6 +12,18 @@ namespace ReadyM.SDK.Tests.Client;
 /// </summary>
 public class ExternalIncludeTests : ClientSdkTest
 {
+    [Fact]
+    public void A_shape_compiled_against_netstandard_binds_to_this_runtimes_sdk()
+    {
+        var framework = typeof(Merchant).Assembly.GetCustomAttribute<TargetFrameworkAttribute>()!.FrameworkName;
+        Assert.StartsWith(".NETStandard", framework);
+
+        var merchant = Spawn<Merchant>();
+        merchant.Reputation = 3;
+
+        Assert.Equal(3, merchant.As<Merchant>().Reputation);
+    }
+
     [Fact]
     public void An_external_mixin_is_flattened_onto_the_archetype()
     {
