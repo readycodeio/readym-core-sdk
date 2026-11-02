@@ -327,6 +327,19 @@ public class NetworkedEventTests(ITestOutputHelper output)
             """);
 
     /// <summary>
+    /// A member travels as a property. A field would go unsent and arrive as its default, so it is refused rather
+    /// than left out of the payload.
+    /// </summary>
+    [Fact]
+    public void A_field_is_an_error_not_a_member_left_unsent()
+        => AssertError("NEVT015", """
+            using ReadyM.SDK.Attributes;
+            namespace Other.Common;
+            [NetworkedEvent(EventScope.Global, Policy.Anyone)]
+            public partial struct Fielded { public int Volume; }
+            """);
+
+    /// <summary>
     /// A vector travels the way a component's vector field does, through the same extensions, so an event and a
     /// component holding one put the same bytes on the wire.
     /// </summary>

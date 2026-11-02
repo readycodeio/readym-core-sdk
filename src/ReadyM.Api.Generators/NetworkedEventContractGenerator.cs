@@ -134,6 +134,18 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
             Report(context, location, "NEVT004", "No subject to check",
                 $"'{declared.Symbol.Name}' says Policy.{declared.Policy}, which checks the subject, so one member must be marked [Subject].");
 
+        // Only properties travel, so a field would arrive as its default on every other side
+        foreach (var field in declared.Symbol.GetMembers().OfType<IFieldSymbol>())
+        {
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
+                continue;
+
+            Report(context, field.Locations.FirstOrDefault() ?? location, "NEVT015", "Field is not sent",
+                $"'{declared.Symbol.Name}.{field.Name}' is a field, and only an event's properties are sent. Declare it as {{ get; set; }}.");
+
+            sendable = false;
+        }
+
         foreach (var member in declared.Members)
         {
             if (RpcEntityParams.IsShape(member.Type, out var shape, out _))
