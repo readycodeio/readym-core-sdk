@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging.Abstractions;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Multiplayer.ECS;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
@@ -33,6 +36,9 @@ public class NetworkedEventCoordinatorTests
 
     private readonly List<string> _ran = [];
 
+    /// <summary>The ECS thread's scheduler. With no thread set, as in most tests, what it is handed runs at once.</summary>
+    private readonly PendingActionUpdater<CommandBufferSynced> _ecs = new(null!, NullLogger.Instance);
+
     /// <summary>What a mod's generated handler set is, as the coordinator sees it.</summary>
     private sealed class Handlers(string name, List<string> ran, params string[] after)
         : INetworkedEventHandlers<Blow>
@@ -46,6 +52,9 @@ public class NetworkedEventCoordinatorTests
         /// <summary>What each Apply was told about whether this machine is the client that raised the event.</summary>
         public List<bool> AppliedOnRaisingClient { get; } = [];
 
+        /// <summary>The thread each stage ran on.</summary>
+        public List<Thread> RanOn { get; } = [];
+
         public string Mod => name;
 
         public IReadOnlyList<string> After => after;
@@ -53,6 +62,7 @@ public class NetworkedEventCoordinatorTests
         public void Run(Stage stage, ref Blow e, EventContext ctx)
         {
             ran.Add($"{name}:{stage}:{e.Damage}");
+            RanOn.Add(Thread.CurrentThread);
 
             if (stage == Stage.Apply)
                 AppliedOnRaisingClient.Add(ctx.IsRaisingClient);
@@ -142,7 +152,7 @@ public class NetworkedEventCoordinatorTests
     {
         var relay = new FakeRpcClient();
         var coordinator = new ClientNetworkedEventCoordinator<Blow>(
-            new Contract(EventScope.Global, Policy.Anyone), mods, relay, Reader(), predictions);
+            new Contract(EventScope.Global, Policy.Anyone), mods, relay, Reader(), predictions, _ecs);
 
         coordinator.OnScopeStart();
 
@@ -416,6 +426,50 @@ public class NetworkedEventCoordinatorTests
         OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Dispatch(default, Somebody, checkPolicy: true);
 
         Assert.Equal([Somebody], _rpc.Sent.Select(sent => sent.Player));
+    }
+
+    /// <summary>
+    /// The relay delivers on its own thread, but a mod's handlers may touch the world, so they wait for the ECS
+    /// thread's next update: a mod defining its own event never has to schedule anything itself.
+    /// </summary>
+    [Fact]
+    public void A_client_runs_handlers_on_the_ecs_thread_whichever_thread_delivered_the_event()
+    {
+        _ecs.SetThread(Thread.CurrentThread);
+        var mod = new Handlers("A", _ran);
+        var (_, relay) = OnClient(mod);
+
+        OnAnotherThread(() => relay.Deliver(Wire, Arriving(false, Somebody, 3)));
+
+        Assert.Empty(_ran);
+
+        _ecs.Update();
+
+        Assert.Equal(["A:Apply:3", "A:Observe:3"], _ran);
+        Assert.All(mod.RanOn, thread => Assert.Same(Thread.CurrentThread, thread));
+    }
+
+    /// <summary>Runs on a thread of its own and waits for it, which a task does not promise: a waited task may run inline.</summary>
+    private static void OnAnotherThread(Action action)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+            throw new InvalidOperationException("The other thread failed", failure);
     }
 
     [Fact]
