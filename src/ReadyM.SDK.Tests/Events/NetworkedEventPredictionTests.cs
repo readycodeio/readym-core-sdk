@@ -12,9 +12,9 @@ namespace ReadyM.SDK.Tests.Events;
 /// </summary>
 public class NetworkedEventPredictionTests
 {
-    private const RelayMessageCode Code = RelayMessageCode.MaxServerRpcEvent;
+    private const RelayMessageCode Code = (RelayMessageCode)ushort.MaxValue;
 
-    private const RelayMessageCode Other = RelayMessageCode.MinServerRpcEvent;
+    private const RelayMessageCode Other = RelayMessageCode.MinAnyCustomEvent;
 
     private readonly PredictedRaiseRegistry _predictions = new(new GuessedValueRegistry(new PredictionDeltaHooks()));
 

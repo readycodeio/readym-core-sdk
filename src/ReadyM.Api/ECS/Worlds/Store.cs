@@ -126,7 +126,7 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
     private Action<RawEntity>? _modEntityDeletedCallback;
 
     private Thread? _thread;
-    private byte _nextArchetypeId;
+    private int _nextArchetypeId;
     private readonly Dictionary<ArchetypeId, ArchetypeEntry> _archetypeEntries = [];
     private readonly Dictionary<int, ArchetypeId> _archetypeByEntityId = [];
     private readonly Dictionary<string, ArchetypeId> _archetypeIdByName = new(StringComparer.Ordinal);
@@ -245,8 +245,11 @@ internal sealed partial class Store : IArchetypeRegistry, IArchetypeNames
 
     private ArchetypeId RegisterArchetypeCore(ArchetypeBuilder builder)
     {
-        var id = _nextArchetypeId++;
-        var archetypeId = new ArchetypeId(id);
+        // An archetype's id is one byte
+        if (_nextArchetypeId > byte.MaxValue)
+            throw new InvalidOperationException($"Cannot register more than {byte.MaxValue + 1} archetypes.");
+
+        var archetypeId = new ArchetypeId((byte)_nextArchetypeId++);
         var cons = CreateConstructor(builder);
         var postCreateInit = CreatePostCreateInit(builder);
 

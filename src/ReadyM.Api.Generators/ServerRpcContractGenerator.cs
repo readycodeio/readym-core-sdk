@@ -122,9 +122,6 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
             if (ServerRpcModel.IsServerDirected(method) && ServerRpcModel.IsClientToClients(method))
                 ReportMixedSpace(context, method);
 
-            if (ServerRpcModel.IsClientToClients(method))
-                ValidateRelayMode(context, method);
-
             ValidateEntityParameters(context, method);
         }
 
@@ -154,25 +151,6 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
                 "ServerRpc", DiagnosticSeverity.Error, true),
             method.Locations.FirstOrDefault(),
             method.Name));
-
-    /// <summary>The relay modes a mod may ask for, which is not all of them.</summary>
-    private static void ValidateRelayMode(SourceProductionContext context, IMethodSymbol method)
-    {
-        var mode = ServerRpcModel.RelayModeOf(method);
-
-        // 4 is EntityOwner and 5 is Peers, both carried by the enum but not offered to mods.
-        if (mode is not (4 or 5))
-            return;
-
-        context.ReportDiagnostic(Diagnostic.Create(
-            new DiagnosticDescriptor(
-                "SRPC007", "Relay mode is not part of the public API",
-                "'{0}' asks for a relay mode that is not part of the public API. Use one of "
-                + "AreaOfInterestOthers, AreaOfInterestAll, GlobalOthers or GlobalAll.",
-                "ServerRpc", DiagnosticSeverity.Error, true),
-            method.Locations.FirstOrDefault(),
-            method.Name));
-    }
 
     /// <summary>
     /// A shape travels as its entity's network id, so one whose entities never get one cannot be sent. Checked here,
@@ -275,11 +253,7 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Single source of truth for server RPC code assignment in this mod.");
         sb.AppendLine("/// Referenced by both the server handler and client event generators.");
-        sb.AppendLine("/// Set <see cref=\"Offset\"/> once at mod startup before any InitRpc() runs:");
-        sb.AppendLine("/// <code>");
-        sb.AppendLine($"///   {ManifestClassName}.Offset = serverOffsets.GetNextOffset({ManifestClassName}.TotalEventCount);");
-        sb.AppendLine($"///   {ManifestClassName}.ClientOffset = clientOffsets.GetNextOffset({ManifestClassName}.TotalClientEventCount);");
-        sb.AppendLine("/// </code>");
+        sb.AppendLine("/// The host sets both offsets once at mod startup, before any InitRpc() runs, from the one code space.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
         sb.AppendLine($"public static class {ManifestClassName}");
@@ -290,31 +264,28 @@ internal class ServerRpcContractGenerator : IIncrementalGenerator
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"    public const string Id = \"{manifestId}\";");
         sb.AppendLine();
-        sb.AppendLine("    /// <summary>How many codes this set takes out of the server RPC space.</summary>");
-        sb.AppendLine($"    public const byte TotalEventCount = {serverNames.Count};");
+        sb.AppendLine("    /// <summary>How many codes this set's server RPCs take.</summary>");
+        sb.AppendLine($"    public const ushort TotalEventCount = {serverNames.Count};");
         sb.AppendLine();
-        sb.AppendLine("    public static byte Offset { get; set; }");
+        sb.AppendLine("    public static ushort Offset { get; set; }");
         sb.AppendLine();
-        sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// How many codes this set takes out of the client RPC space, which is where the");
-        sb.AppendLine("    /// peer-to-peer RPCs live. A separate space, so a separate offset.");
-        sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public const byte TotalClientEventCount = {clientNames.Count};");
+        sb.AppendLine("    /// <summary>How many codes this set's client-to-clients RPCs take, numbered after every server-directed code.</summary>");
+        sb.AppendLine($"    public const ushort TotalClientEventCount = {clientNames.Count};");
         sb.AppendLine();
-        sb.AppendLine("    public static byte ClientOffset { get; set; }");
+        sb.AppendLine("    public static ushort ClientOffset { get; set; }");
         sb.AppendLine();
 
         for (var i = 0; i < serverNames.Count; i++)
         {
             sb.AppendLine($"    public const RelayMessageCode {serverNames[i]}Code =");
-            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {i});");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinAnyCustomEvent + {i});");
             sb.AppendLine();
         }
 
         for (var i = 0; i < clientNames.Count; i++)
         {
             sb.AppendLine($"    public const RelayMessageCode {clientNames[i]}Code =");
-            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinClientRpcEvent + {i});");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinAnyCustomEvent + {i});");
             sb.AppendLine();
         }
 

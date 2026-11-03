@@ -2,35 +2,28 @@
 
 /// <exclude />
 /// <summary>
-/// A unique identifier of a single RPC message type.
+/// A unique identifier of a single message type. Mods' RPCs and networked events share the codes from
+/// <see cref="MinAnyCustomEvent"/> up. Sent as a <c>VarUShort</c>.
 /// </summary>
-public enum RelayMessageCode : byte
+public enum RelayMessageCode : ushort
 {
-    HandshakeConnected = 255,
-    RequestAreaEvent = 254,
-    AreaEvent = 253,
-    OtherPlayerConnectionEvent = 252,
-    OtherPlayerAreaEvent = 251,
+    HandshakeConnected = 0,
+    RequestAreaEvent = 1,
+    AreaEvent = 2,
+    OtherPlayerConnectionEvent = 3,
+    OtherPlayerAreaEvent = 4,
+    EcsDelta = 5,
 
-    EcsDelta = 250,
-    MaxBuiltInEvent = EcsDelta,
+    MinBuiltInEvent = EcsDelta,
 
-    EcsSnapshot = 249,
-    EcsCreateEntity = 248,
-    EcsDeleteEntity = 247,
-    EcsChangeOwnership = 246,
-    RequestSetActiveCellsEvent = 245,
-    EcsChangeScope = 244,
-    EcsInternedStrings = 243,
+    EcsSnapshot = 6,
+    EcsCreateEntity = 7,
+    EcsDeleteEntity = 8,
+    EcsChangeOwnership = 9,
+    RequestSetActiveCellsEvent = 10,
+    EcsChangeScope = 11,
+    EcsInternedStrings = 12,
 
-    MinBuiltInEvent = EcsInternedStrings,
-    MaxAnyCustomEvent = MinBuiltInEvent - 1,
-
-    MaxServerRpcEvent = MaxAnyCustomEvent,
-    MinServerRpcEvent = 150,
-
-    MaxClientRpcEvent = MinServerRpcEvent - 1,
-    MinClientRpcEvent = 0,
-
-    MinAnyCustomEvent = MinClientRpcEvent,
+    MaxBuiltInEvent = EcsInternedStrings,
+    MinAnyCustomEvent = MaxBuiltInEvent + 1,
 }

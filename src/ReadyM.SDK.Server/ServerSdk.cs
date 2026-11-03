@@ -57,10 +57,13 @@ internal static class ServerSdk
         networkedEvents.DeclareGenerated(AppDomain.CurrentDomain.GetAssemblies());
         networkedEvents.RegisterAll(services, RpcSide.Server, new Events.ServerNetworkedEventCoordinatorRegistration());
         
+        // Replicated shapes first: anything registered before them on one side and not the other moves their ids.
         if (api is Entities.ServerEntityApi server)
+        {
+            server.RegisterReplicatedShapes();
             server.ApplyDeclaredTags();
+        }
 
-        // TODO: Wire as a standard system somewhere, since this is based on the obsolete ModSystemBase
         ModSystemUpdates.Wire(services);
     }
 }

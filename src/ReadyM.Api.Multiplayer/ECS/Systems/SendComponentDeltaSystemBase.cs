@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Buffers;
+using System.Collections.Generic;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 using LiteNetLib.Utils;
@@ -7,6 +9,7 @@ using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Registry;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
@@ -51,10 +54,10 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     protected abstract QueryFilter SetupFilter(QueryFilter filter, SendContext context);
 
     /// <summary>
-    /// Returns a bitmask of player IDs to send to. Bit 0 = PlayerId 0, Bit 1 = PlayerId 1, etc.
-    /// This is an optimization to avoid allocating HashSets every tick.
+    /// Returns player IDs to send to.
     /// </summary>
-    protected abstract uint SentOwners();
+    /// <param name="owners">The set to populate with owners. Must be empty before passing here.</param>
+    protected abstract void SentOwners(HashSet<PlayerId> owners);
 
     /// <summary>Sends a packet of an owner's deltas to everyone in scope EXCEPT that owner.</summary>
     protected abstract void SendExceptOwner(PlayerId owner, NetDataWriter data, SendContext context);
@@ -74,7 +77,7 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
 
     private void CreatePacketHeader(NetDataWriter writer)
     {
-        writer.Put((byte)RelayMessageCode.EcsDelta);
+        writer.PutMessageCode(RelayMessageCode.EcsDelta);
         writer.Put(_networkTime.GetCurrentTime());
         writer.Put(ComponentId);
     }
@@ -89,21 +92,26 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
     private static NetDataWriter? _ownerWriter;
+    
+    // ReSharper disable once StaticMemberInGenericType
+    [ThreadStatic]
+    private static HashSet<PlayerId>? _sendToOwners;
 
     protected void OnUpdate(SendContext context)
     {
         _predictionHooks?.BeforeDeltaSend?.Invoke();
 
         var maxPacketSize = GetMaxPacketSize();
-        var owners = SentOwners();
+        
+        _sendToOwners ??= new HashSet<PlayerId>();
+        _sendToOwners.Clear();
+        SentOwners(_sendToOwners);
+        
         var query = _queryCache.GetQuery(context);
 
-        for (var ownerIx = 0; ownerIx < 32; ownerIx++)
+        foreach (var owner in _sendToOwners)
         {
-            if ((owners & (1u << ownerIx)) == 0)
-                continue;
-
-            SendForOwner(new PlayerId((ushort)ownerIx), query, maxPacketSize, context);
+            SendForOwner(owner, query, maxPacketSize, context);
         }
     }
 

@@ -6,7 +6,6 @@ using ReadyM.SDK.Services;
 namespace ReadyM.SDK.Server.Systems;
 
 /// <summary>Wraps the [Service]s that declared an update into a Friflo system.</summary>
-[Obsolete("Obsolete")]
 internal sealed class ModSystemUpdates(IDependencyContainer services) : ModSystemBase
 {
     private static readonly ConditionalWeakTable<IDependencyContainer, object> Wired = new();
@@ -15,7 +14,6 @@ internal sealed class ModSystemUpdates(IDependencyContainer services) : ModSyste
     private ulong _count;
 
     /// <summary>Registers the one updater a container needs, whichever mod asks first.</summary>
-    [Obsolete("Obsolete")]
     public static void Wire(IDependencyContainer services)
     {
         if (Wired.TryGetValue(services, out _))

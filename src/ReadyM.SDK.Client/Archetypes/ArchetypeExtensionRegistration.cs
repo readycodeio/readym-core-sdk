@@ -23,8 +23,6 @@ internal sealed class ArchetypeExtensionRegistration(
     public void Register(IArchetypeRegistry registry)
     {
         var bound = MapArchetypeIds();
-        
-        ArchetypeBindings.Use(bound);
 
         var applied = ClientArchetypes.ApplyExtensions(
             registry,
@@ -32,6 +30,12 @@ internal sealed class ArchetypeExtensionRegistration(
         );
 
         logger.LogDebug("Added {Count} component(s) from mod shapes to the game's archetypes", applied);
+
+        // After the extensions, which only change archetypes the game registered: these are built whole.
+        foreach (var (shape, archetype) in ClientArchetypes.RegisterReplicated(registry, bound))
+            bound[shape] = archetype;
+
+        ArchetypeBindings.Use(bound);
     }
 
     /// <summary>Maps full Archetype type names to the assigned ArchetypeId.</summary>

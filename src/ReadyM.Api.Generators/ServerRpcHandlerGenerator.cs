@@ -18,7 +18,7 @@ namespace ReadyM.Api.Generators;
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 {
     private const string BaseClassName = "ServerRpcHandlersBase";
-    private const string ClientBaseClassName = "ServerRpcClient";
+    private const string ClientBaseClassName = "RpcBase";
     private const string BaseTypeMetadataName = "ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase";
     private const string BaseFqn = "global::ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase";
     private const string ManifestClassName = "ServerRpcManifest";
@@ -64,7 +64,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
 
         // Both sides of an RPC name their contracts the same way and a class need not say which
         // side it is, so the compilation does: only a server mod references the base below. A class
-        // that still writes the client's own base is that side's, wherever it is compiled.
+        // that writes the client's base is that side's, wherever it is compiled.
         return ServerRpcModel.HasServerRpcFor(classSymbol)
                && !DerivesFrom(classSymbol, ClientBaseClassName)
                && IsServerSide(context.SemanticModel.Compilation)
@@ -228,7 +228,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
                             public void Send{{eventName}}({{sendParamList}})
                             {
                                 var writer = new NetDataWriter();
-                                writer.Put((byte)({{codeRef}}));
+                                global::ReadyM.Api.Serialization.VarUShortExtensions.PutVarUShort(writer, (ushort)({{codeRef}}));
                         """);
 
         foreach (var p in payloadParams)

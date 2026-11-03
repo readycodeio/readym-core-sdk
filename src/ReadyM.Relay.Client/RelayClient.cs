@@ -14,6 +14,7 @@ using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Api.Multiplayer.RPC;
 using ReadyM.Relay.Client.Utilities;
 
 namespace ReadyM.Relay.Client;
@@ -43,6 +44,7 @@ internal class RelayClient : IRelayClient
 
     // Proper implementations guaranteed to be thread-safe
     private readonly ILogger _logger;
+    private readonly RpcOffsetProvider _offsets;
     private readonly NetworkSessionStats _netStats;
 
     // Looking at the implementation it seems to be thread-safe for reading properties. Since it is accessed from
@@ -109,152 +111,61 @@ internal class RelayClient : IRelayClient
 
     public event Action<int>? OnPingUpdated;
 
+    private readonly RelayMessageHandlerRegistry _handlers = new();
+
     public event Action<ServerEventHeader, NetDataReader>? OnAnyBuiltInMessage
     {
-        add => AddBuiltInMessageHandler(RelayMessageCode.MinBuiltInEvent, RelayMessageCode.MaxBuiltInEvent, value!);
-        remove => RemoveBuiltInMessageHandler(RelayMessageCode.MinBuiltInEvent, RelayMessageCode.MaxBuiltInEvent, value!);
+        add => _handlers.AnyBuiltIn += value;
+        remove => _handlers.AnyBuiltIn -= value;
     }
 
     public event Action<ServerEventHeader, NetDataReader>? OnAnyServerRpcMessage
     {
-        add => AddServerRpcMessageHandler(RelayMessageCode.MinServerRpcEvent, RelayMessageCode.MaxServerRpcEvent, value!);
-        remove => RemoveServerRpcMessageHandler(RelayMessageCode.MinServerRpcEvent, RelayMessageCode.MaxServerRpcEvent, value!);
+        add => _handlers.AnyServerRpc += value;
+        remove => _handlers.AnyServerRpc -= value;
     }
 
     public event Action<CustomRelayEventHeader, NetDataReader>? OnAnyClientRpcMessage
     {
-        add => AddClientRpcMessageHandler(RelayMessageCode.MinClientRpcEvent, RelayMessageCode.MaxClientRpcEvent, value!);
-        remove => RemoveClientRpcMessageHandler(RelayMessageCode.MinClientRpcEvent, RelayMessageCode.MaxClientRpcEvent, value!);
+        add => _handlers.AnyClientRpc += value;
+        remove => _handlers.AnyClientRpc -= value;
     }
-
-    private readonly Action<ServerEventHeader, NetDataReader>?[] _serverMessageHandlers =
-        new Action<ServerEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxBuiltInEvent + 1];
-
-    private readonly Action<CustomRelayEventHeader, NetDataReader>?[] _clientMessageHandlers =
-        new Action<CustomRelayEventHeader, NetDataReader>?[(int)RelayMessageCode.MaxClientRpcEvent + 1];
 
     public void AddBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.AddBuiltIn(eventCode, eventCode, handler);
 
     public void AddBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode < RelayMessageCode.MinBuiltInEvent || minEventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        if (maxEventCode < RelayMessageCode.MinBuiltInEvent || maxEventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.AddBuiltIn(minEventCode, maxEventCode, handler);
 
     public void RemoveBuiltInMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (eventCode < RelayMessageCode.MinBuiltInEvent || eventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-
-        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.RemoveBuiltIn(eventCode, eventCode, handler);
 
     public void RemoveBuiltInMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode < RelayMessageCode.MinBuiltInEvent || minEventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-        if (maxEventCode < RelayMessageCode.MinBuiltInEvent || maxEventCode > RelayMessageCode.MaxBuiltInEvent)
-            throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinBuiltInEvent)}` and `{nameof(RelayMessageCode.MaxBuiltInEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.RemoveBuiltIn(minEventCode, maxEventCode, handler);
 
     public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
-
-        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.AddServerRpc(eventCode, eventCode, handler);
 
     public void AddServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode < RelayMessageCode.MinServerRpcEvent || minEventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        if (maxEventCode < RelayMessageCode.MinServerRpcEvent || maxEventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Combine(_serverMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.AddServerRpc(minEventCode, maxEventCode, handler);
 
     public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (eventCode < RelayMessageCode.MinServerRpcEvent || eventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinServerRpcEvent)}` and `{nameof(RelayMessageCode.MaxServerRpcEvent)}`");
-
-        _serverMessageHandlers[(byte)eventCode] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.RemoveServerRpc(eventCode, eventCode, handler);
 
     public void RemoveServerRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<ServerEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode < RelayMessageCode.MinServerRpcEvent || minEventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        if (maxEventCode < RelayMessageCode.MinServerRpcEvent || maxEventCode > RelayMessageCode.MaxServerRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _serverMessageHandlers[(byte)i] = (Action<ServerEventHeader, NetDataReader>?)Delegate.Remove(_serverMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.RemoveServerRpc(minEventCode, maxEventCode, handler);
 
     public void AddClientRpcMessageHandler(RelayMessageCode eventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
-    {
-        if (eventCode > RelayMessageCode.MaxClientRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.AddClientRpc(eventCode, eventCode, handler);
 
     public void AddClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode > RelayMessageCode.MaxClientRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-        if (maxEventCode > RelayMessageCode.MaxClientRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(maxEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Combine(_clientMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.AddClientRpc(minEventCode, maxEventCode, handler);
 
     public void RemoveClientRpcMessageHandler(RelayMessageCode eventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
-    {
-        if (eventCode > RelayMessageCode.MaxClientRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(eventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        _clientMessageHandlers[(byte)eventCode] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)eventCode], handler);
-    }
+        => _handlers.RemoveClientRpc(eventCode, eventCode, handler);
 
     public void RemoveClientRpcMessageHandler(RelayMessageCode minEventCode, RelayMessageCode maxEventCode, Action<CustomRelayEventHeader, NetDataReader> handler)
-    {
-        if (minEventCode > RelayMessageCode.MaxClientRpcEvent)
-            throw new ArgumentOutOfRangeException(nameof(minEventCode), $"Event code must be between `{nameof(RelayMessageCode.MinClientRpcEvent)}` and `{nameof(RelayMessageCode.MaxClientRpcEvent)}`");
-
-        for (var i = minEventCode; i <= maxEventCode; i++)
-        {
-            _clientMessageHandlers[(byte)i] = (Action<CustomRelayEventHeader, NetDataReader>?)Delegate.Remove(_clientMessageHandlers[(byte)i], handler);
-        }
-    }
+        => _handlers.RemoveClientRpc(minEventCode, maxEventCode, handler);
 
     public event Action<IRelayClientNetworkThreadContext>? OnClientUpdate;
 
@@ -285,9 +196,18 @@ internal class RelayClient : IRelayClient
     public PendingActionScheduler<IRelayClientNetworkThreadContext> Scheduler
         => _scheduler;
 
-    public RelayClient(string host, int port, RelayConnectionOptions options, NetworkSessionStats netStats, ILogger logger, bool noDisconnect)
+    /// <param name="offsets">The codes this client's mods were given, which say which are relayed between clients.</param>
+    public RelayClient(
+        string host,
+        int port,
+        RelayConnectionOptions options,
+        NetworkSessionStats netStats,
+        RpcOffsetProvider offsets,
+        ILogger logger,
+        bool noDisconnect)
     {
         _logger = logger;
+        _offsets = offsets;
         _netStats = netStats;
 
         _options = options;
@@ -557,7 +477,7 @@ internal class RelayClient : IRelayClient
         }
 
         var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.RequestAreaEvent);
+        writer.PutMessageCode(RelayMessageCode.RequestAreaEvent);
         writer.Put(playerId.Value);
         writer.Put(true); // Request joining area event
         areaId.Serialize(writer);
@@ -588,7 +508,7 @@ internal class RelayClient : IRelayClient
         }
 
         var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.RequestSetActiveCellsEvent);
+        writer.PutMessageCode(RelayMessageCode.RequestSetActiveCellsEvent);
         writer.Put(playerId.Value);
         writer.PutArray(_requestedActiveCells);
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
@@ -618,7 +538,7 @@ internal class RelayClient : IRelayClient
         }
 
         var writer = new NetDataWriter();
-        writer.Put((byte)RelayMessageCode.RequestAreaEvent);
+        writer.PutMessageCode(RelayMessageCode.RequestAreaEvent);
         writer.Put(playerId.Value);
         writer.Put(false); // Request leaving area event
         SendRawMessage(writer, DeliveryMethod.ReliableOrdered);
@@ -659,7 +579,7 @@ internal class RelayClient : IRelayClient
 
     private void OnListenerNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliverymethod)
     {
-        var eventCode = (RelayMessageCode)reader.GetByte();
+        var eventCode = reader.GetMessageCode();
         AppendToRecvStats(eventCode, reader.UserDataSize);
 
         switch (eventCode)
@@ -885,71 +805,26 @@ internal class RelayClient : IRelayClient
             }
             default:
             {
-                if (eventCode >= RelayMessageCode.MinBuiltInEvent)
+                if (eventCode <= RelayMessageCode.MaxBuiltInEvent)
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
-                    var serverHandler = _serverMessageHandlers[(byte)eventCode];
-
-                    if (serverHandler != null)
-                    {
-                        var position = reader.Position;
-                        foreach (var handlerUntyped in serverHandler.GetInvocationList())
-                        {
-                            reader.SetPosition(position);
-                            var handler = (Action<ServerEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(serverHeader, reader);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError("Unhandled built-in header code: {Header}", eventCode);
-                    }
+                    if (!_handlers.InvokeServerMessage(new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server), reader))
+                        _logger.LogError("Unhandled built-in code: {Code}", eventCode);
 
                     return;
                 }
 
-                if (eventCode >= RelayMessageCode.MinServerRpcEvent)
+                if (_offsets.IsRelayedBetweenClients(eventCode))
                 {
-                    var serverHeader = new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server);
-                    var serverHandler = _serverMessageHandlers[(byte)eventCode];
-
-                    if (serverHandler != null)
-                    {
-                        var position = reader.Position;
-                        foreach (var handlerUntyped in serverHandler.GetInvocationList())
-                        {
-                            reader.SetPosition(position);
-                            var handler = (Action<ServerEventHeader, NetDataReader>)handlerUntyped;
-                            handler.Invoke(serverHeader, reader);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError("Unhandled server RPC header code: {Header}", eventCode);
-                    }
+                    if (!_handlers.InvokeClientMessage(reader.GetCustomRelayEventHeader(eventCode), reader))
+                        _logger.LogError("Unhandled client RPC code: {Code}", eventCode);
 
                     return;
                 }
 
-                var clientHeader = reader.GetCustomRelayEventHeader(eventCode);
-                var clientHandler = _clientMessageHandlers[(byte)eventCode];
+                if (!_handlers.InvokeServerMessage(new ServerEventHeader(eventCode, Api.Idents.PlayerId.Server), reader))
+                    _logger.LogError("Unhandled server RPC code: {Code}", eventCode);
 
-                if (clientHandler != null)
-                {
-                    var position = reader.Position;
-                    foreach (var handlerUntyped in clientHandler.GetInvocationList())
-                    {
-                        reader.SetPosition(position);
-                        var handler = (Action<CustomRelayEventHeader, NetDataReader>)handlerUntyped;
-                        handler.Invoke(clientHeader, reader);
-                    }
-                }
-                else
-                {
-                    _logger.LogError("Unhandled custom header code: {Header}", eventCode);
-                }
-
-                break;
+                return;
             }
         }
     }

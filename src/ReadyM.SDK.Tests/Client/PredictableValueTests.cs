@@ -21,7 +21,7 @@ namespace ReadyM.SDK.Tests.Client;
 /// </remarks>
 public class PredictableValueTests : ClientSdkTest
 {
-    private const RelayMessageCode Code = RelayMessageCode.MaxServerRpcEvent;
+    private const RelayMessageCode Code = (RelayMessageCode)ushort.MaxValue;
 
     /// <summary>Which bit of the delta mask each of the fixture's fields is.</summary>
     private const byte ActiveBit = 1 << 0;

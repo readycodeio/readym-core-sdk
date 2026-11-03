@@ -19,7 +19,6 @@
 [assembly: InternalsVisibleTo("ReadyM.Wukong.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Api")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
-[assembly: InternalsVisibleTo("ReadyM.Sdk.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMp.Sdk.Common")]

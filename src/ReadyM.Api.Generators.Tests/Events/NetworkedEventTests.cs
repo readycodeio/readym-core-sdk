@@ -327,6 +327,19 @@ public class NetworkedEventTests(ITestOutputHelper output)
             """);
 
     /// <summary>
+    /// A member travels as a property. A field would go unsent and arrive as its default, so it is refused rather
+    /// than left out of the payload.
+    /// </summary>
+    [Fact]
+    public void A_field_is_an_error_not_a_member_left_unsent()
+        => AssertError("NEVT015", """
+            using ReadyM.SDK.Attributes;
+            namespace Other.Common;
+            [NetworkedEvent(EventScope.Global, Policy.Anyone)]
+            public partial struct Fielded { public int Volume; }
+            """);
+
+    /// <summary>
     /// A vector travels the way a component's vector field does, through the same extensions, so an event and a
     /// component holding one put the same bytes on the wire.
     /// </summary>
@@ -360,6 +373,22 @@ public class NetworkedEventTests(ITestOutputHelper output)
             [NetworkedEvent(EventScope.Global, Policy.Anyone)]
             public partial struct Landing { public Vector3 Where { get; set; } }
             """);
+
+    /// <summary>An enum travels as its underlying type, so a byte enum is one byte on the wire.</summary>
+    [Fact]
+    public void An_enum_member_travels_as_its_underlying_type()
+    {
+        var generated = Generated(RunCommon("""
+            using ReadyM.SDK.Attributes;
+            namespace Other.Common;
+            public enum Posture : byte { Standing, Sitting }
+            [NetworkedEvent(EventScope.Global, Policy.Anyone)]
+            public partial struct Sat { public Posture Posture { get; set; } }
+            """));
+
+        Assert.Contains("writer.Put((byte)Posture);", generated);
+        Assert.Contains("(global::Other.Common.Posture)reader.GetByte()", generated);
+    }
 
     /// <summary>One event that cannot be sent does not take the rest of the assembly's events down with it.</summary>
     [Fact]
@@ -610,6 +639,39 @@ public class NetworkedEventTests(ITestOutputHelper output)
                 public void Refused(in AuditEvent e, int reason, EventContext ctx) { }
             }
             """);
+
+    [Fact]
+    public void Skipping_the_raising_client_outside_apply_is_an_error()
+        => AssertClientError("NEVT013", """
+            using ReadyM.SDK.Attributes;
+            using ReadyM.SDK.Events;
+            using Other.Common;
+            namespace Other.Client;
+            [Service]
+            public partial class Rogue
+            {
+                [EventHandler(Stage.Observe, SkipOnRaisingClient = true)]
+                public void Count(in HitEvent e, EventContext ctx) { }
+            }
+            """);
+
+    [Fact]
+    public void An_apply_that_skips_the_raising_client_runs_only_elsewhere()
+    {
+        var client = Generated(RunClientWith("""
+            using ReadyM.SDK.Attributes;
+            using Other.Common;
+            namespace Other.Client;
+            [Service]
+            public partial class HitView
+            {
+                [EventHandler(Stage.Apply, SkipOnRaisingClient = true)]
+                public void Play(in HitEvent e) { }
+            }
+            """));
+
+        Assert.Contains("if (!context.IsRaisingClient)\n                    hitView.Play(", client);
+    }
 
     [Fact]
     public void An_after_constraint_orders_one_mod_behind_another()

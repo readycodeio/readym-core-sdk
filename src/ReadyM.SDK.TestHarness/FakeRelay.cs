@@ -395,10 +395,6 @@ internal sealed class FakeRelay
     internal bool IsManaged<T>(RawEntity entity) where T : struct
         => _entities[entity.Id].Archetype.HeapOf(IdOf(typeof(T))) is ManagedHeap<T>;
 
-    /// <summary>The v0 server api bound to this relay, for comparing the two generations.</summary>
-    internal EcsApi CreateEcsApi()
-        => new(Pointers, new ModComponentIds(Aot.GetComponentIdByName));
-
     /// <summary>The v1 server api bound to this relay, wired the way the mod host wires it.</summary>
     internal ServerEntityApi CreateEntityApi()
         => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName));
@@ -437,7 +433,13 @@ internal sealed class FakeRelay
         for (var i = 0; i < ids.Length; i++)
             ids[i] = componentIds[i];
 
-        return RegisterArchetype(ids);
+        var archetype = RegisterArchetype(ids);
+
+        // The real host finds a named archetype by its name, which is how a shape it does not bind finds its own.
+        if (name.Length > 0)
+            _boundShapes[name.ToString()] = archetype;
+
+        return archetype;
     }
 
     /// <summary>The id this game gives a shape, the way its own archetype registration would.</summary>

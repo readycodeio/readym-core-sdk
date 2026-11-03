@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReadyM.Api.Multiplayer.ECS;
 using ReadyM.Api.DI;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
@@ -32,7 +34,7 @@ public class NetworkedEventRegistryTests
 
     private struct Knock : INetworkedEvent
     {
-        public RelayMessageCode Code => RelayMessageCode.MinServerRpcEvent;
+        public RelayMessageCode Code => RelayMessageCode.MinAnyCustomEvent;
 
         public void Serialize(NetDataWriter writer)
         {
@@ -41,7 +43,7 @@ public class NetworkedEventRegistryTests
 
     private sealed class Contract : INetworkedEventContract<Knock>
     {
-        public RelayMessageCode Code => RelayMessageCode.MinServerRpcEvent;
+        public RelayMessageCode Code => RelayMessageCode.MinAnyCustomEvent;
 
         public EventScope Scope => EventScope.Server;
 
@@ -129,6 +131,8 @@ public class NetworkedEventRegistryTests
         container.RegisterSingleton<IRpcClient>(new FakeRpcClient());
         container.RegisterSingleton<INetworkedEventEntityReader>(
             new NetworkedEventEntityReader(new RpcEntities(api, NullLogger.Instance)));
+        container.RegisterSingleton<PendingActionScheduler<CommandBufferSynced>>(
+            new PendingActionUpdater<CommandBufferSynced>(null!, NullLogger.Instance));
         container.RegisterSingleton(new PredictedRaiseRegistry(new GuessedValueRegistry(new PredictionDeltaHooks())));
         container.RegisterSingleton<ServerNetworkedEventScopes>();
         container.RegisterSingleton<ServerNetworkedEventPolicy>();

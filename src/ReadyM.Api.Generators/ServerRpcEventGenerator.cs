@@ -18,7 +18,7 @@ namespace ReadyM.Api.Generators;
 [Generator]
 internal class ServerRpcEventGenerator : IIncrementalGenerator
 {
-    private const string LegacyBaseClassName = "ServerRpcClient";
+    private const string ClientBaseClassName = "RpcBase";
     private const string ServerSideBaseClassName = "ServerRpcHandlersBase";
     private const string ManifestClassName = "ServerRpcManifest";
     private const string RpcBaseFqn = "global::ReadyM.Api.Multiplayer.RPC.RpcBase";
@@ -59,9 +59,9 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
             Symbol: (INamedTypeSymbol?)classSymbol,
             ModuleInitializer: Archetypes.ExtendsEmitter.HasModuleInitializer(context.SemanticModel.Compilation));
 
-        // A class that still writes the 0.x base is this side's wherever it is compiled, and it is
-        // picked up without the attribute so that it keeps its diagnostic.
-        if (DerivesFrom(classSymbol, LegacyBaseClassName))
+        // A class that writes the client's base is this side's wherever it is compiled, which is how a
+        // project that can also reach the server SDK, such as the relay's tests, declares a client.
+        if (DerivesFrom(classSymbol, ClientBaseClassName))
             return found;
 
         if (DerivesFrom(classSymbol, ServerSideBaseClassName))

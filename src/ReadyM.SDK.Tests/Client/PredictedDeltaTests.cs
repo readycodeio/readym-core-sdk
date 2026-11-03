@@ -28,7 +28,7 @@ namespace ReadyM.SDK.Tests.Client;
 /// </summary>
 public class PredictedDeltaTests : IDisposable
 {
-    private const RelayMessageCode Code = RelayMessageCode.MaxServerRpcEvent;
+    private const RelayMessageCode Code = (RelayMessageCode)ushort.MaxValue;
 
     private readonly TestContainer _container;
     private readonly LocalPlayer _player = new();

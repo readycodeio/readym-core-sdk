@@ -2,6 +2,7 @@
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Jobs;
@@ -29,7 +30,7 @@ internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJo
 
     protected override void CreatePacketHeader(NetDataWriter writer, SendContext context)
     {
-        writer.Put((byte)RelayMessageCode.EcsCreateEntity);
+        writer.PutMessageCode(RelayMessageCode.EcsCreateEntity);
         if (context.ScopeEntity != null)
         {
             var meta = context.ScopeEntity.Value.GetComponent<MetadataComponent>();

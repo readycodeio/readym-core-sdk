@@ -27,7 +27,7 @@ internal sealed class ModSystemGate(IEntities entities, ILogger logger) : BaseSy
         if (running)
             logger.LogInformation("Mod systems are running.");
         else
-            logger.LogWarning(
+            logger.LogDebug(
                 "Mod systems are held: no World entity is in the ECS. Until one is, no [Service] "
                 + "update runs. A game that never calls ApplyArchetypeExtensions leaves the World "
                 + "archetype without the marker a query for it needs, and stays here forever.");

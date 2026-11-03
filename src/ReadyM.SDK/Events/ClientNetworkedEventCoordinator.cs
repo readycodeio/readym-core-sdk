@@ -1,5 +1,7 @@
+using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.DI;
+using ReadyM.Api.Helpers;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
 using ReadyM.Api.Multiplayer.Protocol;
@@ -7,13 +9,17 @@ using ReadyM.SDK.Attributes;
 
 namespace ReadyM.SDK.Events;
 
-/// <summary>Receives one event from the server and runs every mod's Apply and Observe, or their Rejected.</summary>
+/// <summary>
+/// Receives one event from the server and runs every mod's Apply and Observe, or their Rejected, on the ECS thread
+/// whichever thread the relay delivered it on.
+/// </summary>
 internal sealed class ClientNetworkedEventCoordinator<T>(
     INetworkedEventContract<T> contract,
     IEnumerable<INetworkedEventHandlers<T>> handlers,
     IRpcClient relay,
     INetworkedEventEntityReader entities,
-    PredictedRaiseRegistry predictedRaises)
+    PredictedRaiseRegistry predictedRaises,
+    PendingActionScheduler<CommandBufferSynced> ecsScheduler)
     : NetworkedEventCoordinatorBase<T>(handlers), IHostedService
     where T : struct, INetworkedEvent
 {
@@ -34,7 +40,11 @@ internal sealed class ClientNetworkedEventCoordinator<T>(
         _onMessageReceived = null;
     }
 
+    // Read there too, since reading an event's entity members looks them up in the world
     private void OnMessageReceived(ServerEventHeader header, NetDataReader reader)
+        => ecsScheduler.Schedule(static (_, self, reader0) => self.Receive(reader0), this, ecsScheduler.MakeSafe(reader));
+
+    private void Receive(NetDataReader reader)
     {
         if (!NetworkedEventHeader.TryRead(reader, out var eventHeader)
             || !contract.TryRead(entities, reader, out var networkEvent))
@@ -46,7 +56,7 @@ internal sealed class ClientNetworkedEventCoordinator<T>(
             return;
         }
 
-        var context = new EventContext(eventHeader.Origin, new EventCancellation());
+        var context = new EventContext(eventHeader.Origin, eventHeader.Origin == relay.PlayerId, new EventCancellation());
         RunStage(Stage.Apply, ref networkEvent, context);
         RunStage(Stage.Observe, ref networkEvent, context);
     }
@@ -56,6 +66,6 @@ internal sealed class ClientNetworkedEventCoordinator<T>(
         predictedRaises.RollBackRefused(contract.Code);
 
         var cancellation = EventCancellation.Cancelled(reader.GetString(), contract.ReadReason(reader));
-        RunStage(Stage.Rejected, ref networkEvent, new EventContext(origin, cancellation));
+        RunStage(Stage.Rejected, ref networkEvent, new EventContext(origin, origin == relay.PlayerId, cancellation));
     }
 }

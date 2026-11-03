@@ -15,8 +15,9 @@ internal class NativeMappedEventManager(
     INativeMappingPolicyDirectory policyDir,
     INativeComponentRegistry nativeRegistry,
     IMappedEntityManager<IntPtr> entityMapper,
+    PendingActionScheduler<CommandBufferSynced> ecsScheduler,
     ILogger logger
-) : MappedEventManager(sideChannel, policyDir, logger)
+) : MappedEventManager(sideChannel, policyDir, ecsScheduler, logger)
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct ManagedBinding
@@ -95,20 +96,17 @@ internal class NativeMappedEventManager(
         if (!policyDir.ForEvent<EmptyContext>(eventType).CanGameEventNotifyEcs(default))
             return false;
 
-        using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
-        {
-            var ev = Marshal.PtrToStructure(data, eventType);
+        // Read now, while the game's copy is there, and handled on the ECS thread
+        var ev = Marshal.PtrToStructure(data, eventType);
 
-            if (ev is not null)
-            {
-                incomingEcsEventQueue.Invoke(ev, eventType);
-            }
-            else
-            {
-                logger.LogError("Failed to marshal native ECS event with id {EventId} and type {eventName}", eventId, eventType.FullName);
-            }
+        if (ev is null)
+        {
+            logger.LogError("Failed to marshal native ECS event with id {EventId} and type {eventName}", eventId, eventType.FullName);
+            return true;
         }
 
+        ecsScheduler.Schedule(static (_, self, pending) => self.InvokeEcsHandlers(pending.Event, pending.Type, pending.Id), this,
+            (Event: ev, Type: eventType, Id: eventId));
         return true;
     }
 
@@ -137,21 +135,27 @@ internal class NativeMappedEventManager(
         if (!policyDir.ForEvent<Entity>(eventType).CanGameEventNotifyEcs(entity.Value))
             return false;
 
-        using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
-        {
-            var ev = Marshal.PtrToStructure(data, eventType);
+        // Read now, while the game's copy is there, and handled on the ECS thread
+        var ev = Marshal.PtrToStructure(data, eventType);
 
-            if (ev is not null)
-            {
-                incomingEcsEventQueue.Invoke(ev, eventType);
-            }
-            else
-            {
-                logger.LogError("Failed to marshal native ECS event with id {EventId} and type {eventName}", eventId, eventType.FullName);
-            }
+        if (ev is null)
+        {
+            logger.LogError("Failed to marshal native ECS event with id {EventId} and type {eventName}", eventId, eventType.FullName);
+            return true;
         }
 
+        ecsScheduler.Schedule(static (_, self, pending) => self.InvokeEcsHandlers(pending.Event, pending.Type, pending.Id), this,
+            (Event: ev, Type: eventType, Id: eventId));
         return true;
+    }
+
+    private void InvokeEcsHandlers(object ev, Type eventType, int eventId)
+    {
+        // Pushed on the ECS thread, where the handlers run, so one of them invoking the event in the game is refused
+        using (sideChannel.PushScope(PropagationDirection.ToEcs, eventId))
+        {
+            incomingEcsEventQueue.Invoke(ev, eventType);
+        }
     }
 
     public bool InvokeInGameIfApplicable(int eventId, IntPtr data)

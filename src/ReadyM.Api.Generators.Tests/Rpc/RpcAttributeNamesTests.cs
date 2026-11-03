@@ -1,72 +1,52 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
-using ReadyM.Api.Generators;
+using ReadyM.Api.Multiplayer;
+using ReadyM.Relay.Server.Sdk.Rpc;
+using ReadyM.SDK.Attributes;
 using Xunit;
 
 namespace ReadyM.Api.Generators.Tests.Rpc;
 
-/// <summary>
-/// [RpcContracts] and [RpcHandlersFor] are what the two attributes are called now. The 0.x
-/// [ServerRpcContracts] and [ServerRpcFor] mean exactly the same thing and are read the same way, so
-/// a mod keeps compiling and can move over a file at a time, including a contracts class and its
-/// handlers disagreeing about which spelling they use.
-/// </summary>
+/// <summary>[RpcContracts] declares a contract set and [RpcHandlersFor] implements one, on either side.</summary>
 public class RpcAttributeNamesTests(ITestOutputHelper output)
 {
     private static readonly Assembly[] Sdk =
     [
-        typeof(ReadyM.SDK.Attributes.RpcContractsAttribute).Assembly,
-        typeof(ReadyM.Api.Multiplayer.ServerRpcForAttribute).Assembly,
+        typeof(RpcContractsAttribute).Assembly,
+        typeof(ClientToClientsAttribute).Assembly,
     ];
 
     /// <summary>A client mod cannot reach the server SDK, which is how a baseless class is placed.</summary>
     private static readonly string[] AsAClientMod =
     [
-        typeof(ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase).Assembly.GetName().Name!,
+        typeof(ServerRpcHandlersBase).Assembly.GetName().Name!,
     ];
 
-    private const string New = "RpcContracts";
-    private const string Old = "ServerRpcContracts";
-    private const string NewFor = "RpcHandlersFor";
-    private const string OldFor = "ServerRpcFor";
-
-    [Theory]
-    [InlineData(New)]
-    [InlineData(Old)]
-    public void Either_spelling_declares_a_contract_set(string contracts)
+    [Fact]
+    public void RpcContracts_declares_a_contract_set()
     {
-        var manifest = Manifest(contracts);
+        var manifest = Manifest();
 
         Assert.Contains("public const string Id = \"Mod.Common\";", manifest);
-        Assert.Contains("public const byte TotalEventCount = 2;", manifest);
+        Assert.Contains("public const ushort TotalEventCount = 2;", manifest);
         Assert.Contains("PingCode", manifest);
         Assert.Contains("PongCode", manifest);
     }
 
-    /// <summary>
-    /// Four combinations, because the contracts class and the class implementing it are usually in
-    /// different projects and move over at different times.
-    /// </summary>
-    [Theory]
-    [InlineData(New, NewFor)]
-    [InlineData(Old, OldFor)]
-    [InlineData(New, OldFor)]
-    [InlineData(Old, NewFor)]
-    public void Either_spelling_implements_a_contract_set_on_the_client(string contracts, string handlersFor)
+    [Fact]
+    public void RpcHandlersFor_implements_a_contract_set_on_the_client()
     {
-        var generated = Client(contracts, handlersFor);
+        var generated = Client();
 
         Assert.Contains("\npartial class Rpc : global::ReadyM.Api.Multiplayer.RPC.RpcBase", generated);
         Assert.Contains("public void SendPing(int value)", generated);
         Assert.Contains("partial void OnPong(int value);", generated);
     }
 
-    [Theory]
-    [InlineData(New, NewFor)]
-    [InlineData(Old, OldFor)]
-    public void Either_spelling_implements_a_contract_set_on_the_server(string contracts, string handlersFor)
+    [Fact]
+    public void RpcHandlersFor_implements_a_contract_set_on_the_server()
     {
-        var generated = Server(contracts, handlersFor);
+        var generated = Server();
 
         Assert.Contains(
             "\npartial class Rpc : global::ReadyM.Relay.Server.Sdk.Rpc.ServerRpcHandlersBase",
@@ -75,54 +55,38 @@ public class RpcAttributeNamesTests(ITestOutputHelper output)
         Assert.Contains("public void SendPong(global::ReadyM.Api.Idents.PlayerId recipient, int value)", generated);
     }
 
-    /// <summary>
-    /// The two spellings are one attribute as far as the generator is concerned, so what they write
-    /// has to be the same text, not merely similar.
-    /// </summary>
+    /// <summary>A client class naming no contract set is refused, and the message names the attribute.</summary>
     [Fact]
-    public void The_two_spellings_generate_the_same_thing()
-    {
-        Assert.Equal(Manifest(New), Manifest(Old));
-        Assert.Equal(Client(New, NewFor), Client(Old, OldFor));
-        Assert.Equal(Server(New, NewFor), Server(Old, OldFor));
-    }
-
-    /// <summary>Naming no contract set at all is still refused, and the message names the new spelling.</summary>
-    [Fact]
-    public void A_class_naming_no_contract_set_is_still_refused()
+    public void A_class_naming_no_contract_set_is_refused()
     {
         var reported = Run(
             new ServerRpcEventGenerator(),
             """
             namespace Mod;
 
-            public partial class Rpc : global::ReadyM.Api.Multiplayer.RPC.ServerRpcClient
+            public partial class Rpc : global::ReadyM.Api.Multiplayer.RPC.RpcBase
             {
             }
             """,
-            New,
             AsAClientMod).Diagnostics;
 
         Assert.Contains(reported, diagnostic => diagnostic.Id == "SRPC004");
         Assert.Contains(reported, diagnostic => diagnostic.GetMessage().Contains("[RpcHandlersFor("));
     }
 
-    private string Manifest(string contracts) =>
+    private string Manifest() =>
         Text(SourceGeneratorTestHelper.RunGenerators(
-            [("Contracts.cs", Contracts(contracts))], [new ServerRpcContractGenerator()], output, Sdk,
+            [("Contracts.cs", Contracts)], [new ServerRpcContractGenerator()], output, Sdk,
             assemblyName: "Mod.Common"));
 
-    private string Client(string contracts, string handlersFor) =>
-        Run(new ServerRpcEventGenerator(), Handlers(handlersFor), contracts, AsAClientMod).Generated;
+    private string Client() => Run(new ServerRpcEventGenerator(), Handlers, AsAClientMod).Generated;
 
-    private string Server(string contracts, string handlersFor) =>
-        Run(new ServerRpcHandlerGenerator(), Handlers(handlersFor), contracts, []).Generated;
+    private string Server() => Run(new ServerRpcHandlerGenerator(), Handlers, []).Generated;
 
-    private (string Generated, Diagnostic[] Diagnostics) Run(
-        IIncrementalGenerator generator, string source, string contracts, string[] without)
+    private (string Generated, Diagnostic[] Diagnostics) Run(IIncrementalGenerator generator, string source, string[] without)
     {
         var declared = SourceGeneratorTestHelper.RunGenerators(
-            [("Contracts.cs", Contracts(contracts))], [new ServerRpcContractGenerator()], output, Sdk,
+            [("Contracts.cs", Contracts)], [new ServerRpcContractGenerator()], output, Sdk,
             assemblyName: "Mod.Common");
 
         var result = SourceGeneratorTestHelper.RunGenerators(
@@ -133,14 +97,13 @@ public class RpcAttributeNamesTests(ITestOutputHelper output)
         return (Text(result), [.. result.CompilationDiagnostics]);
     }
 
-    private static string Contracts(string attribute) =>
-        $$"""
+    private const string Contracts = """
           using ReadyM.Api.Multiplayer;
           using ReadyM.SDK.Attributes;
 
           namespace Mod.Common;
 
-          [{{attribute}}]
+          [RpcContracts]
           public static partial class Contracts
           {
               [ClientToServer] public static partial void Ping(int value);
@@ -148,15 +111,14 @@ public class RpcAttributeNamesTests(ITestOutputHelper output)
           }
           """;
 
-    private static string Handlers(string attribute) =>
-        $$"""
+    private const string Handlers = """
           using ReadyM.Api.Multiplayer;
           using ReadyM.SDK.Attributes;
           using Mod.Common;
 
           namespace Mod;
 
-          [{{attribute}}(typeof(Contracts))]
+          [RpcHandlersFor(typeof(Contracts))]
           public partial class Rpc
           {
           }

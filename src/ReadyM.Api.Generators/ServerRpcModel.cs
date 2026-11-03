@@ -133,20 +133,12 @@ internal static class ServerRpcModel
             .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>()
             .Any(declaration => declaration.Modifiers.Any(modifier => modifier.ValueText == "partial"));
 
-    /// <summary>
-    /// The attribute binding a class to its contract set. [ServerRpcFor] is the 0.x spelling of
-    /// [RpcHandlersFor] and is read the same way, so a mod can move over a class at a time.
-    /// </summary>
+    /// <summary>The attribute binding a class to its contract set.</summary>
     public static AttributeData? HandlersFor(INamedTypeSymbol type) =>
-        type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name
-            is "RpcHandlersForAttribute" or "RpcHandlersFor"
-            or "ServerRpcForAttribute" or "ServerRpcFor");
+        type.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name is "RpcHandlersForAttribute" or "RpcHandlersFor");
 
-    /// <summary>[ServerRpcContracts] is the 0.x spelling of [RpcContracts].</summary>
     public static bool HasContractsAttribute(INamedTypeSymbol type) =>
-        type.GetAttributes().Any(a => a.AttributeClass?.Name
-            is "RpcContractsAttribute" or "RpcContracts"
-            or "ServerRpcContractsAttribute" or "ServerRpcContracts");
+        type.GetAttributes().Any(a => a.AttributeClass?.Name is "RpcContractsAttribute" or "RpcContracts");
 
     public static bool IsClientToServer(IMethodSymbol method) =>
         method.GetAttributes().Any(a =>

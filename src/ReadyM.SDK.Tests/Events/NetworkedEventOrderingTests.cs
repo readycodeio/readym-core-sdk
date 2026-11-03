@@ -22,7 +22,7 @@ public class NetworkedEventOrderingTests
 
     private struct Tick : INetworkedEvent
     {
-        public RelayMessageCode Code => RelayMessageCode.MaxServerRpcEvent;
+        public RelayMessageCode Code => (RelayMessageCode)ushort.MaxValue;
 
         public void Serialize(NetDataWriter writer)
         {

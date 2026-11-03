@@ -12,7 +12,7 @@ namespace ReadyM.Api.Generators.Tests.Rpc;
 /// </summary>
 public class RpcBaseClassTests(ITestOutputHelper output)
 {
-    private static readonly Assembly[] Sdk = [typeof(ReadyM.Api.Multiplayer.ServerRpcForAttribute).Assembly];
+    private static readonly Assembly[] Sdk = [typeof(Multiplayer.ClientToClientsAttribute).Assembly];
 
     /// <summary>
     /// A client mod has no reference to the server SDK, which is what the generators read the side
@@ -27,10 +27,11 @@ public class RpcBaseClassTests(ITestOutputHelper output)
 
     private const string Contracts = """
         using ReadyM.Api.Multiplayer;
+        using ReadyM.SDK.Attributes;
 
         namespace Mod.Common;
 
-        [ServerRpcContracts]
+        [RpcContracts]
         public static partial class Contracts
         {
             [ClientToServer] public static partial void Ping(int value);
@@ -40,11 +41,12 @@ public class RpcBaseClassTests(ITestOutputHelper output)
 
     private const string Baseless = """
         using ReadyM.Api.Multiplayer;
+        using ReadyM.SDK.Attributes;
         using Mod.Common;
 
         namespace Mod;
 
-        [ServerRpcFor(typeof(Contracts))]
+        [RpcHandlersFor(typeof(Contracts))]
         public partial class Rpc
         {
         }
@@ -94,12 +96,13 @@ public class RpcBaseClassTests(ITestOutputHelper output)
     {
         var generated = Run(new ServerRpcHandlerGenerator(), """
             using ReadyM.Api.Multiplayer;
+            using ReadyM.SDK.Attributes;
             using ReadyM.Relay.Server.Sdk.Rpc;
             using Mod.Common;
 
             namespace Mod;
 
-            [ServerRpcFor(typeof(Contracts))]
+            [RpcHandlersFor(typeof(Contracts))]
             public partial class Rpc : ServerRpcHandlersBase
             {
             }
@@ -110,21 +113,22 @@ public class RpcBaseClassTests(ITestOutputHelper output)
     }
 
     /// <summary>
-    /// The 0.x client base is this side's wherever it is compiled, so a server project that still
-    /// holds one keeps generating the client half for it.
+    /// A class that writes the client base is a client wherever it is compiled, so a server project that holds one,
+    /// such as the relay's tests, gets the client half for it.
     /// </summary>
     [Fact]
     public void A_class_that_writes_the_client_base_is_a_client_even_in_a_server_project()
     {
         var source = """
             using ReadyM.Api.Multiplayer;
+            using ReadyM.SDK.Attributes;
             using ReadyM.Api.Multiplayer.RPC;
             using Mod.Common;
 
             namespace Mod;
 
-            [ServerRpcFor(typeof(Contracts))]
-            public partial class Rpc : ServerRpcClient
+            [RpcHandlersFor(typeof(Contracts))]
+            public partial class Rpc : RpcBase
             {
             }
             """;

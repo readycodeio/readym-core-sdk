@@ -47,8 +47,8 @@ This is a short overview of the attributes and what they do.
 
 ### Archetype / ArchetypeMixin
 
-* `[Archetype(replicated: true|false)]` declares a partial struct an archetype of components. The flag is required, see [Replicated](#replicated).
-* `[ArchetypeMixin]` declares a partial struct an archetype mixin, with an underlying ECS component.
+* `[Archetype]` declares a partial struct an archetype of components. Whether its entities are sent is up to `Networked`, see [Networked and replicated](#networked-and-replicated).
+* `[ArchetypeMixin(Replication.X)]` declares a partial struct an archetype mixin, with an underlying ECS component.
 
 Both archetypes and mixins are collectively called "shapes".
 
@@ -64,18 +64,26 @@ Accessor methods are generated instead of the standard ones.
 
 A shape with no fields still gets an empty component type generated, so that querying for it is possible.
 
-### Replicated (outdated)
+### Networked and replicated
 
 Whether an entity exists on the other side is decided by its archetype, never by its components:
 
-* `[Archetype(replicated: true)]` entities get a network identity and an owner (`MetadataComponent`), and the game has to bind the archetype on both the client and the server.
-* `[Archetype(replicated: false)]` entities stay where they were created, even when they include mixins that replicate elsewhere. Nothing they hold is sent, and they need no binding.
+* `[Archetype]` entities are networked: they get a network identity and an owner (`MetadataComponent`), and are sent to the other players.
+* `[Archetype(Networked = false)]` entities stay where they were created, even when they include mixins that replicate elsewhere. Nothing they hold is sent.
 
 A query asks for components, so `Query<RefIdMixin>()` finds both kinds.
 
-`[Replicated]` is for mixins: their values are sent, reliably or unreliably, on the entities of a replicated archetype.
-An archetype's own values follow its flag, and take their delivery from `[Archetype(..., Delivery = Delivery.Unreliable)]`.
-Putting `[Replicated]` on an archetype is an error (READYM036).
+Which values travel on a networked entity is up to its shapes. A mixin states it with `[ArchetypeMixin(Replication.X)]`, and
+`Replication.None` keeps its values on the side that wrote them. An archetype with values of its own states it with
+`[Archetype(Replication = ...)]`. Either takes `Delivery = Delivery.Unreliable` for values that may be dropped.
+`[Replicated]` is gone (READYM036).
+
+An archetype crosses the wire as a number, so both sides have to give each one the same id. A game binds its own
+archetypes on both sides. For every other networked archetype, the SDK registers one on each side, under the shape's
+full name and in name order, before anything creates an entity. That only agrees when both sides load the same
+networked archetypes, so declare them in a project both the client and the server load, which is a mod's Common
+project. One declared only in client or server code moves the id of every archetype after it, and their entities
+arrive on the other side as something else.
 
 ### Propagates (outdated)
 
@@ -250,8 +258,8 @@ public static partial class CoopRpcContracts
 ```
 
 One name is one wire code, so a request and its response share a name and may carry different payloads.
-A name is either routed through the server or relayed between clients, never both: the two are numbered
-out of separate code spaces, so mixing them under one name is refused.
+A name is either routed through the server or relayed between clients, never both: each set's two kinds
+are numbered as separate blocks, and a code is read by its block, so mixing them under one name is refused.
 
 Implementing a set is a `partial class` annotated with `[RpcHandlersFor(typeof(TheContracts))]`, on
 the client, on the server, or both. It needs no base class and may implement any subset of the stubs:

@@ -1,6 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("ReadyM.Sdk.Common")]
 [assembly: InternalsVisibleTo("ReadyM.Modloader")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Multiplayer")]

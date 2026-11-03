@@ -134,6 +134,18 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
             Report(context, location, "NEVT004", "No subject to check",
                 $"'{declared.Symbol.Name}' says Policy.{declared.Policy}, which checks the subject, so one member must be marked [Subject].");
 
+        // Only properties travel, so a field would arrive as its default on every other side
+        foreach (var field in declared.Symbol.GetMembers().OfType<IFieldSymbol>())
+        {
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
+                continue;
+
+            Report(context, field.Locations.FirstOrDefault() ?? location, "NEVT015", "Field is not sent",
+                $"'{declared.Symbol.Name}.{field.Name}' is a field, and only an event's properties are sent. Declare it as {{ get; set; }}.");
+
+            sendable = false;
+        }
+
         foreach (var member in declared.Members)
         {
             if (RpcEntityParams.IsShape(member.Type, out var shape, out _))
@@ -217,6 +229,10 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
             else if (SerializationHelper.IsVectorLike(member.Type))
             {
                 sb.AppendLine($"        {VectorSerialization}.Serialize({member.Name}, writer);");
+            }
+            else if (member.Type is INamedTypeSymbol { TypeKind: TypeKind.Enum, EnumUnderlyingType: { } underlying })
+            {
+                sb.AppendLine($"        writer.Put(({underlying.ToDisplayString()}){member.Name});");
             }
             else
             {
@@ -482,17 +498,17 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
         sb.AppendLine("    /// <summary>This set's stable identity: the assembly that declares it.</summary>");
         sb.AppendLine($"    public const string Id = \"{manifestId}\";");
         sb.AppendLine();
-        sb.AppendLine("    /// <summary>How many codes this set takes out of the server-directed space.</summary>");
-        sb.AppendLine($"    public const byte TotalEventCount = {events.Count};");
+        sb.AppendLine("    /// <summary>How many codes this set takes.</summary>");
+        sb.AppendLine($"    public const ushort TotalEventCount = {events.Count};");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>Set once at mod startup, before any event is raised or received.</summary>");
-        sb.AppendLine("    public static byte Offset { get; set; }");
+        sb.AppendLine("    public static ushort Offset { get; set; }");
         sb.AppendLine();
 
         for (var i = 0; i < events.Count; i++)
         {
             sb.AppendLine($"    public const RelayMessageCode {events[i].Symbol.Name}Code =");
-            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinServerRpcEvent + {i});");
+            sb.AppendLine($"        (RelayMessageCode)(RelayMessageCode.MinAnyCustomEvent + {i});");
             sb.AppendLine();
         }
 

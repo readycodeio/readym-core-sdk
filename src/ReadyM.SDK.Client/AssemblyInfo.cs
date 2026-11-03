@@ -7,3 +7,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("WukongMp.Api")]
+
+// The relay's test clients register archetypes the way a game does, through ArchetypeExtensionRegistration.
+[assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
