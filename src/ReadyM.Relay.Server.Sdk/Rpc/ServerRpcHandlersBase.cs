@@ -1,10 +1,11 @@
-﻿using ReadyM.Api.DI;
+﻿using System.ComponentModel;
+using ReadyM.Api.DI;
 using ReadyM.Api.Multiplayer.Serialization;
 
 namespace ReadyM.Relay.Server.Sdk.Rpc;
 
 /// <exclude />
-[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public abstract class ServerRpcHandlersBase : IHostedService
 {
     public RpcApi Rpc { protected get; set; }

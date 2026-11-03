@@ -11,7 +11,7 @@ public interface IServerEvents
     event Action<Player, Guid>? OnPlayerConnected;
 
     /// <summary>Fires when a player has left or dropped, after they left their area.</summary>
-    event Action<Player, DisconnectReason>? OnPlayerDisconnected;
+    event Action<Player, Guid, DisconnectReason>? OnPlayerDisconnected;
 
     /// <summary>Fires when an area comes into use, as the first player enters it.</summary>
     event Action<Area>? OnAreaCreated;

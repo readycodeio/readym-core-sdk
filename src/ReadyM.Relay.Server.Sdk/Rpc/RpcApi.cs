@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.ComponentModel;
+using System.Runtime.InteropServices;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
@@ -16,13 +17,11 @@ namespace ReadyM.Relay.Server.Sdk.Rpc;
 /// Low-level API for handling RPC messages in the ReadyM Relay Server SDK.
 /// </summary>
 /// <exclude />
-[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public class RpcApi
 {
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler;
-
     private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler;
-
     private readonly SendToOneDelegate _sendToOne;
 
     private readonly INetworkTime _netTime;
@@ -37,8 +36,7 @@ public class RpcApi
         _netTime = netTime;
         _changeTracking = changeTracking;
         _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
-        _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers
-            .RemoveServerRpcMessageHandler);
+        _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers.RemoveServerRpcMessageHandler);
         _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
     }
 

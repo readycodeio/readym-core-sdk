@@ -18,7 +18,7 @@ namespace ReadyM.SDK.Server.Events;
 internal sealed class ServerEvents : IServerEvents, IDisposable
 {
     public event Action<Player, Guid>? OnPlayerConnected;
-    public event Action<Player, DisconnectReason>? OnPlayerDisconnected;
+    public event Action<Player, Guid, DisconnectReason>? OnPlayerDisconnected;
     public event Action<Area>? OnAreaCreated;
     public event Action<Area>? OnAreaDeleted;
     public event Action<PlayerId, AreaId>? OnPlayerJoinedArea;
@@ -94,7 +94,7 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 OnPlayerConnected?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId);
                 break;
             case ServerEventKind.PlayerDisconnected:
-                OnPlayerDisconnected?.Invoke(Shape<Player>(payload.Entity), payload.Reason);
+                OnPlayerDisconnected?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId, payload.Reason);
                 break;
             case ServerEventKind.AreaCreated:
                 OnAreaCreated?.Invoke(Shape<Area>(payload.Entity));
