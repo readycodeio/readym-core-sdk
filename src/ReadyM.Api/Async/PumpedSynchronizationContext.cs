@@ -30,7 +30,7 @@ internal sealed class PumpedSynchronizationContext(ILogger logger) : Synchroniza
         public readonly object? State = state;
     }
 
-    private readonly Lock _gate = new();
+    private readonly object _gate = new();
     private readonly Queue<WorkItem> _queue = new();  // reuses its backing array across pumps (low-allocation)
     private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private int _pumpThreadId;  // 0 until the first Start/Pump; the thread continuations are guaranteed to run on
@@ -47,7 +47,7 @@ internal sealed class PumpedSynchronizationContext(ILogger logger) : Synchroniza
     /// <inheritdoc/>
     public override void Post(SendOrPostCallback d, object? state)
     {
-        ArgumentNullException.ThrowIfNull(d);
+        if (d is null) throw new ArgumentNullException(nameof(d));
         lock (_gate) _queue.Enqueue(new WorkItem(d, state));
     }
 
@@ -60,7 +60,7 @@ internal sealed class PumpedSynchronizationContext(ILogger logger) : Synchroniza
     /// <inheritdoc/>
     public override void Send(SendOrPostCallback d, object? state)
     {
-        ArgumentNullException.ThrowIfNull(d);
+        if (d is null) throw new ArgumentNullException(nameof(d));
 
         if (Environment.CurrentManagedThreadId == Volatile.Read(ref _pumpThreadId))
         {
@@ -103,7 +103,7 @@ internal sealed class PumpedSynchronizationContext(ILogger logger) : Synchroniza
     /// </summary>
     public void Start(Action action)
     {
-        ArgumentNullException.ThrowIfNull(action);
+        if (action is null) throw new ArgumentNullException(nameof(action));
         BindPumpThread();
         RunWithContextInstalled(static state => ((Action)state!)(), action);
     }
@@ -182,7 +182,7 @@ internal sealed class PumpedSynchronizationContext(ILogger logger) : Synchroniza
     /// <summary>Suspends for <paramref name="pumps"/> pump cycles.</summary>
     public async Task WaitPumps(int pumps, CancellationToken cancellationToken = default)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(pumps);
+        if (pumps < 0) throw new ArgumentOutOfRangeException(nameof(pumps), pumps, "Must not be negative.");
         for (var i = 0; i < pumps; i++)
             await Yield(cancellationToken);
     }
