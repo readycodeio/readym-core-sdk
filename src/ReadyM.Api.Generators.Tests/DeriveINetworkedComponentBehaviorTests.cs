@@ -3,8 +3,8 @@ using System.Reflection;
 using LiteNetLib.Utils;
 using Microsoft.CodeAnalysis;
 using Xunit;
-using Yooni.Native.Logging;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Logging;
+using ReadyM.Native.LowLevel;
 using static ReadyM.Api.Generators.Tests.DeriveTestAssert;
 
 namespace ReadyM.Api.Generators.Tests;
@@ -1572,8 +1572,8 @@ public partial struct GeneratedShapeComponent : INetworkedComponent
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -1898,8 +1898,8 @@ public partial struct NativeContainerCoverageComponent(AllocatorKind kind) : INe
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -2099,8 +2099,8 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -2298,8 +2298,8 @@ public partial struct NativeListCoverageComponent(AllocatorKind kind) : INetwork
 using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -2661,7 +2661,7 @@ public partial struct NativeDictionaryCoverageComponent(AllocatorKind kind) : IN
 
         if (expected is string expectedString &&
             actual.GetType().FullName is { } fullName &&
-            fullName.StartsWith("Yooni.Native.Container.NativeString", StringComparison.Ordinal))
+            fullName.StartsWith("ReadyM.Native.Container.NativeString", StringComparison.Ordinal))
         {
             Assert.Equal(expectedString, actual.ToString());
             return;

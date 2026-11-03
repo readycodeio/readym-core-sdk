@@ -144,7 +144,7 @@ public readonly partial struct Roster
 {
     public partial int Size { get; set; }
 
-    private partial global::Yooni.Native.Container.NativeList<int> Members { get; set; }
+    private partial global::ReadyM.Native.Container.NativeList<int> Members { get; set; }
 }
 
 /// <summary>
@@ -168,7 +168,7 @@ public readonly partial struct Ledgered
 {
     public partial int Size { get; set; }
 
-    private partial global::Yooni.Native.Container.NativeList<int> Names { get; set; }
+    private partial global::ReadyM.Native.Container.NativeList<int> Names { get; set; }
 }
 
 /// <summary>

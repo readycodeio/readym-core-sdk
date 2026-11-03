@@ -30,13 +30,13 @@ internal sealed class NetDataSerializationCodec : ICSharpSerializationCodec
 
     public void WriteNativeString(CSharpEmitSerializeContext context)
     {
-        context.State.ModuleState.AddUsing("Yooni.Native.Serialization");
+        context.State.ModuleState.AddUsing("ReadyM.Native.Serialization");
         context.AppendLine($"{context.State.CurrentVar}.Serialize(writer);");
     }
 
     public void ReadNativeString(CSharpEmitDeserializeContext context)
     {
-        context.State.ModuleState.AddUsing("Yooni.Native.Serialization");
+        context.State.ModuleState.AddUsing("ReadyM.Native.Serialization");
         context.AppendLine($"{context.State.CurrentVar}.Deserialize(reader);");
     }
 

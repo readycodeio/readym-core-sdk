@@ -113,7 +113,7 @@ internal static class ArchetypeNames
     public const string Delivery = "global::" + Namespace + ".Delivery";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
     public const string NativeInit = "global::ReadyM.Api.ECS.Components.INativeInit";
-    public const string AllocatorKind = "global::Yooni.Native.LowLevel.AllocatorKind";
+    public const string AllocatorKind = "global::ReadyM.Native.LowLevel.AllocatorKind";
     public const string NetworkedComponent = "global::ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent";
 
     public const string RawEntity = "global::Friflo.Engine.ECS.RawEntity";

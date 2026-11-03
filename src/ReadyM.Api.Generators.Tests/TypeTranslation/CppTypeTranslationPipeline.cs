@@ -11,7 +11,7 @@ public class CppTypeTranslationPipelineTests
     {
         var pipeline = CppTypeTranslationPipeline.PathTranslation;
        
-        var input = TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString256");
+        var input = TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeString256");
         
         var output = pipeline.Translate(input);
         var rendered = pipeline.Render(output);
@@ -25,7 +25,7 @@ public class CppTypeTranslationPipelineTests
         var pipeline = CppTypeTranslationPipeline.TypeTranslation;
 
         var input = TypeNameFactory.Generic(
-            TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString256"),
+            TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeString256"),
             TypeNameFactory.Qualified("System", "String"),
             TypeNameFactory.Name("int"),
             TypeNameFactory.Name("string")

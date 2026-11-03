@@ -33,7 +33,7 @@ public class ReplicatedWriteAnalyzerTests(ITestOutputHelper output)
         {
             public partial int Hp { get; set; }
 
-            private partial global::Yooni.Native.Container.NativeList<int> Marks { get; set; }
+            private partial global::ReadyM.Native.Container.NativeList<int> Marks { get; set; }
         }
 
         [ArchetypeMixin(Replication.None)]

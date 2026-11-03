@@ -8,9 +8,9 @@ using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.Interning;
 using ReadyM.Api.Serialization;
 using Xunit;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
-using Yooni.Native.Serialization;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
+using ReadyM.Native.Serialization;
 using static ReadyM.Api.Generators.Tests.DeriveTestAssert;
 
 namespace ReadyM.Api.Generators.Tests;
@@ -21,8 +21,8 @@ public sealed class DeriveINetworkedComponentInternedTests(ITestOutputHelper out
     private const string Source = """
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -211,7 +211,7 @@ public partial struct InternedComponent(AllocatorKind kind) : INetworkedComponen
         var source = $$"""
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -279,7 +279,7 @@ public partial struct UninternedComponent : INetworkedComponent
         var source = $$"""
 using ReadyM.Api.Multiplayer.Generators;
 using ReadyM.Api.Multiplayer.ECS.Components;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -304,7 +304,7 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 

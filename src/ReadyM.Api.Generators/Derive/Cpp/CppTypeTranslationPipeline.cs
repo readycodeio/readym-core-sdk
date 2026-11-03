@@ -27,6 +27,9 @@ internal static class CppTypeTranslationPipeline
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Api"),
                 TypeNameFactory.Name("RM")),
+            // The C++ side of ReadyM.Native is YooniCpp, which keeps its own namespace
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Native"),
+                TypeNameFactory.Qualified("Yooni", "Native")),
             new NamespaceReplacementRule(TypeNameFactory.Name("ReadyM"),
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "Numerics"),
@@ -39,17 +42,17 @@ internal static class CppTypeTranslationPipeline
                 TypeNameFactory.Name("Interop")),
             new GenericPatternTypeNameRule(
                 TypeNameFactory.Generic(
-                    TypeNameFactory.Qualified("Yooni", "Native", "LowLevel", "Storage8"),
+                    TypeNameFactory.Qualified("ReadyM", "Native", "LowLevel", "Storage8"),
                     TypeNameFactory.Param("T")),
                 TypeNameFactory.Number(8)),
             new GenericPatternTypeNameRule(
                 TypeNameFactory.Generic(
-                    TypeNameFactory.Qualified("Yooni", "Native", "LowLevel", "Storage16"),
+                    TypeNameFactory.Qualified("ReadyM", "Native", "LowLevel", "Storage16"),
                     TypeNameFactory.Param("T")),
                 TypeNameFactory.Number(16)),
             new GenericPatternTypeNameRule(
                 TypeNameFactory.Generic(
-                    TypeNameFactory.Qualified("Yooni", "Native", "LowLevel", "Storage32"),
+                    TypeNameFactory.Qualified("ReadyM", "Native", "LowLevel", "Storage32"),
                     TypeNameFactory.Param("T")),
                 TypeNameFactory.Number(32)),
         });
@@ -89,22 +92,22 @@ internal static class CppTypeTranslationPipeline
             new NamespaceReplacementRule(TypeNameFactory.Name("System"),
                 TypeNameFactory.Name("Interop")),
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "ByteHash"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "ByteHash"),
                 TypeNameFactory.Qualified("Native", "Container", "IntHash")),
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString256"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeString256"),
                 TypeNameFactory.Qualified("Native", "Container", "NativeString")),
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeString64"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeString64"),
                 TypeNameFactory.Qualified("Native", "Container", "NativeString")),
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeStringHash256"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeStringHash256"),
                 TypeNameFactory.Qualified("Native", "Container", "NativeStringHash")),
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "NativeStringHash64"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "NativeStringHash64"),
                 TypeNameFactory.Qualified("Native", "Container", "NativeStringHash")),
-            new NamespaceReplacementRule(TypeNameFactory.Name("Yooni"),
-                TypeNameFactory.Empty()),
+            new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Native"),
+                TypeNameFactory.Name("Native")),
         });
         var renderer = new CppPathRenderer();
         

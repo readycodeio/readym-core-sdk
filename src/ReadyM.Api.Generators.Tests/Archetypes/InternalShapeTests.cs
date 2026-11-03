@@ -33,7 +33,7 @@ public class InternalShapeTests(ITestOutputHelper output)
         [ArchetypeMixin(Replication.OwnershipBased)]
         internal readonly partial struct Intents
         {
-            public partial global::Yooni.Native.Container.NativeList<int> Entries { get; set; }
+            public partial global::ReadyM.Native.Container.NativeList<int> Entries { get; set; }
         }
 
         [ArchetypeMixin(Replication.None)]

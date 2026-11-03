@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 

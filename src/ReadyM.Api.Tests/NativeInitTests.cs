@@ -6,8 +6,8 @@ using ReadyM.Api.ECS.Registry;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using Xunit;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Tests;
 

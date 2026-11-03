@@ -167,11 +167,11 @@ public sealed class TypeNameTranslatorTests
         var translator = new TypeNameTranslator(
         [
             new ExactTypeReplacementRule(
-                TypeNameFactory.Qualified("Yooni", "Native", "Container", "String256"),
+                TypeNameFactory.Qualified("ReadyM", "Native", "Container", "String256"),
                 TypeNameFactory.Qualified("Native", "Container", "String")),
         ]);
 
-        var input = TypeNameFactory.Qualified("Yooni", "Native", "Container", "String256");
+        var input = TypeNameFactory.Qualified("ReadyM", "Native", "Container", "String256");
 
         var output = translator.Translate(input);
         var rendered = new CppPathRenderer().Render(output);
