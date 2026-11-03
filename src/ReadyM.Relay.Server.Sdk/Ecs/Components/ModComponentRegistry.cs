@@ -87,7 +87,7 @@ internal sealed class ModComponentRegistry(
 
     /// <summary>
     /// Registers a mod-defined component type with the server ECS.
-    /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
+    /// Must be called while the mods initialize, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
     public void RegisterLocalComponent<T>() where T : struct
@@ -109,7 +109,7 @@ internal sealed class ModComponentRegistry(
 
     /// <summary>
     /// Registers a mod-defined component type with the server ECS.
-    /// Must be called during <c>ServerModBase.Init()</c>, before any entity creation.
+    /// Must be called while the mods initialize, before any entity creation.
     /// Returns the component ID to use in all subsequent <c>Query</c> calls.
     /// </summary>
     public void RegisterComponent<T>(byte delivery = 0) where T : struct, INetworkedComponent
