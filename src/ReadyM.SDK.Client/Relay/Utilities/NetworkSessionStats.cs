@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 
-namespace ReadyM.Relay.Client.Utilities;
+namespace ReadyM.SDK.Client.Relay.Utilities;
 
 /// <summary>
 /// All-time network session stats:

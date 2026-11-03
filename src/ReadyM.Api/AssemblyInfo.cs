@@ -3,7 +3,6 @@
 [assembly: InternalsVisibleTo("ReadyM.Modloader")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Multiplayer")]
-[assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Sdk")]

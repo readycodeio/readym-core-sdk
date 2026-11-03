@@ -20,12 +20,12 @@ using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Client.ConflictResolution;
-using ReadyM.Relay.Client.ECS.Systems;
+using ReadyM.SDK.Client.Relay.ConflictResolution;
+using ReadyM.SDK.Client.Relay.ECS.Systems;
 using ReadyM.Api.Multiplayer.ECS;
-using ReadyM.Relay.Client.State;
+using ReadyM.SDK.Client.Relay.State;
 
-namespace ReadyM.Relay.Client;
+namespace ReadyM.SDK.Client.Relay;
 
 internal class ClientNetworkedStateSynchronizer : IHostedService
 {

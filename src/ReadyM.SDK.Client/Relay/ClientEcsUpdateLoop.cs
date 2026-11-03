@@ -9,7 +9,7 @@ using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Multiplayer.Interning;
 using ReadyM.Api.Multiplayer.Protocol;
 
-namespace ReadyM.Relay.Client;
+namespace ReadyM.SDK.Client.Relay;
 
 /// <summary>
 /// This class is responsible for scheduling ECS operations on the client side. The current implementation assumes

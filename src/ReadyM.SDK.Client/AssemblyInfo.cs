@@ -10,3 +10,7 @@ using System.Runtime.CompilerServices;
 
 // The relay's test clients register archetypes the way a game does, through ArchetypeExtensionRegistration.
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
+
+// The relay client in Relay/ is internal; the games' client SDKs drive it.
+[assembly: InternalsVisibleTo("OblivionMp.Sdk")]
+[assembly: InternalsVisibleTo("WukongMp.Tests")]

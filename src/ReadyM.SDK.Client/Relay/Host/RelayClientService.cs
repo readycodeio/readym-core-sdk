@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using ReadyM.Api.Multiplayer.Client;
 
-namespace ReadyM.Relay.Client.Host;
+namespace ReadyM.SDK.Client.Relay.Host;
 
 internal sealed class RelayClientService(IRelayClient relayClient, ILogger logger) : IDisposable
 {

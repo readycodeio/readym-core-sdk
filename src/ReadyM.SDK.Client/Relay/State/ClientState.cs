@@ -16,13 +16,13 @@ using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol;
 
-namespace ReadyM.Relay.Client.State;
+namespace ReadyM.SDK.Client.Relay.State;
 
 internal class ClientState : IDisposable
 {
     private class ProcessPendingEventsSystem(ClientState owner) : BaseSystem
     {
-        protected override void OnUpdateGroup()
+        protected internal override void OnUpdateGroup()
         {
             owner.ProcessPendingEvents();
         }

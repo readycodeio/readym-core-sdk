@@ -1,9 +1,9 @@
 ﻿using Friflo.Engine.ECS;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Mapping.Policies.Data;
-using ReadyM.Relay.Client.State;
+using ReadyM.SDK.Client.Relay.State;
 
-namespace ReadyM.Relay.Client.Mapping.Policies;
+namespace ReadyM.SDK.Client.Relay.Mapping.Policies;
 
 internal class OwnershipDataPolicy<TField>(ClientOwnershipManager ownership, DataSideChannel sideChannel) : MappingDataPolicyBase<TField, Entity>(sideChannel)
 {

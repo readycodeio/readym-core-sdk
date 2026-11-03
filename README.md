@@ -17,7 +17,7 @@ packages, distributed by which side of the wire needs them:
 
 ```
 ReadyM.SDK.Wukong.Common   ReadyM.Api, ReadyM.Api.Multiplayer, ReadyM.Api.Generators, ReadyM.Native
-ReadyM.SDK.Wukong.Client   ReadyM.Relay.Client
+ReadyM.SDK.Wukong.Client   ReadyM.SDK.Client, which carries the relay client
 ReadyM.SDK.Wukong.Server   ReadyM.Relay.Server.Sdk
 ```
 

@@ -5,7 +5,7 @@ using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.State;
 
-namespace ReadyM.Relay.Client.State;
+namespace ReadyM.SDK.Client.Relay.State;
 
 internal class ClientNetworkedEntityState(
     ClientState state,

@@ -15,9 +15,9 @@ using ReadyM.Api.Multiplayer.Extensions;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 using ReadyM.Api.Multiplayer.RPC;
-using ReadyM.Relay.Client.Utilities;
+using ReadyM.SDK.Client.Relay.Utilities;
 
-namespace ReadyM.Relay.Client;
+namespace ReadyM.SDK.Client.Relay;
 
 internal class RelayClient : IRelayClient
 {

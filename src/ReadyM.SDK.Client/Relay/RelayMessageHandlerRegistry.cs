@@ -4,7 +4,7 @@ using LiteNetLib.Utils;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
 
-namespace ReadyM.Relay.Client;
+namespace ReadyM.SDK.Client.Relay;
 
 /// <summary>
 /// A client's handlers for the messages it receives, by code. Handlers are added on the game thread and invoked on

@@ -9,9 +9,9 @@ using ReadyM.Api.Multiplayer.ECS.Jobs;
 using ReadyM.Api.Multiplayer.ECS.Systems;
 using ReadyM.Api.Multiplayer.ECS.Values;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Relay.Client.State;
+using ReadyM.SDK.Client.Relay.State;
 
-namespace ReadyM.Relay.Client.ECS.Systems;
+namespace ReadyM.SDK.Client.Relay.ECS.Systems;
 
 internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJobRegistry, ClientState state, IRelayClient relay)
     : SendEntityCreatedSystemBase(netJobRegistry)

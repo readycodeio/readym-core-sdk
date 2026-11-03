@@ -1,6 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("ReadyM.Relay.Client")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Web")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Sdk")]

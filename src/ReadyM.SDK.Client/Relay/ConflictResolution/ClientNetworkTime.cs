@@ -1,4 +1,4 @@
-namespace ReadyM.Relay.Client.ConflictResolution;
+namespace ReadyM.SDK.Client.Relay.ConflictResolution;
 
 internal class ClientNetworkTime : IClientNetworkTime
 {

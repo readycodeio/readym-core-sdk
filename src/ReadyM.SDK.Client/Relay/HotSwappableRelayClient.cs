@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ReadyM.Relay.Client;
+namespace ReadyM.SDK.Client.Relay;
 
 internal class HotSwappableRelayClient : IRelayClient
 {

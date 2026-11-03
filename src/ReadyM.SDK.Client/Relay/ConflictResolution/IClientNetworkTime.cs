@@ -1,6 +1,6 @@
 using ReadyM.Api.Multiplayer.ConflictResolution;
 
-namespace ReadyM.Relay.Client.ConflictResolution;
+namespace ReadyM.SDK.Client.Relay.ConflictResolution;
 
 internal interface IClientNetworkTime : INetworkTime
 {

@@ -4,7 +4,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Managers;
 using ReadyM.Api.Multiplayer.ECS.Values;
 
-namespace ReadyM.Relay.Client.State;
+namespace ReadyM.SDK.Client.Relay.State;
 
 internal class ClientOwnershipManager(ClientState state, NetworkedOwnershipManager ownership)
 {

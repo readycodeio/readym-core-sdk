@@ -10,7 +10,7 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Multiplayer.ECS.Registry;
 using ReadyM.Api.Multiplayer.ECS.Systems;
 
-namespace ReadyM.Relay.Client.ECS.Systems;
+namespace ReadyM.SDK.Client.Relay.ECS.Systems;
 
 internal class ClientSendComponentDeltaSystem<T>(
     NetworkedComponentId componentId,
