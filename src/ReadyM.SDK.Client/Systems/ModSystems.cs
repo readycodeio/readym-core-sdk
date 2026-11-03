@@ -1,5 +1,5 @@
-﻿using ReadyM.SDK.Client.Entities;
-using ReadyM.SDK.Archetypes.Core;
+﻿using ReadyM.SDK.Archetypes.Core;
+using ReadyM.SDK.Client.Entities;
 
 namespace ReadyM.SDK.Client.Systems;
 

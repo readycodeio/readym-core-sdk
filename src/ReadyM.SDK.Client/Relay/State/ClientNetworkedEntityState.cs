@@ -1,5 +1,4 @@
-﻿using System;
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Managers;

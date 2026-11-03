@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Friflo.Engine.ECS;
+﻿using Friflo.Engine.ECS;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Core;
 using ReadyM.SDK.Entities;

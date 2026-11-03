@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Helpers;
 using ReadyM.Api.Mapping.Policies.Event;
