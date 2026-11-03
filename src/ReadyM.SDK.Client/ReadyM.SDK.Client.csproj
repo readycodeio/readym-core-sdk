@@ -19,10 +19,6 @@
     <!-- The chunk fast path needs ref fields, allows ref struct and static abstract interface
          members, none of which netstandard2.0 has. An ns2.0 client keeps the identity path, and the
          generator emits no view for it because it cannot see these types. -->
-    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-        <ProjectReference Include="..\ReadyM.SDK.Chunks\ReadyM.SDK.Chunks.csproj"/>
-    </ItemGroup>
-
     <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
         <Compile Remove="Chunks\**"/>
     </ItemGroup>
