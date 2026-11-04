@@ -134,8 +134,8 @@ internal static class DeriveUtils
                 isField = false;
             }
 
-            var hasExclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "ExcludeSerializable");
-            var hasInclude = member.GetAttributes().Any(a => a.AttributeConstructor?.Name == "IncludeSerializable");
+            var hasExclude = member.GetAttributes().Any(a => a.AttributeClass?.Name is "ExcludeSerializableAttribute" or "ExcludeSerializable");
+            var hasInclude = member.GetAttributes().Any(a => a.AttributeClass?.Name is "IncludeSerializableAttribute" or "IncludeSerializable");
 
             if (hasInclude && hasExclude)
             {
