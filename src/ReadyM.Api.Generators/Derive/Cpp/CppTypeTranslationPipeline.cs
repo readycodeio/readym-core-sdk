@@ -27,9 +27,9 @@ internal static class CppTypeTranslationPipeline
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Api"),
                 TypeNameFactory.Name("RM")),
-            // The C++ side of ReadyM.Native is YooniCpp, which keeps its own namespace
+            // ReadyM.Native keeps its full name in C++ (YooniCpp declares ReadyM::Native), ahead of the ReadyM -> RM rule
             new NamespaceReplacementRule(TypeNameFactory.Qualified("ReadyM", "Native"),
-                TypeNameFactory.Qualified("Yooni", "Native")),
+                TypeNameFactory.Qualified("ReadyM", "Native")),
             new NamespaceReplacementRule(TypeNameFactory.Name("ReadyM"),
                 TypeNameFactory.Name("RM")),
             new NamespaceReplacementRule(TypeNameFactory.Qualified("System", "Numerics"),

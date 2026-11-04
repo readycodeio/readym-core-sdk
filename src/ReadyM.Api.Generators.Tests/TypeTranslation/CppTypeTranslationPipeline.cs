@@ -34,6 +34,6 @@ public class CppTypeTranslationPipelineTests
         var output = pipeline.Translate(input);
         var rendered = pipeline.Render(output);
 
-        Assert.Equal("Yooni::Native::Container::NativeString256<Interop::String, int32_t, Interop::String>", rendered);
+        Assert.Equal("ReadyM::Native::Container::NativeString256<Interop::String, int32_t, Interop::String>", rendered);
     }
 }
