@@ -1,5 +1,3 @@
-using ReadyM.Api.Multiplayer;
-
 namespace ReadyM.SDK.Attributes;
 
 /// <summary>

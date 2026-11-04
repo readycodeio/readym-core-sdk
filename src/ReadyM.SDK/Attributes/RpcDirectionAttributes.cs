@@ -1,7 +1,4 @@
-using System;
-using ReadyM.Api.Multiplayer.Protocol.Enums;
-
-namespace ReadyM.Api.Multiplayer;
+namespace ReadyM.SDK.Attributes;
 
 /// <summary>
 /// Generates a Send(...) on the client and an On(...) handler on the server.

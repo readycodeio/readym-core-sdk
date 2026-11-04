@@ -15,7 +15,7 @@ public class EntityParameterTests(ITestOutputHelper output)
 {
     private static readonly Assembly[] Common =
     [
-        typeof(Multiplayer.ClientToClientsAttribute).Assembly,
+        typeof(SDK.Attributes.ClientToClientsAttribute).Assembly,
         typeof(SDK.Attributes.ArchetypeAttribute).Assembly
     ];
 
@@ -55,7 +55,6 @@ public class EntityParameterTests(ITestOutputHelper output)
     private const string Contracts = """
         using ReadyM.Api.Multiplayer;
         using ReadyM.SDK.Attributes;
-        using ReadyM.Api.Multiplayer.Protocol.Enums;
 
         namespace Other.Common;
 

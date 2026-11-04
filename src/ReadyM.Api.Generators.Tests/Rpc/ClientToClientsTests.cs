@@ -12,7 +12,7 @@ namespace ReadyM.Api.Generators.Tests.Rpc;
 /// </summary>
 public class ClientToClientsTests(ITestOutputHelper output)
 {
-    private static readonly Assembly[] Sdk = [typeof(Multiplayer.ClientToClientsAttribute).Assembly];
+    private static readonly Assembly[] Sdk = [typeof(SDK.Attributes.ClientToClientsAttribute).Assembly];
 
     /// <summary>
     /// What a client mod cannot reach, which is how the generators tell the two sides apart. The
@@ -26,7 +26,6 @@ public class ClientToClientsTests(ITestOutputHelper output)
     private const string Contracts = """
         using ReadyM.Api.Multiplayer;
         using ReadyM.SDK.Attributes;
-        using ReadyM.Api.Multiplayer.Protocol.Enums;
 
         namespace Mod.Common;
 
@@ -107,7 +106,7 @@ public class ClientToClientsTests(ITestOutputHelper output)
         var generated = ClientCode();
 
         Assert.Contains("RelayMessage.ByRelayMode(", generated);
-        Assert.Contains("(RelayMode)2", generated);
+        Assert.Contains("(global::ReadyM.Api.Multiplayer.Protocol.Enums.RelayMode)2", generated);
         Assert.Contains("ServerRpcManifest.ChatMessageCode + global::Mod.Common.ServerRpcManifest.ClientOffset", generated);
     }
 
@@ -208,7 +207,6 @@ public class ClientToClientsTests(ITestOutputHelper output)
             Reported("""
                 using ReadyM.Api.Multiplayer;
                 using ReadyM.SDK.Attributes;
-                using ReadyM.Api.Multiplayer.Protocol.Enums;
 
                 namespace Mod.Common;
 
