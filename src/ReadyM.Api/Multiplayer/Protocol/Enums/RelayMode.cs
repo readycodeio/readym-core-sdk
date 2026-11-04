@@ -3,7 +3,7 @@
 /// <summary>
 /// Indicates how an RPC message should be relayed to other players in the game.
 /// </summary>
-public enum RelayMode : byte
+internal enum RelayMode : byte
 {
     /// <summary>
     /// Sends the message to all players in the area of interest of the sender, other than the sender.

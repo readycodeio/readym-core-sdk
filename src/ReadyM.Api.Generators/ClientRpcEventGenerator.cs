@@ -195,7 +195,7 @@ internal class ClientRpcEventGenerator : IIncrementalGenerator
                                         if (!senderPlayerId.HasValue)
                                             return;
                                         
-                                        var message = RelayMessage.ByRelayMode(Code({{eventIndex}}), senderPlayerId.Value, (global::ReadyM.Api.Multiplayer.Protocol.Enums.RelayMode){{relayMode}}, DeliveryMethod.ReliableOrdered);
+                                        var message = RelayMessage.ByRelayMode(Code({{eventIndex}}), senderPlayerId.Value, (byte){{relayMode}}, DeliveryMethod.ReliableOrdered);
                                         var writer = message.Writer;
                                 """);
 

@@ -287,7 +287,7 @@ internal class ServerRpcEventGenerator : IIncrementalGenerator
         => EmitSender(
             sb, eventName, payloadParams,
             $"RelayMessage.ByRelayMode({codeRef} + {offsetRef}, RelayClient.PlayerId.Value, "
-            + $"(global::ReadyM.Api.Multiplayer.Protocol.Enums.RelayMode){relayMode}, DeliveryMethod.ReliableOrdered)",
+            + $"(byte){relayMode}, DeliveryMethod.ReliableOrdered)",
             guardOnPlayerId: true);
 
     /// <summary>

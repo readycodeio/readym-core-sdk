@@ -106,7 +106,7 @@ public class ClientToClientsTests(ITestOutputHelper output)
         var generated = ClientCode();
 
         Assert.Contains("RelayMessage.ByRelayMode(", generated);
-        Assert.Contains("(global::ReadyM.Api.Multiplayer.Protocol.Enums.RelayMode)2", generated);
+        Assert.Contains("(byte)2", generated);
         Assert.Contains("ServerRpcManifest.ChatMessageCode + global::Mod.Common.ServerRpcManifest.ClientOffset", generated);
     }
 
