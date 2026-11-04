@@ -23,7 +23,7 @@
 [assembly: InternalsVisibleTo("ReadyM.SDK.Tests.Benchmarks")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
-[assembly: InternalsVisibleTo("OblivionMp.Sdk")]
-[assembly: InternalsVisibleTo("OblivionMp.Sdk.Common")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK.Common")]
 [assembly: InternalsVisibleTo("WukongMp.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Common.Oblivion")] // TODO: Change name to ReadyM.Oblivion.Common

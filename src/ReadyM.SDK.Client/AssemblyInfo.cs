@@ -12,5 +12,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
 
 // The relay client in Relay/ is internal; the games' client SDKs drive it.
-[assembly: InternalsVisibleTo("OblivionMp.Sdk")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK")]
 [assembly: InternalsVisibleTo("WukongMp.Tests")]
