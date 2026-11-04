@@ -11,7 +11,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj"/>
-        <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj"/>
+        <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj"/>
         <ProjectReference Include="..\ReadyM.Relay.Server.Sdk\ReadyM.Relay.Server.Sdk.csproj"/>
         <ProjectReference Include="..\ReadyM.SDK.Server\ReadyM.SDK.Server.csproj"/>
     </ItemGroup>

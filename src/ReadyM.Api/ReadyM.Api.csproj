@@ -22,6 +22,7 @@
         <PackageReference Include="Superpower" Version="3.1.0" />
         <PackageReference Include="System.Text.Encodings.Web" Version="10.0.8" />
         <PackageReference Include="System.Text.Json" Version="10.0.8" />
+        <PackageReference Include="Friflo.Json.Fliox.Annotation" Version="1.0.4" />
     </ItemGroup>
 
     <ItemGroup>
@@ -29,6 +30,22 @@
         <ProjectReference Include="..\Friflo.Engine.ECS\src\ECS.Boost\Friflo.Engine.ECS.Boost.csproj" />
         <ProjectReference Include="..\ReadyM.Native\ReadyM.Native.csproj" />
         <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    </ItemGroup>
+
+    <!--
+        C++ header generation for the native components in Multiplayer/. Off unless a consuming repository
+        opts in from its own Directory.Build.props by setting both properties, with an absolute
+        GeneratedCppPath. Only the netstandard2.0 build writes them: both builds would emit the same
+        headers into the same folder at the same time.
+    -->
+    <PropertyGroup>
+        <GeneratedCppEnabled Condition="'$(GeneratedCppEnabled)' == ''">false</GeneratedCppEnabled>
+        <GeneratedCppEnabled Condition="'$(TargetFramework)' != 'netstandard2.0'">false</GeneratedCppEnabled>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <CompilerVisibleProperty Include="GeneratedCppPath" />
+        <CompilerVisibleProperty Include="GeneratedCppEnabled" />
     </ItemGroup>
 
 </Project>

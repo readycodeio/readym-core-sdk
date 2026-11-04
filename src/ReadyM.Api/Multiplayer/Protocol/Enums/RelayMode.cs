@@ -1,7 +1,4 @@
-﻿using System;
-using System.ComponentModel;
-
-namespace ReadyM.Api.Multiplayer.Protocol.Enums;
+﻿namespace ReadyM.Api.Multiplayer.Protocol.Enums;
 
 /// <summary>
 /// Indicates how an RPC message should be relayed to other players in the game.

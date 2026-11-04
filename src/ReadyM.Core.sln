@@ -15,8 +15,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadyM.Api.Generators", "Re
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadyM.Api.Tests", "ReadyM.Api.Tests\ReadyM.Api.Tests.csproj", "{4A2F2F97-8AB1-431E-B3B2-6E26230CB73B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadyM.Api.Multiplayer", "ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj", "{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadyM.Api.Generators.Tests", "ReadyM.Api.Generators.Tests\ReadyM.Api.Generators.Tests.csproj", "{C7AB28D7-2089-4F44-BCD1-B570F758A27E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReadyM.Relay.Server.Sdk", "ReadyM.Relay.Server.Sdk\ReadyM.Relay.Server.Sdk.csproj", "{B29187A3-5F40-4B87-9ED7-83354819ED53}"
@@ -113,18 +111,6 @@ Global
 		{4A2F2F97-8AB1-431E-B3B2-6E26230CB73B}.Release|x64.Build.0 = Release|Any CPU
 		{4A2F2F97-8AB1-431E-B3B2-6E26230CB73B}.Release|x86.ActiveCfg = Release|Any CPU
 		{4A2F2F97-8AB1-431E-B3B2-6E26230CB73B}.Release|x86.Build.0 = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|x64.Build.0 = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Debug|x86.Build.0 = Debug|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|x64.ActiveCfg = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|x64.Build.0 = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|x86.ActiveCfg = Release|Any CPU
-		{9783BE39-AD6D-4330-B7EE-30F3F2CD389F}.Release|x86.Build.0 = Release|Any CPU
 		{C7AB28D7-2089-4F44-BCD1-B570F758A27E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C7AB28D7-2089-4F44-BCD1-B570F758A27E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7AB28D7-2089-4F44-BCD1-B570F758A27E}.Debug|x64.ActiveCfg = Debug|Any CPU

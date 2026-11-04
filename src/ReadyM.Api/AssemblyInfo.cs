@@ -2,7 +2,7 @@
 
 [assembly: InternalsVisibleTo("ReadyM.Modloader")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Tests")]
-[assembly: InternalsVisibleTo("ReadyM.Api.Multiplayer")]
+[assembly: InternalsVisibleTo("ReadyM.Api.Generators.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.Sdk")]
@@ -19,6 +19,8 @@
 [assembly: InternalsVisibleTo("ReadyM.SDK.Client")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Server")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.TestHarness")]
+[assembly: InternalsVisibleTo("ReadyM.SDK.Benchmarks")]
+[assembly: InternalsVisibleTo("ReadyM.SDK.Tests.Benchmarks")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMp.Sdk")]
