@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
-using ReadyM.Api.Multiplayer;
 using ReadyM.Relay.Server.Sdk.Rpc;
 using ReadyM.SDK.Attributes;
 using Xunit;

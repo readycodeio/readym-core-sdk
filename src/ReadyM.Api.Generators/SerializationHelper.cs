@@ -114,7 +114,7 @@ internal static class SerializationHelper
         [NotNullWhen(true)] out ITypeSymbol? itemType)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeList" } namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+            namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container" &&
             namedType.TypeArguments.Length == 1)
         {
             itemType = namedType.TypeArguments[0];
@@ -134,7 +134,7 @@ internal static class SerializationHelper
         {
             if (type is INamedTypeSymbol { IsGenericType: true } namedType &&
                 namedType.Name == $"Storage{candidateSize}" &&
-                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.LowLevel" &&
+                namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.LowLevel" &&
                 namedType.TypeArguments.Length == 1)
             {
                 itemType = namedType.TypeArguments[0];
@@ -154,7 +154,7 @@ internal static class SerializationHelper
         [NotNullWhen(true)] out int? size)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeFixed" } namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+            namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container" &&
             namedType.TypeArguments.Length == 2)
         {
             itemType = namedType.TypeArguments[0];
@@ -176,7 +176,7 @@ internal static class SerializationHelper
         [NotNullWhen(true)] out ITypeSymbol? hashType)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeDictionary" } namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+            namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container" &&
             namedType.TypeArguments.Length == 3)
         {
             keyType = namedType.TypeArguments[0];
@@ -197,7 +197,7 @@ internal static class SerializationHelper
         [NotNullWhen(true)] out ITypeSymbol? valueType)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeHashCollection" } namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+            namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container" &&
             namedType.TypeArguments.Length == 2)
         {
             keyType = namedType.TypeArguments[0];
@@ -216,7 +216,7 @@ internal static class SerializationHelper
         [NotNullWhen(true)] out int? size)
     {
         if (type is INamedTypeSymbol { IsGenericType: true, Name: "NativeRingBuffer" } namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container" &&
+            namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container" &&
             namedType.TypeArguments.Length == 2)
         {
             itemType = namedType.TypeArguments[0];
@@ -239,7 +239,7 @@ internal static class SerializationHelper
         {
             if (type is INamedTypeSymbol { IsGenericType: false } namedType &&
                 namedType.Name == $"NativeString{candidateSize}" &&
-                namedType.ContainingNamespace.ToDisplayString() == "Yooni.Native.Container")
+                namedType.ContainingNamespace.ToDisplayString() == "ReadyM.Native.Container")
             {
                 size = candidateSize;
                 return true;

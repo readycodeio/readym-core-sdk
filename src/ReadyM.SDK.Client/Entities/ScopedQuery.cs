@@ -1,4 +1,5 @@
-﻿using ReadyM.SDK.Archetypes;
+﻿using System.ComponentModel;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Client.Entities;
@@ -21,7 +22,7 @@ public readonly struct ScopedQuery<T> where T : struct, IArchetypeQueryable
     public Enumerator GetEnumerator() => new(_api?.Api, _scope);
 
     /// <exclude />
-    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Enumerator : IDisposable
     {
         private readonly IEntityApi? _api;

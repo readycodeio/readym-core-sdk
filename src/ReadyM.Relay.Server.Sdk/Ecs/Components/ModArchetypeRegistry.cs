@@ -9,8 +9,8 @@ using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Archetypes;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Relay.Server.Sdk.Ecs.Components;
 

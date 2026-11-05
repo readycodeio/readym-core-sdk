@@ -159,7 +159,7 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -203,32 +203,32 @@ public partial struct AppearanceComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeList<int32_t>& IntList() const",
-            setterSignature: "void SetIntList(const Yooni::Native::Container::NativeList<int32_t>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeList<int32_t>& IntList() const",
+            setterSignature: "void SetIntList(const ReadyM::Native::Container::NativeList<int32_t>& value)",
             inequalityGuard: "if (_intList != value)",
             assignment: "_intList.Assign(value);",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeList<int32_t> _intList = {};",
+            backingField: "ReadyM::Native::Container::NativeList<int32_t> _intList = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& SexList() const",
-            setterSignature: "void SetSexList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& SexList() const",
+            setterSignature: "void SetSexList(const ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex>& value)",
             inequalityGuard: "if (_sexList != value)",
             assignment: "_sexList.Assign(value);",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};",
+            backingField: "ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::CharacterSex> _sexList = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& PairList() const",
-            setterSignature: "void SetPairList(const Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& PairList() const",
+            setterSignature: "void SetPairList(const ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair>& value)",
             inequalityGuard: "if (_pairList != value)",
             assignment: "_pairList.Assign(value);",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
+            backingField: "ReadyM::Native::Container::NativeList<RM::Generators::Tests::TestTypes::Pair> _pairList = {};",
             maskType: "uint32_t");
 
         Assert.Contains("protected:", generatedText);
@@ -243,8 +243,8 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -288,32 +288,32 @@ public partial struct FixedComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeFixed<int32_t, 8>& IntFixed() const",
-            setterSignature: "void SetIntFixed(const Yooni::Native::Container::NativeFixed<int32_t, 8>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeFixed<int32_t, 8>& IntFixed() const",
+            setterSignature: "void SetIntFixed(const ReadyM::Native::Container::NativeFixed<int32_t, 8>& value)",
             inequalityGuard: "if (_intFixed != value)",
             assignment: "_intFixed.Assign(value);",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};",
+            backingField: "ReadyM::Native::Container::NativeFixed<int32_t, 8> _intFixed = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexFixed() const",
-            setterSignature: "void SetSexFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexFixed() const",
+            setterSignature: "void SetSexFixed(const ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexFixed != value)",
             assignment: "_sexFixed.Assign(value);",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};",
+            backingField: "ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexFixed = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& PairFixed() const",
-            setterSignature: "void SetPairFixed(const Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& PairFixed() const",
+            setterSignature: "void SetPairFixed(const ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairFixed != value)",
             assignment: "_pairFixed.Assign(value);",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};",
+            backingField: "ReadyM::Native::Container::NativeFixed<RM::Generators::Tests::TestTypes::Pair, 32> _pairFixed = {};",
             maskType: "uint32_t");
     }
 
@@ -325,7 +325,7 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -385,32 +385,32 @@ public partial struct DictionaryComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& IntToSex() const",
-            setterSignature: "void SetIntToSex(const Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, ReadyM::Native::Container::MemoryHash<int32_t>>& IntToSex() const",
+            setterSignature: "void SetIntToSex(const ReadyM::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, ReadyM::Native::Container::MemoryHash<int32_t>>& value)",
             inequalityGuard: "if (_intToSex != value)",
             assignment: "_intToSex.Assign(value);",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, Yooni::Native::Container::MemoryHash<int32_t>> _intToSex = {};",
+            backingField: "ReadyM::Native::Container::NativeDictionary<int32_t, RM::Generators::Tests::TestTypes::CharacterSex, ReadyM::Native::Container::MemoryHash<int32_t>> _intToSex = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& SexToPair() const",
-            setterSignature: "void SetSexToPair(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& SexToPair() const",
+            setterSignature: "void SetSexToPair(const ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash>& value)",
             inequalityGuard: "if (_sexToPair != value)",
             assignment: "_sexToPair.Assign(value);",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};",
+            backingField: "ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::CharacterSex, RM::Generators::Tests::TestTypes::Pair, RM::Generators::Tests::TestTypes::CharacterSexHash> _sexToPair = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& PairToInt() const",
-            setterSignature: "void SetPairToInt(const Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& PairToInt() const",
+            setterSignature: "void SetPairToInt(const ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash>& value)",
             inequalityGuard: "if (_pairToInt != value)",
             assignment: "_pairToInt.Assign(value);",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};",
+            backingField: "ReadyM::Native::Container::NativeDictionary<RM::Generators::Tests::TestTypes::Pair, int32_t, RM::Generators::Tests::TestTypes::PairHash> _pairToInt = {};",
             maskType: "uint32_t");
     }
 
@@ -422,8 +422,8 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.Container;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -467,32 +467,32 @@ public partial struct RingBufferComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& IntHistory() const",
-            setterSignature: "void SetIntHistory(const Yooni::Native::Container::NativeRingBuffer<int32_t, 8>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeRingBuffer<int32_t, 8>& IntHistory() const",
+            setterSignature: "void SetIntHistory(const ReadyM::Native::Container::NativeRingBuffer<int32_t, 8>& value)",
             inequalityGuard: "if (_intHistory != value)",
             assignment: "_intHistory.Assign(value);",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};",
+            backingField: "ReadyM::Native::Container::NativeRingBuffer<int32_t, 8> _intHistory = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexHistory() const",
-            setterSignature: "void SetSexHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& SexHistory() const",
+            setterSignature: "void SetSexHistory(const ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16>& value)",
             inequalityGuard: "if (_sexHistory != value)",
             assignment: "_sexHistory.Assign(value);",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};",
+            backingField: "ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::CharacterSex, 16> _sexHistory = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& PairHistory() const",
-            setterSignature: "void SetPairHistory(const Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& PairHistory() const",
+            setterSignature: "void SetPairHistory(const ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32>& value)",
             inequalityGuard: "if (_pairHistory != value)",
             assignment: "_pairHistory.Assign(value);",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};",
+            backingField: "ReadyM::Native::Container::NativeRingBuffer<RM::Generators::Tests::TestTypes::Pair, 32> _pairHistory = {};",
             maskType: "uint32_t");
     }
 
@@ -504,7 +504,7 @@ using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
 using ReadyM.Api.Multiplayer.Generators;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -535,32 +535,32 @@ public partial struct StringComponent : IComponent
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeString64& DisplayName() const",
-            setterSignature: "void SetDisplayName(const Yooni::Native::Container::NativeString64& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeString64& DisplayName() const",
+            setterSignature: "void SetDisplayName(const ReadyM::Native::Container::NativeString64& value)",
             inequalityGuard: "if (_displayName != value)",
             assignment: "_displayName = value;",
             dirtyMaskBit: 0,
-            backingField: "Yooni::Native::Container::NativeString64 _displayName = {};",
+            backingField: "ReadyM::Native::Container::NativeString64 _displayName = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
-            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const ReadyM::Native::Container::NativeString64& value)",
             inequalityGuard: "if (_title != value)",
             assignment: "_title = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            backingField: "ReadyM::Native::Container::NativeString64 _title = {};",
             maskType: "uint32_t");
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeString256& Biography() const",
-            setterSignature: "void SetBiography(const Yooni::Native::Container::NativeString256& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeString256& Biography() const",
+            setterSignature: "void SetBiography(const ReadyM::Native::Container::NativeString256& value)",
             inequalityGuard: "if (_biography != value)",
             assignment: "_biography = value;",
             dirtyMaskBit: 2,
-            backingField: "Yooni::Native::Container::NativeString256 _biography = {};",
+            backingField: "ReadyM::Native::Container::NativeString256 _biography = {};",
             maskType: "uint32_t");
     }
 
@@ -571,7 +571,7 @@ public partial struct StringComponent : IComponent
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
 
@@ -608,7 +608,7 @@ public partial struct StringComponent : IComponent
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 using ReadyM.Api.Multiplayer.Generators;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;
@@ -639,26 +639,26 @@ public partial struct StringComponent : IComponent
 
         Assert.NotEmpty(generatedText);
 
-        Assert.Contains("Yooni::Native::Container::NativeString64 _displayName = {};", generatedText);
-        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.Contains("ReadyM::Native::Container::NativeString64 _displayName = {};", generatedText);
+        Assert.DoesNotContain(" const ReadyM::Native::Container::NativeString64& DisplayName(", generatedText);
         Assert.DoesNotContain(" void SetDisplayName(", generatedText);
-        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString64& DisplayName(", generatedText);
+        Assert.Contains("(* private *)const ReadyM::Native::Container::NativeString64& DisplayName(", generatedText);
         Assert.Contains("(* private *)void SetDisplayName(", generatedText);
 
         AssertContainerMember(
             generatedText,
-            getterSignature: "const Yooni::Native::Container::NativeString64& Title() const",
-            setterSignature: "void SetTitle(const Yooni::Native::Container::NativeString64& value)",
+            getterSignature: "const ReadyM::Native::Container::NativeString64& Title() const",
+            setterSignature: "void SetTitle(const ReadyM::Native::Container::NativeString64& value)",
             inequalityGuard: "if (_title != value)",
             assignment: "_title = value;",
             dirtyMaskBit: 1,
-            backingField: "Yooni::Native::Container::NativeString64 _title = {};",
+            backingField: "ReadyM::Native::Container::NativeString64 _title = {};",
             maskType: "uint8_t");
 
-        Assert.Contains("Yooni::Native::Container::NativeString256 _biography = {};", generatedText);
-        Assert.DoesNotContain(" const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.Contains("ReadyM::Native::Container::NativeString256 _biography = {};", generatedText);
+        Assert.DoesNotContain(" const ReadyM::Native::Container::NativeString256& Biography(", generatedText);
         Assert.DoesNotContain(" void SetBiography(", generatedText);
-        Assert.Contains("(* private *)const Yooni::Native::Container::NativeString256& Biography(", generatedText);
+        Assert.Contains("(* private *)const ReadyM::Native::Container::NativeString256& Biography(", generatedText);
         Assert.Contains("(* private *)void SetBiography(", generatedText);
     }
 
@@ -669,7 +669,7 @@ public partial struct StringComponent : IComponent
 using System.Runtime.InteropServices;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Attributes;
-using Yooni.Native.Container;
+using ReadyM.Native.Container;
 using ReadyM.Api.Multiplayer.Generators;
 
 namespace ReadyM.Api.Generators.Tests.TestTypes;

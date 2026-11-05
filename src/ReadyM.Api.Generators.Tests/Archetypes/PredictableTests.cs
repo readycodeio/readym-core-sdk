@@ -171,7 +171,7 @@ public class PredictableTests(ITestOutputHelper output)
             public readonly partial struct Roster
             {
                 [Predictable]
-                private partial global::Yooni.Native.Container.NativeList<int> Names { get; set; }
+                private partial global::ReadyM.Native.Container.NativeList<int> Names { get; set; }
             }
             """);
 

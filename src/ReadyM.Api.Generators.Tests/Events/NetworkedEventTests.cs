@@ -15,7 +15,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
 {
     private static readonly Assembly[] Common =
     [
-        typeof(Api.Multiplayer.ClientToClientsAttribute).Assembly,
+        typeof(Api.Multiplayer.ComponentWriteContext).Assembly,
         typeof(SDK.Attributes.NetworkedEventAttribute).Assembly
     ];
 

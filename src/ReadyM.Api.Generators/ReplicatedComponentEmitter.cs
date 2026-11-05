@@ -696,11 +696,11 @@ using {ns};
             : CSharpFieldSupportRegistry.NetDataCodec;
     }
 
-    private const string NativeString256Name = "Yooni.Native.Container.NativeString256";
+    private const string NativeString256Name = "ReadyM.Native.Container.NativeString256";
 
     private static bool IsInternable(ITypeSymbol type)
         => type.ToDisplayString() == NativeString256Name
            || type is INamedTypeSymbol { IsGenericType: true } list
-           && list.OriginalDefinition.ToDisplayString() == "Yooni.Native.Container.NativeList<T>"
+           && list.OriginalDefinition.ToDisplayString() == "ReadyM.Native.Container.NativeList<T>"
            && list.TypeArguments[0].ToDisplayString() == NativeString256Name;
 }

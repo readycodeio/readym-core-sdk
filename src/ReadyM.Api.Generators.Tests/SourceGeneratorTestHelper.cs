@@ -345,9 +345,9 @@ internal static class SourceGeneratorTestHelper
             typeof(ReadyM.Api.Multiplayer.Generators.DeriveINetworkedComponentAttribute).Assembly,
             typeof(ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent).Assembly,
             typeof(LiteNetLib.Utils.NetDataWriter).Assembly,
-            typeof(Yooni.Native.Container.ByteHash).Assembly,
-            typeof(Yooni.Native.LowLevel.Allocator).Assembly,
-            typeof(Yooni.Native.Serialization.NetSerializationExtensions).Assembly,
+            typeof(ReadyM.Native.Container.ByteHash).Assembly,
+            typeof(ReadyM.Native.LowLevel.Allocator).Assembly,
+            typeof(ReadyM.Native.Serialization.NetSerializationExtensions).Assembly,
 
             typeof(TestAssemblyMarker).Assembly
         };

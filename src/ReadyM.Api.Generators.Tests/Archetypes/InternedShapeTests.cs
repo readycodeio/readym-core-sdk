@@ -22,7 +22,7 @@ public class InternedShapeTests(ITestOutputHelper output)
     private const string Core =
         """
         using Friflo.Engine.ECS;
-        using Yooni.Native.Container;
+        using ReadyM.Native.Container;
 
         namespace Core;
 
@@ -36,7 +36,7 @@ public class InternedShapeTests(ITestOutputHelper output)
         $$"""
           using ReadyM.Api.Multiplayer.Generators;
           using ReadyM.SDK.Attributes;
-          using Yooni.Native.Container;
+          using ReadyM.Native.Container;
 
           namespace Mod;
 

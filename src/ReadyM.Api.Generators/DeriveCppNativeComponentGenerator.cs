@@ -536,7 +536,7 @@ namespace {ns}
         CppModuleState moduleState)
     {
             sb.AppendLine("""
-        void TryCreate(Yooni::Native::LowLevel::AllocatorKind allocatorKind)
+        void TryCreate(ReadyM::Native::LowLevel::AllocatorKind allocatorKind)
         {
 """);
 

@@ -3,7 +3,7 @@ using System.ComponentModel;
 using Friflo.Engine.ECS;
 using ReadyM.Api.ECS.Components;
 using ReadyM.SDK.Entities;
-using Yooni.Native.LowLevel;
+using ReadyM.Native.LowLevel;
 
 namespace ReadyM.SDK.Archetypes;
 

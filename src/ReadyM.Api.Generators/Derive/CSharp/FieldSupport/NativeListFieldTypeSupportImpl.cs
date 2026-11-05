@@ -18,7 +18,7 @@ internal class NativeListFieldTypeSupportImpl : NativeContainerFieldTypeSupportI
 
         using (context.WithCurrent(tempVar, symbol))
         {
-            context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
+            context.AppendLine($"{tempVar}.TryCreate(global::ReadyM.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
             if (!skip)
                 context.AppendLine($"Set{context.Member.GeneratedPropertyName}({tempVar});");

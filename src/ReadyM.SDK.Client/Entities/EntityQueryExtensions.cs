@@ -8,7 +8,7 @@ namespace ReadyM.SDK.Client.Entities;
 /// a shape that can be walked by chunk, because a non-generic candidate beats a generic one.
 /// </summary>
 /// <exclude />
-[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public static class EntityQueryExtensions
 {
     [EditorBrowsable(EditorBrowsableState.Never)]

@@ -17,7 +17,7 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// </remarks>
 internal sealed class ChunkNames
 {
-    public const string ChunkAssembly = "ReadyM.SDK.Chunks";
+    public const string ChunkAssembly = "ReadyM.SDK";
 
     private ChunkNames(string chunks, ImmutableArray<QueryTarget> queries)
     {
@@ -61,11 +61,26 @@ internal sealed class ChunkNames
     }
 
     /// <summary>Whether a compilation could use the fast path at all.</summary>
+    /// <remarks>
+    /// Only the .NET build of the chunk assembly carries the chunk types: its netstandard2.0 build compiles
+    /// them out, so a reference to that one is expected to have none.
+    /// </remarks>
     public static bool ChunkAssemblyReferenced(Compilation compilation)
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
-            if (assembly.Name == ChunkAssembly)
+            if (assembly.Name == ChunkAssembly && BuiltForNetCore(assembly))
                 return true;
+
+        return false;
+    }
+
+    private static bool BuiltForNetCore(IAssemblySymbol assembly)
+    {
+        foreach (var attribute in assembly.GetAttributes())
+            if (attribute.AttributeClass?.ToDisplayString() == "System.Runtime.Versioning.TargetFrameworkAttribute"
+                && attribute.ConstructorArguments.Length == 1
+                && attribute.ConstructorArguments[0].Value is string framework)
+                return framework.StartsWith(".NETCoreApp", System.StringComparison.Ordinal);
 
         return false;
     }

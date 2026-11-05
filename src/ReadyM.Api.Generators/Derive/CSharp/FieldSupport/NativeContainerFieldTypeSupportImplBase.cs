@@ -10,7 +10,7 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
     protected override void EmitAssign(ITypeSymbol symbol, CSharpEmitFieldSupportContext context)
     {
         // NOTE: No ownership transfer, this is copying the contents
-        context.AppendLine($"{context.State.CurrentVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
+        context.AppendLine($"{context.State.CurrentVar}.TryCreate(global::ReadyM.Native.LowLevel.AllocatorKind.Default);");
         context.AppendLine($"{context.State.CurrentVar}.Assign(value);");
     }
 
@@ -20,11 +20,11 @@ internal abstract class NativeContainerFieldTypeSupportImplBase : CSharpFieldTyp
 
         using (context.WithCurrent(tempVar, symbol))
         {
-            context.AppendLine($"{tempVar}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
+            context.AppendLine($"{tempVar}.TryCreate(global::ReadyM.Native.LowLevel.AllocatorKind.Default);");
             context.EmitDeserializeVar(tempVar, symbol);
             if (!skip)
             {
-                context.AppendLine($"{context.Member.GeneratedPropertyName}.TryCreate(global::Yooni.Native.LowLevel.AllocatorKind.Default);");
+                context.AppendLine($"{context.Member.GeneratedPropertyName}.TryCreate(global::ReadyM.Native.LowLevel.AllocatorKind.Default);");
                 context.AppendLine($"{context.Member.GeneratedPropertyName}.Assign({tempVar});");
             }
         }

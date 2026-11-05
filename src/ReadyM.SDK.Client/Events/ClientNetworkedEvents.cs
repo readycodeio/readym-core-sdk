@@ -2,7 +2,6 @@ using LiteNetLib;
 using ReadyM.Api.ECS.Worlds;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Client;
-using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.SDK.Events;
 
 namespace ReadyM.SDK.Client.Events;

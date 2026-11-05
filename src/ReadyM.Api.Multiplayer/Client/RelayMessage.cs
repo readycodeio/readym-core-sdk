@@ -1,4 +1,5 @@
-﻿using LiteNetLib;
+﻿using System.ComponentModel;
+using LiteNetLib;
 using LiteNetLib.Utils;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Extensions;
@@ -46,10 +47,16 @@ public struct RelayMessage
         );
     }
     
+    /// <exclude />
+    /// <summary>The <see cref="RelayMode"/> overload, for generated code, which cannot see that enum.</summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static RelayMessage ByRelayMode(RelayMessageCode eventCode, PlayerId playerId, byte mode, DeliveryMethod deliveryMethod)
+        => ByRelayMode(eventCode, playerId, (RelayMode)mode, deliveryMethod);
+
     /// <summary>
     /// Send an event with a specific delivery method.
     /// </summary>
-    public static RelayMessage ByRelayMode(RelayMessageCode eventCode, PlayerId playerId, RelayMode mode, DeliveryMethod deliveryMethod)
+    internal static RelayMessage ByRelayMode(RelayMessageCode eventCode, PlayerId playerId, RelayMode mode, DeliveryMethod deliveryMethod)
     {
         var writer = new NetDataWriter();
         writer.PutCustomRelayEventHeader(eventCode, playerId, mode);

@@ -865,7 +865,7 @@ public class ReplicationTests(ITestOutputHelper output)
             [ArchetypeMixin(Replication.OwnershipBased)]
             public readonly partial struct Subject
             {
-                public partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+                public partial global::ReadyM.Native.Container.NativeList<int> Items { get; set; }
             }
             """);
 
@@ -879,7 +879,7 @@ public class ReplicationTests(ITestOutputHelper output)
             [ArchetypeMixin(Replication.OwnershipBased)]
             public readonly partial struct Subject
             {
-                private partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+                private partial global::ReadyM.Native.Container.NativeList<int> Items { get; set; }
             }
             """);
 
@@ -896,7 +896,7 @@ public class ReplicationTests(ITestOutputHelper output)
             [ArchetypeMixin(Replication.None)]
             public readonly partial struct Subject
             {
-                public partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+                public partial global::ReadyM.Native.Container.NativeList<int> Items { get; set; }
             }
             """);
 
@@ -907,7 +907,7 @@ public class ReplicationTests(ITestOutputHelper output)
             [ArchetypeMixin(Replication.None)]
             public readonly partial struct Subject
             {
-                private partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+                private partial global::ReadyM.Native.Container.NativeList<int> Items { get; set; }
             }
             """);
 
@@ -915,7 +915,7 @@ public class ReplicationTests(ITestOutputHelper output)
     [Theory]
     [InlineData("global::System.Collections.Generic.List<int>")]
     [InlineData("global::System.Collections.Generic.Dictionary<string, int>")]
-    [InlineData("global::Yooni.Native.Container.NativeList<global::Friflo.Engine.ECS.Entity>")]
+    [InlineData("global::ReadyM.Native.Container.NativeList<global::Friflo.Engine.ECS.Entity>")]
     public void A_replicated_shape_cannot_hold_a_value_it_cannot_send(string type)
         => AssertReports("READYM046", $$"""
             [ArchetypeMixin(Replication.ServerAuthoritative)]
@@ -947,8 +947,8 @@ public class ReplicationTests(ITestOutputHelper output)
             public readonly partial struct Subject
             {
                 public partial int Count { get; set; }
-                public partial global::Yooni.Native.Container.NativeString64 Name { get; set; }
-                private partial global::Yooni.Native.Container.NativeList<int> Items { get; set; }
+                public partial global::ReadyM.Native.Container.NativeString64 Name { get; set; }
+                private partial global::ReadyM.Native.Container.NativeList<int> Items { get; set; }
             }
             """);
 
