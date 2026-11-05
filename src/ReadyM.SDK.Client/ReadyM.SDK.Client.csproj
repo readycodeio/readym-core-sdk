@@ -12,7 +12,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ReadyM.SDK\ReadyM.SDK.csproj" />
-      <ProjectReference Include="..\ReadyM.Api\ReadyM.Api.csproj" />
+      <ProjectReference Include="..\ReadyM.Api.Multiplayer\ReadyM.Api.Multiplayer.csproj" />
       <ProjectReference Include="..\ReadyM.Api.Generators\ReadyM.Api.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
