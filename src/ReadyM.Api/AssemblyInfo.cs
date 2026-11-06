@@ -28,3 +28,4 @@
 
 // A headless stand-in for a game client, for load testing a relay: it composes a client's ECS world by hand.
 [assembly: InternalsVisibleTo("ReadyM.FakeClient")]
+[assembly: InternalsVisibleTo("ReadyM.FakeClient.Tests")]

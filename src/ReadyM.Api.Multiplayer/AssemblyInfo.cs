@@ -25,3 +25,4 @@
 
 // A headless stand-in for a game client, for load testing a relay: it builds the connection options a game sends.
 [assembly: InternalsVisibleTo("ReadyM.FakeClient")]
+[assembly: InternalsVisibleTo("ReadyM.FakeClient.Tests")]
