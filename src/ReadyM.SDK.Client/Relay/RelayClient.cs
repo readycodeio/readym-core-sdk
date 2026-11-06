@@ -41,6 +41,7 @@ internal class RelayClient : IRelayClient
     private readonly ILogger _logger;
     private readonly RpcOffsetProvider _offsets;
     private readonly NetworkSessionStats _netStats;
+    private readonly Func<CancellationToken, Task> _waitWhenIdle;
 
     // Looking at the implementation it seems to be thread-safe for reading properties. Since it is accessed from
     // multiple threads, all properties should be assumed to be volatile, e.g. a list of peers may change between
@@ -192,18 +193,21 @@ internal class RelayClient : IRelayClient
         => _scheduler;
 
     /// <param name="offsets">The codes this client's mods were given, which say which are relayed between clients.</param>
+    /// <param name="waitWhenIdle">What the network loop awaits after a pass that had nothing scheduled.</param>
     public RelayClient(
         string host,
         int port,
         RelayConnectionOptions options,
         NetworkSessionStats netStats,
         RpcOffsetProvider offsets,
+        Func<CancellationToken, Task> waitWhenIdle,
         ILogger logger,
         bool noDisconnect)
     {
         _logger = logger;
         _offsets = offsets;
         _netStats = netStats;
+        _waitWhenIdle = waitWhenIdle;
 
         _options = options;
         _host = host;
@@ -345,7 +349,7 @@ internal class RelayClient : IRelayClient
 
                 if (!hadPendingActions)
                 {
-                    await Task.Delay(Constants.ClientNetworkTickRateMs, token);
+                    await _waitWhenIdle(token);
                 }
             }
             catch (OperationCanceledException ex)
