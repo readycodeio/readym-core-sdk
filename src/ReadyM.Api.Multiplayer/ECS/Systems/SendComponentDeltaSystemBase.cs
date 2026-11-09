@@ -83,7 +83,10 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     }
 
     protected override void OnUpdate()
-        => OnUpdate(default);
+    {
+        if (BeginSend())
+            Send(SendContext.Global);
+    }
 
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
@@ -92,24 +95,52 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
     private static NetDataWriter? _ownerWriter;
-    
-    // ReSharper disable once StaticMemberInGenericType
-    [ThreadStatic]
-    private static HashSet<PlayerId>? _sendToOwners;
 
-    protected void OnUpdate(SendContext context)
+    /// <summary>The owners <see cref="SentOwners"/> allows this tick.</summary>
+    private readonly HashSet<PlayerId> _allowedOwners = new();
+
+    /// <summary>The allowed owners with a dirty component this tick: the only ones <see cref="Send"/> writes for.</summary>
+    private readonly HashSet<PlayerId> _dirtyOwners = new();
+
+    /// <summary>
+    /// Prepares this tick's sends, once before the scopes: runs the prediction hook, then collects the owners
+    /// <see cref="SentOwners"/> allows that have a dirty component.
+    /// </summary>
+    /// <returns>False when nothing is dirty, so the caller skips every scope.</returns>
+    protected bool BeginSend()
     {
         _predictionHooks?.BeforeDeltaSend?.Invoke();
 
+        _allowedOwners.Clear();
+        _dirtyOwners.Clear();
+        SentOwners(_allowedOwners);
+
+        if (_allowedOwners.Count == 0)
+            return false;
+
+        foreach (var (metaChunk, compChunk, _) in Query.Chunks)
+        {
+            var metaSpan = metaChunk.Span;
+            var compSpan = compChunk.Span;
+
+            for (var i = 0; i < metaChunk.Length; i++)
+            {
+                var owner = metaSpan[i].Owner;
+                if (compSpan[i].IsDirty && _allowedOwners.Contains(owner))
+                    _dirtyOwners.Add(owner);
+            }
+        }
+
+        return _dirtyOwners.Count > 0;
+    }
+
+    /// <summary>Sends one scope's deltas. Call <see cref="BeginSend"/> first, once per tick.</summary>
+    protected void Send(SendContext context)
+    {
         var maxPacketSize = GetMaxPacketSize();
-        
-        _sendToOwners ??= new HashSet<PlayerId>();
-        _sendToOwners.Clear();
-        SentOwners(_sendToOwners);
-        
         var query = _queryCache.GetQuery(context);
 
-        foreach (var owner in _sendToOwners)
+        foreach (var owner in _dirtyOwners)
         {
             SendForOwner(owner, query, maxPacketSize, context);
         }

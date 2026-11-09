@@ -60,14 +60,14 @@ internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJo
             // Send area scoped updates
             {
                 var scopeEntity = state.CurrentAreaEntry.Value.AreaEntity;
-                var context = SendContext.FromArea(state.CurrentAreaEntry.Value.AreaId, scopeEntity);
+                var context = SendContext.FromArea(scopeEntity);
                 base.OnUpdate(context);
             }
 
             // Send cell scoped updates
             foreach (var cellEntry in state.ActiveCellEntries)
             {
-                var context = SendContext.FromCell(new FullCellId(state.CurrentAreaId!.Value, cellEntry.CellId), cellEntry.CellEntity);
+                var context = SendContext.FromCell(cellEntry.CellEntity);
                 base.OnUpdate(context);
             }
         }
