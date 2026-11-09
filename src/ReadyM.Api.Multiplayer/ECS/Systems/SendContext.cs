@@ -5,10 +5,6 @@ using ReadyM.Api.Multiplayer.ECS.Components;
 namespace ReadyM.Api.Multiplayer.ECS.Systems;
 
 /// <summary>The scope a send pass covers: global, or a player's, an area's or a cell's scope entity.</summary>
-/// <remarks>
-/// Kept small, as the send systems build one per scope and pass it by value every tick. An area's or a cell's id lives
-/// on its scope entity, so it is read from there, and only when a packet goes out.
-/// </remarks>
 internal readonly struct SendContext
 {
     private readonly SendScopeKind _kind;
