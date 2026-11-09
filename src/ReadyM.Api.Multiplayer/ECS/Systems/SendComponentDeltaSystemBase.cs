@@ -54,10 +54,16 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     protected abstract QueryFilter SetupFilter(QueryFilter filter, SendContext context);
 
     /// <summary>
-    /// Returns player IDs to send to.
+    /// True when this system sends deltas for every owner, as the server does on their behalf. <see cref="SentOwners"/>
+    /// is then not called, which saves a pass over every entity per tick.
+    /// </summary>
+    protected virtual bool SendsForAllOwners => false;
+
+    /// <summary>
+    /// Returns player IDs to send to. Not called when <see cref="SendsForAllOwners"/>.
     /// </summary>
     /// <param name="owners">The set to populate with owners. Must be empty before passing here.</param>
-    protected abstract void SentOwners(HashSet<PlayerId> owners);
+    protected virtual void SentOwners(HashSet<PlayerId> owners) { }
 
     /// <summary>Sends a packet of an owner's deltas to everyone in scope EXCEPT that owner.</summary>
     protected abstract void SendExceptOwner(PlayerId owner, NetDataWriter data, SendContext context);
@@ -96,27 +102,32 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
     [ThreadStatic]
     private static NetDataWriter? _ownerWriter;
 
-    /// <summary>The owners <see cref="SentOwners"/> allows this tick.</summary>
+    /// <summary>The owners <see cref="SentOwners"/> allows this tick, unless it <see cref="SendsForAllOwners"/>.</summary>
     private readonly HashSet<PlayerId> _allowedOwners = new();
 
     /// <summary>The allowed owners with a dirty component this tick: the only ones <see cref="Send"/> writes for.</summary>
     private readonly HashSet<PlayerId> _dirtyOwners = new();
 
     /// <summary>
-    /// Prepares this tick's sends, once before the scopes: runs the prediction hook, then collects the owners
-    /// <see cref="SentOwners"/> allows that have a dirty component.
+    /// Prepares this tick's sends, once before the scopes: runs the prediction hook, then collects the owners with a
+    /// dirty component that <see cref="SentOwners"/> allows, or all of them when it <see cref="SendsForAllOwners"/>.
     /// </summary>
     /// <returns>False when nothing is dirty, so the caller skips every scope.</returns>
     protected bool BeginSend()
     {
         _predictionHooks?.BeforeDeltaSend?.Invoke();
 
-        _allowedOwners.Clear();
         _dirtyOwners.Clear();
-        SentOwners(_allowedOwners);
 
-        if (_allowedOwners.Count == 0)
-            return false;
+        var allOwners = SendsForAllOwners;
+        if (!allOwners)
+        {
+            _allowedOwners.Clear();
+            SentOwners(_allowedOwners);
+
+            if (_allowedOwners.Count == 0)
+                return false;
+        }
 
         foreach (var (metaChunk, compChunk, _) in Query.Chunks)
         {
@@ -126,7 +137,7 @@ internal abstract class SendComponentDeltaSystemBase<T> : QuerySystem<MetadataCo
             for (var i = 0; i < metaChunk.Length; i++)
             {
                 var owner = metaSpan[i].Owner;
-                if (compSpan[i].IsDirty && _allowedOwners.Contains(owner))
+                if (compSpan[i].IsDirty && (allOwners || _allowedOwners.Contains(owner)))
                     _dirtyOwners.Add(owner);
             }
         }

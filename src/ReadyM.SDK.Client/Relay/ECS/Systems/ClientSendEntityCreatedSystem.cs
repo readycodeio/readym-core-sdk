@@ -49,6 +49,9 @@ internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJo
 
     protected override void OnUpdate()
     {
+        if (!HasCreatedEntities)
+            return;
+
         base.OnUpdate(SendContext.Global);
 
         // A player's scope is global, like the player entity itself, so it does not wait for an area
