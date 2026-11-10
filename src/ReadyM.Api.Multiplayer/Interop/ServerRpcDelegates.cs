@@ -2,7 +2,6 @@
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
-using ReadyM.Native.Container;
 
 namespace ReadyM.Api.Multiplayer.Interop;
 
@@ -10,5 +9,3 @@ internal unsafe delegate void ServerRpcHandlerDelegate(ServerEventHeader header,
 internal delegate void AddServerRpcMessageHandlerDelegate(RelayMessageCode eventCode, ServerRpcHandlerDelegate handler);
 internal delegate void RemoveServerRpcMessageHandlerDelegate(RelayMessageCode eventCode, ServerRpcHandlerDelegate handler);
 internal unsafe delegate void SendToOneDelegate(PlayerId player, byte* data, int size, DeliveryMethod delivery);
-
-internal delegate void NameMessageCodeDelegate(RelayMessageCode code, NativeString256 name);
