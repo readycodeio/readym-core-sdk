@@ -37,7 +37,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
     protected abstract class PendingGroupBase
     {
-        // NOTE: By convention this function is called while holding the scheduler's lock.
+        // NOTE: By convention this function is called from inside the `_lock` monitor.
         public abstract void Update();
 
         // ReSharper disable once StaticMemberInGenericType
@@ -79,7 +79,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -94,7 +94,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -144,7 +144,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -159,7 +159,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -209,7 +209,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -224,7 +224,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -274,7 +274,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -289,7 +289,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -339,7 +339,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -354,7 +354,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -404,7 +404,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -419,7 +419,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -469,7 +469,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -484,7 +484,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -534,7 +534,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -549,7 +549,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -599,7 +599,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -614,7 +614,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -664,7 +664,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
             try
             {
-                owner.ExitLock();
+                Monitor.Exit(owner._lock);
 
                 try
                 {
@@ -679,7 +679,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
             }
             finally
             {
-                owner.EnterLock();
+                Monitor.Enter(owner._lock);
             }
         }
 
@@ -693,16 +693,7 @@ internal abstract class PendingActionScheduler<TContext> : PendingActionSchedule
 
     protected readonly ILogger logger;
 
-#if NET
-    private readonly Lock _lock = new();
-    protected void EnterLock() => _lock.Enter();
-    protected void ExitLock() => _lock.Exit();
-#else
-    private readonly object _lock = new();
-    protected void EnterLock() => Monitor.Enter(_lock);
-    protected void ExitLock() => Monitor.Exit(_lock);
-#endif
-
+    protected readonly object _lock = new();
     protected readonly PendingActionGroup _group;
     protected readonly PendingGroupBase[] _groups = new PendingGroupBase[256];
 
