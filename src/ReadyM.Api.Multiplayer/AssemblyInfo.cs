@@ -21,6 +21,7 @@
 [assembly: InternalsVisibleTo("WukongMp.Sdk")]
 [assembly: InternalsVisibleTo("OblivionMP.SDK")]
 [assembly: InternalsVisibleTo("OblivionMP.SDK.Common")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK.Serverside")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Common.Oblivion")] // TODO: Change name to ReadyM.Oblivion.Common
 
 // A headless stand-in for a game client, for load testing a relay: it builds the connection options a game sends.
