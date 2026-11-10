@@ -49,9 +49,6 @@ internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJo
 
     protected override void OnUpdate()
     {
-        if (!HasCreatedEntities)
-            return;
-
         base.OnUpdate(SendContext.Global);
 
         // A player's scope is global, like the player entity itself, so it does not wait for an area
@@ -63,14 +60,14 @@ internal class ClientSendEntityCreatedSystem(NetworkedComponentJobRegistry netJo
             // Send area scoped updates
             {
                 var scopeEntity = state.CurrentAreaEntry.Value.AreaEntity;
-                var context = SendContext.FromArea(scopeEntity);
+                var context = SendContext.FromArea(state.CurrentAreaEntry.Value.AreaId, scopeEntity);
                 base.OnUpdate(context);
             }
 
             // Send cell scoped updates
             foreach (var cellEntry in state.ActiveCellEntries)
             {
-                var context = SendContext.FromCell(cellEntry.CellEntity);
+                var context = SendContext.FromCell(new FullCellId(state.CurrentAreaId!.Value, cellEntry.CellId), cellEntry.CellEntity);
                 base.OnUpdate(context);
             }
         }
