@@ -41,8 +41,18 @@ internal abstract class SendEntityCreatedSystemBase : QuerySystem<MetadataCompon
 
     protected abstract void Send(NetDataWriter writer, SendContext context);
 
+    /// <summary>
+    /// Whether any entity, in any scope, waits to be announced: the system's own query holds every entity with the
+    /// <see cref="LocallyCreatedEntityTag"/>. When none does, there is no scope to walk.
+    /// </summary>
+    protected bool HasCreatedEntities
+        => Query.Count > 0;
+
     protected override void OnUpdate()
-        => OnUpdate(default);
+    {
+        if (HasCreatedEntities)
+            OnUpdate(default);
+    }
 
     // ReSharper disable once StaticMemberInGenericType
     [ThreadStatic]
