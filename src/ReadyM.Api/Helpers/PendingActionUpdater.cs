@@ -22,7 +22,7 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
         try
         {
             _insideUpdate = true;
-            Monitor.Enter(_lock);
+            EnterLock();
 
             (_oldQueue, _queue) = (_queue, _oldQueue);
             var queueCount = _queueIndex;
@@ -47,7 +47,7 @@ internal class PendingActionUpdater<TContext>(TContext context, ILogger logger) 
         }
         finally
         {
-            Monitor.Exit(_lock);
+            ExitLock();
             _insideUpdate = false;
         }
     }
