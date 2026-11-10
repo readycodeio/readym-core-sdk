@@ -9,6 +9,7 @@ using ReadyM.Api.Multiplayer.ConflictResolution;
 using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Api.Multiplayer.Protocol;
 using ReadyM.Api.Multiplayer.Protocol.Enums;
+using ReadyM.Native.Container;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Rpc;
@@ -23,6 +24,7 @@ public class RpcApi
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler;
     private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler;
     private readonly SendToOneDelegate _sendToOne;
+    private readonly NameMessageCodeDelegate _nameMessageCode;
 
     private readonly INetworkTime _netTime;
     private readonly IChangeTrackingStore _changeTracking;
@@ -38,7 +40,12 @@ public class RpcApi
         _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
         _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers.RemoveServerRpcMessageHandler);
         _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
+        _nameMessageCode = Marshal.GetDelegateForFunctionPointer<NameMessageCodeDelegate>(pointers.NameMessageCode);
     }
+
+    /// <summary>Tells the relay what a code is called, for its metrics.</summary>
+    internal void NameMessageCode(RelayMessageCode code, string name)
+        => _nameMessageCode(code, new NativeString256(name, false));
 
     /// <exclude/>
     public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
