@@ -28,6 +28,7 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
     public event Action<PlayerId, FullCellId>? OnPlayerActivatedCell;
     public event Action<PlayerId, FullCellId>? OnPlayerDeactivatedCell;
     public event Action<World>? OnWorldCreated;
+    public event Action<Player>? OnPlayerWorldReloadRequested;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
@@ -122,6 +123,9 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 break;
             case ServerEventKind.WorldEntityCreated:
                 OnWorldCreated?.Invoke(Shape<World>(payload.Entity));
+                break;
+            case ServerEventKind.PlayerWorldReloadRequested:
+                OnPlayerWorldReloadRequested?.Invoke(Shape<Player>(payload.Entity));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");

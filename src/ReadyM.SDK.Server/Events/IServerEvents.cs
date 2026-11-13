@@ -42,4 +42,9 @@ public interface IServerEvents
     /// world values can be written.
     /// </summary>
     event Action<World>? OnWorldCreated;
+
+    /// <summary>
+    /// Fires when a player in an area has moved to another dimension and world reload is requested.
+    /// </summary>
+    event Action<Player>? OnPlayerWorldReloadRequested;
 }
