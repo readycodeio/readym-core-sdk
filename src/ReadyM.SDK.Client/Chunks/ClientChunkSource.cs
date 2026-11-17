@@ -4,6 +4,7 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Client.Entities;
 using ReadyM.SDK.Entities;
+using ReadyM.Api.Multiplayer.Interop;
 
 namespace ReadyM.SDK.Client.Chunks;
 
@@ -28,7 +29,8 @@ internal sealed class ClientChunkSource(EntityStore store, IEntityApi api) : ICh
 
     void IChunkSource.LeaveQuery() => api.LeaveQuery();
 
-    ChunkBuffer IChunkSource.Collect(ComponentSet components)
+    // A client holds one dimension's world, so there is nothing to filter.
+    ChunkBuffer IChunkSource.Collect(ComponentSet components, DimensionFilter filter)
     {
         var shape = _shapes.GetOrAdd(components, static (set, self) => self.Describe(set), this);
         var buffer = ChunkBuffer.Rent(shape.Indexes.Length);

@@ -139,6 +139,12 @@ internal struct ChunkComponent
 
     /// <summary>Bytes per element as the owning side sees it.</summary>
     public int Stride;
+
+    /// <summary>
+    /// Where the chunk starts in a mod's heap, when a dimension filter cut the archetype into runs. Zero otherwise. An
+    /// AOT-owned <see cref="Data"/> already points at the run's first element.
+    /// </summary>
+    public int Start;
 }
 
 /// <summary>
@@ -168,7 +174,7 @@ internal struct ComponentSlot
 internal unsafe delegate void ChunkCallback(IntPtr entities, ChunkComponent* comps, int n, int count);
 
 /// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
-internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
+internal unsafe delegate void QueryDelegate(int* componentIds, int n, DimensionFilter filter, ChunkCallback cb);
 
 /// <summary>What <see cref="SetComponentDelegate"/> and <see cref="FindByIndexDelegate"/> return.</summary>
 internal static class IndexResult
@@ -190,6 +196,11 @@ internal static class IndexResult
     /// The component is a mod's, whose index the mod keeps itself.
     /// </summary>
     public const byte ModOwned = 3;
+
+    /// <summary>
+    /// A unique lookup found holders of the value in more than one dimension.
+    /// </summary>
+    public const byte Ambiguous = 4;
 }
 
 /// <summary>
@@ -197,9 +208,13 @@ internal static class IndexResult
 /// </summary>
 internal unsafe delegate byte SetComponentDelegate(RawEntity entity, byte matchRevision, int componentType, void* data, int size);
 
-/// <summary>The entity whose indexed component holds this value. Answers an <see cref="IndexResult"/>.</summary>
+/// <summary>
+/// The entity whose indexed component holds this value, chosen by <see cref="HolderChoice{T}"/>. Answers an
+/// <see cref="IndexResult"/>; <paramref name="unique"/> non-zero refuses holders in two dimensions.
+/// </summary>
 /// <remarks>The value arrives as its own bytes, so only an unmanaged key can be asked for.</remarks>
-internal unsafe delegate byte FindByIndexDelegate(int componentType, void* value, int size, RawEntity* found);
+internal unsafe delegate byte FindByIndexDelegate(
+    int componentType, void* value, int size, DimensionFilter filter, byte unique, RawEntity* found);
 
 /// <summary>Receives the entities a scoped query matched, all at once.</summary>
 internal unsafe delegate void EntityListCallback(IntPtr entities, int count);

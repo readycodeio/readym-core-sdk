@@ -297,7 +297,7 @@ internal sealed class FakeRelay
         return 1;
     }
 
-    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, RawEntity* found)
+    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, DimensionFilter filter, byte unique, RawEntity* found)
     {
         FindByIndexCalls++;
 
@@ -307,10 +307,21 @@ internal sealed class FakeRelay
         if (!_indexes.TryGetValue(componentType, out var index))
             return _modOwned.Contains(componentType) ? IndexResult.ModOwned : IndexResult.NoIndex;
 
-        if (!index.TryFind((IntPtr)value, out var entity))
+        // As the relay does: the holder the one rule chooses, in the dimensions the test placed entities in
+        var choice = new HolderChoice<RawEntity>(filter, unique != 0);
+        foreach (var holder in index.Holders((IntPtr)value))
+        {
+            if (choice.Offer(holder, DimensionReader))
+                break;
+        }
+
+        if (choice.Ambiguous)
+            return IndexResult.Ambiguous;
+
+        if (!choice.Found)
             return IndexResult.Missed;
 
-        *found = entity;
+        *found = choice.Holder;
         return IndexResult.Done;
     }
 
@@ -534,7 +545,20 @@ internal sealed class FakeRelay
             *slot = heap.SlotAt(found.Row);
     }
 
-    private unsafe void QueryImpl(int* componentIds, int n, ChunkCallback callback)
+    // An entity no test placed is shared, as the host's default dimension component is: every filter sees it.
+    private readonly Dictionary<int, DimensionId> _dimensions = [];
+
+    /// <summary>Places an entity in a dimension, for the relay's dimension filter to cut it out of a query.</summary>
+    internal void SetDimension(RawEntity entity, DimensionId dimension) => _dimensions[entity.Id] = dimension;
+
+    internal DimensionId DimensionOf(RawEntity entity)
+        => _dimensions.TryGetValue(entity.Id, out var dimension) ? dimension : DimensionId.Shared;
+
+    private Func<RawEntity, DimensionId>? _dimensionOfCached;
+
+    private Func<RawEntity, DimensionId> DimensionReader => _dimensionOfCached ??= DimensionOf;
+
+    private unsafe void QueryImpl(int* componentIds, int n, DimensionFilter filter, ChunkCallback callback)
     {
         QueryCalls++;
 
@@ -544,6 +568,7 @@ internal sealed class FakeRelay
             wanted[i] = componentIds[i];
 
         var comps = stackalloc ChunkComponent[n];
+        var run = stackalloc ChunkComponent[n];
 
         foreach (var archetype in _archetypes)
         {
@@ -558,7 +583,42 @@ internal sealed class FakeRelay
             archetype.Entities.AsSpan(0, archetype.Count).CopyTo(identities);
 
             fixed (RawEntity* entities = identities)
-                callback((IntPtr)entities, comps, n, archetype.Count);
+            {
+                if (filter.IsEveryDimension || _dimensions.Count == 0)
+                {
+                    callback((IntPtr)entities, comps, n, archetype.Count);
+                    continue;
+                }
+
+                // As the relay does: one chunk per run of rows the filter sees
+                var row = 0;
+
+                while (row < archetype.Count)
+                {
+                    if (!filter.Sees(DimensionOf(identities[row])))
+                    {
+                        row++;
+                        continue;
+                    }
+
+                    var start = row;
+
+                    while (row < archetype.Count && filter.Sees(DimensionOf(identities[row])))
+                        row++;
+
+                    for (var i = 0; i < n; i++)
+                    {
+                        run[i] = comps[i];
+
+                        if (comps[i].Data != IntPtr.Zero)
+                            run[i].Data = comps[i].Data + start * comps[i].Stride;
+                        else
+                            run[i].Start = start;
+                    }
+
+                    callback((IntPtr)(entities + start), run, n, row - start);
+                }
+            }
         }
     }
 

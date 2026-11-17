@@ -47,12 +47,22 @@ public class RpcApi
     internal void NameMessageCode(RelayMessageCode code, string name)
         => _nameMessageCode(code, new NativeString256(name, false));
 
+    [ThreadStatic]
+    private static DimensionId _messageDimension;
+
+    /// <exclude/>
+    /// <summary>
+    /// Where the sender of the message being handled is; generated handlers read it while building the context, so a
+    /// handler receives it as data.
+    /// </summary>
+    public DimensionId MessageDimension => _messageDimension;
+
     /// <exclude/>
     public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
     {
         if (!_pinnedDelegates.TryGetValue(handler, out var realHandler))
         {
-            realHandler = (header, data, size) =>
+            realHandler = (header, dimension, data, size) =>
             {
                 // convert to NetDataReader
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
@@ -66,7 +76,16 @@ public class RpcApi
                 // place to put this.
                 // Being on the wrong thread means that any [ThreadStatic] state such as `ComponentWriteContext.Current`
                 // would have to be carried into the ECS thread inside the scheduling capability
-                handler(header, reader);
+                var previous = _messageDimension;
+                _messageDimension = dimension;
+                try
+                {
+                    handler(header, reader);
+                }
+                finally
+                {
+                    _messageDimension = previous;
+                }
             };
             _pinnedDelegates.Add(handler, realHandler);
             _pinnedDelegateStore.PinDelegate(realHandler);

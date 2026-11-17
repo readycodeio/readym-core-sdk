@@ -14,6 +14,14 @@ public interface IEntities : IEntitiesBase
     /// <typeparam name="T">Archetype or Mixin</typeparam>
     EntityQuery<T> Query<T>() where T : struct, IArchetypeQueryable;
 
+    /// <summary>
+    /// Look an entity up by its indexed key in one dimension, or among the shared entities. The lookup without a
+    /// dimension sees every dimension, and is refused (false, with a warning) when holders of the key are in more than
+    /// one: a key held once per dimension (an area, a cell, a ref) is looked up with its dimension.
+    /// </summary>
+    bool TryLookup<T, TKey>(TKey key, DimensionId dimension, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexed<TKey>;
+
     /// <summary>Remove an entity from the world.</summary>
     /// <returns><c>false</c> if the entity was already deleted.</returns>
     bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct;
