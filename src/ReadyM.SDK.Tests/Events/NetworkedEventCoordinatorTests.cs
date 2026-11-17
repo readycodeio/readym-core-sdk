@@ -351,7 +351,7 @@ public class NetworkedEventCoordinatorTests
     public void A_client_that_may_not_raise_it_gets_no_stage_but_rejected()
     {
         OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran), new Handlers("B", _ran))
-            .Dispatch(default, Somebody, checkPolicy: true);
+            .Dispatch(default, Somebody, checkPolicy: true, DimensionId.Main);
 
         Assert.Equal(["A:Rejected:0", "B:Rejected:0"], _ran);
     }
@@ -423,7 +423,7 @@ public class NetworkedEventCoordinatorTests
     [Fact]
     public void A_refusal_is_sent_to_the_origin()
     {
-        OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Dispatch(default, Somebody, checkPolicy: true);
+        OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Dispatch(default, Somebody, checkPolicy: true, DimensionId.Main);
 
         Assert.Equal([Somebody], _rpc.Sent.Select(sent => sent.Player));
     }

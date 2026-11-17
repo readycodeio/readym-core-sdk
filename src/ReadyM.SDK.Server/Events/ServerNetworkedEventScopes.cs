@@ -14,9 +14,9 @@ internal sealed class ServerNetworkedEventScopes(IEntityApi api)
 
     public bool TryFindCell(FullCellId id, DimensionId dimension, out Cell cell) => TryFind(id, dimension, out cell);
 
-    /// <summary>The entity's dimension; the default one where the host keeps none.</summary>
+    /// <summary>The entity's dimension; the main one where the host keeps none.</summary>
     public DimensionId DimensionOf(EntityHandle entity)
-        => (api as ServerEntityApi)?.DimensionOf?.Invoke(entity.RawEntity) ?? DimensionId.Default;
+        => (api as ServerEntityApi)?.DimensionOf(entity.RawEntity) ?? DimensionId.Main;
 
     /// <summary>The area the entity is in, directly or through its cell.</summary>
     public bool TryFindAreaOf(EntityHandle entity, out AreaId area)

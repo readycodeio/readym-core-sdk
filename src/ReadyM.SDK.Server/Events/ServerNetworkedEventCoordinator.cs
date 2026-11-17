@@ -27,7 +27,7 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
     private const string PolicyCancellerName = "policy";
 
     // Kept, because the relay removes a handler by delegate identity
-    private Action<ServerEventHeader, NetDataReader>? _onMessageReceived;
+    private Action<ServerEventHeader, DimensionId, NetDataReader>? _onMessageReceived;
 
     public void OnScopeStart()
     {
@@ -45,22 +45,23 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
 
     /// <summary>
     /// Raises the event from server code as <paramref name="origin"/>. The policy is not checked. It is in its
-    /// subject's dimension, or the default one without a subject.
+    /// subject's dimension, or the main one without a subject.
     /// </summary>
     public void Raise(T networkEvent, PlayerId origin)
         => Dispatch(networkEvent, origin, checkPolicy: false, DimensionOfSubject(in networkEvent));
 
-    private void OnMessageReceived(ServerEventHeader header, NetDataReader reader)
+    // The dimension is the sender's current one, as the relay passes it
+    private void OnMessageReceived(ServerEventHeader header, DimensionId dimension, NetDataReader reader)
     {
         if (contract.TryRead(entities, reader, out var networkEvent))
-            Dispatch(networkEvent, header.Sender, checkPolicy: true, relay.MessageDimension);
+            Dispatch(networkEvent, header.Sender, checkPolicy: true, dimension);
     }
 
     private DimensionId DimensionOfSubject(in T networkEvent)
-        => contract.Subject(in networkEvent) is { } subject ? scopes.DimensionOf(subject) : DimensionId.Default;
+        => contract.Subject(in networkEvent) is { } subject ? scopes.DimensionOf(subject) : DimensionId.Main;
 
     /// <param name="dimension">Where the origin is; names the area or cell the event names by id.</param>
-    internal void Dispatch(T networkEvent, PlayerId origin, bool checkPolicy, DimensionId dimension = default)
+    internal void Dispatch(T networkEvent, PlayerId origin, bool checkPolicy, DimensionId dimension)
     {
         if (checkPolicy && !policy.Allows(
                 contract.Policy,

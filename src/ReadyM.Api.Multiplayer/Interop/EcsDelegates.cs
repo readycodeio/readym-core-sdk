@@ -145,6 +145,10 @@ internal struct ChunkComponent
     /// AOT-owned <see cref="Data"/> already points at the run's first element.
     /// </summary>
     public int Start;
+
+    /// <summary>This slot for a run that starts at row <paramref name="start"/>: an address moves, a mod heap's start is set.</summary>
+    public readonly ChunkComponent From(int start)
+        => Data != IntPtr.Zero ? this with { Data = Data + start * Stride } : this with { Start = start };
 }
 
 /// <summary>

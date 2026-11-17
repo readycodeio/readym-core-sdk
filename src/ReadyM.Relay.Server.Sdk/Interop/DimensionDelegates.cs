@@ -30,7 +30,7 @@ internal enum DimensionCallResult : byte
     NameRequired,
     ParentNotLive,
     HasChildren,
-    IsDefault,
+    IsMain,
     Destroying,
     NotConnected,
     NotSupported,
@@ -47,7 +47,7 @@ internal delegate byte DimensionExistsDelegate(DimensionId dimension);
 
 internal unsafe delegate byte TryFindDimensionDelegate(NativeString256 name, DimensionId* found);
 
-/// <summary>The player's dimension; the default one for a player who is not connected.</summary>
+/// <summary>The player's dimension; the main one for a player who is not connected.</summary>
 internal delegate DimensionId PlayerDimensionDelegate(PlayerId player);
 
 /// <summary>The player's current dimension: their area's, else theirs.</summary>

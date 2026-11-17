@@ -102,8 +102,8 @@ internal sealed class DimensionApi : IDimensions
                 throw new InvalidOperationException($"The parent dimension is not live ({what}).");
             case DimensionCallResult.HasChildren:
                 throw new InvalidOperationException($"The dimension has child dimensions; destroy them first ({what}).");
-            case DimensionCallResult.IsDefault:
-                throw new InvalidOperationException($"The default dimension cannot be destroyed ({what}).");
+            case DimensionCallResult.IsMain:
+                throw new InvalidOperationException($"The main dimension cannot be destroyed ({what}).");
             case DimensionCallResult.Destroying:
                 throw new InvalidOperationException($"The dimension is being destroyed ({what}).");
             default:

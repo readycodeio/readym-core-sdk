@@ -8,8 +8,8 @@ public sealed record DimensionOptions
     /// <summary>Required when <see cref="Persistent"/>: the save's folder, and how a later create finds it.</summary>
     public string? Name { get; init; }
 
-    /// <summary>Where players are moved after leaving dimension areas. The default dimension unless given.</summary>
-    public DimensionId Parent { get; init; }
+    /// <summary>Where players are moved after leaving dimension areas. The main dimension unless given.</summary>
+    public DimensionId Parent { get; init; } = DimensionId.Main;
 
     /// <summary>The areas it covers; null covers every area.</summary>
     public IReadOnlySet<AreaId>? Areas { get; init; }
