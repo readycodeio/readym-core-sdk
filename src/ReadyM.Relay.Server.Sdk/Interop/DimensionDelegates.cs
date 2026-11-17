@@ -33,7 +33,6 @@ internal enum DimensionCallResult : byte
     IsMain,
     Destroying,
     NotConnected,
-    NotSupported,
 }
 
 internal unsafe delegate DimensionCallResult CreateDimensionDelegate(DimensionOptionsData* options, DimensionId* created);

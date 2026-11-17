@@ -55,7 +55,6 @@ public class ServerDimensionApiTests
         { (byte)DimensionCallResult.NotLive, typeof(KeyNotFoundException) },
         { (byte)DimensionCallResult.NotConnected, typeof(KeyNotFoundException) },
         { (byte)DimensionCallResult.NameRequired, typeof(ArgumentException) },
-        { (byte)DimensionCallResult.NotSupported, typeof(NotSupportedException) },
         { (byte)DimensionCallResult.NameTaken, typeof(InvalidOperationException) },
         { (byte)DimensionCallResult.ParentNotLive, typeof(InvalidOperationException) },
         { (byte)DimensionCallResult.HasChildren, typeof(InvalidOperationException) },

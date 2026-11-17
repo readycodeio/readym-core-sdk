@@ -15,10 +15,12 @@ public interface IDimensions
     /// <summary>The live dimension with this name.</summary>
     bool TryFind(string name, out DimensionId id);
 
-    /// <summary>Creates a dimension. Its areas and cells are provided as players join them.</summary>
+    /// <summary>
+    /// Creates a dimension. Its areas and cells are provided as players join them; a persistent one's saved areas and
+    /// cells are loaded back from its save, found by its name.
+    /// </summary>
     /// <exception cref="InvalidOperationException">The name is taken, or the parent is not live.</exception>
     /// <exception cref="ArgumentException">A persistent dimension has no name.</exception>
-    /// <exception cref="NotSupportedException">A persistent dimension, until they are built.</exception>
     DimensionId Create(DimensionOptions options);
 
     /// <summary>

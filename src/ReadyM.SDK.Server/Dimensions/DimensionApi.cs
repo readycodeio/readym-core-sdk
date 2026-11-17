@@ -94,8 +94,6 @@ internal sealed class DimensionApi : IDimensions
                 throw new KeyNotFoundException($"The player is not connected ({what}).");
             case DimensionCallResult.NameRequired:
                 throw new ArgumentException($"A persistent dimension needs a name ({what}).");
-            case DimensionCallResult.NotSupported:
-                throw new NotSupportedException($"A persistent dimension is not built yet ({what}).");
             case DimensionCallResult.NameTaken:
                 throw new InvalidOperationException($"A dimension with this name is live ({what}).");
             case DimensionCallResult.ParentNotLive:
