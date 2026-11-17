@@ -38,6 +38,10 @@ internal sealed class FakeRelay
     private readonly CreateLocalEntityInScopeDelegate _createLocalEntityInScope;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly IsEntityAliveDelegate _isEntityAlive;
+    private readonly MakeResidentDelegate _makeResident;
+    private readonly EndResidencyDelegate _endResidency;
+    private readonly IsResidentDelegate _isResident;
+    private readonly HashSet<int> _residents = [];
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
     private readonly RegisterModComponentDelegate _registerModComponent;
     private readonly RegisterArchetypeDelegate _registerArchetype;
@@ -79,6 +83,9 @@ internal sealed class FakeRelay
         _findByIndex = FindByIndexImpl;
         _queryInScope = QueryInScopeImpl;
         _tryGetEntityScope = TryGetEntityScopeImpl;
+        _makeResident = MakeResidentImpl;
+        _endResidency = EndResidencyImpl;
+        _isResident = IsResidentImpl;
         _createLocalEntityInScope = CreateLocalEntityInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
         _isEntityAlive = IsEntityAliveImpl;
@@ -137,7 +144,10 @@ internal sealed class FakeRelay
         TryGetCellScopeEntity = Marshal.GetFunctionPointerForDelegate(_tryGetCellScope),
         CreateCellScopeEntity = Marshal.GetFunctionPointerForDelegate(_createCellScope),
         TryGetEntityCell = Marshal.GetFunctionPointerForDelegate(_tryGetEntityCell),
-        IsOnWorldThread = Marshal.GetFunctionPointerForDelegate(_isOnWorldThread)
+        IsOnWorldThread = Marshal.GetFunctionPointerForDelegate(_isOnWorldThread),
+        MakeResident = Marshal.GetFunctionPointerForDelegate(_makeResident),
+        EndResidency = Marshal.GetFunctionPointerForDelegate(_endResidency),
+        IsResident = Marshal.GetFunctionPointerForDelegate(_isResident)
     };
 
     internal ArchetypePointers Archetypes => new()
@@ -230,6 +240,22 @@ internal sealed class FakeRelay
 
     /// <summary>Puts an entity in a scope, as creating one inside a scope would.</summary>
     internal void PutInScope(RawEntity entity, RawEntity scope) => _scopes[entity.Id] = scope;
+
+    // The harness has no cells of its own, so any scope stands for the cell a resident needs
+    private byte MakeResidentImpl(RawEntity entity)
+    {
+        if (!_scopes.ContainsKey(entity.Id))
+            return 0;
+
+        _residents.Add(entity.Id);
+        return 1;
+    }
+
+    private byte EndResidencyImpl(RawEntity entity)
+        => _scopes.ContainsKey(entity.Id) && _residents.Remove(entity.Id) ? (byte)1 : (byte)0;
+
+    private byte IsResidentImpl(RawEntity entity)
+        => _residents.Contains(entity.Id) ? (byte)1 : (byte)0;
 
     /// <summary>The scope an entity sits in, one step up, which is the link the relay reads.</summary>
     private unsafe byte TryGetEntityScopeImpl(RawEntity entity, RawEntity* scope)

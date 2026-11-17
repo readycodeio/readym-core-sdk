@@ -34,6 +34,24 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
         where T : IEntityShape, allows ref struct
         => api.Delete(shape.Handle.RawEntity);
 
+    public void MakeResident<T>(in T shape)
+        where T : IEntityShape, allows ref struct
+        => api.MakeResident(shape.Handle.RawEntity);
+
+    public void EndResidency<T>(in T shape)
+        where T : IEntityShape, allows ref struct
+        => api.EndResidency(shape.Handle.RawEntity);
+
+    public bool IsResident<T>(in T shape)
+        where T : IEntityShape, allows ref struct
+        => api.IsResident(shape.Handle.RawEntity);
+
+    public void MakeResident(in EntityHandle handle) => api.MakeResident(handle.RawEntity);
+
+    public void EndResidency(in EntityHandle handle) => api.EndResidency(handle.RawEntity);
+
+    public bool IsResident(in EntityHandle handle) => api.IsResident(handle.RawEntity);
+
     public bool TryGetScope<TShape, TScope>(in TShape shape, out TScope scope)
 #if NET
         where TShape : struct, IEntityShape, allows ref struct

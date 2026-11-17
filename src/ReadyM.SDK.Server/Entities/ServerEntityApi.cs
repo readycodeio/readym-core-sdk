@@ -36,6 +36,9 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly RegisterArchetypeDelegate _registerArchetype;
     private readonly ResolveArchetypeDelegate _resolveArchetype;
     private readonly AddArchetypeTagDelegate? _addArchetypeTag;
+    private readonly MakeResidentDelegate? _makeResident;
+    private readonly EndResidencyDelegate? _endResidency;
+    private readonly IsResidentDelegate? _isResident;
     private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
     private readonly ModComponentIds _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
@@ -66,7 +69,37 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _addArchetypeTag = archetypes.AddArchetypeTag == IntPtr.Zero
             ? null
             : Marshal.GetDelegateForFunctionPointer<AddArchetypeTagDelegate>(archetypes.AddArchetypeTag);
+        _makeResident = pointers.MakeResident == IntPtr.Zero
+            ? null
+            : Marshal.GetDelegateForFunctionPointer<MakeResidentDelegate>(pointers.MakeResident);
+        _endResidency = pointers.EndResidency == IntPtr.Zero
+            ? null
+            : Marshal.GetDelegateForFunctionPointer<EndResidencyDelegate>(pointers.EndResidency);
+        _isResident = pointers.IsResident == IntPtr.Zero
+            ? null
+            : Marshal.GetDelegateForFunctionPointer<IsResidentDelegate>(pointers.IsResident);
     }
+
+    public void MakeResident(RawEntity rawEntity)
+    {
+        if (_makeResident is null)
+            throw new NotSupportedException("This server keeps no residents.");
+
+        if (_makeResident(rawEntity) == 0)
+            throw new InvalidOperationException($"Entity {rawEntity.Id} is not in a cell. Only an entity in a cell can become a resident.");
+    }
+
+    public void EndResidency(RawEntity rawEntity)
+    {
+        if (_endResidency is null)
+            throw new NotSupportedException("This server keeps no residents.");
+
+        if (_endResidency(rawEntity) == 0)
+            throw new InvalidOperationException($"Entity {rawEntity.Id} is not a resident standing in a cell. Its cell has to be in memory to take it back.");
+    }
+
+    public bool IsResident(RawEntity rawEntity)
+        => _isResident is not null && _isResident(rawEntity) != 0;
 
     /// <summary>Whether the entity is networked is what its archetype declared, whatever components it holds.</summary>
     /// <param name="owner">Null leaves it the server's.</param>

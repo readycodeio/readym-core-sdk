@@ -52,4 +52,13 @@ public struct EcsApiPointers
 
     /// <summary>Whether the caller is on the world's thread, which raising an event requires.</summary>
     public required IntPtr IsOnWorldThread;
+
+    /// <summary>Makes an entity in a cell a resident. Zero, as the two below, on a host that keeps no residents.</summary>
+    public required IntPtr MakeResident;
+
+    /// <summary>Makes a resident standing in a cell that cell's content again.</summary>
+    public required IntPtr EndResidency;
+
+    /// <summary>Whether an entity is a resident.</summary>
+    public required IntPtr IsResident;
 }

@@ -29,3 +29,12 @@ internal unsafe delegate byte TryGetEntityCellDelegate(int entityId, FullCellId*
 /// One step up. Recursive search is done by the caller if neccessary.
 /// </remarks>
 internal unsafe delegate byte TryGetEntityScopeDelegate(RawEntity entity, RawEntity* scope);
+
+/// <summary>1 if the entity is a resident now, 0 if it is not in a cell.</summary>
+internal delegate byte MakeResidentDelegate(RawEntity entity);
+
+/// <summary>1 if the entity is no longer a resident, 0 if it is not a resident standing in a cell.</summary>
+internal delegate byte EndResidencyDelegate(RawEntity entity);
+
+/// <summary>1 if the entity is a resident, else 0.</summary>
+internal delegate byte IsResidentDelegate(RawEntity entity);

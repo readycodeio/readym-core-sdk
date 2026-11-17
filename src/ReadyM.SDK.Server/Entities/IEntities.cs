@@ -18,6 +18,29 @@ public interface IEntities : IEntitiesBase
     /// <returns><c>false</c> if the entity was already deleted.</returns>
     bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct;
 
+    /// <summary>
+    /// Makes an entity that is in a cell a resident: it stays on the server when its cell leaves memory and comes
+    /// back into the cell with it, and it is saved with the world instead of with the cell.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The entity is not in a cell.</exception>
+    void MakeResident<T>(in T shape) where T : IEntityShape, allows ref struct;
+
+    /// <summary>Makes a resident the content of the cell it stands in again.</summary>
+    /// <exception cref="InvalidOperationException">The entity is not a resident, or its cell is not in memory.</exception>
+    void EndResidency<T>(in T shape) where T : IEntityShape, allows ref struct;
+
+    /// <summary>Whether an entity is a resident.</summary>
+    bool IsResident<T>(in T shape) where T : IEntityShape, allows ref struct;
+
+    /// <inheritdoc cref="MakeResident{T}(in T)"/>
+    void MakeResident(in EntityHandle handle);
+
+    /// <inheritdoc cref="EndResidency{T}(in T)"/>
+    void EndResidency(in EntityHandle handle);
+
+    /// <inheritdoc cref="IsResident{T}(in T)"/>
+    bool IsResident(in EntityHandle handle);
+
     /// <summary>Iterate over every entity carrying both mixins.</summary>
     EntityQuery<T1, T2> Query<T1, T2>()
         where T1 : struct, IArchetypeQueryable
