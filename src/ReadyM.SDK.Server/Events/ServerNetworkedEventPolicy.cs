@@ -13,7 +13,10 @@ internal sealed class ServerNetworkedEventPolicy(ServerNetworkedEventScopes scop
     /// <param name="cell">The cell the event marks <c>[Cell]</c>, or null.</param>
     /// <param name="origin">The player whose connection the event arrived on.</param>
     /// <exception cref="ArgumentOutOfRangeException">The policy checks a member the event does not have.</exception>
-    public bool Allows(Policy policy, EntityHandle? subject, AreaId? area, FullCellId? cell, PlayerId origin)
+    /// <param name="dimension">The dimension the named area or cell is looked up in.</param>
+    public bool Allows(
+        Policy policy, EntityHandle? subject, AreaId? area, FullCellId? cell, PlayerId origin,
+        DimensionId dimension = default)
     {
         if (origin == PlayerId.Server)
             return true;
@@ -23,9 +26,9 @@ internal sealed class ServerNetworkedEventPolicy(ServerNetworkedEventScopes scop
             Policy.Anyone => true,
             Policy.ServerAuthoritative => false,
             Policy.SubjectOwner => Required(subject, "[Subject]").TryGetOwner(out var owner) && owner == origin,
-            Policy.CellMaster => scopes.TryFindCell(Required(cell, "[Cell]"), out var named)
+            Policy.CellMaster => scopes.TryFindCell(Required(cell, "[Cell]"), dimension, out var named)
                 && named.MasterClient == origin,
-            Policy.AreaMaster => scopes.TryFindArea(Required(area, "[Area]"), out var named)
+            Policy.AreaMaster => scopes.TryFindArea(Required(area, "[Area]"), dimension, out var named)
                 && named.MasterClient == origin,
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unhandled networked event policy."),
         };

@@ -57,10 +57,10 @@ internal sealed class ServerNetworkedEventSender(RpcApi relay, IEntities entitie
                 return everyone;
 
             case EventScope.Area:
-                return players.InArea(audience.Area);
+                return players.InArea(audience.Area, audience.Dimension);
 
             case EventScope.Cell:
-                return players.InCell(audience.Cell);
+                return players.InCell(audience.Cell, audience.Dimension);
 
             case EventScope.Server:
             default:

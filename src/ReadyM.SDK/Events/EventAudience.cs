@@ -7,8 +7,8 @@ namespace ReadyM.SDK.Events;
 // TODO: Replace with a discriminated union when C# 15 is out
 internal readonly struct EventAudience
 {
-    private EventAudience(EventScope scope, PlayerId player, AreaId area, FullCellId cell)
-        => (Kind, Player, Area, Cell) = (scope, player, area, cell);
+    private EventAudience(EventScope scope, PlayerId player, AreaId area, FullCellId cell, DimensionId dimension = default)
+        => (Kind, Player, Area, Cell, Dimension) = (scope, player, area, cell, dimension);
 
     /// <summary>Which of the audiences below this is.</summary>
     public EventScope Kind { get; }
@@ -22,6 +22,9 @@ internal readonly struct EventAudience
     /// <summary>The cell, for <see cref="EventScope.Cell"/>.</summary>
     public FullCellId Cell { get; }
 
+    /// <summary>The dimension of the area or cell, on the server; a client has one and leaves it default.</summary>
+    public DimensionId Dimension { get; }
+
     /// <summary>Every connected player.</summary>
     public static EventAudience Global { get; } = new(EventScope.Global, default, default, default);
 
@@ -29,8 +32,10 @@ internal readonly struct EventAudience
     public static EventAudience Single(PlayerId player) => new(EventScope.Single, player, default, default);
 
     /// <summary>Everyone in an area.</summary>
-    public static EventAudience InArea(AreaId area) => new(EventScope.Area, default, area, default);
+    public static EventAudience InArea(AreaId area, DimensionId dimension = default)
+        => new(EventScope.Area, default, area, default, dimension);
 
     /// <summary>Everyone in a cell.</summary>
-    public static EventAudience InCell(FullCellId cell) => new(EventScope.Cell, default, default, cell);
+    public static EventAudience InCell(FullCellId cell, DimensionId dimension = default)
+        => new(EventScope.Cell, default, default, cell, dimension);
 }

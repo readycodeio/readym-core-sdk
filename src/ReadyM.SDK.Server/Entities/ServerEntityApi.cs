@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Idents;
@@ -18,8 +19,17 @@ using ReadyM.Native.LowLevel;
 
 namespace ReadyM.SDK.Server.Entities;
 
-internal sealed class ServerEntityApi : IEntityApi, IChunkSource
+internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLookup
 {
+    /// <summary>
+    /// The dimension an entity is in, asked of the host. Set once the dimension api exists; until then, and in a test
+    /// host without one, every entity counts as the default dimension's.
+    /// </summary>
+    internal Func<RawEntity, DimensionId>? DimensionOf { get; set; }
+
+    /// <summary>Where a refused lookup is reported; set by the mod host.</summary>
+    internal ILogger? Logger { get; set; }
+
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly SetComponentDelegate _setComponent;
@@ -40,6 +50,9 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly ModComponentIds _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
     private readonly ComponentIndexes _indexes = new();
+
+    private readonly HashSet<Type> _warnedAmbiguous = [];
+    private readonly Func<RawEntity, DimensionId> _dimensionOf;
     private QueryScope _scope = new();
 
     /// <summary>Whether the caller is on the thread the host runs the world on.</summary>
@@ -48,6 +61,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     public ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ModComponentIds registry)
     {
         _registry = registry;
+        _dimensionOf = DimensionOfEntity;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
@@ -403,54 +417,91 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _indexes.Remember<TComponent, TKey>(component.GetIndexedValue(), rawEntity);
     }
 
-    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+    // The host's own lookups by an id that is unique across dimensions (a network id) see them all.
+    public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
+        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
+        => TryFindByIndex<TComponent, TKey>(key, DimensionFilter.EveryDimension, unique: false, out entity);
+
+    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, bool unique, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var id = _registry.Resolve<TComponent>();
+        var choice = new HolderChoice<RawEntity>(filter, unique);
 
-        if (_indexes.TryFind<TComponent, TKey>(key, out entity))
-        {
-            if (Holds<TComponent, TKey>(entity, id, key))
-                return true;
-
-            _indexes.Forget<TComponent, TKey>(key, entity);
-        }
+        if (ChooseRemembered<TComponent, TKey>(id, key, ref choice))
+            return Answer<TComponent, TKey>(key, choice, out entity);
 
         RawEntity found;
         var copy = key;
 
-        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), &found))
+        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), filter, unique ? (byte)1 : (byte)0, &found))
         {
             case IndexResult.Done:
                 entity = found;
                 return true;
             case IndexResult.NoIndex:
                 throw NoIndex<TComponent, TKey>();
+            case IndexResult.Ambiguous:
+                entity = default;
+                return RefuseAmbiguous<TComponent, TKey>(key);
             case IndexResult.ModOwned:
-                return TryFindByWalking<TComponent, TKey>(id, key, out entity);
+                ChooseByWalking<TComponent, TKey>(id, key, filter, ref choice);
+                return Answer<TComponent, TKey>(key, choice, out entity);
             default:
                 entity = default;
                 return false;
         }
     }
 
-    private bool TryFindByWalking<TComponent, TKey>(int id, TKey key, out RawEntity entity)
+    private bool Answer<TComponent, TKey>(TKey key, in HolderChoice<RawEntity> choice, out RawEntity entity)
+    {
+        entity = choice.Found && !choice.Ambiguous ? choice.Holder : default;
+        return choice.Ambiguous ? RefuseAmbiguous<TComponent, TKey>(key) : choice.Found;
+    }
+
+    /// <summary>
+    /// Offers the holders this runtime remembers, dropping any that no longer hold the key. Settled when one answered:
+    /// a value written past the index is not remembered, so a unique lookup sees only what was written here.
+    /// </summary>
+    private bool ChooseRemembered<TComponent, TKey>(int id, TKey key, ref HolderChoice<RawEntity> choice)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
-        var carriers = CollectMatching(ComponentSet.Of<TComponent>());
+        var holders = _indexes.Holders<TComponent, TKey>(key);
+
+        // Newest first, and backwards so forgetting one keeps the rest in place
+        for (var i = holders.Count - 1; i >= 0; i--)
+        {
+            var holder = holders[i];
+
+            if (!Holds<TComponent, TKey>(holder, id, key))
+            {
+                _indexes.Forget<TComponent, TKey>(key, holder);
+                continue;
+            }
+
+            if (choice.Offer(holder, _dimensionOf))
+                break;
+        }
+
+        return choice.Found;
+    }
+
+    /// <summary>
+    /// Walks every carrier of the component in the filter's dimensions (the host cut the query to them); the holder
+    /// chosen is remembered for the next lookup.
+    /// </summary>
+    private void ChooseByWalking<TComponent, TKey>(int id, TKey key, DimensionFilter filter, ref HolderChoice<RawEntity> choice)
+        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
+    {
+        var carriers = CollectMatching(ComponentSet.Of<TComponent>(), filter);
+        var walked = new HolderChoice<RawEntity>(DimensionFilter.EveryDimension, choice.IsUnique);
 
         try
         {
             for (var i = 0; i < carriers.Count; i++)
             {
-                if (!Holds<TComponent, TKey>(carriers[i], id, key))
-                    continue;
-
-                entity = carriers[i];
-
-                // So the next lookup by the same key is answered without walking again.
-                _indexes.Remember<TComponent, TKey>(key, entity);
-                return true;
+                if (Holds<TComponent, TKey>(carriers[i], id, key) && walked.Offer(carriers[i], _dimensionOf))
+                    break;
             }
         }
         finally
@@ -458,7 +509,24 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
             carriers.Return();
         }
 
-        entity = default;
+        if (walked.Found && !walked.Ambiguous)
+            _indexes.Remember<TComponent, TKey>(key, walked.Holder);
+
+        choice = walked;
+    }
+
+    private DimensionId DimensionOfEntity(RawEntity entity) => DimensionOf?.Invoke(entity) ?? DimensionId.Default;
+
+    // Once per component: a tick that keeps asking would otherwise fill the log
+    private bool RefuseAmbiguous<TComponent, TKey>(TKey key)
+    {
+        if (_warnedAmbiguous.Add(typeof(TComponent)))
+        {
+            Logger?.LogWarning(
+                "{Component} {Key} is held in more than one dimension; look it up with its dimension. Reported once per component",
+                typeof(TComponent).Name, key);
+        }
+
         return false;
     }
 
@@ -489,7 +557,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
         => new($"Entity {rawEntity.Id} does not carry {typeof(T).Name}.");
 
-    internal unsafe EntityBuffer CollectMatching(ComponentSet components)
+    internal unsafe EntityBuffer CollectMatching(ComponentSet components, DimensionFilter filter)
     {
         var ids = ResolveIds(components);
         var buffer = EntityBuffer.Rent();
@@ -500,7 +568,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         {
             fixed (int* componentIds = ids)
             {
-                _query(componentIds, ids.Length, Collect);
+                _query(componentIds, ids.Length, filter, Collect);
             }
         }
         finally
@@ -513,7 +581,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 
     EntityHandle IChunkSource.Prototype => new(default, this);
 
-    unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components)
+    unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components, DimensionFilter filter)
     {
         var ids = ResolveIds(components);
         var buffer = ChunkBuffer.Rent(ids.Length);
@@ -524,7 +592,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         {
             fixed (int* componentIds = ids)
             {
-                _query(componentIds, ids.Length, CollectChunk);
+                _query(componentIds, ids.Length, filter, CollectChunk);
             }
         }
         finally
@@ -545,7 +613,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         {
             ref readonly var comp = ref comps[i];
             slots[i] = comp.HeapSelf != IntPtr.Zero
-                ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride)
+                ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride, comp.Start)
                 : new ChunkSlot(comp.Data, comp.Stride);
         }
     };

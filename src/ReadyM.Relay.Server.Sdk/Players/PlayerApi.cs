@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Players;
@@ -45,12 +46,22 @@ internal class PlayerApi : IPlayers
     public void DropConnection(PlayerId player) => _dropConnection(player);
 
     /// <inheritdoc />
-    public unsafe List<PlayerId> InArea(AreaId area)
-        => Collect((b, c) => _getAreaPlayers(area, b, c));
+    public List<PlayerId> InArea(AreaId area) => InArea(area, DimensionFilter.EveryDimension);
 
     /// <inheritdoc />
-    public unsafe List<PlayerId> InCell(FullCellId cell)
-        => Collect((b, c) => _getCellPlayers(cell, b, c));
+    public List<PlayerId> InArea(AreaId area, DimensionId dimension) => InArea(area, DimensionFilter.InDimension(dimension));
+
+    /// <inheritdoc />
+    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, DimensionFilter.EveryDimension);
+
+    /// <inheritdoc />
+    public List<PlayerId> InCell(FullCellId cell, DimensionId dimension) => InCell(cell, DimensionFilter.InDimension(dimension));
+
+    private unsafe List<PlayerId> InArea(AreaId area, DimensionFilter filter)
+        => Collect((b, c) => _getAreaPlayers(area, filter, b, c));
+
+    private unsafe List<PlayerId> InCell(FullCellId cell, DimensionFilter filter)
+        => Collect((b, c) => _getCellPlayers(cell, filter, b, c));
 
     /// <summary>A pointer cannot be a generic argument, so the ask has a type of its own.</summary>
     private unsafe delegate int Ask(PlayerId* buffer, int capacity);

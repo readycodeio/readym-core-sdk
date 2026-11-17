@@ -263,7 +263,8 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
         foreach (var p in payloadParams)
             dispatchCases.AppendLine(DeserializeStatement(p, $"{className}.On{eventName}"));
 
-        var contextArg = $"new {RpcContextFqn}(header.Sender)";
+        // The relay hands the sender's dimension over with the message; the handler receives it in its context.
+        var contextArg = $"new {RpcContextFqn}(header.Sender, Rpc.MessageDimension)";
         var dispatchArgs = payloadParams.Count > 0
             ? $"{contextArg}, {string.Join(", ", payloadParams.Select(p => p.Name))}"
             : contextArg;

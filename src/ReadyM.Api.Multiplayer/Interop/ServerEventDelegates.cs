@@ -14,6 +14,8 @@ internal enum ServerEventKind : byte
     PlayerDeactivatedCell = 9,
     WorldEntityCreated = 10,
     PlayerWorldReloadRequested = 11,
+    DimensionEmptied = 12,
+    PlayerDimensionChanged = 13,
 }
 
 internal delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);

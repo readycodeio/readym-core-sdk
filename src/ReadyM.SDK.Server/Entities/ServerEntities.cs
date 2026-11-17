@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using ReadyM.Api.Idents;
+using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Core;
 using ReadyM.SDK.Entities;
@@ -82,10 +83,19 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
         where T6 : struct, IArchetypeMixin
         => new(api);
 
+    // A lookup that names no dimension sees every one, and refuses a key held in two of them.
     public bool TryLookup<T, TKey>(TKey key, out T shape) 
         where T : struct, IArchetypeQueryable, IIndexed<TKey>
+        => TryLookupIn(key, DimensionFilter.EveryDimension, unique: true, out shape);
+
+    public bool TryLookup<T, TKey>(TKey key, DimensionId dimension, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexed<TKey>
+        => TryLookupIn(key, DimensionFilter.InDimension(dimension), unique: false, out shape);
+
+    private bool TryLookupIn<T, TKey>(TKey key, DimensionFilter filter, bool unique, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexed<TKey>
     {
-        if (IndexRegistry.TryFind<T, TKey>(api, key, out var entity))
+        if (IndexRegistry.TryFind<T, TKey>(api, key, filter, unique, out var entity))
         {
             shape = new T { Handle = new EntityHandle(entity, api) };
             return true;
