@@ -56,7 +56,7 @@ internal sealed class ClientNetworkedEventCoordinator<T>(
             return;
         }
 
-        var context = new EventContext(eventHeader.Origin, eventHeader.Origin == relay.PlayerId, new EventCancellation());
+        var context = new EventContext(eventHeader.Origin, eventHeader.Origin == relay.PlayerId, new EventCancellation(), DimensionId.Invalid);
         RunStage(Stage.Apply, ref networkEvent, context);
         RunStage(Stage.Observe, ref networkEvent, context);
     }
@@ -66,6 +66,6 @@ internal sealed class ClientNetworkedEventCoordinator<T>(
         predictedRaises.RollBackRefused(contract.Code);
 
         var cancellation = EventCancellation.Cancelled(reader.GetString(), contract.ReadReason(reader));
-        RunStage(Stage.Rejected, ref networkEvent, new EventContext(origin, origin == relay.PlayerId, cancellation));
+        RunStage(Stage.Rejected, ref networkEvent, new EventContext(origin, origin == relay.PlayerId, cancellation, DimensionId.Invalid));
     }
 }

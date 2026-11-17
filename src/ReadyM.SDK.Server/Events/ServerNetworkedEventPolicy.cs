@@ -16,7 +16,7 @@ internal sealed class ServerNetworkedEventPolicy(ServerNetworkedEventScopes scop
     /// <param name="dimension">The dimension the named area or cell is looked up in.</param>
     public bool Allows(
         Policy policy, EntityHandle? subject, AreaId? area, FullCellId? cell, PlayerId origin,
-        DimensionId dimension = default)
+        DimensionId dimension)
     {
         if (origin == PlayerId.Server)
             return true;

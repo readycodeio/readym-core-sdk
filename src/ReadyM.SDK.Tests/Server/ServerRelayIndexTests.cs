@@ -1,4 +1,5 @@
-﻿using ReadyM.Api.Idents;
+﻿using ReadyM.SDK.Exceptions;
+using ReadyM.Api.Idents;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -166,7 +167,6 @@ public class ServerRelayIndexTests : ServerSdkTest
     [Fact]
     public void A_lookup_with_no_dimension_finds_a_key_held_in_one_dimension()
     {
-        Api.DimensionOf = Relay.DimensionOf;
         var held = SpawnIn(new DimensionId(1), 7);
 
         Assert.True(Entities.TryLookup<Networked2, int>(7, out var found));
@@ -174,13 +174,12 @@ public class ServerRelayIndexTests : ServerSdkTest
     }
 
     [Fact]
-    public void A_lookup_with_no_dimension_refuses_a_key_held_in_two()
+    public void A_lookup_with_no_dimension_throws_for_a_key_held_in_two()
     {
-        Api.DimensionOf = Relay.DimensionOf;
-        SpawnIn(DimensionId.Default, 7);
+        SpawnIn(DimensionId.Main, 7);
         var instanced = SpawnIn(new DimensionId(1), 7);
 
-        Assert.False(Entities.TryLookup<Networked2, int>(7, out _));
+        Assert.Throws<AmbiguousLookupException>(() => Entities.TryLookup<Networked2, int>(7, out _));
         Assert.True(Entities.TryLookup<Networked2, int>(7, new DimensionId(1), out var found));
         Assert.Equal(IdentityOf(instanced).Id, EntityHandle.Of(found).Id);
     }

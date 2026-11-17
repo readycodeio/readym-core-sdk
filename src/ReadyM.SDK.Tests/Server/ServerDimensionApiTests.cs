@@ -31,7 +31,7 @@ public class ServerDimensionApiTests
             return 1;
         };
         PlayerDimensionDelegate ofPlayer = _ => new DimensionId(7);
-        CurrentDimensionDelegate currentDimension = _ => DimensionId.Default;
+        CurrentDimensionDelegate currentDimension = _ => DimensionId.Main;
         EntityDimensionDelegate ofEntity = _ => DimensionId.Shared;
 
         _rooted.AddRange([create, destroy, setPlayer, exists, tryFind, ofPlayer, currentDimension, ofEntity]);
@@ -59,7 +59,7 @@ public class ServerDimensionApiTests
         { (byte)DimensionCallResult.NameTaken, typeof(InvalidOperationException) },
         { (byte)DimensionCallResult.ParentNotLive, typeof(InvalidOperationException) },
         { (byte)DimensionCallResult.HasChildren, typeof(InvalidOperationException) },
-        { (byte)DimensionCallResult.IsDefault, typeof(InvalidOperationException) },
+        { (byte)DimensionCallResult.IsMain, typeof(InvalidOperationException) },
         { (byte)DimensionCallResult.Destroying, typeof(InvalidOperationException) },
     };
 

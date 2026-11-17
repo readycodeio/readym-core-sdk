@@ -28,7 +28,7 @@ internal readonly struct DimensionFilter
     }
 
     /// <summary>Every dimension's entities, and the shared ones.</summary>
-    public static DimensionFilter EveryDimension { get; } = new(DimensionScope.Every, DimensionId.Default);
+    public static DimensionFilter EveryDimension { get; } = new(DimensionScope.Every, DimensionId.Main);
 
     /// <summary>One dimension's entities, and the shared ones.</summary>
     public static DimensionFilter InDimension(DimensionId dimension) => new(DimensionScope.One, dimension);

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Microsoft.Extensions.Logging;
 using Friflo.Engine.ECS;
 using ReadyM.Api.Multiplayer.ECS.Components;
 using ReadyM.Api.Idents;
@@ -12,6 +11,7 @@ using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
+using ReadyM.SDK.Server.Dimensions;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Exceptions;
 using ReadyM.Native.Container;
@@ -21,15 +21,6 @@ namespace ReadyM.SDK.Server.Entities;
 
 internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLookup
 {
-    /// <summary>
-    /// The dimension an entity is in, asked of the host. Set once the dimension api exists; until then, and in a test
-    /// host without one, every entity counts as the default dimension's.
-    /// </summary>
-    internal Func<RawEntity, DimensionId>? DimensionOf { get; set; }
-
-    /// <summary>Where a refused lookup is reported; set by the mod host.</summary>
-    internal ILogger? Logger { get; set; }
-
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly SetComponentDelegate _setComponent;
@@ -51,17 +42,25 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
     private readonly ComponentIndexes _indexes = new();
 
-    private readonly HashSet<Type> _warnedAmbiguous = [];
+    private readonly DimensionApi _dimensions;
+
+    // Made once from the dimension api, so a lookup does not build a delegate per holder
     private readonly Func<RawEntity, DimensionId> _dimensionOf;
     private QueryScope _scope = new();
 
     /// <summary>Whether the caller is on the thread the host runs the world on.</summary>
     internal bool IsOnWorldThread => _isOnWorldThread() != 0;
 
-    public ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ModComponentIds registry)
+    /// <param name="dimensions">Asked for the dimension an entity is in.</param>
+    public ServerEntityApi(
+        EcsApiPointers pointers,
+        ArchetypePointers archetypes,
+        ModComponentIds registry,
+        DimensionApi dimensions)
     {
         _registry = registry;
-        _dimensionOf = DimensionOfEntity;
+        _dimensions = dimensions;
+        _dimensionOf = dimensions.EntityDimensionOf;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
@@ -515,20 +514,12 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         choice = walked;
     }
 
-    private DimensionId DimensionOfEntity(RawEntity entity) => DimensionOf?.Invoke(entity) ?? DimensionId.Default;
+    /// <summary>The dimension an entity is in, as the host says.</summary>
+    internal DimensionId DimensionOf(RawEntity entity) => _dimensions.EntityDimensionOf(entity);
 
-    // Once per component: a tick that keeps asking would otherwise fill the log
-    private bool RefuseAmbiguous<TComponent, TKey>(TKey key)
-    {
-        if (_warnedAmbiguous.Add(typeof(TComponent)))
-        {
-            Logger?.LogWarning(
-                "{Component} {Key} is held in more than one dimension; look it up with its dimension. Reported once per component",
-                typeof(TComponent).Name, key);
-        }
-
-        return false;
-    }
+    // A key held in two dimensions looked up without one: the mod's bug, not a missing key
+    private static bool RefuseAmbiguous<TComponent, TKey>(TKey key)
+        => throw new AmbiguousLookupException(typeof(TComponent), key);
 
     private bool Holds<TComponent, TKey>(RawEntity entity, int id, TKey key)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull

@@ -324,11 +324,11 @@ public class ServerChunkQueryTests : ServerSdkTest
 
         Assert.Equal([(1, 10), (2, 20), (3, 30), (4, 40)], seen);
 
-        var inDefault = new List<int>();
-        foreach (var npc in Entities.Query<Npc>().InDimension(DimensionId.Default))
-            inDefault.Add(npc.Faction);
+        var inMain = new List<int>();
+        foreach (var npc in Entities.Query<Npc>().InDimension(DimensionId.Main))
+            inMain.Add(npc.Faction);
 
-        Assert.Equal([1, 4], inDefault);
+        Assert.Equal([1, 4], inMain);
         Assert.Equal(6, CountIdentities(Entities.Query<Npc>())); // no dimension named: every one
     }
 }

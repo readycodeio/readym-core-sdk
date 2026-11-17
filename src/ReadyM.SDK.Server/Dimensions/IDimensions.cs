@@ -24,7 +24,7 @@ public interface IDimensions
     /// <summary>
     /// Destroys a dimension: its players go to its parent, and it is deleted once none of them is in one of its areas.
     /// </summary>
-    /// <exception cref="InvalidOperationException">It is the default dimension, or it has child dimensions.</exception>
+    /// <exception cref="InvalidOperationException">It is the main dimension, or it has child dimensions.</exception>
     /// <exception cref="KeyNotFoundException">It is not live.</exception>
     void Destroy(DimensionId id);
 
