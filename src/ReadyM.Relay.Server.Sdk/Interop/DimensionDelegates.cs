@@ -54,3 +54,6 @@ internal delegate DimensionId CurrentDimensionDelegate(PlayerId player);
 
 /// <summary>The entity's dimension; Shared for one in no dimension or gone.</summary>
 internal delegate DimensionId EntityDimensionDelegate(RawEntity entity);
+
+/// <summary>1 when the dimension is the entity's origin; 0 otherwise, or for an entity that is gone.</summary>
+internal delegate byte IsEntityOriginDimensionDelegate(RawEntity entity, DimensionId dimension);

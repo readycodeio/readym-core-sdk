@@ -14,4 +14,5 @@ public struct DimensionApiPointers
     public required IntPtr PlayerDimension;
     public required IntPtr CurrentDimension;
     public required IntPtr EntityDimension;
+    public required IntPtr IsEntityOriginDimension;
 }

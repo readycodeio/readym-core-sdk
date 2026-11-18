@@ -31,6 +31,7 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
     public event Action<Player>? OnPlayerWorldReloadRequested;
     public event Action<DimensionId>? OnDimensionEmptied;
     public event Action<PlayerId, DimensionId, DimensionId>? OnPlayerDimensionChanged;
+    public event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
@@ -136,6 +137,9 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 break;
             case ServerEventKind.PlayerDimensionChanged:
                 OnPlayerDimensionChanged?.Invoke(payload.Player, payload.PreviousDimension, dimension);
+                break;
+            case ServerEventKind.EntityDimensionChanged:
+                OnEntityDimensionChanged?.Invoke(new EntityHandle(payload.Entity, _entities), payload.PreviousDimension, dimension);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");

@@ -33,8 +33,9 @@ public class ServerDimensionApiTests
         PlayerDimensionDelegate ofPlayer = _ => new DimensionId(7);
         CurrentDimensionDelegate currentDimension = _ => DimensionId.Main;
         EntityDimensionDelegate ofEntity = _ => DimensionId.Shared;
+        IsEntityOriginDimensionDelegate isOrigin = (_, dimension) => dimension == new DimensionId(7) ? (byte)1 : (byte)0;
 
-        _rooted.AddRange([create, destroy, setPlayer, exists, tryFind, ofPlayer, currentDimension, ofEntity]);
+        _rooted.AddRange([create, destroy, setPlayer, exists, tryFind, ofPlayer, currentDimension, ofEntity, isOrigin]);
 
         return new DimensionApi(new DimensionApiPointers
         {
@@ -46,6 +47,7 @@ public class ServerDimensionApiTests
             PlayerDimension = Marshal.GetFunctionPointerForDelegate(ofPlayer),
             CurrentDimension = Marshal.GetFunctionPointerForDelegate(currentDimension),
             EntityDimension = Marshal.GetFunctionPointerForDelegate(ofEntity),
+            IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(isOrigin),
         });
     }
 
@@ -83,5 +85,14 @@ public class ServerDimensionApiTests
         Assert.True(api.TryFind("lobby", out var found));
         Assert.Equal(new DimensionId(7), found);
         api.Destroy(new DimensionId(7));
+    }
+
+    [Fact]
+    public void Whether_a_dimension_is_an_entitys_origin_is_the_hosts_answer()
+    {
+        var api = ApiAnswering(DimensionCallResult.Done);
+
+        Assert.True(api.IsEntityOriginDimension(default, new DimensionId(7)));
+        Assert.False(api.IsEntityOriginDimension(default, DimensionId.Main));
     }
 }

@@ -12,4 +12,7 @@ public interface ISaveLoadContext
 
     /// <summary>Reads and resolves entity reference to the loaded entity (default when empty or unresolved).</summary>
     Entity ReadEntityRef(ISaveReader reader);
+
+    /// <summary>Names dimensions across runs; null where no dimension is saved (metadata, tests).</summary>
+    IDimensionSaveNames? DimensionNames { get; }
 }

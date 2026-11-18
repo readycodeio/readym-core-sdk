@@ -1,6 +1,7 @@
 using LiteNetLib;
 using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes.Core;
+using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Server.Events;
 
@@ -58,4 +59,9 @@ public interface IServerEvents
 
     /// <summary>Fires when a player's dimension changes, by a switch or a join that moved them up: player, from, to.</summary>
     event Action<PlayerId, DimensionId, DimensionId>? OnPlayerDimensionChanged;
+
+    /// <summary>
+    /// Fires when an entity has moved from one dimension to another: entity, from, to.
+    /// </summary>
+    event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
 }
