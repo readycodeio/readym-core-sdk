@@ -19,6 +19,6 @@ internal struct ServerEventPayload
     /// <summary>The dimension the event is in: the scope's, the emptied one, or the player's new one.</summary>
     public DimensionId Dimension;
 
-    /// <summary>The player's previous dimension, for a dimension change.</summary>
+    /// <summary>The previous dimension, for an entity's dimension change.</summary>
     public DimensionId PreviousDimension;
 }

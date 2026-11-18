@@ -17,6 +17,7 @@ internal sealed class DimensionApi : IDimensions
     private readonly PlayerDimensionDelegate _playerDimension;
     private readonly CurrentDimensionDelegate _currentDimension;
     private readonly EntityDimensionDelegate _entityDimension;
+    private readonly IsEntityOriginDimensionDelegate _isEntityOriginDimension;
 
     internal DimensionApi(DimensionApiPointers pointers)
     {
@@ -28,6 +29,8 @@ internal sealed class DimensionApi : IDimensions
         _playerDimension = Marshal.GetDelegateForFunctionPointer<PlayerDimensionDelegate>(pointers.PlayerDimension);
         _currentDimension = Marshal.GetDelegateForFunctionPointer<CurrentDimensionDelegate>(pointers.CurrentDimension);
         _entityDimension = Marshal.GetDelegateForFunctionPointer<EntityDimensionDelegate>(pointers.EntityDimension);
+        _isEntityOriginDimension =
+            Marshal.GetDelegateForFunctionPointer<IsEntityOriginDimensionDelegate>(pointers.IsEntityOriginDimension);
     }
 
     /// <summary>The entity's dimension by its raw identity, for the entity api's own lookups.</summary>
@@ -74,6 +77,9 @@ internal sealed class DimensionApi : IDimensions
     public DimensionId GetCurrentDimension(PlayerId player) => _currentDimension(player);
 
     public DimensionId GetEntityDimension(EntityHandle entity) => _entityDimension(entity.RawEntity);
+
+    public bool IsEntityOriginDimension(EntityHandle entity, DimensionId dimension)
+        => _isEntityOriginDimension(entity.RawEntity, dimension) != 0;
 
     public unsafe DimensionSwitchMode SetPlayerDimension(PlayerId player, DimensionId id)
     {

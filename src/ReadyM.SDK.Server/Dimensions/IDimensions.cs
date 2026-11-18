@@ -45,6 +45,13 @@ public interface IDimensions
     DimensionId GetEntityDimension(EntityHandle entity);
 
     /// <summary>
+    /// Whether the dimension is the entity's origin: the one it was created in, or loaded into when its origin was not
+    /// saved (a temporary dimension's). A persistent origin matches that dimension again once a mod creates it.
+    /// False for an entity that has not been in a dimension.
+    /// </summary>
+    bool IsEntityOriginDimension(EntityHandle entity, DimensionId dimension);
+
+    /// <summary>
     /// Moves a player to a dimension. Their client reloads only when the area they stand in changes dimension;
     /// otherwise the move applies at their next area join.
     /// </summary>
