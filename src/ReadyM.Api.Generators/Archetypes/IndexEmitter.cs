@@ -5,9 +5,14 @@ namespace ReadyM.Api.Generators.Archetypes;
 /// <summary>Declares a shape as indexed, and registers which component holds the index behind it.</summary>
 internal static class IndexEmitter
 {
-    /// <summary>The extra contract an indexed shape carries, so a lookup can name it.</summary>
+    /// <summary>
+    /// The extra contract an indexed shape carries, so a lookup can name it. A key held once in the world gets the
+    /// contract a lookup with no dimension asks for.
+    /// </summary>
     public static string Contract(DeclarationModel model)
-        => model.IndexedBy is null ? string.Empty : $", {ArchetypeNames.Indexed}<{model.IndexedBy}>";
+        => model.IndexedBy is null
+            ? string.Empty
+            : $", {(model.IndexHeldOnce ? ArchetypeNames.IndexedOnce : ArchetypeNames.Indexed)}<{model.IndexedBy}>";
 
     public static void Emit(SourceWriter writer, DeclarationModel model, Compilation compilation)
     {

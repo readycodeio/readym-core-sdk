@@ -28,15 +28,12 @@ public static class IndexRegistry
         return false;
     }
 
-    /// <summary>
-    /// A lookup in the dimensions <paramref name="filter"/> sees, where the api keeps dimensions; a unique one is refused
-    /// across two.
-    /// </summary>
-    internal static bool TryFind<TShape, TKey>(IEntityApi api, TKey key, DimensionFilter filter, bool unique, out RawEntity entity)
+    /// <summary>A lookup in the dimensions <paramref name="filter"/> sees, where the api keeps dimensions.</summary>
+    internal static bool TryFind<TShape, TKey>(IEntityApi api, TKey key, DimensionFilter filter, out RawEntity entity)
     {
         if (Finders.TryGetValue(typeof(TShape), out var finder) && finder is Finder<TKey> typed)
             return api is IDimensionLookup dimensions
-                ? typed.TryFindIn(dimensions, key, filter, unique, out entity)
+                ? typed.TryFindIn(dimensions, key, filter, out entity)
                 : typed.TryFind(api, key, out entity);
 
         entity = default;
@@ -49,7 +46,7 @@ public static class IndexRegistry
     {
         internal abstract bool TryFind(IEntityApi api, TKey key, out RawEntity entity);
 
-        internal abstract bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, bool unique, out RawEntity entity);
+        internal abstract bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, out RawEntity entity);
     }
 
     private sealed class Finder<TKey, TComponent> : Finder<TKey>
@@ -58,7 +55,7 @@ public static class IndexRegistry
         internal override bool TryFind(IEntityApi api, TKey key, out RawEntity entity)
             => api.TryFindByIndex<TComponent, TKey>(key, out entity);
 
-        internal override bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, bool unique, out RawEntity entity)
-            => api.TryFindByIndex<TComponent, TKey>(key, filter, unique, out entity);
+        internal override bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, out RawEntity entity)
+            => api.TryFindByIndex<TComponent, TKey>(key, filter, out entity);
     }
 }

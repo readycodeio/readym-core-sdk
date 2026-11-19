@@ -200,11 +200,6 @@ internal static class IndexResult
     /// The component is a mod's, whose index the mod keeps itself.
     /// </summary>
     public const byte ModOwned = 3;
-
-    /// <summary>
-    /// A unique lookup found holders of the value in more than one dimension.
-    /// </summary>
-    public const byte Ambiguous = 4;
 }
 
 /// <summary>
@@ -213,12 +208,12 @@ internal static class IndexResult
 internal unsafe delegate byte SetComponentDelegate(RawEntity entity, byte matchRevision, int componentType, void* data, int size);
 
 /// <summary>
-/// The entity whose indexed component holds this value, chosen by <see cref="HolderChoice{T}"/>. Answers an
-/// <see cref="IndexResult"/>; <paramref name="unique"/> non-zero refuses holders in two dimensions.
+/// The first entity whose indexed component holds this value, in the dimensions the filter sees. Answers an
+/// <see cref="IndexResult"/>.
 /// </summary>
 /// <remarks>The value arrives as its own bytes, so only an unmanaged key can be asked for.</remarks>
 internal unsafe delegate byte FindByIndexDelegate(
-    int componentType, void* value, int size, DimensionFilter filter, byte unique, RawEntity* found);
+    int componentType, void* value, int size, DimensionFilter filter, RawEntity* found);
 
 /// <summary>Receives the entities a scoped query matched, all at once.</summary>
 internal unsafe delegate void EntityListCallback(IntPtr entities, int count);

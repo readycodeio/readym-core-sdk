@@ -9,7 +9,7 @@ namespace ReadyM.Api.ECS.Components;
 /// <remarks>
 /// As with any indexed component, the value must be set through Add/SetComponent or the guid-to-entity index is left stale.
 /// </remarks>
-internal struct PersistentIdComponent(PersistentId id) : IIndexedComponent<PersistentId>
+internal struct PersistentIdComponent(PersistentId id) : IIndexedComponent<PersistentId>, IKeyHeldOnce
 {
     public PersistentId Id = id;
 

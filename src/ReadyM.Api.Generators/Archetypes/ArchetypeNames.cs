@@ -47,6 +47,7 @@ internal static class ArchetypeNames
     public const string Component = "global::Friflo.Engine.ECS.IComponent";
     public const string Registry = "global::ReadyM.SDK.Archetypes.ArchetypeRegistry";
     public const string Indexed = "global::ReadyM.SDK.Archetypes.IIndexed";
+    public const string IndexedOnce = "global::ReadyM.SDK.Archetypes.IIndexedOnce";
     
     /// <summary>Matched against a symbol's ToDisplayString, which carries no global:: prefix.</summary>
     public const string ScopeMarker = "ReadyM.SDK.Archetypes.IScope";
@@ -113,6 +114,13 @@ internal static class ArchetypeNames
     public const string Delivery = "global::" + Namespace + ".Delivery";
     public const string IndexedComponent = "global::Friflo.Engine.ECS.IIndexedComponent";
     public const string NativeInit = "global::ReadyM.Api.ECS.Components.INativeInit";
+    public const string KeyHeldOnce = "global::ReadyM.Api.ECS.Components.IKeyHeldOnce";
+
+    /// <summary>Matched against a symbol's ToDisplayString, which carries no global:: prefix.</summary>
+    public const string KeyHeldOnceMarker = "ReadyM.Api.ECS.Components.IKeyHeldOnce";
+
+    /// <summary>The named argument of [Index] that declares the key held once in the world.</summary>
+    public const string HeldOnceArgument = "HeldOnce";
     public const string AllocatorKind = "global::ReadyM.Native.LowLevel.AllocatorKind";
     public const string NetworkedComponent = "global::ReadyM.Api.Multiplayer.ECS.Components.INetworkedComponent";
 

@@ -15,10 +15,15 @@ public interface IEntities : IEntitiesBase
     EntityQuery<T> Query<T>() where T : struct, IArchetypeQueryable;
 
     /// <summary>
-    /// Look an entity up by its indexed key in one dimension, or among the shared entities. The lookup without a
-    /// dimension sees every dimension, and is refused (false, with a warning) when holders of the key are in more than
-    /// one: a key held once per dimension (an area, a cell, a ref) is looked up with its dimension.
+    /// The entity holding a key held once in the whole world (a player id), in whichever dimension it is. A key held
+    /// once per dimension (an area, a cell) does not compile here: look it up with its dimension.
     /// </summary>
+    /// <returns><c>false</c> when nothing holds that value.</returns>
+    bool TryLookup<T, TKey>(TKey key, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexedOnce<TKey>;
+
+    /// <summary>The entity holding the key in one dimension, or a shared one.</summary>
+    /// <returns><c>false</c> when nothing there holds that value.</returns>
     bool TryLookup<T, TKey>(TKey key, DimensionId dimension, out T shape)
         where T : struct, IArchetypeQueryable, IIndexed<TKey>;
 

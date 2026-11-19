@@ -38,7 +38,7 @@ internal sealed class ServerNetworkedEventScopes(IEntityApi api)
     private bool TryFind<TScope, TId>(TId id, DimensionId dimension, out TScope scope)
         where TScope : struct, IArchetypeQueryable, IIndexed<TId>
     {
-        if (IndexRegistry.TryFind<TScope, TId>(api, id, DimensionFilter.InDimension(dimension), unique: false, out var raw))
+        if (IndexRegistry.TryFind<TScope, TId>(api, id, DimensionFilter.InDimension(dimension), out var raw))
         {
             scope = new TScope { Handle = new EntityHandle(raw, api) };
             return true;

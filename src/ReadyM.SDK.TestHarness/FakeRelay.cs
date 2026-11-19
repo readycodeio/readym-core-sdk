@@ -323,7 +323,7 @@ internal sealed class FakeRelay
         return 1;
     }
 
-    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, DimensionFilter filter, byte unique, RawEntity* found)
+    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, DimensionFilter filter, RawEntity* found)
     {
         FindByIndexCalls++;
 
@@ -333,22 +333,17 @@ internal sealed class FakeRelay
         if (!_indexes.TryGetValue(componentType, out var index))
             return _modOwned.Contains(componentType) ? IndexResult.ModOwned : IndexResult.NoIndex;
 
-        // As the relay does: the holder the one rule chooses, in the dimensions the test placed entities in
-        var choice = new HolderChoice<RawEntity>(filter, unique != 0);
+        // As the relay does: the first holder the filter sees, in the dimensions the test placed entities in
         foreach (var holder in index.Holders((IntPtr)value))
         {
-            if (choice.Offer(holder, DimensionReader))
-                break;
+            if (filter.IsEveryDimension || filter.Sees(DimensionOf(holder)))
+            {
+                *found = holder;
+                return IndexResult.Done;
+            }
         }
 
-        if (choice.Ambiguous)
-            return IndexResult.Ambiguous;
-
-        if (!choice.Found)
-            return IndexResult.Missed;
-
-        *found = choice.Holder;
-        return IndexResult.Done;
+        return IndexResult.Missed;
     }
 
     /// <summary>

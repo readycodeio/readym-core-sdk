@@ -83,19 +83,19 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
         where T6 : struct, IArchetypeMixin
         => new(api);
 
-    // A lookup that names no dimension sees every one, and refuses a key held in two of them.
-    public bool TryLookup<T, TKey>(TKey key, out T shape) 
-        where T : struct, IArchetypeQueryable, IIndexed<TKey>
-        => TryLookupIn(key, DimensionFilter.EveryDimension, unique: true, out shape);
+    // A key held once in the world is found in whichever dimension it is
+    public bool TryLookup<T, TKey>(TKey key, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexedOnce<TKey>
+        => TryLookupIn(key, DimensionFilter.EveryDimension, out shape);
 
     public bool TryLookup<T, TKey>(TKey key, DimensionId dimension, out T shape)
         where T : struct, IArchetypeQueryable, IIndexed<TKey>
-        => TryLookupIn(key, DimensionFilter.InDimension(dimension), unique: false, out shape);
+        => TryLookupIn(key, DimensionFilter.InDimension(dimension), out shape);
 
-    private bool TryLookupIn<T, TKey>(TKey key, DimensionFilter filter, bool unique, out T shape)
+    private bool TryLookupIn<T, TKey>(TKey key, DimensionFilter filter, out T shape)
         where T : struct, IArchetypeQueryable, IIndexed<TKey>
     {
-        if (IndexRegistry.TryFind<T, TKey>(api, key, filter, unique, out var entity))
+        if (IndexRegistry.TryFind<T, TKey>(api, key, filter, out var entity))
         {
             shape = new T { Handle = new EntityHandle(entity, api) };
             return true;

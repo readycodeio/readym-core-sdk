@@ -3,12 +3,10 @@ using ReadyM.Api.Multiplayer.Interop;
 
 namespace ReadyM.SDK.Entities;
 
-/// <summary>
-/// An entity api that keeps dimensions: the server's. A lookup there names the dimensions it sees; a unique one is
-/// refused when holders of the key are in more than one.
-/// </summary>
+/// <summary>An entity api that keeps dimensions: the server's. A lookup there names the dimensions it sees.</summary>
 internal interface IDimensionLookup
 {
-    bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, bool unique, out RawEntity entity)
+    /// <summary>The first holder of the key the filter sees.</summary>
+    bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull;
 }
