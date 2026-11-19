@@ -1,5 +1,4 @@
-﻿using ReadyM.SDK.Exceptions;
-using ReadyM.Api.Idents;
+﻿using ReadyM.Api.Idents;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -79,7 +78,7 @@ public class ServerRelayIndexTests : ServerSdkTest
     {
         Spawn<Misregistered>();
 
-        var refused = Assert.Throws<InvalidOperationException>(() => Entities.TryLookup<Unkeyed, int>(0, out _));
+        var refused = Assert.Throws<InvalidOperationException>(() => Entities.TryLookup<Unkeyed, int>(0, DimensionId.Main, out _));
 
         Assert.Contains("RegisterIndexedComponent<UnkeyedComponent, Int32>", refused.Message);
     }
@@ -154,33 +153,33 @@ public class ServerRelayIndexTests : ServerSdkTest
         Assert.Equal(0, Relay.SlotCalls);
     }
 
-    // -- dimensions: a key can have a holder in each (indexed by the relay) -----------------------------------
+    // -- dimensions (indexed by the relay) ---------------------------------------------------------------------
 
-    private Replicated SpawnIn(DimensionId dimension, int value)
-    {
-        var spawned = Spawn<Replicated>();
-        spawned.NetId = value;
-        Relay.SetDimension(IdentityOf(spawned), dimension);
-        return spawned;
-    }
+    private static readonly DimensionId Instance = new(1);
 
     [Fact]
-    public void A_lookup_with_no_dimension_finds_a_key_held_in_one_dimension()
+    public void A_key_held_once_is_found_with_no_dimension_wherever_it_is()
     {
-        var held = SpawnIn(new DimensionId(1), 7);
+        var held = Spawn<Replicated>();
+        held.NetId = 7;
+        Relay.SetDimension(IdentityOf(held), Instance);
 
         Assert.True(Entities.TryLookup<Networked2, int>(7, out var found));
         Assert.Equal(IdentityOf(held).Id, EntityHandle.Of(found).Id);
     }
 
+    /// <summary>An area id is held once per dimension, so it is looked up in one.</summary>
     [Fact]
-    public void A_lookup_with_no_dimension_throws_for_a_key_held_in_two()
+    public void A_key_held_per_dimension_is_found_in_its_dimension()
     {
-        SpawnIn(DimensionId.Main, 7);
-        var instanced = SpawnIn(new DimensionId(1), 7);
+        var inMain = Spawn<TestArea>();
+        inMain.AreaId = 7;
+        Relay.SetDimension(IdentityOf(inMain), DimensionId.Main);
+        var instanced = Spawn<TestArea>();
+        instanced.AreaId = 7;
+        Relay.SetDimension(IdentityOf(instanced), Instance);
 
-        Assert.Throws<AmbiguousLookupException>(() => Entities.TryLookup<Networked2, int>(7, out _));
-        Assert.True(Entities.TryLookup<Networked2, int>(7, new DimensionId(1), out var found));
+        Assert.True(Entities.TryLookup<TestArea, int>(7, Instance, out var found));
         Assert.Equal(IdentityOf(instanced).Id, EntityHandle.Of(found).Id);
     }
 }

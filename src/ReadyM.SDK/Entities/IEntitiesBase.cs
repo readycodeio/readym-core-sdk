@@ -12,11 +12,6 @@ public interface IEntitiesBase
     /// <summary>The entity that stands for the whole session; throws until it exists.</summary>
     World World { get; }
 
-    /// <summary>The entity whose indexed value is the key, as the shape carrying the index.</summary>
-    /// <returns><c>false</c> when nothing holds that value.</returns>
-    bool TryLookup<T, TKey>(TKey key, out T shape)
-        where T : struct, IArchetypeQueryable, IIndexed<TKey>;
-
     /// <summary>Creates an entity held by a scope, which removes it when the scope goes.</summary>
     T Create<T>(Scope scope) where T : struct, IArchetype;
 

@@ -43,9 +43,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
     private readonly ComponentIndexes _indexes = new();
 
     private readonly DimensionApi _dimensions;
-
-    // Made once from the dimension api, so a lookup does not build a delegate per holder
-    private readonly Func<RawEntity, DimensionId> _dimensionOf;
     private QueryScope _scope = new();
 
     /// <summary>Whether the caller is on the thread the host runs the world on.</summary>
@@ -60,7 +57,6 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
     {
         _registry = registry;
         _dimensions = dimensions;
-        _dimensionOf = dimensions.EntityDimensionOf;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
@@ -416,53 +412,41 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         _indexes.Remember<TComponent, TKey>(component.GetIndexedValue(), rawEntity);
     }
 
-    // The host's own lookups by an id that is unique across dimensions (a network id) see them all.
+    // The host's own lookups by an id held once in the world (a network id) see every dimension.
     public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
-        => TryFindByIndex<TComponent, TKey>(key, DimensionFilter.EveryDimension, unique: false, out entity);
+        => TryFindByIndex<TComponent, TKey>(key, DimensionFilter.EveryDimension, out entity);
 
-    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, bool unique, out RawEntity entity)
+    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var id = _registry.Resolve<TComponent>();
-        var choice = new HolderChoice<RawEntity>(filter, unique);
 
-        if (ChooseRemembered<TComponent, TKey>(id, key, ref choice))
-            return Answer<TComponent, TKey>(key, choice, out entity);
+        if (TryFindRemembered<TComponent, TKey>(id, key, filter, out entity))
+            return true;
 
         RawEntity found;
         var copy = key;
 
-        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), filter, unique ? (byte)1 : (byte)0, &found))
+        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), filter, &found))
         {
             case IndexResult.Done:
                 entity = found;
                 return true;
             case IndexResult.NoIndex:
                 throw NoIndex<TComponent, TKey>();
-            case IndexResult.Ambiguous:
-                entity = default;
-                return RefuseAmbiguous<TComponent, TKey>(key);
             case IndexResult.ModOwned:
-                ChooseByWalking<TComponent, TKey>(id, key, filter, ref choice);
-                return Answer<TComponent, TKey>(key, choice, out entity);
+                return TryFindByWalking<TComponent, TKey>(id, key, filter, out entity);
             default:
                 entity = default;
                 return false;
         }
     }
 
-    private bool Answer<TComponent, TKey>(TKey key, in HolderChoice<RawEntity> choice, out RawEntity entity)
-    {
-        entity = choice.Found && !choice.Ambiguous ? choice.Holder : default;
-        return choice.Ambiguous ? RefuseAmbiguous<TComponent, TKey>(key) : choice.Found;
-    }
-
     /// <summary>
-    /// Offers the holders this runtime remembers, dropping any that no longer hold the key. Settled when one answered:
-    /// a value written past the index is not remembered, so a unique lookup sees only what was written here.
+    /// The newest holder this runtime remembers that the filter sees, dropping any that no longer hold the key.
     /// </summary>
-    private bool ChooseRemembered<TComponent, TKey>(int id, TKey key, ref HolderChoice<RawEntity> choice)
+    private bool TryFindRemembered<TComponent, TKey>(int id, TKey key, DimensionFilter filter, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var holders = _indexes.Holders<TComponent, TKey>(key);
@@ -478,29 +462,37 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
                 continue;
             }
 
-            if (choice.Offer(holder, _dimensionOf))
-                break;
+            // The dimension is asked for only when the filter names one
+            if (filter.IsEveryDimension || filter.Sees(DimensionOf(holder)))
+            {
+                entity = holder;
+                return true;
+            }
         }
 
-        return choice.Found;
+        entity = default;
+        return false;
     }
 
     /// <summary>
-    /// Walks every carrier of the component in the filter's dimensions (the host cut the query to them); the holder
-    /// chosen is remembered for the next lookup.
+    /// Walks every carrier of the component in the filter's dimensions (the host cut the query to them); the first
+    /// holder is remembered for the next lookup.
     /// </summary>
-    private void ChooseByWalking<TComponent, TKey>(int id, TKey key, DimensionFilter filter, ref HolderChoice<RawEntity> choice)
+    private bool TryFindByWalking<TComponent, TKey>(int id, TKey key, DimensionFilter filter, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var carriers = CollectMatching(ComponentSet.Of<TComponent>(), filter);
-        var walked = new HolderChoice<RawEntity>(DimensionFilter.EveryDimension, choice.IsUnique);
 
         try
         {
             for (var i = 0; i < carriers.Count; i++)
             {
-                if (Holds<TComponent, TKey>(carriers[i], id, key) && walked.Offer(carriers[i], _dimensionOf))
-                    break;
+                if (!Holds<TComponent, TKey>(carriers[i], id, key))
+                    continue;
+
+                entity = carriers[i];
+                _indexes.Remember<TComponent, TKey>(key, entity);
+                return true;
             }
         }
         finally
@@ -508,18 +500,12 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
             carriers.Return();
         }
 
-        if (walked.Found && !walked.Ambiguous)
-            _indexes.Remember<TComponent, TKey>(key, walked.Holder);
-
-        choice = walked;
+        entity = default;
+        return false;
     }
 
     /// <summary>The dimension an entity is in, as the host says.</summary>
     internal DimensionId DimensionOf(RawEntity entity) => _dimensions.EntityDimensionOf(entity);
-
-    // A key held in two dimensions looked up without one: the mod's bug, not a missing key
-    private static bool RefuseAmbiguous<TComponent, TKey>(TKey key)
-        => throw new AmbiguousLookupException(typeof(TComponent), key);
 
     private bool Holds<TComponent, TKey>(RawEntity entity, int id, TKey key)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull

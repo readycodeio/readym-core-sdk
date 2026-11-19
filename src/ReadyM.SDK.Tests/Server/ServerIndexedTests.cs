@@ -1,5 +1,4 @@
-﻿using ReadyM.SDK.Exceptions;
-using ReadyM.Api.Idents;
+﻿using ReadyM.Api.Idents;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -154,33 +153,36 @@ public class ServerIndexedTests : ServerSdkTest
         Assert.Equal(0, Relay.SlotCalls);
     }
 
-    // -- dimensions: a key can have a holder in each (remembered on this side) -----------------------------------
+    // -- dimensions: a key held once per dimension (remembered on this side) -------------------------------------
 
-    private Passenger SpawnIn(DimensionId dimension, int value)
+    private static readonly DimensionId Instance = new(1);
+
+    private Boat BoatAt(int berth, DimensionId dimension)
     {
-        var spawned = Spawn<Passenger>();
-        spawned.Ticket = value;
-        Relay.SetDimension(IdentityOf(spawned), dimension);
-        return spawned;
+        var boat = Spawn<Boat>();
+        boat.Berth = berth;
+        Relay.SetDimension(IdentityOf(boat), dimension);
+        return boat;
     }
 
     [Fact]
-    public void A_lookup_with_no_dimension_finds_a_key_held_in_one_dimension()
+    public void A_key_held_once_is_found_with_no_dimension_wherever_it_is()
     {
-        var held = SpawnIn(new DimensionId(1), 7);
+        var passenger = Spawn<Passenger>();
+        passenger.Ticket = 7;
+        Relay.SetDimension(IdentityOf(passenger), Instance);
 
         Assert.True(Entities.TryLookup<Ticketed, int>(7, out var found));
-        Assert.Equal(IdentityOf(held).Id, EntityHandle.Of(found).Id);
+        Assert.Equal(IdentityOf(passenger).Id, EntityHandle.Of(found).Id);
     }
 
     [Fact]
-    public void A_lookup_with_no_dimension_throws_for_a_key_held_in_two()
+    public void A_key_held_per_dimension_is_found_in_its_dimension()
     {
-        SpawnIn(DimensionId.Main, 7);
-        var instanced = SpawnIn(new DimensionId(1), 7);
+        BoatAt(7, DimensionId.Main);
+        var instanced = BoatAt(7, Instance);
 
-        Assert.Throws<AmbiguousLookupException>(() => Entities.TryLookup<Ticketed, int>(7, out _));
-        Assert.True(Entities.TryLookup<Ticketed, int>(7, new DimensionId(1), out var found));
+        Assert.True(Entities.TryLookup<Berthed, int>(7, Instance, out var found));
         Assert.Equal(IdentityOf(instanced).Id, EntityHandle.Of(found).Id);
     }
 }
