@@ -19,15 +19,19 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
 {
     public event Action<Player, Guid>? OnPlayerConnected;
     public event Action<Player, Guid, DisconnectReason>? OnPlayerDisconnected;
-    public event Action<Area>? OnAreaCreated;
-    public event Action<Area>? OnAreaDeleted;
-    public event Action<PlayerId, AreaId>? OnPlayerJoinedArea;
-    public event Action<PlayerId, AreaId>? OnPlayerLeftArea;
-    public event Action<Cell>? OnCellCreated;
-    public event Action<Cell>? OnCellDeleted;
-    public event Action<PlayerId, FullCellId>? OnPlayerActivatedCell;
-    public event Action<PlayerId, FullCellId>? OnPlayerDeactivatedCell;
+    public event Action<Area, DimensionId>? OnAreaCreated;
+    public event Action<Area, DimensionId>? OnAreaDeleted;
+    public event Action<PlayerId, AreaId, DimensionId>? OnPlayerJoinedArea;
+    public event Action<PlayerId, AreaId, DimensionId>? OnPlayerLeftArea;
+    public event Action<Cell, DimensionId>? OnCellCreated;
+    public event Action<Cell, DimensionId>? OnCellDeleted;
+    public event Action<PlayerId, FullCellId, DimensionId>? OnPlayerActivatedCell;
+    public event Action<PlayerId, FullCellId, DimensionId>? OnPlayerDeactivatedCell;
     public event Action<World>? OnWorldCreated;
+    public event Action<Player>? OnPlayerWorldReloadRequested;
+    public event Action<DimensionId>? OnDimensionEmptied;
+    public event Action<PlayerId, DimensionId, DimensionId>? OnPlayerDimensionChanged;
+    public event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
@@ -88,6 +92,8 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
 
     private void Raise(ServerEventKind kind, ServerEventPayload payload)
     {
+        var dimension = payload.Dimension;
+
         switch (kind)
         {
             case ServerEventKind.PlayerConnected:
@@ -97,31 +103,43 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 OnPlayerDisconnected?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId, payload.Reason);
                 break;
             case ServerEventKind.AreaCreated:
-                OnAreaCreated?.Invoke(Shape<Area>(payload.Entity));
+                OnAreaCreated?.Invoke(Shape<Area>(payload.Entity), dimension);
                 break;
             case ServerEventKind.AreaDeleted:
-                OnAreaDeleted?.Invoke(Shape<Area>(payload.Entity));
+                OnAreaDeleted?.Invoke(Shape<Area>(payload.Entity), dimension);
                 break;
             case ServerEventKind.PlayerJoinedArea:
-                OnPlayerJoinedArea?.Invoke(payload.Player, payload.Area);
+                OnPlayerJoinedArea?.Invoke(payload.Player, payload.Area, dimension);
                 break;
             case ServerEventKind.PlayerLeftArea:
-                OnPlayerLeftArea?.Invoke(payload.Player, payload.Area);
+                OnPlayerLeftArea?.Invoke(payload.Player, payload.Area, dimension);
                 break;
             case ServerEventKind.CellCreated:
-                OnCellCreated?.Invoke(Shape<Cell>(payload.Entity));
+                OnCellCreated?.Invoke(Shape<Cell>(payload.Entity), dimension);
                 break;
             case ServerEventKind.CellDeleted:
-                OnCellDeleted?.Invoke(Shape<Cell>(payload.Entity));
+                OnCellDeleted?.Invoke(Shape<Cell>(payload.Entity), dimension);
                 break;
             case ServerEventKind.PlayerActivatedCell:
-                OnPlayerActivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell));
+                OnPlayerActivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell), dimension);
                 break;
             case ServerEventKind.PlayerDeactivatedCell:
-                OnPlayerDeactivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell));
+                OnPlayerDeactivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell), dimension);
                 break;
             case ServerEventKind.WorldEntityCreated:
                 OnWorldCreated?.Invoke(Shape<World>(payload.Entity));
+                break;
+            case ServerEventKind.PlayerWorldReloadRequested:
+                OnPlayerWorldReloadRequested?.Invoke(Shape<Player>(payload.Entity));
+                break;
+            case ServerEventKind.DimensionEmptied:
+                OnDimensionEmptied?.Invoke(dimension);
+                break;
+            case ServerEventKind.PlayerDimensionChanged:
+                OnPlayerDimensionChanged?.Invoke(payload.Player, payload.PreviousDimension, dimension);
+                break;
+            case ServerEventKind.EntityDimensionChanged:
+                OnEntityDimensionChanged?.Invoke(new EntityHandle(payload.Entity, _entities), payload.PreviousDimension, dimension);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");

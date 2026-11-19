@@ -7,6 +7,7 @@ using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Api.Idents;
 using ReadyM.Relay.Server.Sdk.Interop;
+using ReadyM.SDK.Server.Dimensions;
 using ReadyM.SDK.Server.Entities;
 using ReadyM.Native.Container;
 
@@ -66,6 +67,17 @@ internal sealed class FakeRelay
     private readonly CreateCellScopeEntityDelegate _createCellScope = static _ => throw NotModelled();
     private readonly unsafe TryGetEntityCellDelegate _tryGetEntityCell = static (_, _) => throw NotModelled();
 
+    // The dimension api binds every pointer too; only an entity's dimension is modelled, from SetDimension
+    private readonly EntityDimensionDelegate _entityDimension;
+    private readonly unsafe CreateDimensionDelegate _createDimension = static (_, _) => throw NotModelled();
+    private readonly DestroyDimensionDelegate _destroyDimension = static _ => throw NotModelled();
+    private readonly unsafe SetPlayerDimensionDelegate _setPlayerDimension = static (_, _, _) => throw NotModelled();
+    private readonly DimensionExistsDelegate _dimensionExists = static _ => throw NotModelled();
+    private readonly unsafe TryFindDimensionDelegate _tryFindDimension = static (_, _) => throw NotModelled();
+    private readonly PlayerDimensionDelegate _playerDimension = static _ => throw NotModelled();
+    private readonly CurrentDimensionDelegate _currentDimension = static _ => throw NotModelled();
+    private readonly IsEntityOriginDimensionDelegate _isEntityOriginDimension = static (_, _) => throw NotModelled();
+
     private static NotSupportedException NotModelled([CallerMemberName] string member = "")
         => new($"The fake relay does not model {member}.");
 
@@ -91,6 +103,7 @@ internal sealed class FakeRelay
         _createNetworked = CreateNetworkedEntityImpl;
         _createNetworkedInScope = CreateNetworkedEntityInScopeImpl;
         _deleteEntity = DeleteEntityImpl;
+        _entityDimension = DimensionOf;
 
         var world = Thread.CurrentThread;
         _isOnWorldThread = () => Thread.CurrentThread == world ? (byte)1 : (byte)0;
@@ -138,6 +151,19 @@ internal sealed class FakeRelay
         CreateCellScopeEntity = Marshal.GetFunctionPointerForDelegate(_createCellScope),
         TryGetEntityCell = Marshal.GetFunctionPointerForDelegate(_tryGetEntityCell),
         IsOnWorldThread = Marshal.GetFunctionPointerForDelegate(_isOnWorldThread)
+    };
+
+    internal DimensionApiPointers Dimensions => new()
+    {
+        Create = Marshal.GetFunctionPointerForDelegate(_createDimension),
+        Destroy = Marshal.GetFunctionPointerForDelegate(_destroyDimension),
+        SetPlayerDimension = Marshal.GetFunctionPointerForDelegate(_setPlayerDimension),
+        Exists = Marshal.GetFunctionPointerForDelegate(_dimensionExists),
+        TryFind = Marshal.GetFunctionPointerForDelegate(_tryFindDimension),
+        PlayerDimension = Marshal.GetFunctionPointerForDelegate(_playerDimension),
+        CurrentDimension = Marshal.GetFunctionPointerForDelegate(_currentDimension),
+        EntityDimension = Marshal.GetFunctionPointerForDelegate(_entityDimension),
+        IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(_isEntityOriginDimension)
     };
 
     internal ArchetypePointers Archetypes => new()
@@ -297,7 +323,7 @@ internal sealed class FakeRelay
         return 1;
     }
 
-    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, RawEntity* found)
+    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, DimensionFilter filter, RawEntity* found)
     {
         FindByIndexCalls++;
 
@@ -307,11 +333,17 @@ internal sealed class FakeRelay
         if (!_indexes.TryGetValue(componentType, out var index))
             return _modOwned.Contains(componentType) ? IndexResult.ModOwned : IndexResult.NoIndex;
 
-        if (!index.TryFind((IntPtr)value, out var entity))
-            return IndexResult.Missed;
+        // As the relay does: the first holder the filter sees, in the dimensions the test placed entities in
+        foreach (var holder in index.Holders((IntPtr)value))
+        {
+            if (filter.IsEveryDimension || filter.Sees(DimensionOf(holder)))
+            {
+                *found = holder;
+                return IndexResult.Done;
+            }
+        }
 
-        *found = entity;
-        return IndexResult.Done;
+        return IndexResult.Missed;
     }
 
     /// <summary>
@@ -397,7 +429,7 @@ internal sealed class FakeRelay
 
     /// <summary>The v1 server api bound to this relay, wired the way the mod host wires it.</summary>
     internal ServerEntityApi CreateEntityApi()
-        => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName));
+        => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName), new DimensionApi(Dimensions));
 
     /// <summary>The id the relay assigned, for a caller that drives Query itself rather than through the SDK.</summary>
     internal int ComponentId<T>() where T : struct => IdOf(typeof(T));
@@ -534,7 +566,20 @@ internal sealed class FakeRelay
             *slot = heap.SlotAt(found.Row);
     }
 
-    private unsafe void QueryImpl(int* componentIds, int n, ChunkCallback callback)
+    // An entity no test placed is shared, as the host's main dimension component is: every filter sees it.
+    private readonly Dictionary<int, DimensionId> _dimensions = [];
+
+    /// <summary>Places an entity in a dimension, for the relay's dimension filter to cut it out of a query.</summary>
+    internal void SetDimension(RawEntity entity, DimensionId dimension) => _dimensions[entity.Id] = dimension;
+
+    internal DimensionId DimensionOf(RawEntity entity)
+        => _dimensions.TryGetValue(entity.Id, out var dimension) ? dimension : DimensionId.Shared;
+
+    private Func<RawEntity, DimensionId>? _dimensionOfCached;
+
+    private Func<RawEntity, DimensionId> DimensionReader => _dimensionOfCached ??= DimensionOf;
+
+    private unsafe void QueryImpl(int* componentIds, int n, DimensionFilter filter, ChunkCallback callback)
     {
         QueryCalls++;
 
@@ -544,6 +589,7 @@ internal sealed class FakeRelay
             wanted[i] = componentIds[i];
 
         var comps = stackalloc ChunkComponent[n];
+        var run = stackalloc ChunkComponent[n];
 
         foreach (var archetype in _archetypes)
         {
@@ -558,8 +604,24 @@ internal sealed class FakeRelay
             archetype.Entities.AsSpan(0, archetype.Count).CopyTo(identities);
 
             fixed (RawEntity* entities = identities)
-                callback((IntPtr)entities, comps, n, archetype.Count);
+            {
+                if (filter.IsEveryDimension || _dimensions.Count == 0)
+                {
+                    callback((IntPtr)entities, comps, n, archetype.Count);
+                    continue;
+                }
+
+                // As the relay does: one chunk per run of rows the filter sees
+                var rows = new PlacedRows(this, identities);
+                ChunkRuns.Hand(in rows, filter, entities, comps, run, n, archetype.Count, callback);
+            }
         }
+    }
+
+    /// <summary>The rows' dimensions, as the test placed their entities.</summary>
+    private readonly struct PlacedRows(FakeRelay relay, RawEntity[] identities) : IRowDimensions
+    {
+        public DimensionId At(int row) => relay.DimensionOf(identities[row]);
     }
 
     [ThreadStatic]

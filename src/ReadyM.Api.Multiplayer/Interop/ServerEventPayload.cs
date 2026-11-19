@@ -15,4 +15,10 @@ internal struct ServerEventPayload
     public RawEntity Entity;
     public DisconnectReason Reason;
     public Guid ReadyMId;
+
+    /// <summary>The dimension the event is in: the scope's, the emptied one, or the player's new one.</summary>
+    public DimensionId Dimension;
+
+    /// <summary>The previous dimension, for an entity's dimension change.</summary>
+    public DimensionId PreviousDimension;
 }

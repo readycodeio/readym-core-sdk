@@ -6,12 +6,19 @@ namespace ReadyM.SDK.Events;
 /// <summary>What a networked event handler is told about the event besides its members.</summary>
 public readonly struct EventContext
 {
-    internal EventContext(PlayerId origin, bool isRaisingClient, EventCancellation cancellation)
+    internal EventContext(PlayerId origin, bool isRaisingClient, EventCancellation cancellation, DimensionId dimension)
     {
         Origin = origin;
         IsRaisingClient = isRaisingClient;
         Cancellation = cancellation;
+        EventDimension = dimension;
     }
+
+    /// <summary>
+    /// On the server, the dimension the event is in: where its origin is, or its subject's for an event the server
+    /// raised. The server SDK exposes it; a client is in one dimension, never sees it and passes Invalid.
+    /// </summary>
+    internal DimensionId EventDimension { get; }
 
     /// <summary>Who raised it: a player, or <see cref="PlayerId.Server"/>.</summary>
     public PlayerId Origin { get; }

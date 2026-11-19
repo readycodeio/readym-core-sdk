@@ -14,6 +14,19 @@ public interface IEntities : IEntitiesBase
     /// <typeparam name="T">Archetype or Mixin</typeparam>
     EntityQuery<T> Query<T>() where T : struct, IArchetypeQueryable;
 
+    /// <summary>
+    /// The entity holding a key held once in the whole world (a player id), in whichever dimension it is. A key held
+    /// once per dimension (an area, a cell) does not compile here: look it up with its dimension.
+    /// </summary>
+    /// <returns><c>false</c> when nothing holds that value.</returns>
+    bool TryLookup<T, TKey>(TKey key, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexedOnce<TKey>;
+
+    /// <summary>The entity holding the key in one dimension, or a shared one.</summary>
+    /// <returns><c>false</c> when nothing there holds that value.</returns>
+    bool TryLookup<T, TKey>(TKey key, DimensionId dimension, out T shape)
+        where T : struct, IArchetypeQueryable, IIndexed<TKey>;
+
     /// <summary>Remove an entity from the world.</summary>
     /// <returns><c>false</c> if the entity was already deleted.</returns>
     bool Delete<T>(in T shape) where T : IEntityShape, allows ref struct;

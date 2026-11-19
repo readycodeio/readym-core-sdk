@@ -50,10 +50,10 @@ internal sealed unsafe class FakeRpcRelay
         new FixedNetworkTime(),
         new NoChangeTracking());
 
-    public void Deliver(RelayMessageCode code, PlayerId sender, NetDataWriter body)
+    public void Deliver(RelayMessageCode code, PlayerId sender, NetDataWriter body, DimensionId dimension)
     {
         fixed (byte* data = body.Data)
-            _handlers[code](new ServerEventHeader(code, sender), data, body.Length);
+            _handlers[code](new ServerEventHeader(code, sender), dimension, data, body.Length);
     }
 
     private sealed class FixedNetworkTime : INetworkTime

@@ -59,7 +59,7 @@ public abstract class ServerWorld
     internal unsafe void WalkChunks(int[] componentIds, ChunkCallback body)
     {
         fixed (int* ids = componentIds)
-            _query(ids, componentIds.Length, body);
+            _query(ids, componentIds.Length, default, body);
     }
 
     internal int[] ComponentIds<T1>() where T1 : struct

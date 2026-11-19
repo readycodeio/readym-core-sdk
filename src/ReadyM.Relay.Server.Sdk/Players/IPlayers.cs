@@ -19,9 +19,15 @@ public interface IPlayers
     /// </summary>
     Guid? GetReadyMId(PlayerId player);
 
-    /// <summary>The players in an area.</summary>
+    /// <summary>The players in an area, in every dimension.</summary>
     List<PlayerId> InArea(AreaId area);
 
-    /// <summary>The players who have a cell active.</summary>
+    /// <summary>The players in an area of one dimension.</summary>
+    List<PlayerId> InArea(AreaId area, DimensionId dimension);
+
+    /// <summary>The players who have a cell active, in every dimension.</summary>
     List<PlayerId> InCell(FullCellId cell);
+
+    /// <summary>The players who have a cell of one dimension active.</summary>
+    List<PlayerId> InCell(FullCellId cell, DimensionId dimension);
 }

@@ -33,8 +33,11 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
         IsNativeContainer = CSharpFieldSupportRegistry.FieldTypeSupportVisitor
                                 .TryGetImpl(property.Type, false, out var support)
                             && support is NativeContainerFieldTypeSupportImplBase;
-        IsIndex = property.GetAttributes().Any(attribute
+        var index = property.GetAttributes().FirstOrDefault(attribute
             => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.IndexAttribute);
+        IsIndex = index is not null;
+        IsHeldOnce = index is not null && index.NamedArguments.Any(argument
+            => argument.Key == ArchetypeNames.HeldOnceArgument && argument.Value.Value is true);
         IsPredictable = property.GetAttributes().Any(attribute
             => attribute.AttributeClass?.ToDisplayString() == ArchetypeNames.PredictableAttribute);
 
@@ -53,6 +56,9 @@ internal sealed class AccessorModel(string name, string type, bool hasSetter, st
 
     /// <summary>Whether [Index] marks this as the value the shape is found by.</summary>
     public bool IsIndex { get; }
+
+    /// <summary>Whether [Index(HeldOnce = true)] says the value is held once in the world, not once per dimension.</summary>
+    public bool IsHeldOnce { get; }
 
     /// <summary>
     /// Whether [Predictable] lets a client guess at the value while it waits for the server. The guess is held
@@ -637,6 +643,15 @@ internal sealed class DeclarationModel
     /// What this shape is found by, taken from [Index] or from the component it already has.
     /// </summary>
     public string? IndexedBy => IndexAccessor?.Type ?? ExplicitValueType();
+
+    /// <summary>
+    /// Whether the key is held once in the world, so the shape can be looked up with no dimension: from
+    /// [Index(HeldOnce = true)], or the explicit component implementing IKeyHeldOnce.
+    /// </summary>
+    public bool IndexHeldOnce => IndexAccessor is { } index
+        ? index.IsHeldOnce
+        : ExplicitComponent is not null && ExplicitComponent.AllInterfaces.Any(contract
+            => contract.ToDisplayString() == ArchetypeNames.KeyHeldOnceMarker);
 
     private string? ExplicitValueType()
     {

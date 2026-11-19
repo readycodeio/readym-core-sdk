@@ -1,4 +1,5 @@
 ﻿using Friflo.Engine.ECS;
+using ReadyM.Api.ECS.Components;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Attributes;
 using ReadyM.SDK.Tests.ExternalMod;
@@ -145,11 +146,14 @@ public readonly partial struct Metadata
 [Include(typeof(Metadata))]
 public readonly partial struct Networked;
 
-/// <summary>Indexed by a property the SDK declares, so the component behind it is generated and mod-owned.</summary>
+/// <summary>
+/// Indexed by a property the SDK declares, so the component behind it is generated and mod-owned. Its key is held once
+/// in the world, so it is looked up with no dimension.
+/// </summary>
 [ArchetypeMixin(Replication.None)]
 public readonly partial struct Ticketed
 {
-    [Index]
+    [Index(HeldOnce = true)]
     public partial int Ticket { get; set; }
 
     public partial int Fare { get; set; }
@@ -161,7 +165,7 @@ public readonly partial struct Ticketed
 public readonly partial struct Passenger;
 
 /// <summary>Stands in for a component the relay owns and indexes itself, the way MetadataComponent is.</summary>
-internal struct RelayNetIdComponent : IIndexedComponent<int>
+internal struct RelayNetIdComponent : IIndexedComponent<int>, IKeyHeldOnce
 {
     public int NetId;
     public int Owner;
@@ -181,6 +185,19 @@ public readonly partial struct Networked2
 [Include(typeof(Position))]
 [Include(typeof(Networked2))]
 public readonly partial struct Replicated;
+
+/// <summary>Mod-owned and indexed by a key held once per dimension, the way a cell is.</summary>
+[ArchetypeMixin(Replication.None)]
+public readonly partial struct Berthed
+{
+    [Index]
+    public partial int Berth { get; set; }
+}
+
+[Archetype(Networked = false)]
+[Include(typeof(Position))]
+[Include(typeof(Berthed))]
+public readonly partial struct Boat;
 
 /// <summary>Stands in for a scope component the relay owns, indexed the way AreaScopeComponent is.</summary>
 internal struct TestAreaScopeComponent : IIndexedComponent<int>

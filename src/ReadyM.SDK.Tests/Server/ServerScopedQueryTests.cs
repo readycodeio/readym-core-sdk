@@ -1,4 +1,5 @@
 ﻿using ReadyM.SDK.Exceptions;
+using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -132,7 +133,8 @@ public class ServerScopedQueryTests : ServerSdkTest
         Spawn<Guard>(north).Route = 8;
         Spawn<Guard>(Area(43)).Route = 9;
 
-        Assert.True(Entities.TryLookup<TestArea, int>(42, out var found));
+        // An area is held once per dimension, so it is looked up in one
+        Assert.True(Entities.TryLookup<TestArea, int>(42, DimensionId.Main, out var found));
 
         var routes = 0;
 
