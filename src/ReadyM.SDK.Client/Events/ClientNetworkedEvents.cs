@@ -28,4 +28,8 @@ internal sealed class ClientNetworkedEvents(IRpcClient relay, PredictedRaiseRegi
     public void RaiseAs<T>(PlayerId origin, T networkEvent) where T : struct, INetworkedEvent
         => throw new InvalidOperationException(
             $"Only the server may raise an event as another player. {typeof(T).Name} was raised as {origin} on a client.");
+
+    public void RaiseIn<T>(DimensionId dimension, T networkEvent) where T : struct, INetworkedEvent
+        => throw new InvalidOperationException(
+            $"Only the server may raise an event in a dimension. {typeof(T).Name} was raised in {dimension} on a client.");
 }

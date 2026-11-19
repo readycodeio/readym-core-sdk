@@ -50,6 +50,22 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
     public void Raise(T networkEvent, PlayerId origin)
         => Dispatch(networkEvent, origin, checkPolicy: false, DimensionOfSubject(in networkEvent));
 
+    /// <summary>
+    /// Raises the event from server code as <paramref name="origin"/> in <paramref name="dimension"/>. The policy is
+    /// not checked. Throws when its subject is in another dimension.
+    /// </summary>
+    public void RaiseIn(T networkEvent, PlayerId origin, DimensionId dimension)
+    {
+        if (contract.Subject(in networkEvent) is { } subject && scopes.DimensionOf(subject) is var ofSubject
+            && ofSubject != dimension)
+        {
+            throw new ArgumentException(
+                $"{typeof(T).Name} was raised in {dimension}, but its subject is in {ofSubject}.", nameof(dimension));
+        }
+
+        Dispatch(networkEvent, origin, checkPolicy: false, dimension);
+    }
+
     // The dimension is the sender's current one, as the relay passes it
     private void OnMessageReceived(ServerEventHeader header, DimensionId dimension, NetDataReader reader)
     {
