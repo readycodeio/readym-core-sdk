@@ -13,6 +13,7 @@
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests.Benchmarks")]
 [assembly: InternalsVisibleTo("ReadyM.Wukong.Common")]
+[assembly: InternalsVisibleTo("ReadyM.Relay.Common.Oblivion")]
 [assembly: InternalsVisibleTo("WukongMp.Api")]
 [assembly: InternalsVisibleTo("ReadyM.SDK")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Tests")]
