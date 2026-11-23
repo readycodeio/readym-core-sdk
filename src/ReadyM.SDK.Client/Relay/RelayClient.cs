@@ -795,11 +795,11 @@ internal class RelayClient : IRelayClient
                         _netThreadContext.ActiveCells.Add(cellId);
                 }
 
-                _requestedActiveCells = null;
-
                 _logger.LogInformation("NETWORK SET ACTIVE CELLS count: {CellCount} for player {PlayerId}", _netThreadContext.ActiveCells.Count, playerId);
 
+                // Raised before the request is cleared, so ClientState shows the cells as pending throughout.
                 OnActiveCellsSet?.Invoke(_netThreadContext);
+                _requestedActiveCells = null;
                 break;
             }
             default:

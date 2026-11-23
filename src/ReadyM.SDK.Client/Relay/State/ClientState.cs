@@ -90,6 +90,9 @@ internal class ClientState : IDisposable
 
     private readonly List<CellEntry> _currentCellEntries = new();
 
+    // Game thread only: captured once per frame in ProcessPendingEvents.
+    private CellId[]? _pendingActiveCells;
+
     // ReSharper disable once ChangeFieldTypeToSystemThreadingLock
     private readonly object _lock = new();
 
@@ -126,6 +129,10 @@ internal class ClientState : IDisposable
 
     public Api.Helpers.ReadOnlyList<CellId> ActiveCells
         => _currentCellEntries.Select(entry => entry.CellId).ToList().WrapReadOnly();
+
+    /// <summary>The active cells the local player is changing to and that are not applied yet, or null when none are.</summary>
+    public Api.Helpers.ReadOnlyList<CellId>? PendingActiveCells
+        => _pendingActiveCells?.ToList().WrapReadOnly();
 
     public Api.Helpers.ReadOnlyList<CellEntry> ActiveCellEntries
         => _currentCellEntries.WrapReadOnly();
@@ -674,6 +681,51 @@ internal class ClientState : IDisposable
     }
 
     private void ProcessPendingEvents()
+    {
+        // Read before the queue: RelayClient queues the server's answer before it clears its request.
+        var requestedActiveCells = _relayClient.RequestedActiveCells;
+        ApplyPendingEvents();
+        _pendingActiveCells = requestedActiveCells?.ToArray() ?? FindQueuedActiveCells();
+    }
+
+    /// <summary>Finds the active cells the queued events end on, or null when they do not change them.</summary>
+    private CellId[]? FindQueuedActiveCells()
+    {
+        CellId[]? cellIds = null;
+
+        lock (_lock)
+        {
+            foreach (var pendingEvent in _pendingEvents)
+            {
+                if (pendingEvent.Invalidated)
+                    continue;
+
+                switch (pendingEvent.Kind)
+                {
+                    case PendingEventKind.SetActiveCells:
+                        cellIds = pendingEvent.CellIds ?? [];
+                        break;
+                    case PendingEventKind.Connected:
+                    case PendingEventKind.Disconnected:
+                    case PendingEventKind.JoinedArea:
+                    case PendingEventKind.LeftArea:
+                        cellIds = null;
+                        break;
+                    case PendingEventKind.OtherPlayerCreated:
+                    case PendingEventKind.OtherPlayerDeleted:
+                    case PendingEventKind.OtherPlayerInsideArea:
+                    case PendingEventKind.OtherPlayerOutsideArea:
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(pendingEvent.Kind), pendingEvent.Kind, "Unhandled pending event kind.");
+                }
+            }
+        }
+
+        return cellIds;
+    }
+
+    private void ApplyPendingEvents()
     {
         var removeAndContinue = false;
 
