@@ -14,6 +14,7 @@ internal class PlayerApi : IPlayers
     private readonly RotateCellMastersDelegate _rotateCellMasters;
     private readonly GetAreaPlayersDelegate _getAreaPlayers;
     private readonly GetCellPlayersDelegate _getCellPlayers;
+    private readonly DropConnectionDelegate _dropConnection;
 
     internal PlayerApi(PlayerApiPointers pointers)
     {
@@ -22,6 +23,7 @@ internal class PlayerApi : IPlayers
         _rotateCellMasters = Marshal.GetDelegateForFunctionPointer<RotateCellMastersDelegate>(pointers.RotateCellMasters);
         _getAreaPlayers = Marshal.GetDelegateForFunctionPointer<GetAreaPlayersDelegate>(pointers.GetAreaPlayers);
         _getCellPlayers = Marshal.GetDelegateForFunctionPointer<GetCellPlayersDelegate>(pointers.GetCellPlayers);
+        _dropConnection = Marshal.GetDelegateForFunctionPointer<DropConnectionDelegate>(pointers.DropConnection);
     }
 
     /// <summary>
@@ -35,6 +37,12 @@ internal class PlayerApi : IPlayers
     /// and every entity in that cell that allows ownership transfer follows to the new master.
     /// </summary>
     public void RotateCellMasters(PlayerId requester) => _rotateCellMasters(requester);
+
+    /// <summary>
+    /// Test tool: the server forgets the player's connection without telling them, which is what a dead network
+    /// looks like from both ends. Nothing is revoked, so the game can reconnect.
+    /// </summary>
+    public void DropConnection(PlayerId player) => _dropConnection(player);
 
     /// <inheritdoc />
     public unsafe List<PlayerId> InArea(AreaId area)

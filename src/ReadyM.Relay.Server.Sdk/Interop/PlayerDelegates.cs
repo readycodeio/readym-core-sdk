@@ -8,6 +8,8 @@ internal delegate Guid GetReadyMIdDelegate(PlayerId playerId);
 
 internal delegate void RotateCellMastersDelegate(PlayerId requester);
 
+internal delegate void DropConnectionDelegate(PlayerId playerId);
+
 /// <summary>
 /// Fills <paramref name="buffer"/> with the players in a scope and returns how many there are. A count larger
 /// than <paramref name="capacity"/> means nothing was written and the caller should come back with more room.
