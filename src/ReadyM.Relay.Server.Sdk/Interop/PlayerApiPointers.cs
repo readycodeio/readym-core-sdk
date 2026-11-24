@@ -11,4 +11,5 @@ public struct PlayerApiPointers
     public required IntPtr RotateCellMasters;
     public required IntPtr GetAreaPlayers;
     public required IntPtr GetCellPlayers;
+    public required IntPtr DropConnection;
 }
