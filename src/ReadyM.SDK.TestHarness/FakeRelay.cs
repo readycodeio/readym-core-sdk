@@ -41,6 +41,7 @@ internal sealed class FakeRelay
     private readonly MakeResidentDelegate _makeResident;
     private readonly EndResidencyDelegate _endResidency;
     private readonly IsResidentDelegate _isResident;
+    private readonly MakeResidentOfCellDelegate _makeResidentOfCell;
     private readonly HashSet<int> _residents = [];
     private readonly GetComponentIdByNameDelegate _getComponentIdByName;
     private readonly RegisterModComponentDelegate _registerModComponent;
@@ -86,6 +87,7 @@ internal sealed class FakeRelay
         _makeResident = MakeResidentImpl;
         _endResidency = EndResidencyImpl;
         _isResident = IsResidentImpl;
+        _makeResidentOfCell = MakeResidentOfCellImpl;
         _createLocalEntityInScope = CreateLocalEntityInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
         _isEntityAlive = IsEntityAliveImpl;
@@ -147,7 +149,8 @@ internal sealed class FakeRelay
         IsOnWorldThread = Marshal.GetFunctionPointerForDelegate(_isOnWorldThread),
         MakeResident = Marshal.GetFunctionPointerForDelegate(_makeResident),
         EndResidency = Marshal.GetFunctionPointerForDelegate(_endResidency),
-        IsResident = Marshal.GetFunctionPointerForDelegate(_isResident)
+        IsResident = Marshal.GetFunctionPointerForDelegate(_isResident),
+        MakeResidentOfCell = Marshal.GetFunctionPointerForDelegate(_makeResidentOfCell)
     };
 
     internal ArchetypePointers Archetypes => new()
@@ -250,6 +253,10 @@ internal sealed class FakeRelay
         _residents.Add(entity.Id);
         return 1;
     }
+
+    // The harness keeps no cells, so the resident of a named cell stays in no scope
+    private byte MakeResidentOfCellImpl(RawEntity entity, FullCellId cellId)
+        => !_scopes.ContainsKey(entity.Id) && _residents.Add(entity.Id) ? (byte)1 : (byte)0;
 
     private byte EndResidencyImpl(RawEntity entity)
         => _scopes.ContainsKey(entity.Id) && _residents.Remove(entity.Id) ? (byte)1 : (byte)0;

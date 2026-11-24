@@ -48,6 +48,12 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
 
     public void MakeResident(in EntityHandle handle) => api.MakeResident(handle.RawEntity);
 
+    public void MakeResident<T>(in T shape, FullCellId cellId)
+        where T : IEntityShape, allows ref struct
+        => api.MakeResident(shape.Handle.RawEntity, cellId);
+
+    public void MakeResident(in EntityHandle handle, FullCellId cellId) => api.MakeResident(handle.RawEntity, cellId);
+
     public void EndResidency(in EntityHandle handle) => api.EndResidency(handle.RawEntity);
 
     public bool IsResident(in EntityHandle handle) => api.IsResident(handle.RawEntity);

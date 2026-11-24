@@ -61,4 +61,7 @@ public struct EcsApiPointers
 
     /// <summary>Whether an entity is a resident.</summary>
     public required IntPtr IsResident;
+
+    /// <summary>Makes an entity in no scope a resident standing in a cell, which need not be in memory. Zero on a host that keeps no residents.</summary>
+    public required IntPtr MakeResidentOfCell;
 }

@@ -33,6 +33,9 @@ internal unsafe delegate byte TryGetEntityScopeDelegate(RawEntity entity, RawEnt
 /// <summary>1 if the entity is a resident now, 0 if it is not in a cell.</summary>
 internal delegate byte MakeResidentDelegate(RawEntity entity);
 
+/// <summary>1 if the entity is a resident standing in <paramref name="cellId"/> now, 0 if it is in a scope or is a resident already.</summary>
+internal delegate byte MakeResidentOfCellDelegate(RawEntity entity, FullCellId cellId);
+
 /// <summary>1 if the entity is no longer a resident, 0 if it is not a resident standing in a cell.</summary>
 internal delegate byte EndResidencyDelegate(RawEntity entity);
 

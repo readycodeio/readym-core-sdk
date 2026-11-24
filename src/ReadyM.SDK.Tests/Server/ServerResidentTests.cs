@@ -1,3 +1,4 @@
+using ReadyM.Api.Idents;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;
@@ -8,6 +9,8 @@ namespace ReadyM.SDK.Tests.Server;
 /// </summary>
 public class ServerResidentTests : ServerSdkTest
 {
+    private static readonly FullCellId Market = new(new AreaId("market"), new CellId("interior"));
+
     private TestArea Area()
     {
         var area = Entities.Create<TestArea>();
@@ -48,6 +51,37 @@ public class ServerResidentTests : ServerSdkTest
 
         Assert.Throws<InvalidOperationException>(() => Entities.MakeResident(guard));
         Assert.False(Entities.IsResident(guard));
+    }
+
+    [Fact]
+    public void An_entity_in_no_scope_becomes_a_resident_of_a_named_cell()
+    {
+        var guard = Entities.Create<Guard>();
+        var other = Entities.Create<Guard>();
+
+        Entities.MakeResident(guard, Market);
+
+        Assert.True(Entities.IsResident(guard));
+        Assert.False(Entities.IsResident(other));
+    }
+
+    [Fact]
+    public void An_entity_in_a_scope_cannot_become_a_resident_of_a_named_cell()
+    {
+        var guard = Entities.Create<Guard>(Area());
+
+        Assert.Throws<InvalidOperationException>(() => Entities.MakeResident(guard, Market));
+        Assert.False(Entities.IsResident(guard));
+    }
+
+    [Fact]
+    public void A_resident_cannot_become_a_resident_of_a_named_cell_again()
+    {
+        var guard = Entities.Create<Guard>();
+        Entities.MakeResident(guard, Market);
+
+        Assert.Throws<InvalidOperationException>(() => Entities.MakeResident(guard, Market));
+        Assert.True(Entities.IsResident(guard));
     }
 
     [Fact]
