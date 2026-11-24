@@ -39,6 +39,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly MakeResidentDelegate? _makeResident;
     private readonly EndResidencyDelegate? _endResidency;
     private readonly IsResidentDelegate? _isResident;
+    private readonly MakeResidentOfCellDelegate? _makeResidentOfCell;
     private readonly ConcurrentDictionary<ComponentSet, ArchetypeId> _archetypeIds = new();
     private readonly ModComponentIds _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
@@ -78,6 +79,18 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         _isResident = pointers.IsResident == IntPtr.Zero
             ? null
             : Marshal.GetDelegateForFunctionPointer<IsResidentDelegate>(pointers.IsResident);
+        _makeResidentOfCell = pointers.MakeResidentOfCell == IntPtr.Zero
+            ? null
+            : Marshal.GetDelegateForFunctionPointer<MakeResidentOfCellDelegate>(pointers.MakeResidentOfCell);
+    }
+
+    public void MakeResident(RawEntity rawEntity, FullCellId cellId)
+    {
+        if (_makeResidentOfCell is null)
+            throw new NotSupportedException("This server keeps no residents.");
+
+        if (_makeResidentOfCell(rawEntity, cellId) == 0)
+            throw new InvalidOperationException($"Entity {rawEntity.Id} is in a scope or is a resident already. Only an entity in no scope can be made a resident of a named cell.");
     }
 
     public void MakeResident(RawEntity rawEntity)

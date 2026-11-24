@@ -25,6 +25,13 @@ public interface IEntities : IEntitiesBase
     /// <exception cref="InvalidOperationException">The entity is not in a cell.</exception>
     void MakeResident<T>(in T shape) where T : IEntityShape, allows ref struct;
 
+    /// <summary>
+    /// Makes an entity that is in no scope a resident standing in the given cell: the cell holds it while it is in
+    /// memory, and it stays on the server, out of every player's sight, while it is not.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The entity is in a scope, or is a resident already.</exception>
+    void MakeResident<T>(in T shape, FullCellId cellId) where T : IEntityShape, allows ref struct;
+
     /// <summary>Makes a resident the content of the cell it stands in again.</summary>
     /// <exception cref="InvalidOperationException">The entity is not a resident, or its cell is not in memory.</exception>
     void EndResidency<T>(in T shape) where T : IEntityShape, allows ref struct;
@@ -34,6 +41,9 @@ public interface IEntities : IEntitiesBase
 
     /// <inheritdoc cref="MakeResident{T}(in T)"/>
     void MakeResident(in EntityHandle handle);
+
+    /// <inheritdoc cref="MakeResident{T}(in T, FullCellId)"/>
+    void MakeResident(in EntityHandle handle, FullCellId cellId);
 
     /// <inheritdoc cref="EndResidency{T}(in T)"/>
     void EndResidency(in EntityHandle handle);
