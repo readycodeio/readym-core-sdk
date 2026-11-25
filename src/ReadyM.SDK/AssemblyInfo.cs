@@ -13,6 +13,7 @@
 [assembly: InternalsVisibleTo("OblivionMP.SDK")]
 [assembly: InternalsVisibleTo("OblivionMP.SDK.Common")]
 [assembly: InternalsVisibleTo("OblivionMP.SDK.Serverside")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK.Serverside.Tests")]
 [assembly: InternalsVisibleTo("OblivionMpCSharpMod")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("ReadyM.Api.Generators.Tests.Dynamic")]
