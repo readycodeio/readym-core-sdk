@@ -12,7 +12,7 @@ namespace ReadyM.Api.Generators;
 /// <summary>
 /// Runs on a server mod project. Per RPC name, for each <c>ServerRpcHandlersBase</c> class emits the
 /// declared legs: request (c-&gt;s) as an On(RpcContext, ...) handler + dispatch, and response (s-&gt;c)
-/// as a Send(PlayerId, ...). A one-way RPC only produces the leg it declares.
+/// as a Send to one player, to a set of players and to all of them. A one-way RPC only produces the leg it declares.
 /// </summary>
 [Generator]
 internal class ServerRpcHandlerGenerator : IIncrementalGenerator
@@ -24,6 +24,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
     private const string ManifestClassName = "ServerRpcManifest";
     private const string RpcContextFqn = "global::ReadyM.Relay.Server.Sdk.Rpc.RpcContext";
     private const string PlayerIdFqn = "global::ReadyM.Api.Idents.PlayerId";
+    private const string PlayerIdsFqn = "global::System.Collections.Generic.IEnumerable<global::ReadyM.Api.Idents.PlayerId>";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -220,12 +221,27 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
     private static void EmitSender(StringBuilder sb, string eventName, string codeRef, List<PayloadParam> payloadParams)
     {
         var payloadParamList = FormatParamList(payloadParams);
-        var sendParamList = payloadParams.Count > 0
-            ? $"{PlayerIdFqn} recipient, {payloadParamList}"
-            : $"{PlayerIdFqn} recipient";
+        var payloadArgs = string.Join(", ", payloadParams.Select(p => p.Name));
+
+        string WithPayload(string leading) => payloadParams.Count > 0 ? $"{leading}, {payloadParamList}" : leading;
 
         sb.AppendLine($$"""
-                            public void Send{{eventName}}({{sendParamList}})
+                            public void Send{{eventName}}({{WithPayload($"{PlayerIdFqn} recipient")}})
+                            {
+                                Rpc.SendToOne(recipient, Write{{eventName}}({{payloadArgs}}), DeliveryMethod.ReliableOrdered);
+                            }
+
+                            public void Send{{eventName}}({{WithPayload($"{PlayerIdsFqn} recipients")}})
+                            {
+                                Rpc.SendToMany(recipients, Write{{eventName}}({{payloadArgs}}), DeliveryMethod.ReliableOrdered);
+                            }
+
+                            public void Send{{eventName}}ToAll({{payloadParamList}})
+                            {
+                                Rpc.SendToAll(Write{{eventName}}({{payloadArgs}}), DeliveryMethod.ReliableOrdered);
+                            }
+
+                            private NetDataWriter Write{{eventName}}({{payloadParamList}})
                             {
                                 var writer = new NetDataWriter();
                                 global::ReadyM.Api.Serialization.VarUShortExtensions.PutVarUShort(writer, (ushort)({{codeRef}}));
@@ -235,7 +251,7 @@ internal class ServerRpcHandlerGenerator : IIncrementalGenerator
             sb.AppendLine(SerializeStatement(p));
 
         sb.AppendLine("""
-                              Rpc.SendToOne(recipient, writer, DeliveryMethod.ReliableOrdered);
+                              return writer;
                           }
 
                       """);
