@@ -23,6 +23,7 @@ internal sealed unsafe class FakeRpcRelay
     private readonly AddServerRpcMessageHandlerDelegate _addHandler;
     private readonly RemoveServerRpcMessageHandlerDelegate _removeHandler;
     private readonly SendToOneDelegate _sendToOne;
+    private readonly SendToAllDelegate _sendToAll;
     private readonly NameMessageCodeDelegate _nameMessageCode;
 
     public FakeRpcRelay()
@@ -30,11 +31,15 @@ internal sealed unsafe class FakeRpcRelay
         _addHandler = (code, handler) => _handlers[code] = handler;
         _removeHandler = (code, _) => _handlers.Remove(code);
         _sendToOne = (player, data, size, _) => Sent.Add((player, new Span<byte>(data, size).ToArray()));
+        _sendToAll = (data, size, _) => SentToAll.Add(new Span<byte>(data, size).ToArray());
         _nameMessageCode = (code, name) => MessageNames[code] = name.ToManaged();
     }
 
     /// <summary>Every message sent, in order, with the player it went to.</summary>
     public List<(PlayerId Player, byte[] Message)> Sent { get; } = [];
+
+    /// <summary>Every message sent to all players, in order.</summary>
+    public List<byte[]> SentToAll { get; } = [];
 
     /// <summary>What each code was named, as the relay's metrics would show it.</summary>
     public Dictionary<RelayMessageCode, string> MessageNames { get; } = [];
@@ -45,6 +50,7 @@ internal sealed unsafe class FakeRpcRelay
             AddServerRpcMessageHandler = Marshal.GetFunctionPointerForDelegate(_addHandler),
             RemoveServerRpcMessageHandler = Marshal.GetFunctionPointerForDelegate(_removeHandler),
             SendToOne = Marshal.GetFunctionPointerForDelegate(_sendToOne),
+            SendToAll = Marshal.GetFunctionPointerForDelegate(_sendToAll),
             NameMessageCode = Marshal.GetFunctionPointerForDelegate(_nameMessageCode),
         },
         new FixedNetworkTime(),

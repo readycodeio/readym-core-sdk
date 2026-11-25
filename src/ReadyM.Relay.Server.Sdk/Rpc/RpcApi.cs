@@ -24,6 +24,7 @@ public class RpcApi
     private readonly AddServerRpcMessageHandlerDelegate _addServerRpcMessageHandler;
     private readonly RemoveServerRpcMessageHandlerDelegate _removeServerRpcMessageHandler;
     private readonly SendToOneDelegate _sendToOne;
+    private readonly SendToAllDelegate _sendToAll;
     private readonly NameMessageCodeDelegate _nameMessageCode;
 
     private readonly INetworkTime _netTime;
@@ -40,6 +41,7 @@ public class RpcApi
         _addServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<AddServerRpcMessageHandlerDelegate>(pointers.AddServerRpcMessageHandler);
         _removeServerRpcMessageHandler = Marshal.GetDelegateForFunctionPointer<RemoveServerRpcMessageHandlerDelegate>(pointers.RemoveServerRpcMessageHandler);
         _sendToOne = Marshal.GetDelegateForFunctionPointer<SendToOneDelegate>(pointers.SendToOne);
+        _sendToAll = Marshal.GetDelegateForFunctionPointer<SendToAllDelegate>(pointers.SendToAll);
         _nameMessageCode = Marshal.GetDelegateForFunctionPointer<NameMessageCodeDelegate>(pointers.NameMessageCode);
     }
 
@@ -111,6 +113,25 @@ public class RpcApi
         fixed (byte* ptr = data.Data)
         {
             _sendToOne(player, ptr, data.Length, deliveryMethod);
+        }
+    }
+
+    /// <summary>Sends the same message to each of the players, in their order.</summary>
+    public unsafe void SendToMany(IEnumerable<PlayerId> players, NetDataWriter data, DeliveryMethod deliveryMethod)
+    {
+        fixed (byte* ptr = data.Data)
+        {
+            foreach (var player in players)
+                _sendToOne(player, ptr, data.Length, deliveryMethod);
+        }
+    }
+
+    /// <summary>Sends a message to every player connected when it is called.</summary>
+    public unsafe void SendToAll(NetDataWriter data, DeliveryMethod deliveryMethod)
+    {
+        fixed (byte* ptr = data.Data)
+        {
+            _sendToAll(ptr, data.Length, deliveryMethod);
         }
     }
 }
