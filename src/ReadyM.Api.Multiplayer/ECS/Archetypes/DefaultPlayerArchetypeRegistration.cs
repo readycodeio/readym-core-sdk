@@ -30,6 +30,7 @@ internal sealed class DefaultPlayerArchetypeRegistration(IPlayerComponentRegistr
         => PlayerArchetype = registry.RegisterArchetype(CoreArchetypeNames.Player, new ArchetypeBuilder()
             .Add<MetadataComponent>()
             .Add<PlayerScopeComponent>()
+            .Add<CharacterListComponent>()
             .AddTag<ScopeEntityTag>()
             .With(b => playerComponentRegistry.Accept(new RegisterPlayerComponentsCallback(b))));
 }

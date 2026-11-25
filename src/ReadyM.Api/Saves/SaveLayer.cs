@@ -26,4 +26,9 @@ public enum SaveLayer
     /// Cell segment of the world save: the cell scope and the entities in it.
     /// </summary>
     Cell = 3,
+
+    /// <summary>
+    /// A character save: the entities of a player character.
+    /// </summary>
+    Character = 4,
 }
