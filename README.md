@@ -279,8 +279,10 @@ What each direction generates:
 | Direction | On the client | On the server |
 | --- | --- | --- |
 | `[ClientToServer]` | `SendX(payload)` | `partial void OnX(RpcContext context, payload)` |
-| `[ServerToClient]` | `partial void OnX(payload)` | `SendX(PlayerId recipient, payload)` |
+| `[ServerToClient]` | `partial void OnX(payload)` | `SendX(PlayerId recipient, payload)`, `SendX(IEnumerable<PlayerId> recipients, payload)` and `SendXToAll(payload)` |
 | `[ClientToClients(mode)]` | `SendX(payload)` **and** `partial void OnX(PlayerId sender, payload)` | nothing |
+
+`SendXToAll` goes to every player connected when it is called. Each form writes the message once.
 
 A peer-to-peer RPC never reaches a mod on the server: the relay forwards it by the `RelayMode` the
 contract named, and every client that receives it runs its own `OnX`. The sender is passed in because
