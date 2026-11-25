@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("ReadyM.Relay.Server.PluginHost")]
 [assembly: InternalsVisibleTo("OblivionMP.SDK.Serverside")]
+[assembly: InternalsVisibleTo("OblivionMP.SDK.Serverside.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.Relay.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.Tests")]
 [assembly: InternalsVisibleTo("ReadyM.SDK.TestHarness")]

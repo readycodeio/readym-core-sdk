@@ -1,13 +1,13 @@
 ﻿namespace ReadyM.Api.Multiplayer.ECS.Values;
 
 /// <summary>
-/// Where the state of a player entity came from when the server created it.
+/// Where the state of a player's entities came from when they connected: their save on this server, or their game.
 /// </summary>
-internal enum PlayerStateOrigin : byte
+public enum PlayerStateOrigin : byte
 {
-    /// <summary>No saved data: the owning client fills the entity from the game.</summary>
+    /// <summary>This server has no save of the player: they are new here, and their game supplied the state.</summary>
     Game = 0,
 
-    /// <summary>Built from the player's save slot: the owning client pushes it into the game.</summary>
+    /// <summary>Loaded from the player's save on this server: they have played here before.</summary>
     Save = 1,
 }
