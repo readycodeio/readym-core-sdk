@@ -28,6 +28,25 @@ internal struct CharacterListComponent : ISavableComponent
     /// <summary>The character selected last.</summary>
     public CharacterId LastSelected { get; set; }
 
+    public readonly bool ContainsCharacter(CharacterId id)
+        => Array.Exists(Entries, entry => entry.Id == id);
+
+    public void AddCharacter(CharacterId id, DateTime now)
+        => Entries = [..Entries, new CharacterEntry(id, now, now)];
+
+    public void RemoveCharacter(CharacterId id)
+    {
+        Entries = Array.FindAll(Entries, entry => entry.Id != id);
+        if (LastSelected == id)
+            LastSelected = default;
+    }
+
+    public void SelectCharacter(CharacterId id, DateTime now)
+    {
+        LastSelected = id;
+        Entries = Array.ConvertAll(Entries, entry => entry.Id == id ? entry with { LastPlayedUtc = now } : entry);
+    }
+
     public readonly string SaveName => "CharacterList";
     public readonly ushort SaveVersion => 1;
 

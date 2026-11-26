@@ -17,6 +17,7 @@ internal enum ServerEventKind : byte
     DimensionEmptied = 12,
     PlayerDimensionChanged = 13,
     EntityDimensionChanged = 14,
+    CharacterSelected = 15,
 }
 
 internal delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);

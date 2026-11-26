@@ -32,6 +32,7 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
     public event Action<DimensionId>? OnDimensionEmptied;
     public event Action<PlayerId, DimensionId, DimensionId>? OnPlayerDimensionChanged;
     public event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
+    public event Action<PlayerId, CharacterId>? OnCharacterSelected;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
@@ -137,6 +138,9 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 break;
             case ServerEventKind.PlayerDimensionChanged:
                 OnPlayerDimensionChanged?.Invoke(payload.Player, payload.PreviousDimension, dimension);
+                break;
+            case ServerEventKind.CharacterSelected:
+                OnCharacterSelected?.Invoke(payload.Player, payload.Character);
                 break;
             case ServerEventKind.EntityDimensionChanged:
                 OnEntityDimensionChanged?.Invoke(new EntityHandle(payload.Entity, _entities), payload.PreviousDimension, dimension);

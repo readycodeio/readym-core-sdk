@@ -21,4 +21,7 @@ internal struct ServerEventPayload
 
     /// <summary>The previous dimension, for an entity's dimension change.</summary>
     public DimensionId PreviousDimension;
+
+    /// <summary>The player's new current character, for a character selection.</summary>
+    public CharacterId Character;
 }

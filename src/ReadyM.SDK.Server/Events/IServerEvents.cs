@@ -64,4 +64,9 @@ public interface IServerEvents
     /// Fires when an entity has moved from one dimension to another: entity, from, to.
     /// </summary>
     event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
+
+    /// <summary>
+    /// Fires when a player's current character changes: at connect, and after a character is created or selected.
+    /// </summary>
+    event Action<PlayerId, CharacterId>? OnCharacterSelected;
 }

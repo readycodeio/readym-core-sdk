@@ -11,4 +11,5 @@ public struct HostInitParams
     public required ServerEventsPointers ServerEventsPointers;
     public required InternedStringsPointers InternedStringsPointers;
     public required DimensionApiPointers DimensionApiPointers;
+    public required CharacterApiPointers CharacterApiPointers;
 }
