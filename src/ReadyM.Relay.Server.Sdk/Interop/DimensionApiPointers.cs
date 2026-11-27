@@ -15,4 +15,5 @@ public struct DimensionApiPointers
     public required IntPtr CurrentDimension;
     public required IntPtr EntityDimension;
     public required IntPtr IsEntityOriginDimension;
+    public required IntPtr ResolveArea;
 }

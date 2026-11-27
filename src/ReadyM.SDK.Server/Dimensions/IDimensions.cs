@@ -52,10 +52,17 @@ public interface IDimensions
     bool IsEntityOriginDimension(EntityHandle entity, DimensionId dimension);
 
     /// <summary>
-    /// Moves a player to a dimension. Their client reloads only when the area they stand in changes dimension;
-    /// otherwise the move applies at their next area join.
+    /// The area an entity from <paramref name="from"/> enters: <paramref name="area"/> in the first dimension, from
+    /// <paramref name="from"/> up through the parents, whose areas include it. The main dimension covers every area,
+    /// and a dimension that is not live resolves to it.
+    /// </summary>
+    FullAreaId ResolveArea(DimensionId from, AreaId area);
+
+    /// <summary>
+    /// Moves a player to a dimension. They stay in the area they stand in until their next area join, which resolves
+    /// from the new dimension.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The dimension is not live, or the player is not connected.</exception>
     /// <exception cref="InvalidOperationException">The dimension is being destroyed.</exception>
-    DimensionSwitchMode SetPlayerDimension(PlayerId player, DimensionId id);
+    void SetPlayerDimension(PlayerId player, DimensionId id);
 }

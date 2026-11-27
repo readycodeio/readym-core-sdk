@@ -18,6 +18,7 @@ internal sealed class DimensionApi : IDimensions
     private readonly CurrentDimensionDelegate _currentDimension;
     private readonly EntityDimensionDelegate _entityDimension;
     private readonly IsEntityOriginDimensionDelegate _isEntityOriginDimension;
+    private readonly ResolveAreaDelegate _resolveArea;
 
     internal DimensionApi(DimensionApiPointers pointers)
     {
@@ -31,6 +32,7 @@ internal sealed class DimensionApi : IDimensions
         _entityDimension = Marshal.GetDelegateForFunctionPointer<EntityDimensionDelegate>(pointers.EntityDimension);
         _isEntityOriginDimension =
             Marshal.GetDelegateForFunctionPointer<IsEntityOriginDimensionDelegate>(pointers.IsEntityOriginDimension);
+        _resolveArea = Marshal.GetDelegateForFunctionPointer<ResolveAreaDelegate>(pointers.ResolveArea);
     }
 
     /// <summary>The entity's dimension by its raw identity, for the entity api's own lookups.</summary>
@@ -81,12 +83,10 @@ internal sealed class DimensionApi : IDimensions
     public bool IsEntityOriginDimension(EntityHandle entity, DimensionId dimension)
         => _isEntityOriginDimension(entity.RawEntity, dimension) != 0;
 
-    public unsafe DimensionSwitchMode SetPlayerDimension(PlayerId player, DimensionId id)
-    {
-        byte outcome;
-        Check(_setPlayerDimension(player, id, &outcome), $"{player} to {id}");
-        return (DimensionSwitchMode)outcome;
-    }
+    public FullAreaId ResolveArea(DimensionId from, AreaId area) => new(_resolveArea(from, area), area);
+
+    public void SetPlayerDimension(PlayerId player, DimensionId id)
+        => Check(_setPlayerDimension(player, id), $"{player} to {id}");
 
     private static void Check(DimensionCallResult result, string what)
     {

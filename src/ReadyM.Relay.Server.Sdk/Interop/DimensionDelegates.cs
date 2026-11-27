@@ -39,8 +39,7 @@ internal unsafe delegate DimensionCallResult CreateDimensionDelegate(DimensionOp
 
 internal delegate DimensionCallResult DestroyDimensionDelegate(DimensionId dimension);
 
-/// <summary>Answers the switch's outcome, a <c>DimensionSwitchMode</c>, in <paramref name="outcome"/>.</summary>
-internal unsafe delegate DimensionCallResult SetPlayerDimensionDelegate(PlayerId player, DimensionId dimension, byte* outcome);
+internal delegate DimensionCallResult SetPlayerDimensionDelegate(PlayerId player, DimensionId dimension);
 
 internal delegate byte DimensionExistsDelegate(DimensionId dimension);
 
@@ -57,3 +56,6 @@ internal delegate DimensionId EntityDimensionDelegate(RawEntity entity);
 
 /// <summary>1 when the dimension is the entity's origin; 0 otherwise, or for an entity that is gone.</summary>
 internal delegate byte IsEntityOriginDimensionDelegate(RawEntity entity, DimensionId dimension);
+
+/// <summary>The dimension an entity from <paramref name="from"/> enters <paramref name="area"/> in.</summary>
+internal delegate DimensionId ResolveAreaDelegate(DimensionId from, AreaId area);

@@ -19,11 +19,7 @@ public class ServerDimensionApiTests
             return result;
         };
         DestroyDimensionDelegate destroy = _ => result;
-        SetPlayerDimensionDelegate setPlayer = (_, _, outcome) =>
-        {
-            *outcome = (byte)DimensionSwitchMode.NextJoin;
-            return result;
-        };
+        SetPlayerDimensionDelegate setPlayer = (_, _) => result;
         DimensionExistsDelegate exists = _ => 1;
         TryFindDimensionDelegate tryFind = (_, found) =>
         {
@@ -34,8 +30,9 @@ public class ServerDimensionApiTests
         CurrentDimensionDelegate currentDimension = _ => DimensionId.Main;
         EntityDimensionDelegate ofEntity = _ => DimensionId.Shared;
         IsEntityOriginDimensionDelegate isOrigin = (_, dimension) => dimension == new DimensionId(7) ? (byte)1 : (byte)0;
+        ResolveAreaDelegate resolveArea = (from, _) => from == new DimensionId(7) ? DimensionId.Main : from;
 
-        _rooted.AddRange([create, destroy, setPlayer, exists, tryFind, ofPlayer, currentDimension, ofEntity, isOrigin]);
+        _rooted.AddRange([create, destroy, setPlayer, exists, tryFind, ofPlayer, currentDimension, ofEntity, isOrigin, resolveArea]);
 
         return new DimensionApi(new DimensionApiPointers
         {
@@ -48,6 +45,7 @@ public class ServerDimensionApiTests
             CurrentDimension = Marshal.GetFunctionPointerForDelegate(currentDimension),
             EntityDimension = Marshal.GetFunctionPointerForDelegate(ofEntity),
             IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(isOrigin),
+            ResolveArea = Marshal.GetFunctionPointerForDelegate(resolveArea),
         });
     }
 
@@ -81,7 +79,7 @@ public class ServerDimensionApiTests
         var api = ApiAnswering(DimensionCallResult.Done);
 
         Assert.Equal(new DimensionId(7), api.Create(new DimensionOptions { Name = "lobby", Areas = new HashSet<AreaId> { new("a") } }));
-        Assert.Equal(DimensionSwitchMode.NextJoin, api.SetPlayerDimension(new PlayerId(1), new DimensionId(7)));
+        api.SetPlayerDimension(new PlayerId(1), new DimensionId(7));
         Assert.True(api.TryFind("lobby", out var found));
         Assert.Equal(new DimensionId(7), found);
         api.Destroy(new DimensionId(7));
@@ -94,5 +92,15 @@ public class ServerDimensionApiTests
 
         Assert.True(api.IsEntityOriginDimension(default, new DimensionId(7)));
         Assert.False(api.IsEntityOriginDimension(default, DimensionId.Main));
+    }
+
+    [Fact]
+    public void An_area_resolves_to_the_dimension_the_host_answers()
+    {
+        var api = ApiAnswering(DimensionCallResult.Done);
+        var area = new AreaId("Tamriel");
+
+        Assert.Equal(new FullAreaId(DimensionId.Main, area), api.ResolveArea(new DimensionId(7), area));
+        Assert.Equal(new FullAreaId(new DimensionId(3), area), api.ResolveArea(new DimensionId(3), area));
     }
 }

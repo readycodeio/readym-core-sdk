@@ -71,12 +71,13 @@ internal sealed class FakeRelay
     private readonly EntityDimensionDelegate _entityDimension;
     private readonly unsafe CreateDimensionDelegate _createDimension = static (_, _) => throw NotModelled();
     private readonly DestroyDimensionDelegate _destroyDimension = static _ => throw NotModelled();
-    private readonly unsafe SetPlayerDimensionDelegate _setPlayerDimension = static (_, _, _) => throw NotModelled();
+    private readonly SetPlayerDimensionDelegate _setPlayerDimension = static (_, _) => throw NotModelled();
     private readonly DimensionExistsDelegate _dimensionExists = static _ => throw NotModelled();
     private readonly unsafe TryFindDimensionDelegate _tryFindDimension = static (_, _) => throw NotModelled();
     private readonly PlayerDimensionDelegate _playerDimension = static _ => throw NotModelled();
     private readonly CurrentDimensionDelegate _currentDimension = static _ => throw NotModelled();
     private readonly IsEntityOriginDimensionDelegate _isEntityOriginDimension = static (_, _) => throw NotModelled();
+    private readonly ResolveAreaDelegate _resolveArea = static (_, _) => throw NotModelled();
 
     private static NotSupportedException NotModelled([CallerMemberName] string member = "")
         => new($"The fake relay does not model {member}.");
@@ -163,7 +164,8 @@ internal sealed class FakeRelay
         PlayerDimension = Marshal.GetFunctionPointerForDelegate(_playerDimension),
         CurrentDimension = Marshal.GetFunctionPointerForDelegate(_currentDimension),
         EntityDimension = Marshal.GetFunctionPointerForDelegate(_entityDimension),
-        IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(_isEntityOriginDimension)
+        IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(_isEntityOriginDimension),
+        ResolveArea = Marshal.GetFunctionPointerForDelegate(_resolveArea),
     };
 
     internal ArchetypePointers Archetypes => new()

@@ -19,6 +19,9 @@ public interface IPlayers
     /// </summary>
     Guid? GetReadyMId(PlayerId player);
 
+    /// <summary>The area the player stands in; null while they are in none, or not connected.</summary>
+    FullAreaId? GetCurrentArea(PlayerId player);
+
     /// <summary>The players in an area, in every dimension.</summary>
     List<PlayerId> InArea(AreaId area);
 

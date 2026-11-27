@@ -10,6 +10,8 @@ internal sealed class FakePlayers : IPlayers
 
     public Guid? GetReadyMId(PlayerId player) => throw new NotSupportedException();
 
+    public FullAreaId? GetCurrentArea(PlayerId player) => null;
+
     public List<PlayerId> InArea(AreaId area) => [];
 
     public List<PlayerId> InCell(AreaId area, CellId cell) => [];

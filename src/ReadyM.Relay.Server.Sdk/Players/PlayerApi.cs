@@ -16,6 +16,7 @@ internal class PlayerApi : IPlayers
     private readonly GetAreaPlayersDelegate _getAreaPlayers;
     private readonly GetCellPlayersDelegate _getCellPlayers;
     private readonly DropConnectionDelegate _dropConnection;
+    private readonly GetCurrentAreaDelegate _getCurrentArea;
 
     internal PlayerApi(PlayerApiPointers pointers)
     {
@@ -25,6 +26,7 @@ internal class PlayerApi : IPlayers
         _getAreaPlayers = Marshal.GetDelegateForFunctionPointer<GetAreaPlayersDelegate>(pointers.GetAreaPlayers);
         _getCellPlayers = Marshal.GetDelegateForFunctionPointer<GetCellPlayersDelegate>(pointers.GetCellPlayers);
         _dropConnection = Marshal.GetDelegateForFunctionPointer<DropConnectionDelegate>(pointers.DropConnection);
+        _getCurrentArea = Marshal.GetDelegateForFunctionPointer<GetCurrentAreaDelegate>(pointers.GetCurrentArea);
     }
 
     /// <summary>
@@ -44,6 +46,13 @@ internal class PlayerApi : IPlayers
     /// looks like from both ends. Nothing is revoked, so the game can reconnect.
     /// </summary>
     public void DropConnection(PlayerId player) => _dropConnection(player);
+
+    /// <inheritdoc />
+    public unsafe FullAreaId? GetCurrentArea(PlayerId player)
+    {
+        FullAreaId area;
+        return _getCurrentArea(player, &area) != 0 ? area : null;
+    }
 
     /// <inheritdoc />
     public List<PlayerId> InArea(AreaId area) => InArea(area, DimensionFilter.EveryDimension);

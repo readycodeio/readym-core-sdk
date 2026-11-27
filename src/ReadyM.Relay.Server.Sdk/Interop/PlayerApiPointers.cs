@@ -12,4 +12,5 @@ public struct PlayerApiPointers
     public required IntPtr GetAreaPlayers;
     public required IntPtr GetCellPlayers;
     public required IntPtr DropConnection;
+    public required IntPtr GetCurrentArea;
 }
