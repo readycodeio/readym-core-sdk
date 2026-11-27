@@ -4,6 +4,7 @@ using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Core;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Exceptions;
+using ReadyM.SDK.Server.Events;
 
 namespace ReadyM.SDK.Server.Entities;
 
@@ -22,7 +23,10 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
                 return world;
             }
 
-            throw new InvalidEntityException("World entity has not yet been created.");
+            throw new InvalidEntityException(
+                "World entity has not yet been created. It exists from "
+                + $"{nameof(IServerEvents)}.{nameof(IServerEvents.OnWorldCreated)} on; "
+                + "a mod's Init and a service's Start run before that.");
         }
     }
 
