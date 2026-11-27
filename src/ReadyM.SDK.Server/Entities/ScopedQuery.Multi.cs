@@ -1,4 +1,5 @@
-﻿using ReadyM.SDK.Archetypes;
+﻿using ReadyM.Api.Idents;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Server.Entities;
@@ -13,6 +14,7 @@ public readonly ref struct ScopedQuery<T1, T2>
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components);
@@ -23,7 +25,13 @@ public readonly ref struct ScopedQuery<T1, T2>
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -33,11 +41,11 @@ public readonly ref struct ScopedQuery<T1, T2>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -45,7 +53,7 @@ public readonly ref struct ScopedQuery<T1, T2>
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
+            _buffer = api.Collect(scope, dimension, Components);
 
             api.EnterQuery();
 
@@ -89,6 +97,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3>
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components);
@@ -99,7 +108,13 @@ public readonly ref struct ScopedQuery<T1, T2, T3>
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -109,11 +124,11 @@ public readonly ref struct ScopedQuery<T1, T2, T3>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -121,7 +136,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3>
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
+            _buffer = api.Collect(scope, dimension, Components);
 
             api.EnterQuery();
 
@@ -167,6 +182,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4>
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components);
@@ -177,7 +193,13 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4>
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -187,11 +209,11 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -199,7 +221,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4>
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
+            _buffer = api.Collect(scope, dimension, Components);
 
             api.EnterQuery();
 
@@ -247,6 +269,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5>
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components);
@@ -257,7 +280,13 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5>
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -267,11 +296,11 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -279,7 +308,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5>
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
+            _buffer = api.Collect(scope, dimension, Components);
 
             api.EnterQuery();
 
@@ -329,6 +358,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5, T6>
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     // Combined once per instantiation: Combine allocates, and a query must not.
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components, default(T6).Components);
@@ -339,7 +369,13 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5, T6>
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -349,11 +385,11 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5, T6>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -361,7 +397,7 @@ public readonly ref struct ScopedQuery<T1, T2, T3, T4, T5, T6>
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, Components);
+            _buffer = api.Collect(scope, dimension, Components);
 
             api.EnterQuery();
 

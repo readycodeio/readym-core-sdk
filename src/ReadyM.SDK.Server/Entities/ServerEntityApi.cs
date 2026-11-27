@@ -11,6 +11,7 @@ using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Relay.Server.Sdk.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
+using ReadyM.SDK.Server.Dimensions;
 using ReadyM.SDK.Entities;
 using ReadyM.SDK.Exceptions;
 using ReadyM.Native.Container;
@@ -25,6 +26,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
     private readonly QueryInScopeDelegate _queryInScope;
+    private readonly QueryInDimensionDelegate _queryInDimension;
     private readonly TryGetEntityScopeDelegate _tryGetEntityScope;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly IsOnWorldThreadDelegate _isOnWorldThread;
@@ -40,19 +42,28 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
     private readonly ModComponentIds _registry;
     private readonly ConcurrentDictionary<ComponentSet, int[]> _componentIds = new();
     private readonly ComponentIndexes _indexes = new();
+
+    private readonly DimensionApi _dimensions;
     private QueryScope _scope = new();
 
     /// <summary>Whether the caller is on the thread the host runs the world on.</summary>
     internal bool IsOnWorldThread => _isOnWorldThread() != 0;
 
-    public ServerEntityApi(EcsApiPointers pointers, ArchetypePointers archetypes, ModComponentIds registry)
+    /// <param name="dimensions">Asked for the dimension an entity is in.</param>
+    public ServerEntityApi(
+        EcsApiPointers pointers,
+        ArchetypePointers archetypes,
+        ModComponentIds registry,
+        DimensionApi dimensions)
     {
         _registry = registry;
+        _dimensions = dimensions;
         _query = Marshal.GetDelegateForFunctionPointer<QueryDelegate>(pointers.Query);
         _getComponentSlot = Marshal.GetDelegateForFunctionPointer<GetComponentSlotDelegate>(pointers.GetComponentSlot);
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
         _findByIndex = Marshal.GetDelegateForFunctionPointer<FindByIndexDelegate>(pointers.FindByIndex);
         _queryInScope = Marshal.GetDelegateForFunctionPointer<QueryInScopeDelegate>(pointers.QueryInScope);
+        _queryInDimension = Marshal.GetDelegateForFunctionPointer<QueryInDimensionDelegate>(pointers.QueryInDimension);
         _tryGetEntityScope = Marshal.GetDelegateForFunctionPointer<TryGetEntityScopeDelegate>(pointers.TryGetEntityScope);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
         _isOnWorldThread = Marshal.GetDelegateForFunctionPointer<IsOnWorldThreadDelegate>(pointers.IsOnWorldThread);
@@ -294,6 +305,36 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         return buffer;
     }
 
+    /// <summary>What a scoped query walks: the dimension's entities when it names one, else the scope's.</summary>
+    internal EntityBuffer Collect(Scope scope, DimensionId? dimension, ComponentSet components)
+        => dimension is { } inDimension
+            ? CollectInDimension(inDimension, components)
+            : CollectInScope(scope.Handle.RawEntity, components);
+
+    /// <summary>The entities of a dimension that carry the components, by the host's dimension index.</summary>
+    private unsafe EntityBuffer CollectInDimension(DimensionId dimension, ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var buffer = EntityBuffer.Rent();
+
+        var previous = _collecting;
+        _collecting = buffer;
+
+        try
+        {
+            fixed (int* componentIds = ids)
+            {
+                _queryInDimension(componentIds, ids.Length, dimension, CollectEntities);
+            }
+        }
+        finally
+        {
+            _collecting = previous;
+        }
+
+        return buffer;
+    }
+
     private static readonly unsafe EntityListCallback CollectEntities = static (entities, count) =>
     {
         if (count > 0)
@@ -461,6 +502,9 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource
         entity = default;
         return false;
     }
+
+    /// <summary>The dimension an entity is in, as the host says.</summary>
+    internal DimensionId DimensionOf(RawEntity entity) => _dimensions.EntityDimensionOf(entity);
 
     private bool Holds<TComponent, TKey>(RawEntity entity, int id, TKey key)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull

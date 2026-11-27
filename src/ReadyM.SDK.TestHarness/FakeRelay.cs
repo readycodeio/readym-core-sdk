@@ -7,6 +7,7 @@ using ReadyM.Relay.Server.Sdk.Ecs;
 using ReadyM.Relay.Server.Sdk.Ecs.Components;
 using ReadyM.Api.Idents;
 using ReadyM.Relay.Server.Sdk.Interop;
+using ReadyM.SDK.Server.Dimensions;
 using ReadyM.SDK.Server.Entities;
 using ReadyM.Native.Container;
 
@@ -34,6 +35,7 @@ internal sealed class FakeRelay
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
     private readonly QueryInScopeDelegate _queryInScope;
+    private readonly QueryInDimensionDelegate _queryInDimension;
     private readonly TryGetEntityScopeDelegate _tryGetEntityScope;
     private readonly CreateLocalEntityInScopeDelegate _createLocalEntityInScope;
     private readonly GetComponentSlotDelegate _getComponentSlot;
@@ -66,6 +68,18 @@ internal sealed class FakeRelay
     private readonly CreateCellScopeEntityDelegate _createCellScope = static _ => throw NotModelled();
     private readonly unsafe TryGetEntityCellDelegate _tryGetEntityCell = static (_, _) => throw NotModelled();
 
+    // The dimension api binds every pointer too; only an entity's dimension is modelled, from SetDimension
+    private readonly EntityDimensionDelegate _entityDimension;
+    private readonly unsafe CreateDimensionDelegate _createDimension = static (_, _) => throw NotModelled();
+    private readonly DestroyDimensionDelegate _destroyDimension = static _ => throw NotModelled();
+    private readonly SetPlayerDimensionDelegate _setPlayerDimension = static (_, _) => throw NotModelled();
+    private readonly DimensionExistsDelegate _dimensionExists = static _ => throw NotModelled();
+    private readonly unsafe TryFindDimensionDelegate _tryFindDimension = static (_, _) => throw NotModelled();
+    private readonly PlayerDimensionDelegate _playerDimension = static _ => throw NotModelled();
+    private readonly CurrentDimensionDelegate _currentDimension = static _ => throw NotModelled();
+    private readonly IsEntityOriginDimensionDelegate _isEntityOriginDimension = static (_, _) => throw NotModelled();
+    private readonly ResolveAreaDelegate _resolveArea = static (_, _) => throw NotModelled();
+
     private static NotSupportedException NotModelled([CallerMemberName] string member = "")
         => new($"The fake relay does not model {member}.");
 
@@ -78,6 +92,7 @@ internal sealed class FakeRelay
         _setComponent = SetComponentImpl;
         _findByIndex = FindByIndexImpl;
         _queryInScope = QueryInScopeImpl;
+        _queryInDimension = QueryInDimensionImpl;
         _tryGetEntityScope = TryGetEntityScopeImpl;
         _createLocalEntityInScope = CreateLocalEntityInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
@@ -91,6 +106,7 @@ internal sealed class FakeRelay
         _createNetworked = CreateNetworkedEntityImpl;
         _createNetworkedInScope = CreateNetworkedEntityInScopeImpl;
         _deleteEntity = DeleteEntityImpl;
+        _entityDimension = DimensionOf;
 
         var world = Thread.CurrentThread;
         _isOnWorldThread = () => Thread.CurrentThread == world ? (byte)1 : (byte)0;
@@ -117,6 +133,7 @@ internal sealed class FakeRelay
         SetComponent = Marshal.GetFunctionPointerForDelegate(_setComponent),
         FindByIndex = Marshal.GetFunctionPointerForDelegate(_findByIndex),
         QueryInScope = Marshal.GetFunctionPointerForDelegate(_queryInScope),
+        QueryInDimension = Marshal.GetFunctionPointerForDelegate(_queryInDimension),
         TryGetEntityScope = Marshal.GetFunctionPointerForDelegate(_tryGetEntityScope),
         CreateLocalEntityInScope = Marshal.GetFunctionPointerForDelegate(_createLocalEntityInScope),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
@@ -138,6 +155,20 @@ internal sealed class FakeRelay
         CreateCellScopeEntity = Marshal.GetFunctionPointerForDelegate(_createCellScope),
         TryGetEntityCell = Marshal.GetFunctionPointerForDelegate(_tryGetEntityCell),
         IsOnWorldThread = Marshal.GetFunctionPointerForDelegate(_isOnWorldThread)
+    };
+
+    internal DimensionApiPointers Dimensions => new()
+    {
+        Create = Marshal.GetFunctionPointerForDelegate(_createDimension),
+        Destroy = Marshal.GetFunctionPointerForDelegate(_destroyDimension),
+        SetPlayerDimension = Marshal.GetFunctionPointerForDelegate(_setPlayerDimension),
+        Exists = Marshal.GetFunctionPointerForDelegate(_dimensionExists),
+        TryFind = Marshal.GetFunctionPointerForDelegate(_tryFindDimension),
+        PlayerDimension = Marshal.GetFunctionPointerForDelegate(_playerDimension),
+        CurrentDimension = Marshal.GetFunctionPointerForDelegate(_currentDimension),
+        EntityDimension = Marshal.GetFunctionPointerForDelegate(_entityDimension),
+        IsEntityOriginDimension = Marshal.GetFunctionPointerForDelegate(_isEntityOriginDimension),
+        ResolveArea = Marshal.GetFunctionPointerForDelegate(_resolveArea),
     };
 
     internal ArchetypePointers Archetypes => new()
@@ -315,6 +346,36 @@ internal sealed class FakeRelay
     }
 
     /// <summary>
+    /// A dimension's entities: those a test placed with <see cref="SetDimension"/>, as a scope's are those it put with
+    /// <see cref="PutInScope"/>.
+    /// </summary>
+    private unsafe void QueryInDimensionImpl(int* componentIds, int n, DimensionId dimension, EntityListCallback callback)
+    {
+        var wanted = new int[n];
+
+        for (var i = 0; i < n; i++)
+            wanted[i] = componentIds[i];
+
+        var matched = new List<RawEntity>();
+
+        foreach (var (id, placed) in _dimensions)
+        {
+            var entity = RawEntities.From(id, _entities[id].Revision);
+
+            if (placed != dimension || !Resolve(entity, 1, out var slot))
+                continue;
+
+            if (wanted.All(component => slot.Archetype.HeapOrNull(component) is not null))
+                matched.Add(entity);
+        }
+
+        var entities = matched.ToArray();
+
+        fixed (RawEntity* buffer = entities)
+            callback(entities.Length == 0 ? IntPtr.Zero : (IntPtr)buffer, entities.Length);
+    }
+
+    /// <summary>
     /// A component a mod owns: reachable only through its heap handle, so managed fields are allowed.
     /// </summary>
     internal void RegisterManaged<T>() where T : struct
@@ -397,7 +458,7 @@ internal sealed class FakeRelay
 
     /// <summary>The v1 server api bound to this relay, wired the way the mod host wires it.</summary>
     internal ServerEntityApi CreateEntityApi()
-        => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName));
+        => new(Pointers, Archetypes, new ModComponentIds(Aot.GetComponentIdByName), new DimensionApi(Dimensions));
 
     /// <summary>The id the relay assigned, for a caller that drives Query itself rather than through the SDK.</summary>
     internal int ComponentId<T>() where T : struct => IdOf(typeof(T));
@@ -533,6 +594,15 @@ internal sealed class FakeRelay
         if (heap is not null)
             *slot = heap.SlotAt(found.Row);
     }
+
+    // An entity no test placed is shared, as the host's DimensionComponent says by default.
+    private readonly Dictionary<int, DimensionId> _dimensions = [];
+
+    /// <summary>Places an entity in a dimension: what the host's DimensionComponent would say of it.</summary>
+    internal void SetDimension(RawEntity entity, DimensionId dimension) => _dimensions[entity.Id] = dimension;
+
+    internal DimensionId DimensionOf(RawEntity entity)
+        => _dimensions.TryGetValue(entity.Id, out var dimension) ? dimension : DimensionId.Shared;
 
     private unsafe void QueryImpl(int* componentIds, int n, ChunkCallback callback)
     {

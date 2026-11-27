@@ -9,9 +9,9 @@ namespace ReadyM.SDK.Archetypes.Core;
 [ExplicitComponent(typeof(AreaScopeComponent))]
 public readonly partial struct Area : IScope
 {
-    /// <summary>Which area this is.</summary>
+    /// <summary>Which area this is, with its dimension.</summary>
     [Index]
-    public partial AreaId AreaId { get; set; }
+    public partial FullAreaId FullAreaId { get; set; }
     /// <summary>The player whose game simulates what the area holds.</summary>
     public partial PlayerId MasterClient { get; set; }
 }

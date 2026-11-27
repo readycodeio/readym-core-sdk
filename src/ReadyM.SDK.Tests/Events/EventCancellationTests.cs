@@ -89,7 +89,7 @@ public class EventCancellationTests
     [Fact]
     public void The_context_carries_who_raised_it()
     {
-        var here = new EventContext(Raiser, false, new EventCancellation());
+        var here = new EventContext(Raiser, false, new EventCancellation(), DimensionId.Invalid);
         Assert.Equal(Raiser, here.Origin);
     }
 
@@ -97,7 +97,7 @@ public class EventCancellationTests
     public void Cancelling_through_the_context_refuses_the_event()
     {
         var cancellation = new EventCancellation();
-        var ctx = new EventContext(Raiser, false, cancellation);
+        var ctx = new EventContext(Raiser, false, cancellation, DimensionId.Invalid);
 
         ctx.Cancel(Refusal.OutOfRange);
 
@@ -109,7 +109,7 @@ public class EventCancellationTests
     public void A_rejected_handler_reads_who_refused_through_the_context()
     {
         var cancellation = new EventCancellation();
-        var ctx = new EventContext(Raiser, false, cancellation);
+        var ctx = new EventContext(Raiser, false, cancellation, DimensionId.Invalid);
 
         cancellation.SetCurrentMod("Other.Censor");
         ctx.Cancel(Refusal.Untargetable);
@@ -135,7 +135,7 @@ public class EventCancellationTests
     [Fact]
     public void An_area_audience_carries_the_area()
     {
-        var area = new AreaId(3);
+        var area = new FullAreaId(DimensionId.Main, new AreaId(3));
         var audience = EventAudience.InArea(area);
 
         Assert.Equal(EventScope.Area, audience.Kind);
@@ -145,7 +145,7 @@ public class EventCancellationTests
     [Fact]
     public void A_cell_audience_carries_the_cell()
     {
-        var cell = new FullCellId(new AreaId(3), new CellId("cell-1"));
+        var cell = new FullCellId(DimensionId.Main, new AreaId(3), new CellId("cell-1"));
         var audience = EventAudience.InCell(cell);
 
         Assert.Equal(EventScope.Cell, audience.Kind);

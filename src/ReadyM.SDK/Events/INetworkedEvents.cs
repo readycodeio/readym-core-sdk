@@ -18,4 +18,11 @@ public interface INetworkedEvents
     /// or for a server-side mod that wants to raise an event as though it came from a player.
     /// </remarks>
     void RaiseAs<T>(PlayerId origin, T networkEvent) where T : struct, INetworkedEvent;
+
+    /// <summary>
+    /// Server only: raises it from the server in <paramref name="dimension"/>, for an event with no subject, which
+    /// <see cref="Raise{T}"/> puts in the main dimension. An area or cell the event names by id is that dimension's.
+    /// </summary>
+    /// <exception cref="System.ArgumentException">The event's subject is in another dimension.</exception>
+    void RaiseIn<T>(DimensionId dimension, T networkEvent) where T : struct, INetworkedEvent;
 }

@@ -41,7 +41,7 @@ internal class ClientState : IDisposable
     {
         public bool Invalidated;
         public PendingEventKind Kind;
-        public AreaId AreaId;
+        public FullAreaId AreaId;
         public PlayerId PlayerId;
         public bool IsNotify;
         public DisconnectedReason disconnectedReason;
@@ -50,7 +50,7 @@ internal class ClientState : IDisposable
 
     public struct AreaEntry
     {
-        public AreaId AreaId { get; internal set; }
+        public FullAreaId AreaId { get; internal set; }
         public Entity AreaEntity { get; internal set; }
         public NetworkId AreaNetworkId { get; internal set; }
 
@@ -72,7 +72,7 @@ internal class ClientState : IDisposable
         public PlayerId PlayerId { get; internal set; }
         public Entity PlayerEntity { get; internal set; }
         public NetworkId PlayerNetworkId { get; internal set; }
-        public AreaId? CurrentAreaId { get; internal set; }
+        public FullAreaId? CurrentAreaId { get; internal set; }
     }
 
     private readonly Store _world;
@@ -119,9 +119,9 @@ internal class ClientState : IDisposable
     public Api.Helpers.ReadOnlyList<PlayerId> OtherAreaPlayers => (_currentAreaEntry?.AreaPlayers.Where(p => p != LocalPlayerId).ToList()).NullableWrapReadOnly();
 
     public bool JoinedArea
-        => _currentAreaEntry is { } value && value.AreaId != AreaId.Invalid;
+        => _currentAreaEntry is { } value && value.AreaId.Area != AreaId.Invalid;
 
-    public AreaId? CurrentAreaId
+    public FullAreaId? CurrentAreaId
         => _currentAreaEntry?.AreaId;
 
     public Api.Helpers.ReadOnlyList<CellId> ActiveCells
@@ -150,8 +150,8 @@ internal class ClientState : IDisposable
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
-    public event Action<AreaId, Entity>? OnJoinedArea;
-    public event Action<AreaId, Entity>? OnLeftArea;
+    public event Action<FullAreaId, Entity>? OnJoinedArea;
+    public event Action<FullAreaId, Entity>? OnLeftArea;
     /// <summary>
     /// Fired when a cell is activated for a player.
     /// FullCellId along with the Entity represents the cell, boolean indicates if the local player is the master of that cell.
@@ -162,8 +162,8 @@ internal class ClientState : IDisposable
     /// FullCellId along with the Entity represents the cell, boolean indicates if the local player was the master of that cell.
     /// </summary>
     public event Action<FullCellId, Entity, bool>? OnDeactivatedCell;
-    public event Action<PlayerId, AreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
-    public event Action<PlayerId, AreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
+    public event Action<PlayerId, FullAreaId, OtherPlayerInsideAreaReason>? OnOtherPlayerInsideArea;
+    public event Action<PlayerId, FullAreaId, OtherPlayerOutsideAreaReason>? OnOtherPlayerOutsideArea;
 
     public ArchetypeId AreaArchetype { get; }
     public ArchetypeId PlayerArchetype { get; }
@@ -251,7 +251,7 @@ internal class ClientState : IDisposable
         }
     }
 
-    private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, AreaId areaId)
+    private void OnJoinedAreaHandler(IRelayClientNetworkThreadContext context, FullAreaId areaId)
     {
         lock (_lock)
         {
@@ -852,7 +852,7 @@ internal class ClientState : IDisposable
                 _logger.LogInformation("ECS JOINING (before query) {AreaId} by player {PlayerId}", areaId, playerId);
 
                 var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
-                    .HasValue<AreaScopeComponent, AreaId>(areaId);
+                    .HasValue<AreaScopeComponent, FullAreaId>(areaId);
 
                 if (areaQuery.Count == 0)
                     return false;
@@ -1164,7 +1164,7 @@ internal class ClientState : IDisposable
                     return false; // exit loop
 
                 var areaQuery = _world.Query<AreaScopeComponent, MetadataComponent>()
-                    .HasValue<AreaScopeComponent, AreaId>(areaId);
+                    .HasValue<AreaScopeComponent, FullAreaId>(areaId);
 
                 if (areaQuery.Count == 0)
                     return false; // exit loop

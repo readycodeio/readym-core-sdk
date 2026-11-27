@@ -214,4 +214,11 @@ internal unsafe delegate void EntityListCallback(IntPtr entities, int count);
 /// </remarks>
 internal unsafe delegate void QueryInScopeDelegate(int* componentIds, int n, RawEntity scope, EntityListCallback cb);
 
+/// <summary>
+/// The entities of a dimension that carry the <paramref name="n"/> components: Friflo's <c>HasValue</c> on the
+/// dimension component, which the host keeps.
+/// </summary>
+/// <remarks>One list, as a scoped query's: a dimension's entities are scattered through the archetypes.</remarks>
+internal unsafe delegate void QueryInDimensionDelegate(int* componentIds, int n, DimensionId dimension, EntityListCallback cb);
+
 internal delegate int RegisterModComponentDelegate(ModComponentInfo info, NativeString256 typeFullName);

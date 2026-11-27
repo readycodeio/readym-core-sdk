@@ -48,11 +48,31 @@ public class RpcApi
         => _nameMessageCode(code, new NativeString256(name, false));
 
     /// <exclude/>
-    public unsafe void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+    public void AddServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+        => Add(eventCode, handler, (header, _, reader) => handler(header, reader));
+
+    /// <exclude/>
+    /// <summary>A handler that gets the sender's current dimension with each message.</summary>
+    public void AddServerRpcMessageHandler(
+        RelayMessageCode eventCode, Action<ServerEventHeader, DimensionId, NetDataReader> handler)
+        => Add(eventCode, handler, handler);
+
+    /// <exclude/>
+    public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+        => Remove(eventCode, handler);
+
+    /// <exclude/>
+    public void RemoveServerRpcMessageHandler(
+        RelayMessageCode eventCode, Action<ServerEventHeader, DimensionId, NetDataReader> handler)
+        => Remove(eventCode, handler);
+
+    // Kept by the handler the caller passed, which is how a later remove names it
+    private unsafe void Add(
+        RelayMessageCode eventCode, Delegate key, Action<ServerEventHeader, DimensionId, NetDataReader> handler)
     {
-        if (!_pinnedDelegates.TryGetValue(handler, out var realHandler))
+        if (!_pinnedDelegates.TryGetValue(key, out var realHandler))
         {
-            realHandler = (header, data, size) =>
+            realHandler = (header, dimension, data, size) =>
             {
                 // convert to NetDataReader
                 var reader = new NetDataReader(new Span<byte>(data, size).ToArray());
@@ -66,24 +86,23 @@ public class RpcApi
                 // place to put this.
                 // Being on the wrong thread means that any [ThreadStatic] state such as `ComponentWriteContext.Current`
                 // would have to be carried into the ECS thread inside the scheduling capability
-                handler(header, reader);
+                handler(header, dimension, reader);
             };
-            _pinnedDelegates.Add(handler, realHandler);
+            _pinnedDelegates.Add(key, realHandler);
             _pinnedDelegateStore.PinDelegate(realHandler);
         }
 
-        _toCode.TryAdd(handler, []);
-        _toCode[handler].Add(eventCode);
+        _toCode.TryAdd(key, []);
+        _toCode[key].Add(eventCode);
 
         _addServerRpcMessageHandler(eventCode, realHandler);
     }
 
-    /// <exclude/>
-    public void RemoveServerRpcMessageHandler(RelayMessageCode eventCode, Action<ServerEventHeader, NetDataReader> handler)
+    private void Remove(RelayMessageCode eventCode, Delegate key)
     {
         // The handler stays pinned while another code still has it
-        if (!_pinnedDelegates.TryGetValue(handler, out var realHandler)
-            || !_toCode.TryGetValue(handler, out var codes)
+        if (!_pinnedDelegates.TryGetValue(key, out var realHandler)
+            || !_toCode.TryGetValue(key, out var codes)
             || !codes.Remove(eventCode))
         {
             throw new InvalidOperationException(
@@ -95,8 +114,8 @@ public class RpcApi
         if (codes.Count == 0)
         {
             _pinnedDelegateStore.UnpinDelegate(realHandler);
-            _pinnedDelegates.Remove(handler);
-            _toCode.Remove(handler);
+            _pinnedDelegates.Remove(key);
+            _toCode.Remove(key);
         }
     }
 

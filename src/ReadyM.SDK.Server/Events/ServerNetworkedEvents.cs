@@ -23,6 +23,14 @@ internal sealed class ServerNetworkedEvents(IDependencyContainer container, IEnt
         container.Resolve<ServerNetworkedEventCoordinator<T>>().Raise(networkEvent, origin);
     }
 
+    public void RaiseIn<T>(DimensionId dimension, T networkEvent) where T : struct, INetworkedEvent
+    {
+        if (!IsOnWorldThread())
+            throw new EventRaisedOffEcsThreadException(typeof(T));
+
+        container.Resolve<ServerNetworkedEventCoordinator<T>>().RaiseIn(networkEvent, PlayerId.Server, dimension);
+    }
+
     private bool IsOnWorldThread()
         => entityApi is ServerEntityApi server
             ? server.IsOnWorldThread

@@ -51,7 +51,7 @@ public class NetworkedEventRegistryTests
 
         public EntityHandle? Subject(in Knock networkEvent) => null;
 
-        public bool TryArea(in Knock networkEvent, out AreaId area)
+        public bool TryArea(in Knock networkEvent, out FullAreaId area)
         {
             area = default;
             return false;

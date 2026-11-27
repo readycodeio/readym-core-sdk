@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entities;
@@ -19,6 +20,12 @@ public readonly ref struct EntityQuery<T>
     private static ComponentSet Components => default(T).Components;
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()

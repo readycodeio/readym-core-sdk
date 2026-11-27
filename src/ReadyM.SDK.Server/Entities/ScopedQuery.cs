@@ -1,4 +1,5 @@
-﻿using ReadyM.SDK.Archetypes;
+﻿using ReadyM.Api.Idents;
+using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Server.Entities;
@@ -11,6 +12,7 @@ public readonly ref struct ScopedQuery<T> where T : struct, IArchetypeQueryable
 {
     private readonly ServerEntityApi? _api;
     private readonly Scope _scope;
+    private readonly DimensionId? _dimension;
 
     internal ScopedQuery(ServerEntityApi? api, Scope scope)
     {
@@ -18,7 +20,13 @@ public readonly ref struct ScopedQuery<T> where T : struct, IArchetypeQueryable
         _scope = scope;
     }
 
-    public Enumerator GetEnumerator() => new(_api, _scope);
+    internal ScopedQuery(ServerEntityApi? api, DimensionId dimension)
+    {
+        _api = api;
+        _dimension = dimension;
+    }
+
+    public Enumerator GetEnumerator() => new(_api, _scope, _dimension);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -28,11 +36,11 @@ public readonly ref struct ScopedQuery<T> where T : struct, IArchetypeQueryable
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal Enumerator(IEntityApi? api, Scope scope)
+        internal Enumerator(ServerEntityApi? api, Scope scope, DimensionId? dimension)
         {
             // Nothing to look in, or no scope to look at: either way this matches nothing, so a
             // property can hand one out when there is no current scope.
-            if (api is null || scope.Handle.RawEntity.Id == 0)
+            if (api is null || dimension is null && scope.Handle.RawEntity.Id == 0)
             {
                 _api = null;
                 _buffer = null;
@@ -40,7 +48,7 @@ public readonly ref struct ScopedQuery<T> where T : struct, IArchetypeQueryable
                 return;
             }
 
-            _buffer = api.CollectInScope(scope.Handle.RawEntity, default(T).Components);
+            _buffer = api.Collect(scope, dimension, default(T).Components);
 
             api.EnterQuery();
 

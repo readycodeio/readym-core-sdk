@@ -30,6 +30,9 @@ public struct EcsApiPointers
     /// <summary>The entities a scope holds that carry a component set.</summary>
     public required IntPtr QueryInScope;
 
+    /// <summary>The entities of a dimension that carry a component set.</summary>
+    public required IntPtr QueryInDimension;
+
     /// <summary>Creates an entity held by a scope.</summary>
     public required IntPtr CreateLocalEntityInScope;
     public required IntPtr CreateNetworkedEntityInScope;

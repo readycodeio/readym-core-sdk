@@ -27,7 +27,7 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
     private const string PolicyCancellerName = "policy";
 
     // Kept, because the relay removes a handler by delegate identity
-    private Action<ServerEventHeader, NetDataReader>? _onMessageReceived;
+    private Action<ServerEventHeader, DimensionId, NetDataReader>? _onMessageReceived;
 
     public void OnScopeStart()
     {
@@ -43,29 +43,71 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
         _onMessageReceived = null;
     }
 
-    /// <summary>Raises the event from server code as <paramref name="origin"/>. The policy is not checked.</summary>
-    public void Raise(T networkEvent, PlayerId origin) => Dispatch(networkEvent, origin, checkPolicy: false);
+    /// <summary>
+    /// Raises the event from server code as <paramref name="origin"/>. The policy is not checked. It is in its
+    /// subject's dimension, else in the dimension of the place it names, else in the main one.
+    /// </summary>
+    public void Raise(T networkEvent, PlayerId origin)
+        => Dispatch(networkEvent, origin, checkPolicy: false, DimensionOf(in networkEvent));
 
-    private void OnMessageReceived(ServerEventHeader header, NetDataReader reader)
+    /// <summary>
+    /// Raises the event from server code as <paramref name="origin"/> in <paramref name="dimension"/>. The policy is
+    /// not checked. Throws when its subject, or the place it names, is in another dimension.
+    /// </summary>
+    public void RaiseIn(T networkEvent, PlayerId origin, DimensionId dimension)
     {
-        if (contract.TryRead(entities, reader, out var networkEvent))
-            Dispatch(networkEvent, header.Sender, checkPolicy: true);
+        if (contract.Subject(in networkEvent) is { } subject && scopes.DimensionOf(subject) is var ofSubject
+            && ofSubject != dimension)
+        {
+            throw new ArgumentException(
+                $"{typeof(T).Name} was raised in {dimension}, but its subject is in {ofSubject}.", nameof(dimension));
+        }
+
+        if (contract.TryArea(in networkEvent, out var area) && area.Dimension != dimension
+            || contract.TryCell(in networkEvent, out var cell) && cell.Dimension != dimension)
+        {
+            throw new ArgumentException(
+                $"{typeof(T).Name} was raised in {dimension}, but names a place in another dimension.", nameof(dimension));
+        }
+
+        Dispatch(networkEvent, origin, checkPolicy: false, dimension);
     }
 
-    internal void Dispatch(T networkEvent, PlayerId origin, bool checkPolicy)
+    // The dimension is the sender's current one, as the relay passes it
+    private void OnMessageReceived(ServerEventHeader header, DimensionId dimension, NetDataReader reader)
+    {
+        if (contract.TryRead(entities, reader, out var networkEvent))
+            Dispatch(networkEvent, header.Sender, checkPolicy: true, dimension);
+    }
+
+    private DimensionId DimensionOf(in T networkEvent)
+    {
+        if (contract.Subject(in networkEvent) is { } subject)
+            return scopes.DimensionOf(subject);
+        if (contract.TryArea(in networkEvent, out var area))
+            return area.Dimension;
+        if (contract.TryCell(in networkEvent, out var cell))
+            return cell.Dimension;
+
+        return DimensionId.Main;
+    }
+
+    /// <param name="dimension">Where the origin is; names the area or cell the event names by id.</param>
+    internal void Dispatch(T networkEvent, PlayerId origin, bool checkPolicy, DimensionId dimension)
     {
         if (checkPolicy && !policy.Allows(
                 contract.Policy,
                 contract.Subject(in networkEvent),
                 contract.TryArea(in networkEvent, out var area) ? area : null,
                 contract.TryCell(in networkEvent, out var cell) ? cell : null,
-                origin))
+                origin,
+                dimension))
         {
-            Refuse(ref networkEvent, new EventContext(origin, false, EventCancellation.Cancelled(PolicyCancellerName, null)));
+            Refuse(ref networkEvent, new EventContext(origin, false, EventCancellation.Cancelled(PolicyCancellerName, null), dimension));
             return;
         }
 
-        var context = new EventContext(origin, false, new EventCancellation());
+        var context = new EventContext(origin, false, new EventCancellation(), dimension);
         RunStage(Stage.Validate, ref networkEvent, context);
         RunStage(Stage.Filter, ref networkEvent, context);
 
@@ -114,19 +156,23 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
                 return true;
 
             case EventScope.Area:
-                if (!contract.TryArea(in networkEvent, out var area)
-                    && !(contract.Subject(in networkEvent) is { } inArea && scopes.TryFindAreaOf(inArea, out area)))
+                if (contract.TryArea(in networkEvent, out var area))
+                    audience = EventAudience.InArea(area);
+                else if (contract.Subject(in networkEvent) is { } inArea && scopes.TryFindAreaOf(inArea, out area))
+                    audience = EventAudience.InArea(area);
+                else
                     return false;
 
-                audience = EventAudience.InArea(area);
                 return true;
 
             case EventScope.Cell:
-                if (!contract.TryCell(in networkEvent, out var cell)
-                    && !(contract.Subject(in networkEvent) is { } inCell && scopes.TryFindCellOf(inCell, out cell)))
+                if (contract.TryCell(in networkEvent, out var cell))
+                    audience = EventAudience.InCell(cell);
+                else if (contract.Subject(in networkEvent) is { } inCell && scopes.TryFindCellOf(inCell, out cell))
+                    audience = EventAudience.InCell(cell);
+                else
                     return false;
 
-                audience = EventAudience.InCell(cell);
                 return true;
 
             default:

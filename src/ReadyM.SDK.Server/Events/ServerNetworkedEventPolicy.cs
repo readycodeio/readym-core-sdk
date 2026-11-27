@@ -12,11 +12,20 @@ internal sealed class ServerNetworkedEventPolicy(ServerNetworkedEventScopes scop
     /// <param name="area">The area the event marks <c>[Area]</c>, or null.</param>
     /// <param name="cell">The cell the event marks <c>[Cell]</c>, or null.</param>
     /// <param name="origin">The player whose connection the event arrived on.</param>
+    /// <param name="dimension">The origin's dimension: a player names only places in it.</param>
     /// <exception cref="ArgumentOutOfRangeException">The policy checks a member the event does not have.</exception>
-    public bool Allows(Policy policy, EntityHandle? subject, AreaId? area, FullCellId? cell, PlayerId origin)
+    public bool Allows(
+        Policy policy, EntityHandle? subject, FullAreaId? area, FullCellId? cell, PlayerId origin,
+        DimensionId dimension)
     {
         if (origin == PlayerId.Server)
             return true;
+
+        if (area is { } namedArea && namedArea.Dimension != dimension
+            || cell is { } namedCell && namedCell.Dimension != dimension)
+        {
+            return false;
+        }
 
         return policy switch
         {

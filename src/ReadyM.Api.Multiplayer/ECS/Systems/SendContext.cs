@@ -28,8 +28,8 @@ internal readonly struct SendContext
     public bool IsGlobal => _kind == SendScopeKind.Global;
 
     /// <summary>The area's id, read from its scope entity. Only valid when <see cref="IsArea"/>.</summary>
-    public AreaId AreaId
-        => ScopeEntity!.Value.GetComponent<AreaScopeComponent>().AreaId;
+    public FullAreaId AreaId
+        => ScopeEntity!.Value.GetComponent<AreaScopeComponent>().FullAreaId;
 
     /// <summary>The cell's id, read from its scope entity. Only valid when <see cref="IsCell"/>.</summary>
     public FullCellId CellId

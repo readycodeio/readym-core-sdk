@@ -55,6 +55,9 @@ public class NetworkedEventCoordinatorTests
         /// <summary>The thread each stage ran on.</summary>
         public List<Thread> RanOn { get; } = [];
 
+        /// <summary>The dimension each stage ran in.</summary>
+        public List<DimensionId> RanIn { get; } = [];
+
         public string Mod => name;
 
         public IReadOnlyList<string> After => after;
@@ -63,6 +66,7 @@ public class NetworkedEventCoordinatorTests
         {
             ran.Add($"{name}:{stage}:{e.Damage}");
             RanOn.Add(Thread.CurrentThread);
+            RanIn.Add(ctx.EventDimension);
 
             if (stage == Stage.Apply)
                 AppliedOnRaisingClient.Add(ctx.IsRaisingClient);
@@ -85,7 +89,8 @@ public class NetworkedEventCoordinatorTests
     }
 
     /// <summary>Stands in for what the Common project generates beside the event struct.</summary>
-    private sealed class Contract(EventScope scope, Policy policy) : INetworkedEventContract<Blow>
+    private sealed class Contract(EventScope scope, Policy policy, EntityHandle? subject = null)
+        : INetworkedEventContract<Blow>
     {
         public RelayMessageCode Code => Wire;
 
@@ -93,9 +98,9 @@ public class NetworkedEventCoordinatorTests
 
         public Policy Policy => policy;
 
-        public EntityHandle? Subject(in Blow e) => null;
+        public EntityHandle? Subject(in Blow e) => subject;
 
-        public bool TryArea(in Blow e, out AreaId area)
+        public bool TryArea(in Blow e, out FullAreaId area)
         {
             area = default;
             return false;
@@ -130,13 +135,16 @@ public class NetworkedEventCoordinatorTests
 
     /// <summary>A server-scoped event, so nothing is sent but refusals.</summary>
     private ServerNetworkedEventCoordinator<Blow> OnServer(Policy policy, params Handlers[] mods)
+        => OnServer(new Contract(EventScope.Server, policy), mods);
+
+    private ServerNetworkedEventCoordinator<Blow> OnServer(Contract contract, params Handlers[] mods)
     {
         var api = _world.CreateEntityApi();
         var rpc = _rpc.CreateRpcApi();
         var scopes = new ServerNetworkedEventScopes(api);
 
         return new ServerNetworkedEventCoordinator<Blow>(
-            new Contract(EventScope.Server, policy),
+            contract,
             mods,
             rpc,
             Reader(),
@@ -351,7 +359,7 @@ public class NetworkedEventCoordinatorTests
     public void A_client_that_may_not_raise_it_gets_no_stage_but_rejected()
     {
         OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran), new Handlers("B", _ran))
-            .Dispatch(default, Somebody, checkPolicy: true);
+            .Dispatch(default, Somebody, checkPolicy: true, DimensionId.Main);
 
         Assert.Equal(["A:Rejected:0", "B:Rejected:0"], _ran);
     }
@@ -362,6 +370,37 @@ public class NetworkedEventCoordinatorTests
     {
         OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Raise(default, Somebody);
 
+        Assert.Contains("A:Apply:0", _ran);
+    }
+
+    // -- the dimension it runs in ----------------------------------------------------------------------
+
+    /// <summary>An event with no subject goes to the main dimension, unless the server names another.</summary>
+    [Fact]
+    public void An_event_raised_in_a_dimension_runs_every_stage_there()
+    {
+        var instance = new DimensionId(3);
+        var mod = new Handlers("A", _ran);
+
+        OnServer(mod).RaiseIn(default, PlayerId.Server, instance);
+
+        Assert.Equal([instance, instance, instance, instance], mod.RanIn);
+    }
+
+    /// <summary>A subject says where the event is, so naming a different dimension is a mistake.</summary>
+    [Fact]
+    public void An_event_raised_in_another_dimension_than_its_subjects_is_refused()
+    {
+        var api = _world.CreateEntityApi();
+        var subject = _world.Create();
+        _world.SetDimension(subject, new DimensionId(3));
+        var mod = new Handlers("A", _ran);
+        var server = OnServer(new Contract(EventScope.Server, Policy.Anyone, new EntityHandle(subject, api)), mod);
+
+        Assert.Throws<ArgumentException>(() => server.RaiseIn(default, PlayerId.Server, new DimensionId(4)));
+        Assert.Empty(_ran);
+
+        server.RaiseIn(default, PlayerId.Server, new DimensionId(3));
         Assert.Contains("A:Apply:0", _ran);
     }
 
@@ -423,7 +462,7 @@ public class NetworkedEventCoordinatorTests
     [Fact]
     public void A_refusal_is_sent_to_the_origin()
     {
-        OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Dispatch(default, Somebody, checkPolicy: true);
+        OnServer(Policy.ServerAuthoritative, new Handlers("A", _ran)).Dispatch(default, Somebody, checkPolicy: true, DimensionId.Main);
 
         Assert.Equal([Somebody], _rpc.Sent.Select(sent => sent.Player));
     }

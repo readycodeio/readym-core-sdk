@@ -7,7 +7,7 @@ namespace ReadyM.SDK.Events;
 // TODO: Replace with a discriminated union when C# 15 is out
 internal readonly struct EventAudience
 {
-    private EventAudience(EventScope scope, PlayerId player, AreaId area, FullCellId cell)
+    private EventAudience(EventScope scope, PlayerId player, FullAreaId area, FullCellId cell)
         => (Kind, Player, Area, Cell) = (scope, player, area, cell);
 
     /// <summary>Which of the audiences below this is.</summary>
@@ -17,7 +17,7 @@ internal readonly struct EventAudience
     public PlayerId Player { get; }
 
     /// <summary>The area, for <see cref="EventScope.Area"/>.</summary>
-    public AreaId Area { get; }
+    public FullAreaId Area { get; }
 
     /// <summary>The cell, for <see cref="EventScope.Cell"/>.</summary>
     public FullCellId Cell { get; }
@@ -29,8 +29,10 @@ internal readonly struct EventAudience
     public static EventAudience Single(PlayerId player) => new(EventScope.Single, player, default, default);
 
     /// <summary>Everyone in an area.</summary>
-    public static EventAudience InArea(AreaId area) => new(EventScope.Area, default, area, default);
+    public static EventAudience InArea(FullAreaId area)
+        => new(EventScope.Area, default, area, default);
 
     /// <summary>Everyone in a cell.</summary>
-    public static EventAudience InCell(FullCellId cell) => new(EventScope.Cell, default, default, cell);
+    public static EventAudience InCell(FullCellId cell)
+        => new(EventScope.Cell, default, default, cell);
 }

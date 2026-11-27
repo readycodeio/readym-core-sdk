@@ -15,6 +15,7 @@ internal class PlayerApi : IPlayers
     private readonly GetAreaPlayersDelegate _getAreaPlayers;
     private readonly GetCellPlayersDelegate _getCellPlayers;
     private readonly DropConnectionDelegate _dropConnection;
+    private readonly GetCurrentAreaDelegate _getCurrentArea;
 
     internal PlayerApi(PlayerApiPointers pointers)
     {
@@ -24,6 +25,7 @@ internal class PlayerApi : IPlayers
         _getAreaPlayers = Marshal.GetDelegateForFunctionPointer<GetAreaPlayersDelegate>(pointers.GetAreaPlayers);
         _getCellPlayers = Marshal.GetDelegateForFunctionPointer<GetCellPlayersDelegate>(pointers.GetCellPlayers);
         _dropConnection = Marshal.GetDelegateForFunctionPointer<DropConnectionDelegate>(pointers.DropConnection);
+        _getCurrentArea = Marshal.GetDelegateForFunctionPointer<GetCurrentAreaDelegate>(pointers.GetCurrentArea);
     }
 
     /// <summary>
@@ -45,12 +47,30 @@ internal class PlayerApi : IPlayers
     public void DropConnection(PlayerId player) => _dropConnection(player);
 
     /// <inheritdoc />
-    public unsafe List<PlayerId> InArea(AreaId area)
-        => Collect((b, c) => _getAreaPlayers(area, b, c));
+    public unsafe FullAreaId? GetCurrentArea(PlayerId player)
+    {
+        FullAreaId area;
+        return _getCurrentArea(player, &area) != 0 ? area : null;
+    }
 
     /// <inheritdoc />
-    public unsafe List<PlayerId> InCell(FullCellId cell)
-        => Collect((b, c) => _getCellPlayers(cell, b, c));
+    public List<PlayerId> InArea(AreaId area) => InArea(new FullAreaId(DimensionId.Main, area), everyDimension: 1);
+
+    /// <inheritdoc />
+    public List<PlayerId> InArea(FullAreaId area) => InArea(area, everyDimension: 0);
+
+    /// <inheritdoc />
+    public List<PlayerId> InCell(AreaId area, CellId cell)
+        => InCell(new FullCellId(DimensionId.Main, area, cell), everyDimension: 1);
+
+    /// <inheritdoc />
+    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, everyDimension: 0);
+
+    private unsafe List<PlayerId> InArea(FullAreaId area, byte everyDimension)
+        => Collect((b, c) => _getAreaPlayers(area, everyDimension, b, c));
+
+    private unsafe List<PlayerId> InCell(FullCellId cell, byte everyDimension)
+        => Collect((b, c) => _getCellPlayers(cell, everyDimension, b, c));
 
     /// <summary>A pointer cannot be a generic argument, so the ask has a type of its own.</summary>
     private unsafe delegate int Ask(PlayerId* buffer, int capacity);

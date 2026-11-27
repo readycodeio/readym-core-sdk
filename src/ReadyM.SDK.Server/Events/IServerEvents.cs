@@ -1,10 +1,14 @@
 using LiteNetLib;
 using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes.Core;
+using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Server.Events;
 
-/// <summary>The server's events: players connecting and moving, and areas and cells coming and going.</summary>
+/// <summary>
+/// The server's events: players connecting and moving, and areas and cells coming and going. An area or cell event
+/// names it by its full id, which holds its dimension.
+/// </summary>
 public interface IServerEvents
 {
     /// <summary>Fires when a player has connected and their player entity exists, with their ReadyM id.</summary>
@@ -20,10 +24,10 @@ public interface IServerEvents
     event Action<Area>? OnAreaDeleted;
 
     /// <summary>Fires when any player enters an area, the first one included.</summary>
-    event Action<PlayerId, AreaId>? OnPlayerJoinedArea;
+    event Action<PlayerId, FullAreaId>? OnPlayerJoinedArea;
 
     /// <summary>Fires when any player leaves an area.</summary>
-    event Action<PlayerId, AreaId>? OnPlayerLeftArea;
+    event Action<PlayerId, FullAreaId>? OnPlayerLeftArea;
 
     /// <summary>Fires when a cell comes into use, as the first player loads it.</summary>
     event Action<Cell>? OnCellCreated;
@@ -42,4 +46,15 @@ public interface IServerEvents
     /// world values can be written.
     /// </summary>
     event Action<World>? OnWorldCreated;
+
+    /// <summary>
+    /// Fires when a player's dimension changes: player, from, to. Raised
+    /// while the player still stands where they were.
+    /// </summary>
+    event Action<PlayerId, DimensionId, DimensionId>? OnPlayerDimensionChanged;
+
+    /// <summary>
+    /// Fires when an entity has moved from one dimension to another: entity, from, to.
+    /// </summary>
+    event Action<EntityHandle, DimensionId, DimensionId>? OnEntityDimensionChanged;
 }

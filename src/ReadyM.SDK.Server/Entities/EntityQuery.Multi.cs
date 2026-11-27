@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entities;
@@ -16,6 +17,12 @@ public readonly ref struct EntityQuery<T1, T2>
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components);
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T1, T2> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
@@ -93,6 +100,12 @@ public readonly ref struct EntityQuery<T1, T2, T3>
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components);
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T1, T2, T3> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
@@ -172,6 +185,12 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4>
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components);
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T1, T2, T3, T4> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
@@ -253,6 +272,12 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5>
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components);
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T1, T2, T3, T4, T5> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
@@ -336,6 +361,12 @@ public readonly ref struct EntityQuery<T1, T2, T3, T4, T5, T6>
     private static readonly ComponentSet Components = ComponentSet.Combine(default(T1).Components, default(T2).Components, default(T3).Components, default(T4).Components, default(T5).Components, default(T6).Components);
 
     internal EntityQuery(ServerEntityApi api) => _api = api;
+
+    /// <summary>
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
+    /// </summary>
+    public ScopedQuery<T1, T2, T3, T4, T5, T6> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()

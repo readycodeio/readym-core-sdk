@@ -23,7 +23,7 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
     private const string EntityReader = "global::ReadyM.SDK.Events.INetworkedEventEntityReader";
     private const string Registry = "global::ReadyM.SDK.Events.INetworkedEventRegistry";
     private const string EntityHandle = "global::ReadyM.SDK.Entities.EntityHandle";
-    private const string AreaId = "global::ReadyM.Api.Idents.AreaId";
+    private const string FullAreaId = "global::ReadyM.Api.Idents.FullAreaId";
     private const string FullCellId = "global::ReadyM.Api.Idents.FullCellId";
     private const string AreaShape = "global::ReadyM.SDK.Archetypes.Core.Area";
     private const string CellShape = "global::ReadyM.SDK.Archetypes.Core.Cell";
@@ -122,9 +122,9 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
             Report(context, location, "NEVT008", "No cell to check",
                 $"'{declared.Symbol.Name}' says Policy.CellMaster, which checks who is master of the cell the event is in, so one member must be marked [Cell] to name it. The sender is not named: the server already knows who sent it.");
 
-        if (declared.AreaMember is { } area && PlaceMemberKindOf(area.Type, AreaId, AreaShape) is null)
+        if (declared.AreaMember is { } area && PlaceMemberKindOf(area.Type, FullAreaId, AreaShape) is null)
             Report(context, area.Locations.FirstOrDefault() ?? location, "NEVT009", "Not a place",
-                $"'{declared.Symbol.Name}.{area.Name}' is marked [Area] but is '{area.Type.ToDisplayString()}'. An area is named by an AreaId, or by an Area, which may be absent.");
+                $"'{declared.Symbol.Name}.{area.Name}' is marked [Area] but is '{area.Type.ToDisplayString()}'. An area is named by a FullAreaId, or by an Area, which may be absent.");
 
         if (declared.CellMember is { } cell && PlaceMemberKindOf(cell.Type, FullCellId, CellShape) is null)
             Report(context, cell.Locations.FirstOrDefault() ?? location, "NEVT009", "Not a place",
@@ -275,7 +275,7 @@ internal class NetworkedEventContractGenerator : IIncrementalGenerator
         sb.AppendLine($"        => {(declared.Target is { } target ? $"networkEvent.{target.Name}.PlayerId" : "global::ReadyM.Api.Idents.PlayerId.Invalid")};");
         sb.AppendLine();
 
-        EmitTryPlace(sb, type, "TryArea", "area", AreaId, AreaShape, "AreaId", declared.AreaMember);
+        EmitTryPlace(sb, type, "TryArea", "area", FullAreaId, AreaShape, "FullAreaId", declared.AreaMember);
         EmitTryPlace(sb, type, "TryCell", "cell", FullCellId, CellShape, "FullCellId", declared.CellMember);
 
         EmitTryRead(sb, declared, type);

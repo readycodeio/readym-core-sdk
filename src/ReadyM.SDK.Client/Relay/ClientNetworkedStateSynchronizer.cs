@@ -427,7 +427,7 @@ internal class ClientNetworkedStateSynchronizer : IHostedService
         }
     }
 
-    private void OnLeftAreaHandler(AreaId areaId, Entity areaEntity)
+    private void OnLeftAreaHandler(FullAreaId areaId, Entity areaEntity)
     {
         _createdFromHeldCreations.Clear();
         if (_creationsWaitingForScope.Count == 0)
