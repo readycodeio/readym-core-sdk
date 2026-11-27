@@ -32,12 +32,12 @@ internal sealed class ClientEvents : IClientEvents, IDisposable
         _state.OnConnected += OnStateConnected;
         _state.OnDisconnected += OnStateDisconnected;
         _state.OnReconnecting += OnStateReconnecting;
-        _state.OnReconnectFailed += OnStateReconnectFailed;
+        _state.OnConnectRefused += OnStateConnectRefused;
     }
 
     public void Dispose()
     {
-        _state.OnReconnectFailed -= OnStateReconnectFailed;
+        _state.OnConnectRefused -= OnStateConnectRefused;
         _state.OnReconnecting -= OnStateReconnecting;
         _state.OnDisconnected -= OnStateDisconnected;
         _state.OnConnected -= OnStateConnected;
@@ -55,7 +55,7 @@ internal sealed class ClientEvents : IClientEvents, IDisposable
     private void OnStateReconnecting(int attempt)
         => Raise(nameof(OnReconnecting), () => OnReconnecting?.Invoke(attempt));
 
-    private void OnStateReconnectFailed(DisconnectedReason reason)
+    private void OnStateConnectRefused(DisconnectedReason reason)
         => Raise(nameof(OnDisconnected), () => OnDisconnected?.Invoke(reason, false));
 
     // A throw must not reach the client state, which would raise the same event again on every tick

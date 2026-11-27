@@ -10,8 +10,8 @@ public interface IClientEvents
     event Action<Player>? OnConnected;
 
     /// <summary>
-    /// Fires when the connection ends, and again when reconnecting stops for good; the flag says whether the client
-    /// will try to connect again.
+    /// Fires when the connection ends, or when an attempt to connect is refused for good; the flag says whether the
+    /// client will try to connect again.
     /// </summary>
     event Action<DisconnectedReason, bool>? OnDisconnected;
 
