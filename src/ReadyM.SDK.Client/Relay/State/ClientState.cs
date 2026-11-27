@@ -34,7 +34,9 @@ internal class ClientState : IDisposable
         OtherPlayerDeleted,
         OtherPlayerInsideArea,
         OtherPlayerOutsideArea,
-        SetActiveCells
+        SetActiveCells,
+        Reconnecting,
+        ReconnectFailed
     }
 
     private struct PendingEvent
@@ -46,6 +48,7 @@ internal class ClientState : IDisposable
         public bool IsNotify;
         public DisconnectedReason disconnectedReason;
         public CellId[]? CellIds;
+        public int Attempt;
     }
 
     public struct AreaEntry
@@ -147,6 +150,13 @@ internal class ClientState : IDisposable
 
     public event Action<PlayerId, Entity>? OnConnected;
     public event Action<PlayerId, Entity?, DisconnectedReason>? OnDisconnected;
+
+    /// <summary>Fired before each attempt to connect again after a lost connection, with the attempt counted from 1.</summary>
+    public event Action<int>? OnReconnecting;
+
+    /// <summary>Fired when the attempts to connect again stop, with the reason no retry can change.</summary>
+    public event Action<DisconnectedReason>? OnReconnectFailed;
+
     public event Action<PlayerId, Entity, OtherPlayerCreatedReason>? OnOtherPlayerCreated;
     public event Action<PlayerId, Entity, OtherPlayerDeletedReason>? OnOtherPlayerDeleted;
 
@@ -375,6 +385,35 @@ internal class ClientState : IDisposable
                 Kind = PendingEventKind.OtherPlayerOutsideArea,
                 AreaId = areaId.Value,
                 PlayerId = playerId,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Queues <see cref="OnReconnecting"/> behind the events already queued, so it follows the disconnect it is
+    /// about. The game's reconnect calls it, from any thread.
+    /// </summary>
+    public void QueueReconnecting(int attempt)
+    {
+        lock (_lock)
+        {
+            _pendingEvents.Add(new PendingEvent
+            {
+                Kind = PendingEventKind.Reconnecting,
+                Attempt = attempt,
+            });
+        }
+    }
+
+    /// <summary>Queues <see cref="OnReconnectFailed"/> behind the events already queued. Any thread.</summary>
+    public void QueueReconnectFailed(DisconnectedReason reason)
+    {
+        lock (_lock)
+        {
+            _pendingEvents.Add(new PendingEvent
+            {
+                Kind = PendingEventKind.ReconnectFailed,
+                disconnectedReason = reason,
             });
         }
     }
@@ -665,6 +704,10 @@ internal class ClientState : IDisposable
 
                     break;
                 }
+                case PendingEventKind.Reconnecting:
+                case PendingEventKind.ReconnectFailed:
+                    // Each attempt and the end of them happened, whatever connected or dropped around them
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -1220,6 +1263,12 @@ internal class ClientState : IDisposable
                 OnOtherPlayerOutsideArea?.Invoke(playerId, areaId, OtherPlayerOutsideAreaReason.OtherLeft);
                 break;
             }
+            case PendingEventKind.Reconnecting:
+                OnReconnecting?.Invoke(pendingEvent.Attempt);
+                break;
+            case PendingEventKind.ReconnectFailed:
+                OnReconnectFailed?.Invoke(pendingEvent.disconnectedReason);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(pendingEvent.Kind), pendingEvent.Kind, null);
         }
