@@ -4,7 +4,7 @@ using ReadyM.SDK.Archetypes.Core;
 
 namespace ReadyM.SDK.Server.Events;
 
-/// <summary>The server's events: players connecting and moving, and areas and cells coming and going.</summary>
+/// <summary>The server's events: players connecting and moving, areas and cells coming and going, and saves.</summary>
 public interface IServerEvents
 {
     /// <summary>Fires when a player has connected and their player entity exists, with their ReadyM id.</summary>
@@ -42,4 +42,16 @@ public interface IServerEvents
     /// world values can be written.
     /// </summary>
     event Action<World>? OnWorldCreated;
+
+    /// <summary>Fires before the world is saved (autosave, shutdown); what a handler writes is in the save.</summary>
+    event Action? BeforeWorldSave;
+
+    /// <summary>Fires once the world is saved; its files are written to disk in the background.</summary>
+    event Action? AfterWorldSave;
+
+    /// <summary>Fires before a player's state is saved (autosave, shutdown, disconnect), with their ReadyM id.</summary>
+    event Action<Player, Guid>? BeforePlayerSave;
+
+    /// <summary>Fires once a player's state is saved, with their ReadyM id.</summary>
+    event Action<Player, Guid>? AfterPlayerSave;
 }
