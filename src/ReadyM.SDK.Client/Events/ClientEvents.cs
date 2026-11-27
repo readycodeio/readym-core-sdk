@@ -50,10 +50,7 @@ internal sealed class ClientEvents : IClientEvents, IDisposable
     }
 
     private void OnStateDisconnected(PlayerId playerId, Entity? playerEntity, DisconnectedReason reason)
-    {
-        var reconnecting = _reconnect.WillReconnectAfter(reason);
-        Raise(nameof(OnDisconnected), () => OnDisconnected?.Invoke(reason, reconnecting));
-    }
+        => Raise(nameof(OnDisconnected), () => OnDisconnected?.Invoke(reason, _reconnect.WillReconnectAfter(reason)));
 
     private void OnStateReconnecting(int attempt)
         => Raise(nameof(OnReconnecting), () => OnReconnecting?.Invoke(attempt));
@@ -61,7 +58,7 @@ internal sealed class ClientEvents : IClientEvents, IDisposable
     private void OnStateReconnectFailed(DisconnectedReason reason)
         => Raise(nameof(OnDisconnected), () => OnDisconnected?.Invoke(reason, false));
 
-    // A mod's handler must not stop the client state, which would raise the same event again on every tick
+    // A throw must not reach the client state, which would raise the same event again on every tick
     private void Raise(string name, Action raise)
     {
         try
@@ -70,7 +67,7 @@ internal sealed class ClientEvents : IClientEvents, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "A mod's {Event} handler threw", name);
+            _logger.LogError(ex, "Raising {Event} to mods failed", name);
         }
     }
 
