@@ -22,7 +22,9 @@ internal class ServerEntities(ServerEntityApi api) : IEntities
                 return world;
             }
 
-            throw new InvalidEntityException("World entity has not yet been created.");
+            throw new InvalidEntityException(
+                "World entity has not yet been created. It exists from IServerEvents.OnWorldCreated on; "
+                + "a mod's Init and a service's Start run before that.");
         }
     }
 

@@ -38,8 +38,8 @@ public interface IServerEvents
     event Action<PlayerId, FullCellId>? OnPlayerDeactivatedCell;
 
     /// <summary>
-    /// Raised once, when the world entity exists. A mod's Init runs before that, so this is the earliest point at which
-    /// world values can be written.
+    /// Raised once, when the world entity exists. A mod's Init and a service's Start run before that, so this is the
+    /// earliest point at which world values can be written.
     /// </summary>
     event Action<World>? OnWorldCreated;
 }
