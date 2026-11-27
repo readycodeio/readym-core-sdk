@@ -84,6 +84,8 @@ internal static class DependencyInjectionExtensions
         container.RegisterSingleton<GuessedValueRegistry>();
         container.RegisterSingleton<PredictedRaiseRegistry>();
         container.RegisterSingleton<INetworkedEvents, ClientNetworkedEvents>();
+        // Over the game's ClientState and IReconnectPolicy, which the game registers itself
+        container.RegisterSingleton<IClientEvents, ClientEvents>();
 #if NET
         container.RegisterSingleton<IChunkSource, ClientChunkSource>();
 #endif
