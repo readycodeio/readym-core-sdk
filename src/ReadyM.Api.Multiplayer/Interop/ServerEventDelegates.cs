@@ -13,6 +13,10 @@ internal enum ServerEventKind : byte
     PlayerActivatedCell = 8,
     PlayerDeactivatedCell = 9,
     WorldEntityCreated = 10,
+    BeforeWorldSave = 11,
+    AfterWorldSave = 12,
+    BeforePlayerSave = 13,
+    AfterPlayerSave = 14,
 }
 
 internal delegate void ServerEventHandlerDelegate(ServerEventKind kind, ServerEventPayload payload);

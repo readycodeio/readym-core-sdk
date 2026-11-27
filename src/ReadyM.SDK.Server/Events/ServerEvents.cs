@@ -28,6 +28,10 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
     public event Action<PlayerId, FullCellId>? OnPlayerActivatedCell;
     public event Action<PlayerId, FullCellId>? OnPlayerDeactivatedCell;
     public event Action<World>? OnWorldCreated;
+    public event Action? BeforeWorldSave;
+    public event Action? AfterWorldSave;
+    public event Action<Player, Guid>? BeforePlayerSave;
+    public event Action<Player, Guid>? AfterPlayerSave;
 
     private readonly UnsubscribeServerEventsDelegate _unsubscribe;
     private readonly ServerEventHandlerDelegate _dispatch;
@@ -122,6 +126,18 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 break;
             case ServerEventKind.WorldEntityCreated:
                 OnWorldCreated?.Invoke(Shape<World>(payload.Entity));
+                break;
+            case ServerEventKind.BeforeWorldSave:
+                BeforeWorldSave?.Invoke();
+                break;
+            case ServerEventKind.AfterWorldSave:
+                AfterWorldSave?.Invoke();
+                break;
+            case ServerEventKind.BeforePlayerSave:
+                BeforePlayerSave?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId);
+                break;
+            case ServerEventKind.AfterPlayerSave:
+                AfterPlayerSave?.Invoke(Shape<Player>(payload.Entity), payload.ReadyMId);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unhandled server event kind");
