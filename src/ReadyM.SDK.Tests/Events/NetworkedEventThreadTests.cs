@@ -159,7 +159,7 @@ public class NetworkedEventThreadTests : IDisposable
 
         public EntityHandle? Subject(in Ping networkEvent) => null;
 
-        public bool TryArea(in Ping networkEvent, out AreaId area)
+        public bool TryArea(in Ping networkEvent, out FullAreaId area)
         {
             area = default;
             return false;

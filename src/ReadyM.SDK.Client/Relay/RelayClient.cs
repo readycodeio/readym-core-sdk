@@ -24,7 +24,7 @@ internal class RelayClient : IRelayClient
 
         public bool IsConnected { get; set; }
         public PlayerId? PlayerId { get; set; }
-        public AreaId? CurrentAreaId { get; set; }
+        public FullAreaId? CurrentAreaId { get; set; }
 
         ReadOnlyList<CellId> IRelayClientNetworkThreadContext.ActiveCells => new(ActiveCells);
 
@@ -645,7 +645,7 @@ internal class RelayClient : IRelayClient
                         break;
                     }
 
-                    var areaId = reader.Get<AreaId>();
+                    var areaId = reader.Get<FullAreaId>();
 
                     _logger.LogInformation("NETWORK JOINING {AreaId} by player {PlayerId}", areaId, playerId);
 

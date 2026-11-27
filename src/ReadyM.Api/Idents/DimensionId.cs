@@ -1,19 +1,23 @@
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using LiteNetLib.Utils;
+using ReadyM.Api.Serialization;
 
 namespace ReadyM.Api.Idents;
 
 /// <summary>
-/// Identifies a dimension: one copy of the game world on a server. A runtime handle the server hands out when a
-/// dimension is created, never saved and never sent to clients. The default value is <see cref="Invalid"/>: a dimension
-/// is always named, <see cref="Main"/> for the live world.
+/// Identifies a dimension: one copy of the game world on a server. The main dimension is <see cref="Main"/>; a
+/// persistent dimension keeps its id for good, a temporary one for the run. Sent to clients and saved as its
+/// <see cref="Value"/>. The default value is <see cref="Invalid"/>.
 /// </summary>
-public readonly struct DimensionId : IEquatable<DimensionId>
+public struct DimensionId : IEquatable<DimensionId>, INetSerializable
 {
     // Stored shifted, so default(DimensionId) is not a real dimension. Shared is -1, so a shift of one would make the
     // default value Shared.
     private const int Offset = 2;
 
-    private readonly int _stored;
+    private int _stored;
 
     /// <summary>A dimension id from the server's handle.</summary>
     public DimensionId(int value)
@@ -53,4 +57,21 @@ public readonly struct DimensionId : IEquatable<DimensionId>
 
     public override string ToString()
         => !IsValid ? "Dimension[invalid]" : IsMain ? "Dimension[main]" : IsShared ? "Dimension[shared]" : $"Dimension[{Value}]";
+
+    public void Serialize(NetDataWriter writer)
+        => writer.Put(Value);
+
+    public void Deserialize(NetDataReader reader)
+        => _stored = reader.GetInt() + Offset;
+
+    /// <summary>JSON: the <see cref="Value"/> as a number.</summary>
+    [RegisterJsonConverter]
+    internal sealed class Converter : JsonConverter<DimensionId>
+    {
+        public override DimensionId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => new(reader.GetInt32());
+
+        public override void Write(Utf8JsonWriter writer, DimensionId value, JsonSerializerOptions options)
+            => writer.WriteNumberValue(value.Value);
+    }
 }

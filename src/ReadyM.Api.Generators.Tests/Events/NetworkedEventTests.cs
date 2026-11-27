@@ -251,7 +251,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
             [NetworkedEvent(EventScope.Server, Policy.AreaMaster)]
             public partial struct Weather
             {
-                [Area] public AreaId Where { get; set; }
+                [Area] public FullAreaId Where { get; set; }
                 public int Kind { get; set; }
             }
             """);
@@ -286,7 +286,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
             using ReadyM.SDK.Attributes;
             namespace Other.Common;
             [NetworkedEvent(EventScope.Server, Policy.CellMaster)]
-            public partial struct Uncelled { [Area] public AreaId Where { get; set; } }
+            public partial struct Uncelled { [Area] public FullAreaId Where { get; set; } }
             """);
 
     [Fact]
@@ -425,7 +425,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
             using ReadyM.SDK.Attributes;
             namespace Other.Common;
             [NetworkedEvent(EventScope.Cell, Policy.ServerAuthoritative)]
-            public partial struct Astray { [Area] public AreaId Where { get; set; } }
+            public partial struct Astray { [Area] public FullAreaId Where { get; set; } }
             """);
 
     /// <summary>
@@ -441,7 +441,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
             using ReadyM.SDK.Archetypes.Core;
             namespace Other.Common;
             [NetworkedEvent(EventScope.Area, Policy.AreaMaster)]
-            public partial struct ById { [Area] public AreaId Where { get; set; } }
+            public partial struct ById { [Area] public FullAreaId Where { get; set; } }
             [NetworkedEvent(EventScope.Area, Policy.AreaMaster)]
             public partial struct ByShape { [Area] public Area Where { get; set; } }
             [NetworkedEvent(EventScope.Cell, Policy.CellMaster)]
@@ -449,7 +449,7 @@ public class NetworkedEventTests(ITestOutputHelper output)
             """));
 
         Assert.Contains("area = networkEvent.Where;", generated);
-        Assert.Contains("area = networkEvent.Where.AreaId;", generated);
+        Assert.Contains("area = networkEvent.Where.FullAreaId;", generated);
         Assert.Contains("cell = networkEvent.Where;", generated);
     }
 

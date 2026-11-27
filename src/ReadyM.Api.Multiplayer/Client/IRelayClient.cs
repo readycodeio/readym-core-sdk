@@ -116,7 +116,7 @@ internal interface IRelayClient : IRpcClient, IDisposable
     /// time.
     /// Always called from the same NETWORK thread.
     /// </summary>
-    event Action<IRelayClientNetworkThreadContext, AreaId> OnJoinedArea;
+    event Action<IRelayClientNetworkThreadContext, FullAreaId> OnJoinedArea;
 
     /// <summary>
     /// Fired when the server has confirmed setting the active cells.

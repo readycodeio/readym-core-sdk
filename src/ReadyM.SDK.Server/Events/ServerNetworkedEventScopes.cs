@@ -10,19 +10,19 @@ namespace ReadyM.SDK.Server.Events;
 /// <summary>Finds the areas and cells a networked event names, or that its subject is in.</summary>
 internal sealed class ServerNetworkedEventScopes(IEntityApi api)
 {
-    public bool TryFindArea(AreaId id, DimensionId dimension, out Area area) => TryFind(id, dimension, out area);
+    public bool TryFindArea(FullAreaId id, out Area area) => TryFind(id, id.Dimension, out area);
 
-    public bool TryFindCell(FullCellId id, DimensionId dimension, out Cell cell) => TryFind(id, dimension, out cell);
+    public bool TryFindCell(FullCellId id, out Cell cell) => TryFind(id, id.Dimension, out cell);
 
     /// <summary>The entity's dimension; the main one where the host keeps none.</summary>
     public DimensionId DimensionOf(EntityHandle entity)
         => (api as ServerEntityApi)?.DimensionOf(entity.RawEntity) ?? DimensionId.Main;
 
     /// <summary>The area the entity is in, directly or through its cell.</summary>
-    public bool TryFindAreaOf(EntityHandle entity, out AreaId area)
+    public bool TryFindAreaOf(EntityHandle entity, out FullAreaId area)
     {
         var found = ScopeLookup.TryFind<Area>(api, entity, out var scope);
-        area = found ? scope.AreaId : default;
+        area = found ? scope.FullAreaId : default;
 
         return found;
     }

@@ -135,8 +135,8 @@ public class EventCancellationTests
     [Fact]
     public void An_area_audience_carries_the_area()
     {
-        var area = new AreaId(3);
-        var audience = EventAudience.InArea(area, DimensionId.Main);
+        var area = new FullAreaId(DimensionId.Main, new AreaId(3));
+        var audience = EventAudience.InArea(area);
 
         Assert.Equal(EventScope.Area, audience.Kind);
         Assert.Equal(area, audience.Area);
@@ -145,8 +145,8 @@ public class EventCancellationTests
     [Fact]
     public void A_cell_audience_carries_the_cell()
     {
-        var cell = new FullCellId(new AreaId(3), new CellId("cell-1"));
-        var audience = EventAudience.InCell(cell, DimensionId.Main);
+        var cell = new FullCellId(DimensionId.Main, new AreaId(3), new CellId("cell-1"));
+        var audience = EventAudience.InCell(cell);
 
         Assert.Equal(EventScope.Cell, audience.Kind);
         Assert.Equal(cell, audience.Cell);

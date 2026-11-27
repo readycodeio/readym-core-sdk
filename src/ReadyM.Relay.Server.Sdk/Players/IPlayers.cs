@@ -23,11 +23,11 @@ public interface IPlayers
     List<PlayerId> InArea(AreaId area);
 
     /// <summary>The players in an area of one dimension.</summary>
-    List<PlayerId> InArea(AreaId area, DimensionId dimension);
+    List<PlayerId> InArea(FullAreaId area);
 
     /// <summary>The players who have a cell active, in every dimension.</summary>
-    List<PlayerId> InCell(FullCellId cell);
+    List<PlayerId> InCell(AreaId area, CellId cell);
 
     /// <summary>The players who have a cell of one dimension active.</summary>
-    List<PlayerId> InCell(FullCellId cell, DimensionId dimension);
+    List<PlayerId> InCell(FullCellId cell);
 }

@@ -12,9 +12,9 @@ internal sealed class FakePlayers : IPlayers
 
     public List<PlayerId> InArea(AreaId area) => [];
 
+    public List<PlayerId> InCell(AreaId area, CellId cell) => [];
+
+    public List<PlayerId> InArea(FullAreaId area) => [];
+
     public List<PlayerId> InCell(FullCellId cell) => [];
-
-    public List<PlayerId> InArea(AreaId area, DimensionId dimension) => [];
-
-    public List<PlayerId> InCell(FullCellId cell, DimensionId dimension) => [];
 }

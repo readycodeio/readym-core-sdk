@@ -45,14 +45,14 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
 
     /// <summary>
     /// Raises the event from server code as <paramref name="origin"/>. The policy is not checked. It is in its
-    /// subject's dimension, or the main one without a subject.
+    /// subject's dimension, else in the dimension of the place it names, else in the main one.
     /// </summary>
     public void Raise(T networkEvent, PlayerId origin)
-        => Dispatch(networkEvent, origin, checkPolicy: false, DimensionOfSubject(in networkEvent));
+        => Dispatch(networkEvent, origin, checkPolicy: false, DimensionOf(in networkEvent));
 
     /// <summary>
     /// Raises the event from server code as <paramref name="origin"/> in <paramref name="dimension"/>. The policy is
-    /// not checked. Throws when its subject is in another dimension.
+    /// not checked. Throws when its subject, or the place it names, is in another dimension.
     /// </summary>
     public void RaiseIn(T networkEvent, PlayerId origin, DimensionId dimension)
     {
@@ -61,6 +61,13 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
         {
             throw new ArgumentException(
                 $"{typeof(T).Name} was raised in {dimension}, but its subject is in {ofSubject}.", nameof(dimension));
+        }
+
+        if (contract.TryArea(in networkEvent, out var area) && area.Dimension != dimension
+            || contract.TryCell(in networkEvent, out var cell) && cell.Dimension != dimension)
+        {
+            throw new ArgumentException(
+                $"{typeof(T).Name} was raised in {dimension}, but names a place in another dimension.", nameof(dimension));
         }
 
         Dispatch(networkEvent, origin, checkPolicy: false, dimension);
@@ -73,8 +80,17 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
             Dispatch(networkEvent, header.Sender, checkPolicy: true, dimension);
     }
 
-    private DimensionId DimensionOfSubject(in T networkEvent)
-        => contract.Subject(in networkEvent) is { } subject ? scopes.DimensionOf(subject) : DimensionId.Main;
+    private DimensionId DimensionOf(in T networkEvent)
+    {
+        if (contract.Subject(in networkEvent) is { } subject)
+            return scopes.DimensionOf(subject);
+        if (contract.TryArea(in networkEvent, out var area))
+            return area.Dimension;
+        if (contract.TryCell(in networkEvent, out var cell))
+            return cell.Dimension;
+
+        return DimensionId.Main;
+    }
 
     /// <param name="dimension">Where the origin is; names the area or cell the event names by id.</param>
     internal void Dispatch(T networkEvent, PlayerId origin, bool checkPolicy, DimensionId dimension)
@@ -104,7 +120,7 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
         RunStage(Stage.Apply, ref networkEvent, context);
         RunStage(Stage.Observe, ref networkEvent, context);
 
-        if (TryResolveAudience(in networkEvent, dimension, out var audience))
+        if (TryResolveAudience(in networkEvent, out var audience))
             sender.SendAccepted(contract.Code, audience, origin, Serialize(in networkEvent));
     }
 
@@ -122,7 +138,7 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
     /// Who hears an accepted event. False for a server-scoped event, and for an event in an area or cell that
     /// neither names one nor has a subject in one.
     /// </summary>
-    private bool TryResolveAudience(in T networkEvent, DimensionId dimension, out EventAudience audience)
+    private bool TryResolveAudience(in T networkEvent, out EventAudience audience)
     {
         audience = default;
 
@@ -140,11 +156,10 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
                 return true;
 
             case EventScope.Area:
-                // A named area is in the event's dimension; a subject's area is in the subject's
                 if (contract.TryArea(in networkEvent, out var area))
-                    audience = EventAudience.InArea(area, dimension);
+                    audience = EventAudience.InArea(area);
                 else if (contract.Subject(in networkEvent) is { } inArea && scopes.TryFindAreaOf(inArea, out area))
-                    audience = EventAudience.InArea(area, scopes.DimensionOf(inArea));
+                    audience = EventAudience.InArea(area);
                 else
                     return false;
 
@@ -152,9 +167,9 @@ internal sealed class ServerNetworkedEventCoordinator<T>(
 
             case EventScope.Cell:
                 if (contract.TryCell(in networkEvent, out var cell))
-                    audience = EventAudience.InCell(cell, dimension);
+                    audience = EventAudience.InCell(cell);
                 else if (contract.Subject(in networkEvent) is { } inCell && scopes.TryFindCellOf(inCell, out cell))
-                    audience = EventAudience.InCell(cell, scopes.DimensionOf(inCell));
+                    audience = EventAudience.InCell(cell);
                 else
                     return false;
 

@@ -121,10 +121,10 @@ internal sealed class ServerEvents : IServerEvents, IDisposable
                 OnCellDeleted?.Invoke(Shape<Cell>(payload.Entity), dimension);
                 break;
             case ServerEventKind.PlayerActivatedCell:
-                OnPlayerActivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell), dimension);
+                OnPlayerActivatedCell?.Invoke(payload.Player, new FullCellId(dimension, payload.Area, payload.Cell), dimension);
                 break;
             case ServerEventKind.PlayerDeactivatedCell:
-                OnPlayerDeactivatedCell?.Invoke(payload.Player, new FullCellId(payload.Area, payload.Cell), dimension);
+                OnPlayerDeactivatedCell?.Invoke(payload.Player, new FullCellId(dimension, payload.Area, payload.Cell), dimension);
                 break;
             case ServerEventKind.WorldEntityCreated:
                 OnWorldCreated?.Invoke(Shape<World>(payload.Entity));

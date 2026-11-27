@@ -15,14 +15,14 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 [EditorBrowsable(EditorBrowsableState.Never)]
 [DeriveINetworkedComponent(emitDirtyMask: false), NativeComponent]
 [StructLayout(LayoutKind.Sequential)]
-public partial struct AreaScopeComponent : IIndexedComponent<AreaId>
+public partial struct AreaScopeComponent : IIndexedComponent<FullAreaId>
 {
     private byte _dirtyMask;
     private byte _apiMask;
 
-    private AreaId _areaId;
+    private FullAreaId _fullAreaId;
     private PlayerId _masterClient;
 
-    public AreaId GetIndexedValue()
-        => _areaId;
+    public FullAreaId GetIndexedValue()
+        => _fullAreaId;
 }

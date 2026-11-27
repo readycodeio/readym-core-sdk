@@ -49,13 +49,14 @@ internal class PlayerApi : IPlayers
     public List<PlayerId> InArea(AreaId area) => InArea(area, DimensionFilter.EveryDimension);
 
     /// <inheritdoc />
-    public List<PlayerId> InArea(AreaId area, DimensionId dimension) => InArea(area, DimensionFilter.InDimension(dimension));
+    public List<PlayerId> InArea(FullAreaId area) => InArea(area.Area, DimensionFilter.InDimension(area.Dimension));
 
     /// <inheritdoc />
-    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, DimensionFilter.EveryDimension);
+    public List<PlayerId> InCell(AreaId area, CellId cell)
+        => InCell(new FullCellId(DimensionId.Main, area, cell), DimensionFilter.EveryDimension);
 
     /// <inheritdoc />
-    public List<PlayerId> InCell(FullCellId cell, DimensionId dimension) => InCell(cell, DimensionFilter.InDimension(dimension));
+    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, DimensionFilter.InDimension(cell.Dimension));
 
     private unsafe List<PlayerId> InArea(AreaId area, DimensionFilter filter)
         => Collect((b, c) => _getAreaPlayers(area, filter, b, c));

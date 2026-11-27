@@ -25,7 +25,7 @@ public interface INetworkedEventContract<T> where T : struct, INetworkedEvent
     EntityHandle? Subject(in T networkEvent);
 
     /// <summary>The area it names with <c>[Area]</c>, if any.</summary>
-    bool TryArea(in T networkEvent, out AreaId area);
+    bool TryArea(in T networkEvent, out FullAreaId area);
 
     /// <summary>The cell it names with <c>[Cell]</c>, if any.</summary>
     bool TryCell(in T networkEvent, out FullCellId cell);

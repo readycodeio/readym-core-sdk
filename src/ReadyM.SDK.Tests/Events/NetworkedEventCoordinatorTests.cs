@@ -100,7 +100,7 @@ public class NetworkedEventCoordinatorTests
 
         public EntityHandle? Subject(in Blow e) => subject;
 
-        public bool TryArea(in Blow e, out AreaId area)
+        public bool TryArea(in Blow e, out FullAreaId area)
         {
             area = default;
             return false;

@@ -447,7 +447,7 @@ public class ReplicationTests(ITestOutputHelper output)
             [ExplicitComponent(typeof({{Networked}}))]
             public readonly partial struct Region
             {
-                public partial global::ReadyM.Api.Idents.AreaId AreaId { get; set; }
+                public partial global::ReadyM.Api.Idents.FullAreaId FullAreaId { get; set; }
             }
             """);
 
