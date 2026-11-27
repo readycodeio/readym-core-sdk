@@ -19,13 +19,14 @@ using ReadyM.Native.LowLevel;
 
 namespace ReadyM.SDK.Server.Entities;
 
-internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLookup
+internal sealed class ServerEntityApi : IEntityApi, IChunkSource
 {
     private readonly QueryDelegate _query;
     private readonly GetComponentSlotDelegate _getComponentSlot;
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
     private readonly QueryInScopeDelegate _queryInScope;
+    private readonly QueryInDimensionDelegate _queryInDimension;
     private readonly TryGetEntityScopeDelegate _tryGetEntityScope;
     private readonly IsEntityAliveDelegate _isEntityAlive;
     private readonly IsOnWorldThreadDelegate _isOnWorldThread;
@@ -62,6 +63,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         _setComponent = Marshal.GetDelegateForFunctionPointer<SetComponentDelegate>(pointers.SetComponent);
         _findByIndex = Marshal.GetDelegateForFunctionPointer<FindByIndexDelegate>(pointers.FindByIndex);
         _queryInScope = Marshal.GetDelegateForFunctionPointer<QueryInScopeDelegate>(pointers.QueryInScope);
+        _queryInDimension = Marshal.GetDelegateForFunctionPointer<QueryInDimensionDelegate>(pointers.QueryInDimension);
         _tryGetEntityScope = Marshal.GetDelegateForFunctionPointer<TryGetEntityScopeDelegate>(pointers.TryGetEntityScope);
         _isEntityAlive = Marshal.GetDelegateForFunctionPointer<IsEntityAliveDelegate>(pointers.IsEntityAlive);
         _isOnWorldThread = Marshal.GetDelegateForFunctionPointer<IsOnWorldThreadDelegate>(pointers.IsOnWorldThread);
@@ -303,6 +305,36 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         return buffer;
     }
 
+    /// <summary>What a scoped query walks: the dimension's entities when it names one, else the scope's.</summary>
+    internal EntityBuffer Collect(Scope scope, DimensionId? dimension, ComponentSet components)
+        => dimension is { } inDimension
+            ? CollectInDimension(inDimension, components)
+            : CollectInScope(scope.Handle.RawEntity, components);
+
+    /// <summary>The entities of a dimension that carry the components, by the host's dimension index.</summary>
+    private unsafe EntityBuffer CollectInDimension(DimensionId dimension, ComponentSet components)
+    {
+        var ids = ResolveIds(components);
+        var buffer = EntityBuffer.Rent();
+
+        var previous = _collecting;
+        _collecting = buffer;
+
+        try
+        {
+            fixed (int* componentIds = ids)
+            {
+                _queryInDimension(componentIds, ids.Length, dimension, CollectEntities);
+            }
+        }
+        finally
+        {
+            _collecting = previous;
+        }
+
+        return buffer;
+    }
+
     private static readonly unsafe EntityListCallback CollectEntities = static (entities, count) =>
     {
         if (count > 0)
@@ -412,23 +444,23 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         _indexes.Remember<TComponent, TKey>(component.GetIndexedValue(), rawEntity);
     }
 
-    // The host's own lookups by an id held once in the world (a network id) see every dimension.
-    public bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
-        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
-        => TryFindByIndex<TComponent, TKey>(key, DimensionFilter.EveryDimension, out entity);
-
-    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, DimensionFilter filter, out RawEntity entity)
+    public unsafe bool TryFindByIndex<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var id = _registry.Resolve<TComponent>();
 
-        if (TryFindRemembered<TComponent, TKey>(id, key, filter, out entity))
-            return true;
+        if (_indexes.TryFind<TComponent, TKey>(key, out entity))
+        {
+            if (Holds<TComponent, TKey>(entity, id, key))
+                return true;
+
+            _indexes.Forget<TComponent, TKey>(key, entity);
+        }
 
         RawEntity found;
         var copy = key;
 
-        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), filter, &found))
+        switch (_findByIndex(id, &copy, Unsafe.SizeOf<TKey>(), &found))
         {
             case IndexResult.Done:
                 entity = found;
@@ -436,52 +468,17 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
             case IndexResult.NoIndex:
                 throw NoIndex<TComponent, TKey>();
             case IndexResult.ModOwned:
-                return TryFindByWalking<TComponent, TKey>(id, key, filter, out entity);
+                return TryFindByWalking<TComponent, TKey>(id, key, out entity);
             default:
                 entity = default;
                 return false;
         }
     }
 
-    /// <summary>
-    /// The newest holder this runtime remembers that the filter sees, dropping any that no longer hold the key.
-    /// </summary>
-    private bool TryFindRemembered<TComponent, TKey>(int id, TKey key, DimensionFilter filter, out RawEntity entity)
+    private bool TryFindByWalking<TComponent, TKey>(int id, TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
-        var holders = _indexes.Holders<TComponent, TKey>(key);
-
-        // Newest first, and backwards so forgetting one keeps the rest in place
-        for (var i = holders.Count - 1; i >= 0; i--)
-        {
-            var holder = holders[i];
-
-            if (!Holds<TComponent, TKey>(holder, id, key))
-            {
-                _indexes.Forget<TComponent, TKey>(key, holder);
-                continue;
-            }
-
-            // The dimension is asked for only when the filter names one
-            if (filter.IsEveryDimension || filter.Sees(DimensionOf(holder)))
-            {
-                entity = holder;
-                return true;
-            }
-        }
-
-        entity = default;
-        return false;
-    }
-
-    /// <summary>
-    /// Walks every carrier of the component in the filter's dimensions (the host cut the query to them); the first
-    /// holder is remembered for the next lookup.
-    /// </summary>
-    private bool TryFindByWalking<TComponent, TKey>(int id, TKey key, DimensionFilter filter, out RawEntity entity)
-        where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
-    {
-        var carriers = CollectMatching(ComponentSet.Of<TComponent>(), filter);
+        var carriers = CollectMatching(ComponentSet.Of<TComponent>());
 
         try
         {
@@ -491,6 +488,8 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
                     continue;
 
                 entity = carriers[i];
+
+                // So the next lookup by the same key is answered without walking again.
                 _indexes.Remember<TComponent, TKey>(key, entity);
                 return true;
             }
@@ -534,7 +533,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
     private static ComponentNotFoundException Missing<T>(RawEntity rawEntity)
         => new($"Entity {rawEntity.Id} does not carry {typeof(T).Name}.");
 
-    internal unsafe EntityBuffer CollectMatching(ComponentSet components, DimensionFilter filter)
+    internal unsafe EntityBuffer CollectMatching(ComponentSet components)
     {
         var ids = ResolveIds(components);
         var buffer = EntityBuffer.Rent();
@@ -545,7 +544,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         {
             fixed (int* componentIds = ids)
             {
-                _query(componentIds, ids.Length, filter, Collect);
+                _query(componentIds, ids.Length, Collect);
             }
         }
         finally
@@ -558,7 +557,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
 
     EntityHandle IChunkSource.Prototype => new(default, this);
 
-    unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components, DimensionFilter filter)
+    unsafe ChunkBuffer IChunkSource.Collect(ComponentSet components)
     {
         var ids = ResolveIds(components);
         var buffer = ChunkBuffer.Rent(ids.Length);
@@ -569,7 +568,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         {
             fixed (int* componentIds = ids)
             {
-                _query(componentIds, ids.Length, filter, CollectChunk);
+                _query(componentIds, ids.Length, CollectChunk);
             }
         }
         finally
@@ -590,7 +589,7 @@ internal sealed class ServerEntityApi : IEntityApi, IChunkSource, IDimensionLook
         {
             ref readonly var comp = ref comps[i];
             slots[i] = comp.HeapSelf != IntPtr.Zero
-                ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride, comp.Start)
+                ? new ChunkSlot(((IComponentArray)GCHandle.FromIntPtr(comp.HeapSelf).Target!).Components, comp.Stride)
                 : new ChunkSlot(comp.Data, comp.Stride);
         }
     };

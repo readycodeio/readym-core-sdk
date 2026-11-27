@@ -2,7 +2,6 @@
 using Friflo.Engine.ECS;
 using LiteNetLib.Utils;
 using ReadyM.Api.Attributes;
-using ReadyM.Api.ECS.Components;
 using ReadyM.Api.Idents;
 using ReadyM.Api.Multiplayer.ECS.Values;
 
@@ -11,7 +10,7 @@ namespace ReadyM.Api.Multiplayer.ECS.Components;
 [NativeComponent]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct MetadataComponent(NetworkId netId, ArchetypeId archetype, PlayerId owner) 
-    : IIndexedComponent<NetworkId>, IKeyHeldOnce
+    : IIndexedComponent<NetworkId>
 {
     public readonly NetworkId NetId = netId;
     public readonly ArchetypeId Archetype = archetype;

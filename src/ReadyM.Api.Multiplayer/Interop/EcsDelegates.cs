@@ -139,16 +139,6 @@ internal struct ChunkComponent
 
     /// <summary>Bytes per element as the owning side sees it.</summary>
     public int Stride;
-
-    /// <summary>
-    /// Where the chunk starts in a mod's heap, when a dimension filter cut the archetype into runs. Zero otherwise. An
-    /// AOT-owned <see cref="Data"/> already points at the run's first element.
-    /// </summary>
-    public int Start;
-
-    /// <summary>This slot for a run that starts at row <paramref name="start"/>: an address moves, a mod heap's start is set.</summary>
-    public readonly ChunkComponent From(int start)
-        => Data != IntPtr.Zero ? this with { Data = Data + start * Stride } : this with { Start = start };
 }
 
 /// <summary>
@@ -178,7 +168,7 @@ internal struct ComponentSlot
 internal unsafe delegate void ChunkCallback(IntPtr entities, ChunkComponent* comps, int n, int count);
 
 /// <summary>Runs a query over <paramref name="n"/> component ids, one chunk callback per archetype.</summary>
-internal unsafe delegate void QueryDelegate(int* componentIds, int n, DimensionFilter filter, ChunkCallback cb);
+internal unsafe delegate void QueryDelegate(int* componentIds, int n, ChunkCallback cb);
 
 /// <summary>What <see cref="SetComponentDelegate"/> and <see cref="FindByIndexDelegate"/> return.</summary>
 internal static class IndexResult
@@ -207,13 +197,9 @@ internal static class IndexResult
 /// </summary>
 internal unsafe delegate byte SetComponentDelegate(RawEntity entity, byte matchRevision, int componentType, void* data, int size);
 
-/// <summary>
-/// The first entity whose indexed component holds this value, in the dimensions the filter sees. Answers an
-/// <see cref="IndexResult"/>.
-/// </summary>
+/// <summary>The entity whose indexed component holds this value. Answers an <see cref="IndexResult"/>.</summary>
 /// <remarks>The value arrives as its own bytes, so only an unmanaged key can be asked for.</remarks>
-internal unsafe delegate byte FindByIndexDelegate(
-    int componentType, void* value, int size, DimensionFilter filter, RawEntity* found);
+internal unsafe delegate byte FindByIndexDelegate(int componentType, void* value, int size, RawEntity* found);
 
 /// <summary>Receives the entities a scoped query matched, all at once.</summary>
 internal unsafe delegate void EntityListCallback(IntPtr entities, int count);
@@ -227,5 +213,12 @@ internal unsafe delegate void EntityListCallback(IntPtr entities, int count);
 /// through each archetype, so there are no contiguous runs to hand back.
 /// </remarks>
 internal unsafe delegate void QueryInScopeDelegate(int* componentIds, int n, RawEntity scope, EntityListCallback cb);
+
+/// <summary>
+/// The entities of a dimension that carry the <paramref name="n"/> components: Friflo's <c>HasValue</c> on the
+/// dimension component, which the host keeps.
+/// </summary>
+/// <remarks>One list, as a scoped query's: a dimension's entities are scattered through the archetypes.</remarks>
+internal unsafe delegate void QueryInDimensionDelegate(int* componentIds, int n, DimensionId dimension, EntityListCallback cb);
 
 internal delegate int RegisterModComponentDelegate(ModComponentInfo info, NativeString256 typeFullName);

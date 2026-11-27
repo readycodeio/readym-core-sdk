@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.ComponentModel;
 using Friflo.Engine.ECS;
-using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Archetypes;
@@ -28,25 +27,11 @@ public static class IndexRegistry
         return false;
     }
 
-    /// <summary>A lookup in the dimensions <paramref name="filter"/> sees, where the api keeps dimensions.</summary>
-    internal static bool TryFind<TShape, TKey>(IEntityApi api, TKey key, DimensionFilter filter, out RawEntity entity)
-    {
-        if (Finders.TryGetValue(typeof(TShape), out var finder) && finder is Finder<TKey> typed)
-            return api is IDimensionLookup dimensions
-                ? typed.TryFindIn(dimensions, key, filter, out entity)
-                : typed.TryFind(api, key, out entity);
-
-        entity = default;
-        return false;
-    }
-
     // The component type is only known where the shape was generated, so it is captured here rather
     // than travelling with the call. The api never has to name it.
     private abstract class Finder<TKey>
     {
         internal abstract bool TryFind(IEntityApi api, TKey key, out RawEntity entity);
-
-        internal abstract bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, out RawEntity entity);
     }
 
     private sealed class Finder<TKey, TComponent> : Finder<TKey>
@@ -54,8 +39,5 @@ public static class IndexRegistry
     {
         internal override bool TryFind(IEntityApi api, TKey key, out RawEntity entity)
             => api.TryFindByIndex<TComponent, TKey>(key, out entity);
-
-        internal override bool TryFindIn(IDimensionLookup api, TKey key, DimensionFilter filter, out RawEntity entity)
-            => api.TryFindByIndex<TComponent, TKey>(key, filter, out entity);
     }
 }

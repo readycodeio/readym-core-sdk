@@ -35,6 +35,7 @@ internal sealed class FakeRelay
     private readonly SetComponentDelegate _setComponent;
     private readonly FindByIndexDelegate _findByIndex;
     private readonly QueryInScopeDelegate _queryInScope;
+    private readonly QueryInDimensionDelegate _queryInDimension;
     private readonly TryGetEntityScopeDelegate _tryGetEntityScope;
     private readonly CreateLocalEntityInScopeDelegate _createLocalEntityInScope;
     private readonly GetComponentSlotDelegate _getComponentSlot;
@@ -91,6 +92,7 @@ internal sealed class FakeRelay
         _setComponent = SetComponentImpl;
         _findByIndex = FindByIndexImpl;
         _queryInScope = QueryInScopeImpl;
+        _queryInDimension = QueryInDimensionImpl;
         _tryGetEntityScope = TryGetEntityScopeImpl;
         _createLocalEntityInScope = CreateLocalEntityInScopeImpl;
         _getComponentSlot = GetComponentSlotImpl;
@@ -131,6 +133,7 @@ internal sealed class FakeRelay
         SetComponent = Marshal.GetFunctionPointerForDelegate(_setComponent),
         FindByIndex = Marshal.GetFunctionPointerForDelegate(_findByIndex),
         QueryInScope = Marshal.GetFunctionPointerForDelegate(_queryInScope),
+        QueryInDimension = Marshal.GetFunctionPointerForDelegate(_queryInDimension),
         TryGetEntityScope = Marshal.GetFunctionPointerForDelegate(_tryGetEntityScope),
         CreateLocalEntityInScope = Marshal.GetFunctionPointerForDelegate(_createLocalEntityInScope),
         IsEntityAlive = Marshal.GetFunctionPointerForDelegate(_isEntityAlive),
@@ -325,7 +328,7 @@ internal sealed class FakeRelay
         return 1;
     }
 
-    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, DimensionFilter filter, RawEntity* found)
+    private unsafe byte FindByIndexImpl(int componentType, void* value, int size, RawEntity* found)
     {
         FindByIndexCalls++;
 
@@ -335,17 +338,41 @@ internal sealed class FakeRelay
         if (!_indexes.TryGetValue(componentType, out var index))
             return _modOwned.Contains(componentType) ? IndexResult.ModOwned : IndexResult.NoIndex;
 
-        // As the relay does: the first holder the filter sees, in the dimensions the test placed entities in
-        foreach (var holder in index.Holders((IntPtr)value))
+        if (!index.TryFind((IntPtr)value, out var entity))
+            return IndexResult.Missed;
+
+        *found = entity;
+        return IndexResult.Done;
+    }
+
+    /// <summary>
+    /// A dimension's entities: those a test placed with <see cref="SetDimension"/>, as a scope's are those it put with
+    /// <see cref="PutInScope"/>.
+    /// </summary>
+    private unsafe void QueryInDimensionImpl(int* componentIds, int n, DimensionId dimension, EntityListCallback callback)
+    {
+        var wanted = new int[n];
+
+        for (var i = 0; i < n; i++)
+            wanted[i] = componentIds[i];
+
+        var matched = new List<RawEntity>();
+
+        foreach (var (id, placed) in _dimensions)
         {
-            if (filter.IsEveryDimension || filter.Sees(DimensionOf(holder)))
-            {
-                *found = holder;
-                return IndexResult.Done;
-            }
+            var entity = RawEntities.From(id, _entities[id].Revision);
+
+            if (placed != dimension || !Resolve(entity, 1, out var slot))
+                continue;
+
+            if (wanted.All(component => slot.Archetype.HeapOrNull(component) is not null))
+                matched.Add(entity);
         }
 
-        return IndexResult.Missed;
+        var entities = matched.ToArray();
+
+        fixed (RawEntity* buffer = entities)
+            callback(entities.Length == 0 ? IntPtr.Zero : (IntPtr)buffer, entities.Length);
     }
 
     /// <summary>
@@ -568,20 +595,16 @@ internal sealed class FakeRelay
             *slot = heap.SlotAt(found.Row);
     }
 
-    // An entity no test placed is shared, as the host's main dimension component is: every filter sees it.
+    // An entity no test placed is shared, as the host's DimensionComponent says by default.
     private readonly Dictionary<int, DimensionId> _dimensions = [];
 
-    /// <summary>Places an entity in a dimension, for the relay's dimension filter to cut it out of a query.</summary>
+    /// <summary>Places an entity in a dimension: what the host's DimensionComponent would say of it.</summary>
     internal void SetDimension(RawEntity entity, DimensionId dimension) => _dimensions[entity.Id] = dimension;
 
     internal DimensionId DimensionOf(RawEntity entity)
         => _dimensions.TryGetValue(entity.Id, out var dimension) ? dimension : DimensionId.Shared;
 
-    private Func<RawEntity, DimensionId>? _dimensionOfCached;
-
-    private Func<RawEntity, DimensionId> DimensionReader => _dimensionOfCached ??= DimensionOf;
-
-    private unsafe void QueryImpl(int* componentIds, int n, DimensionFilter filter, ChunkCallback callback)
+    private unsafe void QueryImpl(int* componentIds, int n, ChunkCallback callback)
     {
         QueryCalls++;
 
@@ -591,7 +614,6 @@ internal sealed class FakeRelay
             wanted[i] = componentIds[i];
 
         var comps = stackalloc ChunkComponent[n];
-        var run = stackalloc ChunkComponent[n];
 
         foreach (var archetype in _archetypes)
         {
@@ -606,24 +628,8 @@ internal sealed class FakeRelay
             archetype.Entities.AsSpan(0, archetype.Count).CopyTo(identities);
 
             fixed (RawEntity* entities = identities)
-            {
-                if (filter.IsEveryDimension || _dimensions.Count == 0)
-                {
-                    callback((IntPtr)entities, comps, n, archetype.Count);
-                    continue;
-                }
-
-                // As the relay does: one chunk per run of rows the filter sees
-                var rows = new PlacedRows(this, identities);
-                ChunkRuns.Hand(in rows, filter, entities, comps, run, n, archetype.Count, callback);
-            }
+                callback((IntPtr)entities, comps, n, archetype.Count);
         }
-    }
-
-    /// <summary>The rows' dimensions, as the test placed their entities.</summary>
-    private readonly struct PlacedRows(FakeRelay relay, RawEntity[] identities) : IRowDimensions
-    {
-        public DimensionId At(int row) => relay.DimensionOf(identities[row]);
     }
 
     [ThreadStatic]

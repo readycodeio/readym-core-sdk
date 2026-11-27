@@ -12,11 +12,6 @@ public interface IEntities : IEntitiesBase
     /// </summary>
     EntityQuery<T> Query<T>() where T : struct, IArchetypeQueryable;
 
-    /// <summary>The entity whose indexed value is the key, as the shape carrying the index.</summary>
-    /// <returns><c>false</c> when nothing holds that value.</returns>
-    bool TryLookup<T, TKey>(TKey key, out T shape)
-        where T : struct, IArchetypeQueryable, IIndexed<TKey>;
-
     /// <summary>
     /// Removes the entity a shape names: an archetype, a mixin, or, where the runtime has them, the
     /// chunk view of either. False when it was already gone.

@@ -2,47 +2,35 @@
 
 namespace ReadyM.SDK.Server.Entities;
 
-/// <summary>
-/// The indexes this runtime keeps for components the relay stores but cannot index itself. A key can have a holder in
-/// each dimension, so each key keeps every holder written through this runtime, oldest first.
-/// </summary>
+/// <summary>The indexes this runtime keeps for components the relay stores but cannot index itself.</summary>
 internal sealed class ComponentIndexes
 {
     private readonly Dictionary<Type, object> _tables = [];
 
     internal void Remember<TComponent, TKey>(TKey key, RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
-    {
-        var table = Table<TComponent, TKey>();
+        => Table<TComponent, TKey>()[key] = entity;
 
-        if (!table.TryGetValue(key, out var holders))
-            table[key] = holders = [];
-
-        if (!holders.Contains(entity))
-            holders.Add(entity);
-    }
-
-    /// <summary>Drops only this entity, so a stale key cannot evict a live holder.</summary>
+    /// <summary>Only drops the entry when it still names this entity, so a stale key cannot evict a live one.</summary>
     internal void Forget<TComponent, TKey>(TKey key, RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         var table = Table<TComponent, TKey>();
 
-        if (table.TryGetValue(key, out var holders) && holders.Remove(entity) && holders.Count == 0)
+        if (table.TryGetValue(key, out var found) && found == entity)
             table.Remove(key);
     }
 
-    /// <summary>The holders remembered for the key; empty when none. Live: forgetting one changes it.</summary>
-    internal IReadOnlyList<RawEntity> Holders<TComponent, TKey>(TKey key)
+    internal bool TryFind<TComponent, TKey>(TKey key, out RawEntity entity)
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
-        => Table<TComponent, TKey>().TryGetValue(key, out var holders) ? holders : [];
+        => Table<TComponent, TKey>().TryGetValue(key, out entity);
 
-    private Dictionary<TKey, List<RawEntity>> Table<TComponent, TKey>()
+    private Dictionary<TKey, RawEntity> Table<TComponent, TKey>()
         where TComponent : struct, IIndexedComponent<TKey> where TKey : notnull
     {
         if (!_tables.TryGetValue(typeof(TComponent), out var table))
-            _tables[typeof(TComponent)] = table = new Dictionary<TKey, List<RawEntity>>();
+            _tables[typeof(TComponent)] = table = new Dictionary<TKey, RawEntity>();
 
-        return (Dictionary<TKey, List<RawEntity>>)table;
+        return (Dictionary<TKey, RawEntity>)table;
     }
 }

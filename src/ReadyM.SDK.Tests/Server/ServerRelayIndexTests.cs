@@ -1,5 +1,4 @@
-﻿using ReadyM.Api.Idents;
-using ReadyM.SDK.Entities;
+﻿using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;
@@ -78,7 +77,7 @@ public class ServerRelayIndexTests : ServerSdkTest
     {
         Spawn<Misregistered>();
 
-        var refused = Assert.Throws<InvalidOperationException>(() => Entities.TryLookup<Unkeyed, int>(0, DimensionId.Main, out _));
+        var refused = Assert.Throws<InvalidOperationException>(() => Entities.TryLookup<Unkeyed, int>(0, out _));
 
         Assert.Contains("RegisterIndexedComponent<UnkeyedComponent, Int32>", refused.Message);
     }
@@ -151,35 +150,5 @@ public class ServerRelayIndexTests : ServerSdkTest
         Assert.Equal(6, total);
         Assert.Equal(1, Relay.QueryCalls);
         Assert.Equal(0, Relay.SlotCalls);
-    }
-
-    // -- dimensions (indexed by the relay) ---------------------------------------------------------------------
-
-    private static readonly DimensionId Instance = new(1);
-
-    [Fact]
-    public void A_key_held_once_is_found_with_no_dimension_wherever_it_is()
-    {
-        var held = Spawn<Replicated>();
-        held.NetId = 7;
-        Relay.SetDimension(IdentityOf(held), Instance);
-
-        Assert.True(Entities.TryLookup<Networked2, int>(7, out var found));
-        Assert.Equal(IdentityOf(held).Id, EntityHandle.Of(found).Id);
-    }
-
-    /// <summary>An area id is held once per dimension, so it is looked up in one.</summary>
-    [Fact]
-    public void A_key_held_per_dimension_is_found_in_its_dimension()
-    {
-        var inMain = Spawn<TestArea>();
-        inMain.AreaId = 7;
-        Relay.SetDimension(IdentityOf(inMain), DimensionId.Main);
-        var instanced = Spawn<TestArea>();
-        instanced.AreaId = 7;
-        Relay.SetDimension(IdentityOf(instanced), Instance);
-
-        Assert.True(Entities.TryLookup<TestArea, int>(7, Instance, out var found));
-        Assert.Equal(IdentityOf(instanced).Id, EntityHandle.Of(found).Id);
     }
 }

@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.Relay.Server.Sdk.Interop;
 
 namespace ReadyM.Relay.Server.Sdk.Players;
@@ -55,23 +54,23 @@ internal class PlayerApi : IPlayers
     }
 
     /// <inheritdoc />
-    public List<PlayerId> InArea(AreaId area) => InArea(area, DimensionFilter.EveryDimension);
+    public List<PlayerId> InArea(AreaId area) => InArea(new FullAreaId(DimensionId.Main, area), everyDimension: 1);
 
     /// <inheritdoc />
-    public List<PlayerId> InArea(FullAreaId area) => InArea(area.Area, DimensionFilter.InDimension(area.Dimension));
+    public List<PlayerId> InArea(FullAreaId area) => InArea(area, everyDimension: 0);
 
     /// <inheritdoc />
     public List<PlayerId> InCell(AreaId area, CellId cell)
-        => InCell(new FullCellId(DimensionId.Main, area, cell), DimensionFilter.EveryDimension);
+        => InCell(new FullCellId(DimensionId.Main, area, cell), everyDimension: 1);
 
     /// <inheritdoc />
-    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, DimensionFilter.InDimension(cell.Dimension));
+    public List<PlayerId> InCell(FullCellId cell) => InCell(cell, everyDimension: 0);
 
-    private unsafe List<PlayerId> InArea(AreaId area, DimensionFilter filter)
-        => Collect((b, c) => _getAreaPlayers(area, filter, b, c));
+    private unsafe List<PlayerId> InArea(FullAreaId area, byte everyDimension)
+        => Collect((b, c) => _getAreaPlayers(area, everyDimension, b, c));
 
-    private unsafe List<PlayerId> InCell(FullCellId cell, DimensionFilter filter)
-        => Collect((b, c) => _getCellPlayers(cell, filter, b, c));
+    private unsafe List<PlayerId> InCell(FullCellId cell, byte everyDimension)
+        => Collect((b, c) => _getCellPlayers(cell, everyDimension, b, c));
 
     /// <summary>A pointer cannot be a generic argument, so the ask has a type of its own.</summary>
     private unsafe delegate int Ask(PlayerId* buffer, int capacity);

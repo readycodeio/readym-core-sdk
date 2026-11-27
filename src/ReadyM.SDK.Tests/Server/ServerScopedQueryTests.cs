@@ -133,8 +133,7 @@ public class ServerScopedQueryTests : ServerSdkTest
         Spawn<Guard>(north).Route = 8;
         Spawn<Guard>(Area(43)).Route = 9;
 
-        // An area is held once per dimension, so it is looked up in one
-        Assert.True(Entities.TryLookup<TestArea, int>(42, DimensionId.Main, out var found));
+        Assert.True(Entities.TryLookup<TestArea, int>(42, out var found));
 
         var routes = 0;
 
@@ -352,5 +351,46 @@ public class ServerScopedQueryTests : ServerSdkTest
 
         Assert.Equal(2, visited);
         Assert.Equal(2, Relay.DeleteCalls);
+    }
+
+    /// <summary>
+    /// A dimension holds what its DimensionComponent names, scopes included (the relay's HasValue); a shared entity is
+    /// in none.
+    /// </summary>
+    [Fact]
+    public void A_dimension_query_visits_only_what_the_dimension_holds()
+    {
+        var instance = new DimensionId(1);
+        var north = Area(1);
+        var south = Area(2);
+
+        var instanced = Spawn<Guard>(north);
+        instanced.Route = 10;
+        var inMain = Spawn<Guard>(south);
+        inMain.Route = 20;
+        Spawn<Guard>().Route = 30;
+
+        Relay.SetDimension(IdentityOf(north), instance);
+        Relay.SetDimension(IdentityOf(instanced), instance);
+        Relay.SetDimension(IdentityOf(south), DimensionId.Main);
+        Relay.SetDimension(IdentityOf(inMain), DimensionId.Main);
+
+        var routes = new List<int>();
+        foreach (var guard in Entities.Query<Guard>().InDimension(instance))
+            routes.Add(guard.Route);
+
+        Assert.Equal([10], routes);
+
+        routes.Clear();
+        foreach (var guard in Entities.Query<Guard>().InDimension(DimensionId.Main))
+            routes.Add(guard.Route);
+
+        Assert.Equal([20], routes);
+
+        var areas = new List<int>();
+        foreach (var area in Entities.Query<TestArea>().InDimension(instance))
+            areas.Add(area.AreaId);
+
+        Assert.Equal([1], areas);
     }
 }

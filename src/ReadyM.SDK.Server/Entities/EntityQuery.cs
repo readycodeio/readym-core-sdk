@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using ReadyM.Api.Idents;
-using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Chunks;
 using ReadyM.SDK.Entities;
@@ -20,31 +19,21 @@ public readonly ref struct EntityQuery<T>
 
     private static ComponentSet Components => default(T).Components;
 
-    private readonly DimensionFilter _dimension;
-
-    internal EntityQuery(ServerEntityApi api)
-        : this(api, DimensionFilter.EveryDimension)
-    {
-    }
-
-    private EntityQuery(ServerEntityApi? api, DimensionFilter dimension)
-    {
-        _api = api;
-        _dimension = dimension;
-    }
+    internal EntityQuery(ServerEntityApi api) => _api = api;
 
     /// <summary>
-    /// Narrows the query to one dimension and the shared entities. Without it a query sees every dimension.
+    /// Narrows the query to one dimension: its area and cell scopes and what they hold, not the shared entities.
+    /// Without it a query sees every dimension.
     /// </summary>
-    public EntityQuery<T> InDimension(DimensionId dimension) => new(_api, DimensionFilter.InDimension(dimension));
+    public ScopedQuery<T> InDimension(DimensionId dimension) => new(_api, dimension);
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public ChunkQuery<TView>.Enumerator Chunks<TView>()
         where TView : IArchetypeChunkView<TView>, allows ref struct
-        => new ChunkQuery<TView>(_api, _dimension).GetEnumerator();
+        => new ChunkQuery<TView>(_api).GetEnumerator();
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public IdentityEnumerator Identities() => new(_api, Components, _dimension);
+    public IdentityEnumerator Identities() => new(_api, Components);
 
     /// <summary>Narrows the query to the entities one scope holds.</summary>
     public ScopedQuery<T> InScope(Scope scope) => new(_api, scope);
@@ -56,7 +45,7 @@ public readonly ref struct EntityQuery<T>
         private readonly EntityBuffer? _buffer;
         private int _index;
 
-        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components, DimensionFilter dimension)
+        internal IdentityEnumerator(ServerEntityApi? api, ComponentSet components)
         {
             // A query nobody gave a world to matches nothing, so a property can hand one out
             // when there is nothing to look in.
@@ -69,7 +58,7 @@ public readonly ref struct EntityQuery<T>
             }
 
             // Collected before the scope opens, so a failure here cannot leave one open.
-            _buffer = api.CollectMatching(components, dimension);
+            _buffer = api.CollectMatching(components);
 
             api.EnterQuery();
 

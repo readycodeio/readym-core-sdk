@@ -1,5 +1,4 @@
-﻿using ReadyM.Api.Multiplayer.Interop;
-using ReadyM.SDK.Entities;
+﻿using ReadyM.SDK.Entities;
 
 namespace ReadyM.SDK.Chunks;
 
@@ -8,21 +7,10 @@ public readonly ref struct ChunkQuery<TView>
     where TView : IArchetypeChunkView<TView>, allows ref struct
 {
     private readonly IChunkSource? _source;
-    private readonly DimensionFilter _filter;
 
-    /// <summary>Every dimension; the client keeps none.</summary>
-    internal ChunkQuery(IChunkSource? source)
-        : this(source, DimensionFilter.EveryDimension)
-    {
-    }
+    internal ChunkQuery(IChunkSource? source) => _source = source;
 
-    internal ChunkQuery(IChunkSource? source, DimensionFilter filter)
-    {
-        _source = source;
-        _filter = filter;
-    }
-
-    public Enumerator GetEnumerator() => new(_source, _filter);
+    public Enumerator GetEnumerator() => new(_source);
 
     /// <exclude />
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -38,7 +26,7 @@ public readonly ref struct ChunkQuery<TView>
 
         private readonly IChunkSource? _source;
 
-        internal Enumerator(IChunkSource? source, DimensionFilter filter)
+        internal Enumerator(IChunkSource? source)
         {
             // A query nobody gave a world to matches nothing, so a property can hand one out when
             // there is nothing to look in.
@@ -56,7 +44,7 @@ public readonly ref struct ChunkQuery<TView>
             source.EnterQuery();
 
             _source = source;
-            _buffer = source.Collect(TView.Components, filter);
+            _buffer = source.Collect(TView.Components);
             _prototype = source.Prototype;
             _chunk = default!;
             _chunkIndex = -1;

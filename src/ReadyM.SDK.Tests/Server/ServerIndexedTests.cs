@@ -1,5 +1,4 @@
-﻿using ReadyM.Api.Idents;
-using ReadyM.SDK.Entities;
+﻿using ReadyM.SDK.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
 namespace ReadyM.SDK.Tests.Server;
@@ -151,38 +150,5 @@ public class ServerIndexedTests : ServerSdkTest
         Assert.Equal(6, total);
         Assert.Equal(1, Relay.QueryCalls);
         Assert.Equal(0, Relay.SlotCalls);
-    }
-
-    // -- dimensions: a key held once per dimension (remembered on this side) -------------------------------------
-
-    private static readonly DimensionId Instance = new(1);
-
-    private Boat BoatAt(int berth, DimensionId dimension)
-    {
-        var boat = Spawn<Boat>();
-        boat.Berth = berth;
-        Relay.SetDimension(IdentityOf(boat), dimension);
-        return boat;
-    }
-
-    [Fact]
-    public void A_key_held_once_is_found_with_no_dimension_wherever_it_is()
-    {
-        var passenger = Spawn<Passenger>();
-        passenger.Ticket = 7;
-        Relay.SetDimension(IdentityOf(passenger), Instance);
-
-        Assert.True(Entities.TryLookup<Ticketed, int>(7, out var found));
-        Assert.Equal(IdentityOf(passenger).Id, EntityHandle.Of(found).Id);
-    }
-
-    [Fact]
-    public void A_key_held_per_dimension_is_found_in_its_dimension()
-    {
-        BoatAt(7, DimensionId.Main);
-        var instanced = BoatAt(7, Instance);
-
-        Assert.True(Entities.TryLookup<Berthed, int>(7, Instance, out var found));
-        Assert.Equal(IdentityOf(instanced).Id, EntityHandle.Of(found).Id);
     }
 }

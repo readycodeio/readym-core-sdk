@@ -34,7 +34,7 @@ internal static class ComponentEmitter
         var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
         // The other half states IReadyComponent and the propagation contract. Indexing and
         // allocation follow the fields, so they belong on the half that declares them.
-        var contracts = Contracts(accessors, index is null ? null : $"{ArchetypeNames.IndexedComponent}<{index.Type}>", index);
+        var contracts = Contracts(accessors, index is null ? null : $"{ArchetypeNames.IndexedComponent}<{index.Type}>");
 
         // The other half declares the masks, so the struct has fields in two declarations. Under the
         // default sequential layout that leaves their order undefined, which the compiler warns about in
@@ -52,15 +52,12 @@ internal static class ComponentEmitter
     }
 
     /// <summary>The extra contracts a component carries beyond being a component.</summary>
-    private static string Contracts(IReadOnlyList<AccessorModel> accessors, string? first, AccessorModel? index)
+    private static string Contracts(IReadOnlyList<AccessorModel> accessors, string? first)
     {
         var carried = new List<string>();
 
         if (first is not null)
             carried.Add(first);
-
-        if (index is { IsHeldOnce: true })
-            carried.Add(ArchetypeNames.KeyHeldOnce);
 
         if (accessors.Any(accessor => accessor.IsNativeContainer))
             carried.Add(ArchetypeNames.NativeInit);
@@ -92,7 +89,7 @@ internal static class ComponentEmitter
         var index = accessors.FirstOrDefault(accessor => accessor.IsIndex);
         var contracts = Contracts(accessors, index is null
             ? ArchetypeNames.Component
-            : $"{ArchetypeNames.IndexedComponent}<{index.Type}>", index);
+            : $"{ArchetypeNames.IndexedComponent}<{index.Type}>");
 
         using (writer.Braces($"internal struct {name}{contracts}"))
         {

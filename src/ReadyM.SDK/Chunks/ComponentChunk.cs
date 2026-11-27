@@ -27,7 +27,7 @@ public readonly ref struct ComponentChunk
     public unsafe ComponentChunk(in ChunkSlot slot)
         => _origin = ref slot.Heap is null
             ? ref Unsafe.AsRef<byte>((void*)slot.Data)
-            : ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(slot.Heap), slot.Start * slot.Stride);
+            : ref MemoryMarshal.GetArrayDataReference(slot.Heap);
 
     /// <summary>Reads the element as the component it is, without copying it.</summary>
     /// <remarks>

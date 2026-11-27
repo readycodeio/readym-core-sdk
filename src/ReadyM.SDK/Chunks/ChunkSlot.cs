@@ -17,17 +17,12 @@ public readonly struct ChunkSlot
     internal readonly IntPtr Data;
     internal readonly int Stride;
 
-    /// <summary>The chunk's first element in <see cref="Heap"/>; an address in <see cref="Data"/> points at it already.</summary>
-    internal readonly int Start;
-
     /// <summary>An array the managed side owns. Its elements may hold references, so it is never pinned.</summary>
-    /// <param name="start">Where the chunk starts in the array, when a dimension filter cut it into runs.</param>
-    internal ChunkSlot(Array heap, int stride, int start = 0)
+    internal ChunkSlot(Array heap, int stride)
     {
         Heap = heap;
         Data = IntPtr.Zero;
         Stride = stride;
-        Start = start;
     }
 
     /// <summary>Memory that does not move, so an address is enough.</summary>
@@ -36,7 +31,6 @@ public readonly struct ChunkSlot
         Heap = null;
         Data = data;
         Stride = stride;
-        Start = 0;
     }
 
     internal bool IsEmpty => Heap is null && Data == IntPtr.Zero;

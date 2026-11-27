@@ -2,7 +2,6 @@ using ReadyM.Api.Idents;
 using ReadyM.SDK.Archetypes;
 using ReadyM.SDK.Archetypes.Core;
 using ReadyM.SDK.Entities;
-using ReadyM.Api.Multiplayer.Interop;
 using ReadyM.SDK.Server.Entities;
 
 namespace ReadyM.SDK.Server.Events;
@@ -10,9 +9,9 @@ namespace ReadyM.SDK.Server.Events;
 /// <summary>Finds the areas and cells a networked event names, or that its subject is in.</summary>
 internal sealed class ServerNetworkedEventScopes(IEntityApi api)
 {
-    public bool TryFindArea(FullAreaId id, out Area area) => TryFind(id, id.Dimension, out area);
+    public bool TryFindArea(FullAreaId id, out Area area) => TryFind(id, out area);
 
-    public bool TryFindCell(FullCellId id, out Cell cell) => TryFind(id, id.Dimension, out cell);
+    public bool TryFindCell(FullCellId id, out Cell cell) => TryFind(id, out cell);
 
     /// <summary>The entity's dimension; the main one where the host keeps none.</summary>
     public DimensionId DimensionOf(EntityHandle entity)
@@ -35,10 +34,10 @@ internal sealed class ServerNetworkedEventScopes(IEntityApi api)
         return found;
     }
 
-    private bool TryFind<TScope, TId>(TId id, DimensionId dimension, out TScope scope)
+    private bool TryFind<TScope, TId>(TId id, out TScope scope)
         where TScope : struct, IArchetypeQueryable, IIndexed<TId>
     {
-        if (IndexRegistry.TryFind<TScope, TId>(api, id, DimensionFilter.InDimension(dimension), out var raw))
+        if (IndexRegistry.TryFind<TScope, TId>(api, id, out var raw))
         {
             scope = new TScope { Handle = new EntityHandle(raw, api) };
             return true;

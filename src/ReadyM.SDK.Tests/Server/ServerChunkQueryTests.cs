@@ -1,4 +1,3 @@
-using ReadyM.Api.Idents;
 using ReadyM.SDK.Server.Entities;
 using ReadyM.SDK.Tests.Server.Fixtures;
 
@@ -291,44 +290,5 @@ public class ServerChunkQueryTests : ServerSdkTest
             total += position.X;
 
         Assert.Equal(6f, total);
-    }
-
-    /// <summary>
-    /// A dimension filter cuts an archetype into runs; a run that starts inside it reads both kinds of heap from its
-    /// own first row, not the archetype's.
-    /// </summary>
-    [Fact]
-    public void A_run_that_starts_inside_a_chunk_reads_from_its_start()
-    {
-        var instance = new DimensionId(1);
-        var other = new DimensionId(2);
-
-        var npcs = new List<Npc>();
-        for (var i = 0; i < 6; i++)
-        {
-            var npc = Spawn<Npc>();
-            npc.Faction = i;
-            npc.Hp = i * 10;
-            npcs.Add(npc);
-        }
-
-        // Rows 0 and 5 elsewhere, 2 and 3 in the instance, 1 and 4 shared
-        Relay.SetDimension(IdentityOf(npcs[0]), other);
-        Relay.SetDimension(IdentityOf(npcs[2]), instance);
-        Relay.SetDimension(IdentityOf(npcs[3]), instance);
-        Relay.SetDimension(IdentityOf(npcs[5]), other);
-
-        var seen = new List<(int Faction, int Hp)>();
-        foreach (var npc in Entities.Query<Npc>().InDimension(instance))
-            seen.Add((npc.Faction, npc.Hp));
-
-        Assert.Equal([(1, 10), (2, 20), (3, 30), (4, 40)], seen);
-
-        var inMain = new List<int>();
-        foreach (var npc in Entities.Query<Npc>().InDimension(DimensionId.Main))
-            inMain.Add(npc.Faction);
-
-        Assert.Equal([1, 4], inMain);
-        Assert.Equal(6, CountIdentities(Entities.Query<Npc>())); // no dimension named: every one
     }
 }
